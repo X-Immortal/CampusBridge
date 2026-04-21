@@ -37,8 +37,8 @@ CampusBridge 是《软件工程与计算 II》课程大作业项目，目标是�
 campusbridge/
 ├─ frontend/      # 前端项目
 ├─ backend/       # 后端项目
+│  └─ sql/        # 数据库脚本
 ├─ docs/          # 各阶段文档
-├─ sql/           # 数据库脚本
 ├─ .gitlab-ci.yml # GitLab CI 配置
 └─ README.md
 ```

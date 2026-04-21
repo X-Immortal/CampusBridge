@@ -1,0 +1,27 @@
+stages:
+  - lint
+  - build
+
+frontend-lint:
+  stage: lint
+  image: node:20
+  cache:
+    key: frontend-${CI_COMMIT_REF_SLUG}
+    paths:
+      - frontend/node_modules/
+  script:
+    - cd frontend
+    - npm install
+    - npm run lint
+
+frontend-build:
+  stage: build
+  image: node:20
+  cache:
+    key: frontend-${CI_COMMIT_REF_SLUG}
+    paths:
+      - frontend/node_modules/
+  script:
+    - cd frontend
+    - npm install
+    - npm run build

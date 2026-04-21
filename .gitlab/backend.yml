@@ -1,0 +1,29 @@
+stages:
+  - lint
+  - build
+
+backend-lint:
+  stage: lint
+  image: maven:3.9.9-eclipse-temurin-17
+  cache:
+    key: backend-${CI_COMMIT_REF_SLUG}
+    paths:
+      - .m2/repository/
+  variables:
+    MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+  script:
+    - cd backend
+    - mvn checkstyle:check
+
+backend-build:
+  stage: build
+  image: maven:3.9.9-eclipse-temurin-17
+  cache:
+    key: backend-${CI_COMMIT_REF_SLUG}
+    paths:
+      - .m2/repository/
+  variables:
+    MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+  script:
+    - cd backend
+    - mvn clean test
