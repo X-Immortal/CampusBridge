@@ -1,0 +1,620 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>CampusBridge AI 原始类图</title>
+  <style>
+    :root {
+      --text: #172033;
+      --muted: #5f6b7a;
+      --line: #c8d0dc;
+      --user-bg: #e0f2fe;
+      --user-border: #0284c7;
+      --task-bg: #dcfce7;
+      --task-border: #16a34a;
+      --comm-bg: #f3e8ff;
+      --comm-border: #9333ea;
+      --credit-bg: #ffedd5;
+      --credit-border: #f97316;
+      --gov-bg: #fee2e2;
+      --gov-border: #dc2626;
+      --service-bg: #ccfbf1;
+      --service-border: #0f766e;
+      --repo-bg: #f1f5f9;
+      --repo-border: #64748b;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 28px;
+      color: var(--text);
+      font-family: "Microsoft YaHei", "Segoe UI", Arial, sans-serif;
+      background: #f8fafc;
+    }
+
+    h1, h2, h3 {
+      margin: 0;
+      line-height: 1.25;
+    }
+
+    h1 {
+      margin-bottom: 8px;
+      font-size: 28px;
+    }
+
+    h2 {
+      margin-top: 30px;
+      margin-bottom: 14px;
+      font-size: 21px;
+    }
+
+    h3 {
+      margin-bottom: 10px;
+      font-size: 17px;
+    }
+
+    p {
+      margin: 0 0 12px;
+      color: var(--muted);
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 18px 0 24px;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      font-size: 13px;
+    }
+
+    .swatch {
+      width: 18px;
+      height: 12px;
+      border: 2px solid;
+      border-radius: 3px;
+    }
+
+    .user-swatch { background: var(--user-bg); border-color: var(--user-border); }
+    .task-swatch { background: var(--task-bg); border-color: var(--task-border); }
+    .comm-swatch { background: var(--comm-bg); border-color: var(--comm-border); }
+    .credit-swatch { background: var(--credit-bg); border-color: var(--credit-border); }
+    .gov-swatch { background: var(--gov-bg); border-color: var(--gov-border); }
+    .service-swatch { background: var(--service-bg); border-color: var(--service-border); }
+    .repo-swatch { background: var(--repo-bg); border-color: var(--repo-border); }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(260px, 1fr));
+      gap: 16px;
+      align-items: start;
+      min-width: 1400px;
+    }
+
+    .service-board {
+      display: grid;
+      grid-template-columns: 1fr 1.6fr;
+      gap: 16px;
+      min-width: 1100px;
+    }
+
+    .module {
+      padding: 12px;
+      border: 2px solid;
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .module.user { border-color: var(--user-border); background: #f0f9ff; }
+    .module.task { border-color: var(--task-border); background: #f0fdf4; }
+    .module.comm { border-color: var(--comm-border); background: #faf5ff; }
+    .module.credit { border-color: var(--credit-border); background: #fff7ed; }
+    .module.gov { border-color: var(--gov-border); background: #fff1f2; }
+    .module.service { border-color: var(--service-border); background: #f0fdfa; }
+    .module.repo { border-color: var(--repo-border); background: #f8fafc; }
+
+    .class-card {
+      margin-top: 10px;
+      overflow: hidden;
+      border: 2px solid;
+      border-radius: 6px;
+      background: #fff;
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+    }
+
+    .user .class-card { border-color: var(--user-border); }
+    .task .class-card { border-color: var(--task-border); }
+    .comm .class-card { border-color: var(--comm-border); }
+    .credit .class-card { border-color: var(--credit-border); }
+    .gov .class-card { border-color: var(--gov-border); }
+    .service .class-card { border-color: var(--service-border); }
+    .repo .class-card { border-color: var(--repo-border); }
+
+    .class-name {
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--line);
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .user .class-name { background: var(--user-bg); }
+    .task .class-name { background: var(--task-bg); }
+    .comm .class-name { background: var(--comm-bg); }
+    .credit .class-name { background: var(--credit-bg); }
+    .gov .class-name { background: var(--gov-bg); }
+    .service .class-name { background: var(--service-bg); }
+    .repo .class-name { background: var(--repo-bg); }
+
+    .stereo {
+      display: block;
+      margin-bottom: 2px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .class-section {
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--line);
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 12px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+    }
+
+    .class-section:last-child {
+      border-bottom: 0;
+    }
+
+    .relations {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(320px, 1fr));
+      gap: 12px;
+      min-width: 1100px;
+    }
+
+    .relation-card {
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .relation-card ul {
+      margin: 8px 0 0;
+      padding-left: 18px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .note {
+      margin-top: 18px;
+      padding: 12px 14px;
+      border-left: 4px solid #475569;
+      background: #fff;
+      color: var(--muted);
+    }
+
+    code {
+      font-family: Consolas, "Courier New", monospace;
+    }
+
+    @media print {
+      body {
+        background: #fff;
+      }
+      .board,
+      .service-board,
+      .relations {
+        min-width: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>CampusBridge AI 原始类图</h1>
+  <p>作为 P3 阶段“让 AI 生成类图”的原始成果。本版本用于后续 SOLID 检查，尚未人工修正。</p>
+  <p>如果需要查看真正带连线和依赖关系的类图，请打开同目录下的 <a href="./AI原始类图-关系版.svg">AI原始类图-关系版.svg</a>。</p>
+
+  <div class="legend">
+    <span class="legend-item"><span class="swatch user-swatch"></span>用户与身份</span>
+    <span class="legend-item"><span class="swatch task-swatch"></span>任务与生命周期</span>
+    <span class="legend-item"><span class="swatch comm-swatch"></span>沟通与凭证</span>
+    <span class="legend-item"><span class="swatch credit-swatch"></span>评价与信用</span>
+    <span class="legend-item"><span class="swatch gov-swatch"></span>治理与审计</span>
+    <span class="legend-item"><span class="swatch service-swatch"></span>Service 接口</span>
+    <span class="legend-item"><span class="swatch repo-swatch"></span>Repository 接口</span>
+  </div>
+
+  <h2>1. 领域类总览</h2>
+  <div class="board">
+    <section class="module user">
+      <h3>用户与身份</h3>
+      <div class="class-card">
+        <div class="class-name">User</div>
+        <div class="class-section">- id: Long
+- username: String
+- passwordHash: String
+- phone: String
+- email: String
+- role: UserRole
+- verificationStatus: VerificationStatus
+- enabled: Boolean</div>
+        <div class="class-section">+ isVerified(): boolean
++ isAdmin(): boolean
++ disable(): void
++ enable(): void
++ changePassword(hash): void</div>
+      </div>
+      <div class="class-card">
+        <div class="class-name">UserProfile</div>
+        <div class="class-section">- id: Long
+- userId: Long
+- nickname: String
+- bio: String
+- campus: String
+- serviceTime: String
+- skillTags: List&lt;String&gt;
+- avatarUrl: String
+- creditScore: Integer</div>
+        <div class="class-section">+ updateBasicInfo(...): void
++ updateSkillTags(tags): void
++ updateServiceTime(time): void</div>
+      </div>
+      <div class="class-card">
+        <div class="class-name">CampusVerification</div>
+        <div class="class-section">- id: Long
+- userId: Long
+- realName: String
+- studentNumber: String
+- school: String
+- department: String
+- status: VerificationStatus
+- reviewerId: Long
+- rejectReason: String</div>
+        <div class="class-section">+ approve(reviewerId): void
++ reject(reviewerId, reason): void
++ isPending(): boolean</div>
+      </div>
+      <div class="class-card">
+        <div class="class-name"><span class="stereo">enumeration</span>UserRole</div>
+        <div class="class-section">USER
+ADMIN</div>
+      </div>
+      <div class="class-card">
+        <div class="class-name"><span class="stereo">enumeration</span>VerificationStatus</div>
+        <div class="class-section">UNVERIFIED
+PENDING
+VERIFIED
+REJECTED</div>
+      </div>
+    </section>
+
+    <section class="module task">
+      <h3>任务与生命周期</h3>
+      <div class="class-card">
+        <div class="class-name">Task</div>
+        <div class="class-section">- id: Long
+- publisherId: Long
+- assigneeId: Long
+- title: String
+- description: String
+- category: TaskCategory
+- campus: String
+- location: String
+- deadline: LocalDateTime
+- rewardType: RewardType
+- completionStandard: String
+- status: TaskStatus</div>
+        <div class="class-section">+ publish(): void
++ open(): void
++ assignTo(helperId): void
++ submitForConfirmation(): void
++ complete(): void
++ cancel(): void
++ markDisputed(): void</div>
+      </div>
+      <div class="class-card">
+        <div class="class-name">TaskApplication</div>
+        <div class="class-section">- id: Long
+- taskId: Long
+- applicantId: Long
+- message: String
+- status: ApplicationStatus</div>
+        <div class="class-section">+ accept(): void
++ reject(): void
++ withdraw(): void
++ isPending(): boolean</div>
+      </div>
+      <div class="class-card">
+        <div class="class-name"><span class="stereo">enumeration</span>TaskStatus</div>
+        <div class="class-section">DRAFT
+PENDING_REVIEW
+OPEN
+IN_PROGRESS
+PENDING_CONFIRMATION
+COMPLETED
+CANCELLED
+DISPUTED</div>
+      </div>
+      <div class="class-card">
+        <div class="class-name"><span class="stereo">enumeration</span>TaskCategory</div>
+        <div class="class-section">ERRAND_PICKUP
+CONSULTING
+LEARNING_MATERIAL
+SECOND_HAND
+LOST_AND_FOUND
+TEAM_UP
+ATTENDANCE_HELP
+OTHER</div>
+      </div>
+      <div class="class-card">
+        <div class="class-name"><span class="stereo">enumeration</span>RewardType</div>
+        <div class="class-section">FREE
+POINTS
+CASH
+NEGOTIABLE</div>
+      </div>
+    </section>
+
+    <section class="module comm">
+      <h3>沟通与凭证</h3>
+      <div class="class-card">
+        <div class="class-name">Conversation</div>
+        <div class="class-section">- id: Long
+- taskId: Long
+- publisherId: Long
+- helperId: Long
+- lastMessageAt: LocalDateTime
+- closed: Boolean</div>
+        <div class="class-section">+ containsParticipant(userId): boolean
++ close(): void
++ touch(messageTime): void</div>
+      </div>
+      <div class="class-card">
+        <div class="class-name">Message</div>
+        <div class="class-section">- id: Long
+- conversationId: Long
+- senderId: Long
+- type: MessageType
+- content: String
+- sentAt: LocalDateTime
+- readAt: LocalDateTime</div>
+        <div class="class-section">+ markRead(readAt): void
++ isSentBy(userId): boolean</div>
+      </div>
+      <div class="class-card">
+        <div class="class-name">CompletionProof</div>
+        <div class="class-section">- id: Long
+- taskId: Long
+- submitterId: Long
+- description: String
+- imageUrls: List&lt;String&gt;
+- submittedAt: LocalDateTime</div>
+        <div class="class-section">+ hasImage(): boolean
++ isSubmittedBy(userId): boolean</div>
+      </div>
+      <div class="class-card">
+        <div class="class-name"><span class="stereo">enumeration</span>MessageType</div>
+        <div class="class-section">TEXT
+IMAGE
+SYSTEM</div>
+      </div>
+    </section>
+
+    <section class="module credit">
+      <h3>评价与信用</h3>
+      <div class="class-card">
+        <div class="class-name">Review</div>
+        <div class="class-section">- id: Long
+- taskId: Long
+- reviewerId: Long
+- revieweeId: Long
+- rating: Integer
+- comment: String
+- createdAt: LocalDateTime</div>
+        <div class="class-section">+ isPositive(): boolean
++ validateRating(): void
++ isWrittenBy(userId): boolean</div>
+      </div>
+      <div class="class-card">
+        <div class="class-name">CreditRecord</div>
+        <div class="class-section">- id: Long
+- userId: Long
+- taskId: Long
+- changeValue: Integer
+- reason: String
+- createdAt: LocalDateTime</div>
+        <div class="class-section">+ isPenalty(): boolean
++ isReward(): boolean</div>
+      </div>
+    </section>
+
+    <section class="module gov">
+      <h3>治理与审计</h3>
+      <div class="class-card">
+        <div class="class-name">Report</div>
+        <div class="class-section">- id: Long
+- reporterId: Long
+- targetType: String
+- targetId: Long
+- taskId: Long
+- reason: String
+- status: ModerationStatus</div>
+        <div class="class-section">+ markProcessing(): void
++ resolve(): void
++ reject(): void</div>
+      </div>
+      <div class="class-card">
+        <div class="class-name">Dispute</div>
+        <div class="class-section">- id: Long
+- taskId: Long
+- initiatorId: Long
+- reason: String
+- status: ModerationStatus
+- resolvedAt: LocalDateTime</div>
+        <div class="class-section">+ resolve(): void
++ reject(): void
++ isOpen(): boolean</div>
+      </div>
+      <div class="class-card">
+        <div class="class-name">ModerationCase</div>
+        <div class="class-section">- id: Long
+- caseType: String
+- targetId: Long
+- handlerId: Long
+- status: ModerationStatus
+- decision: String</div>
+        <div class="class-section">+ approve(handlerId, decision): void
++ reject(handlerId, decision): void
++ punish(handlerId, decision): void</div>
+      </div>
+      <div class="class-card">
+        <div class="class-name">AuditLog</div>
+        <div class="class-section">- id: Long
+- actorId: Long
+- action: String
+- targetType: String
+- targetId: Long
+- detail: String</div>
+        <div class="class-section">+ of(actorId, action, targetType, targetId): AuditLog</div>
+      </div>
+      <div class="class-card">
+        <div class="class-name"><span class="stereo">enumeration</span>ModerationStatus</div>
+        <div class="class-section">PENDING
+PROCESSING
+APPROVED
+REJECTED
+RESOLVED
+PUNISHED</div>
+      </div>
+    </section>
+  </div>
+
+  <h2>2. 主要关系</h2>
+  <div class="relations">
+    <section class="relation-card">
+      <h3>用户关系</h3>
+      <ul>
+        <li><code>User 1 - 1 UserProfile</code></li>
+        <li><code>User 1 - 0..1 CampusVerification</code></li>
+        <li><code>User</code> 使用 <code>UserRole</code> 和 <code>VerificationStatus</code></li>
+      </ul>
+    </section>
+    <section class="relation-card">
+      <h3>任务关系</h3>
+      <ul>
+        <li><code>User 1 - 0..* Task</code>，用户发布任务</li>
+        <li><code>Task 1 - 0..* TaskApplication</code>，任务接收多个申请</li>
+        <li><code>Task</code> 使用 <code>TaskStatus</code>、<code>TaskCategory</code>、<code>RewardType</code></li>
+      </ul>
+    </section>
+    <section class="relation-card">
+      <h3>闭环关系</h3>
+      <ul>
+        <li><code>Task 1 - 0..1 Conversation</code></li>
+        <li><code>Conversation 1 - 0..* Message</code></li>
+        <li><code>Task 1 - 0..* CompletionProof / Review / CreditRecord</code></li>
+      </ul>
+    </section>
+    <section class="relation-card">
+      <h3>治理关系</h3>
+      <ul>
+        <li><code>User 1 - 0..* Report</code></li>
+        <li><code>Task 1 - 0..* Dispute</code></li>
+        <li><code>Report / Dispute / ModerationCase</code> 使用 <code>ModerationStatus</code></li>
+      </ul>
+    </section>
+    <section class="relation-card">
+      <h3>潜在问题</h3>
+      <ul>
+        <li><code>Task</code> 和 <code>TaskLifecycleService</code> 都包含状态流转能力，职责边界需要检查。</li>
+        <li><code>Report</code>、<code>Dispute</code>、<code>ModerationCase</code> 可能有重叠。</li>
+        <li><code>targetType</code>、<code>caseType</code> 使用字符串，类型安全不足。</li>
+      </ul>
+    </section>
+  </div>
+
+  <h2>3. 服务与仓储接口</h2>
+  <div class="service-board">
+    <section class="module service">
+      <h3>Service 接口</h3>
+      <div class="class-card">
+        <div class="class-name">TaskLifecycleService</div>
+        <div class="class-section">+ createDraft(command): Task
++ publishTask(taskId, publisherId): Task
++ applyForTask(taskId, applicantId, message): TaskApplication
++ acceptApplication(taskId, applicationId, publisherId): Task
++ submitCompletionProof(...): CompletionProof
++ confirmCompletion(taskId, publisherId): Task
++ markDisputed(taskId, operatorId, reason): Task</div>
+      </div>
+      <div class="class-card">
+        <div class="class-name">TaskQueryService</div>
+        <div class="class-section">+ searchTasks(criteria): Page&lt;Task&gt;
++ getTaskDetail(taskId): TaskDetailView
++ listApplications(taskId, publisherId): List&lt;TaskApplication&gt;</div>
+      </div>
+      <div class="class-card">
+        <div class="class-name">ReviewService</div>
+        <div class="class-section">+ submitReview(taskId, reviewerId, command): Review
++ createCreditRecord(...): CreditRecord
++ getUserCreditRecords(userId): List&lt;CreditRecord&gt;</div>
+      </div>
+      <div class="class-card">
+        <div class="class-name">ModerationService</div>
+        <div class="class-section">+ submitReport(command): Report
++ openDispute(taskId, initiatorId, reason): Dispute
++ reviewSensitiveTask(...): ModerationCase
++ resolveReport(...): ModerationCase
++ resolveDispute(...): ModerationCase</div>
+      </div>
+    </section>
+
+    <section class="module repo">
+      <h3>Repository 接口</h3>
+      <div class="class-card">
+        <div class="class-name">核心仓储</div>
+        <div class="class-section">UserRepository
+UserProfileRepository
+CampusVerificationRepository
+TaskRepository
+TaskApplicationRepository
+ConversationRepository
+MessageRepository
+CompletionProofRepository
+ReviewRepository
+CreditRecordRepository
+ReportRepository
+DisputeRepository
+ModerationCaseRepository
+AuditLogRepository</div>
+      </div>
+      <div class="class-card">
+        <div class="class-name">典型方法</div>
+        <div class="class-section">+ save(entity): Entity
++ findById(id): Optional&lt;Entity&gt;
++ findByTaskId(taskId): List&lt;Entity&gt;
++ findByUserId(userId): List&lt;Entity&gt;
++ search(criteria): Page&lt;Task&gt;</div>
+      </div>
+    </section>
+  </div>
+
+  <div class="note">
+    说明：该 HTML 版本故意采用模块卡片布局，而不是把所有类用连线挤在一张大图中。关系以列表补充，便于后续课堂展示和 SOLID 检查。
+  </div>
+</body>
+</html>
