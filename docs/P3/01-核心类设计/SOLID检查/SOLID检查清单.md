@@ -1,4 +1,4 @@
-# CampusBridge SOLID 检查清单
+# SOLID 检查清单
 
 ## 1. 文档说明
 
@@ -8,9 +8,9 @@
 
 | 材料 | 文件 |
 |---|---|
-| AI 原始核心类设计 | `docs/P3/ai原始核心类设计/核心类设计草案.md` |
-| AI 原始类图 | `docs/P3/ai原始核心类设计/AI原始类图.md` |
-| 修正后核心类设计 | `docs/P3/核心类设计.md` |
+| AI 原始核心类设计 | `../AI原始核心类设计/AI原始核心类设计.md` |
+| AI 原始类图 | `../AI原始核心类设计/AI原始类图.svg` |
+| 修正后核心类设计 | `../核心类图/核心类设计.md` |
 
 ## 2. SOLID 检查结果汇总
 
@@ -37,7 +37,7 @@
 | O - 开闭原则 | 积分等级规则是否容易替换？ | 是 | 原始设计缺少独立的等级计算策略，信用规则可能散落在资料类、评价服务或信用记录中。 | 增加 `CreditLevelPolicy`，将积分等级计算规则独立出来。 |
 | L - 里氏替换 | 子类是否可以替换父类使用？ | 存在潜在风险 | 原始设计没有明显继承结构，但所有需求统一建模为 `Task`。若后续通过继承扩展 `Task` 子类，普通社区内容可能被迫继承任务状态机，导致子类无法满足父类行为约束。 | 避免用继承表达内容差异，改为 `Post` 和 `Task` 分别建模。统一展示通过泛型 `ContentItemAdapter<T>` 实现。 |
 | I - 接口隔离 | 是否存在过大的服务接口？ | 是 | 原始 `TaskLifecycleService` 包含创建草稿、发布、接单、取消、提交凭证、确认完成、驳回完成、争议处理等方法，接口过大。 | 拆分职责：`TaskService` 负责任务状态编排，`TaskHistoryService` 负责历史记录，`TaskQueryService` 负责任务查询。 |
-| I - 接口隔离 | 查询接口是否与命令接口分离？ | 部分违反 | 原始设计虽有 `TaskQueryService`，但整体查询能力仍建立在所有内容都是 `Task` 的前提下，无法区分社区内容查询和任务查询。 | 增加 `ContentQueryService` 作为统一查询门面，内部委托 `PostQueryService` 和 `TaskQueryService`。 |
+| I - 接口隔离 | 查询接口是否与命令接口分离？ | 部分违反 | 原始设计虽有 `TaskQueryService`，但整体查询能力仍建立在所有内容都是 `Task` 的前提下，无法区分社区内容查询和任务查询。 | 增加 `ContentQueryService` 作为统一查询入口，内部委托 `PostQueryService` 和 `TaskQueryService`。 |
 | I - 接口隔离 | 治理接口是否覆盖过多对象？ | 是 | 原始 `ModerationService` 同时处理 `Report`、`Dispute`、`ModerationCase` 等多类对象，接口面向过多场景。 | 当前阶段保留 `submitReport()`、`resolveReport()`、`punishUser()` 等核心治理接口，复杂争议处理后续独立扩展。 |
 | D - 依赖倒置 | 高层模块是否依赖低层具体实现？ | 部分违反 | 原始设计虽列出 Repository，但没有明确 Service 依赖接口而非实现；`TaskLifecycleService` 容易直接依赖多个仓储和通知实现。 | 明确 Service 依赖 Repository 接口。任务流程通过 `TaskHistoryService`、`ConversationService`、`CreditService` 等应用服务协作。 |
 | D - 依赖倒置 | 展示层是否依赖具体业务实体？ | 是 | 原始设计没有 `ContentItemView` 和适配器，展示层容易直接依赖 `Task`。 | 增加 `ContentItemView` 和 `ContentItemAdapter<T>`。展示层依赖统一展示对象，业务实体通过适配器转换。 |
@@ -76,3 +76,5 @@
 AI 原始设计共识别出 14 个 SOLID 相关设计问题。主要问题集中在任务类过重、接口职责过宽、缺少统一展示抽象、依赖方向不清晰等方面。
 
 修正后设计通过 `Post` / `Task` 分别建模、`ContentItemView` 统一展示、`ContentItemAdapter<T>` 适配转换、服务接口拆分、策略对象抽离等方式，降低了类之间的耦合，提高了扩展性和可维护性。
+
+
