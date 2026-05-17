@@ -1,9 +1,13 @@
 package com.campusbridge.pojo;
 
 import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 import java.time.LocalDateTime;
 
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class User {
     private Long id;
     private String username;
@@ -15,12 +19,4 @@ public class User {
     private Integer enabled;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
 }

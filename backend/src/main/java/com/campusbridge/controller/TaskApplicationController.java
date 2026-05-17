@@ -1,7 +1,7 @@
 package com.campusbridge.controller;
 
+import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.pojo.Result;
-import com.campusbridge.pojo.TaskApplication;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -19,7 +19,7 @@ public class TaskApplicationController {
     @ResponseStatus(HttpStatus.CREATED)
     public Result createApplication(
             @PathVariable Long taskId,
-            @RequestBody TaskApplication request) {
+            @RequestBody RequestDtos.CreateTaskApplicationRequest request) {
         return Result.success();
     }
 

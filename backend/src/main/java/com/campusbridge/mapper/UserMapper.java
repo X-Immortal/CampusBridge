@@ -11,6 +11,10 @@ public interface UserMapper {
 
     User selectById(Long id);
 
+    User selectByUsername(String username);
+
+    User selectByPhoneHash(String phoneHash);
+
     List<User> selectAll();
 
     int updateById(User entity);

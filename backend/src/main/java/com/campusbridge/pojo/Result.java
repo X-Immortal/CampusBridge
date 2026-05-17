@@ -1,10 +1,14 @@
 package com.campusbridge.pojo;
 
 import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 
 import java.time.LocalDateTime;
 
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class Result {
     private String code;
     private String message;
@@ -15,6 +19,22 @@ public class Result {
     public static class Meta {
         private String requestId;
         private LocalDateTime timestamp;
+
+        public String getRequestId() {
+            return requestId;
+        }
+
+        public void setRequestId(String requestId) {
+            this.requestId = requestId;
+        }
+
+        public LocalDateTime getTimestamp() {
+            return timestamp;
+        }
+
+        public void setTimestamp(LocalDateTime timestamp) {
+            this.timestamp = timestamp;
+        }
     }
 
     public static Result success() {

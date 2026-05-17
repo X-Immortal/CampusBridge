@@ -12,6 +12,16 @@
     WHERE id = #{id}
   </select>
 
+  <select id="selectByUsername" resultType="com.campusbridge.pojo.User">
+    SELECT * FROM users
+    WHERE username = #{username}
+  </select>
+
+  <select id="selectByPhoneHash" resultType="com.campusbridge.pojo.User">
+    SELECT * FROM users
+    WHERE phone_hash = #{phoneHash}
+  </select>
+
   <select id="selectAll" resultType="com.campusbridge.pojo.User">
     SELECT * FROM users
   </select>

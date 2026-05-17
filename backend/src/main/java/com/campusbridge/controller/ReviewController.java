@@ -1,7 +1,7 @@
 package com.campusbridge.controller;
 
+import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.pojo.Result;
-import com.campusbridge.pojo.Review;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -19,7 +19,7 @@ public class ReviewController {
     @ResponseStatus(HttpStatus.CREATED)
     public Result createReview(
             @PathVariable Long taskId,
-            @RequestBody Review request) {
+            @RequestBody RequestDtos.CreateReviewRequest request) {
         return Result.success();
     }
 

@@ -1,7 +1,7 @@
 package com.campusbridge.controller;
 
+import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.pojo.Result;
-import com.campusbridge.pojo.PostInteraction;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -20,7 +20,7 @@ public class InteractionController {
     @ResponseStatus(HttpStatus.CREATED)
     public Result createInteraction(
             @PathVariable Long postId,
-            @RequestBody PostInteraction request) {
+            @RequestBody RequestDtos.CreatePostInteractionRequest request) {
         return Result.success();
     }
 

@@ -1,8 +1,7 @@
 package com.campusbridge.controller;
 
+import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.pojo.Result;
-import com.campusbridge.pojo.Post;
-import com.campusbridge.pojo.Reply;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -21,7 +20,7 @@ public class PostController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Result createPost(@RequestBody Post request) {
+    public Result createPost(@RequestBody RequestDtos.CreatePostRequest request) {
         return Result.success();
     }
 
@@ -43,7 +42,7 @@ public class PostController {
     @PatchMapping("/{postId}")
     public Result updatePost(
             @PathVariable Long postId,
-            @RequestBody Post request) {
+            @RequestBody RequestDtos.UpdatePostRequest request) {
         return Result.success();
     }
 
@@ -57,7 +56,7 @@ public class PostController {
     @ResponseStatus(HttpStatus.CREATED)
     public Result createReply(
             @PathVariable Long postId,
-            @RequestBody Reply request) {
+            @RequestBody RequestDtos.CreateReplyRequest request) {
         return Result.success();
     }
 }

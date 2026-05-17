@@ -1,7 +1,7 @@
 package com.campusbridge.controller;
 
+import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.pojo.Result;
-import com.campusbridge.pojo.Report;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -17,7 +17,7 @@ public class ReportController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Result createReport(@RequestBody Report request) {
+    public Result createReport(@RequestBody RequestDtos.CreateReportRequest request) {
         return Result.success();
     }
 

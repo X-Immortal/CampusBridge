@@ -1,8 +1,7 @@
 package com.campusbridge.controller;
 
+import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.pojo.Result;
-import com.campusbridge.pojo.Conversation;
-import com.campusbridge.pojo.Message;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -26,7 +25,7 @@ public class ConversationController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Result createConversation(@RequestBody Conversation request) {
+    public Result createConversation(@RequestBody RequestDtos.CreateConversationRequest request) {
         return Result.success();
     }
 
@@ -42,7 +41,7 @@ public class ConversationController {
     @ResponseStatus(HttpStatus.CREATED)
     public Result sendMessage(
             @PathVariable Long conversationId,
-            @RequestBody Message request) {
+            @RequestBody RequestDtos.SendMessageRequest request) {
         return Result.success();
     }
 }

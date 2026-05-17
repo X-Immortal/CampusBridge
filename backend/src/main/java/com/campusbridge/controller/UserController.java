@@ -1,7 +1,7 @@
 package com.campusbridge.controller;
 
+import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.pojo.Result;
-import com.campusbridge.pojo.UserProfile;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -24,7 +24,7 @@ public class UserController {
     }
 
     @PutMapping("/me/profile")
-    public Result updateMyProfile(@RequestBody UserProfile request) {
+    public Result updateMyProfile(@RequestBody RequestDtos.UpdateUserProfileRequest request) {
         return Result.success();
     }
 

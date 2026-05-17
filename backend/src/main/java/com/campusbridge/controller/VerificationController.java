@@ -1,7 +1,7 @@
 package com.campusbridge.controller;
 
+import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.pojo.Result;
-import com.campusbridge.pojo.CampusVerification;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -16,7 +16,7 @@ public class VerificationController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.ACCEPTED)
-    public Result submitVerification(@RequestBody CampusVerification request) {
+    public Result submitVerification(@RequestBody RequestDtos.CreateVerificationRequest request) {
         return Result.success();
     }
 

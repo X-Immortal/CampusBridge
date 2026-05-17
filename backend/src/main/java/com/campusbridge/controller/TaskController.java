@@ -1,9 +1,7 @@
 package com.campusbridge.controller;
 
+import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.pojo.Result;
-import com.campusbridge.pojo.Task;
-import com.campusbridge.pojo.TaskHistory;
-import com.campusbridge.pojo.CompletionProof;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,7 +20,7 @@ public class TaskController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Result createTask(@RequestBody Task request) {
+    public Result createTask(@RequestBody RequestDtos.CreateTaskRequest request) {
         return Result.success();
     }
 
@@ -48,7 +46,7 @@ public class TaskController {
     @PatchMapping("/{taskId}")
     public Result updateTask(
             @PathVariable Long taskId,
-            @RequestBody Task request) {
+            @RequestBody RequestDtos.UpdateTaskRequest request) {
         return Result.success();
     }
 
@@ -61,14 +59,14 @@ public class TaskController {
     @PostMapping("/{taskId}/status-transitions")
     public Result transitionTaskStatus(
             @PathVariable Long taskId,
-            @RequestBody TaskHistory request) {
+            @RequestBody RequestDtos.TaskStatusTransitionRequest request) {
         return Result.success();
     }
 
     @PostMapping("/{taskId}/completion")
     public Result submitCompletion(
             @PathVariable Long taskId,
-            @RequestBody CompletionProof request) {
+            @RequestBody RequestDtos.SubmitCompletionRequest request) {
         return Result.success();
     }
 }
