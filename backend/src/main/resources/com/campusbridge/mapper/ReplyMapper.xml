@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campusbridge.mapper.ReplyMapper">
+
+  <insert id="insert" parameterType="com.campusbridge.pojo.Reply" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO replies (post_id, author_id, parent_reply_id, content, status, like_count, created_at)
+    VALUES (#{postId}, #{authorId}, #{parentReplyId}, #{content}, #{status}, #{likeCount}, #{createdAt})
+  </insert>
+
+  <select id="selectById" resultType="com.campusbridge.pojo.Reply">
+    SELECT * FROM replies
+    WHERE id = #{id}
+  </select>
+
+  <select id="selectAll" resultType="com.campusbridge.pojo.Reply">
+    SELECT * FROM replies
+  </select>
+
+  <update id="updateById" parameterType="com.campusbridge.pojo.Reply">
+    UPDATE replies
+    SET post_id = #{postId},
+      author_id = #{authorId},
+      parent_reply_id = #{parentReplyId},
+      content = #{content},
+      status = #{status},
+      like_count = #{likeCount},
+      created_at = #{createdAt}
+    WHERE id = #{id}
+  </update>
+
+  <delete id="deleteById">
+    DELETE FROM replies
+    WHERE id = #{id}
+  </delete>
+
+</mapper>

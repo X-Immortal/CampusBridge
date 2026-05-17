@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campusbridge.mapper.ReportMapper">
+
+  <insert id="insert" parameterType="com.campusbridge.pojo.Report" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO reports (reporter_id, target_type, target_id, reason, description, status, created_at)
+    VALUES (#{reporterId}, #{targetType}, #{targetId}, #{reason}, #{description}, #{status}, #{createdAt})
+  </insert>
+
+  <select id="selectById" resultType="com.campusbridge.pojo.Report">
+    SELECT * FROM reports
+    WHERE id = #{id}
+  </select>
+
+  <select id="selectAll" resultType="com.campusbridge.pojo.Report">
+    SELECT * FROM reports
+  </select>
+
+  <update id="updateById" parameterType="com.campusbridge.pojo.Report">
+    UPDATE reports
+    SET reporter_id = #{reporterId},
+      target_type = #{targetType},
+      target_id = #{targetId},
+      reason = #{reason},
+      description = #{description},
+      status = #{status},
+      created_at = #{createdAt}
+    WHERE id = #{id}
+  </update>
+
+  <delete id="deleteById">
+    DELETE FROM reports
+    WHERE id = #{id}
+  </delete>
+
+</mapper>

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campusbridge.mapper.PostInteractionMapper">
+
+  <insert id="insert" parameterType="com.campusbridge.pojo.PostInteraction" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO post_interactions (user_id, target_type, target_id, type, created_at)
+    VALUES (#{userId}, #{targetType}, #{targetId}, #{type}, #{createdAt})
+  </insert>
+
+  <select id="selectById" resultType="com.campusbridge.pojo.PostInteraction">
+    SELECT * FROM post_interactions
+    WHERE id = #{id}
+  </select>
+
+  <select id="selectAll" resultType="com.campusbridge.pojo.PostInteraction">
+    SELECT * FROM post_interactions
+  </select>
+
+  <update id="updateById" parameterType="com.campusbridge.pojo.PostInteraction">
+    UPDATE post_interactions
+    SET user_id = #{userId},
+      target_type = #{targetType},
+      target_id = #{targetId},
+      type = #{type},
+      created_at = #{createdAt}
+    WHERE id = #{id}
+  </update>
+
+  <delete id="deleteById">
+    DELETE FROM post_interactions
+    WHERE id = #{id}
+  </delete>
+
+</mapper>

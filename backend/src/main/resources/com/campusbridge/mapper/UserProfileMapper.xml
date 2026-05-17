@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campusbridge.mapper.UserProfileMapper">
+
+  <insert id="insert" parameterType="com.campusbridge.pojo.UserProfile" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO user_profiles (user_id, nickname, bio, campus, college, contact_info, avatar_url, interest_tags, skill_tags, created_at, updated_at)
+    VALUES (#{userId}, #{nickname}, #{bio}, #{campus}, #{college}, #{contactInfo}, #{avatarUrl}, #{interestTags}, #{skillTags}, #{createdAt}, #{updatedAt})
+  </insert>
+
+  <select id="selectById" resultType="com.campusbridge.pojo.UserProfile">
+    SELECT * FROM user_profiles
+    WHERE id = #{id}
+  </select>
+
+  <select id="selectAll" resultType="com.campusbridge.pojo.UserProfile">
+    SELECT * FROM user_profiles
+  </select>
+
+  <update id="updateById" parameterType="com.campusbridge.pojo.UserProfile">
+    UPDATE user_profiles
+    SET user_id = #{userId},
+      nickname = #{nickname},
+      bio = #{bio},
+      campus = #{campus},
+      college = #{college},
+      contact_info = #{contactInfo},
+      avatar_url = #{avatarUrl},
+      interest_tags = #{interestTags},
+      skill_tags = #{skillTags},
+      created_at = #{createdAt},
+      updated_at = #{updatedAt}
+    WHERE id = #{id}
+  </update>
+
+  <delete id="deleteById">
+    DELETE FROM user_profiles
+    WHERE id = #{id}
+  </delete>
+
+</mapper>

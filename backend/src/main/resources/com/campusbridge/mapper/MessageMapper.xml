@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campusbridge.mapper.MessageMapper">
+
+  <insert id="insert" parameterType="com.campusbridge.pojo.Message" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO messages (conversation_id, sender_id, type, content, read_at, created_at)
+    VALUES (#{conversationId}, #{senderId}, #{type}, #{content}, #{readAt}, #{createdAt})
+  </insert>
+
+  <select id="selectById" resultType="com.campusbridge.pojo.Message">
+    SELECT * FROM messages
+    WHERE id = #{id}
+  </select>
+
+  <select id="selectAll" resultType="com.campusbridge.pojo.Message">
+    SELECT * FROM messages
+  </select>
+
+  <update id="updateById" parameterType="com.campusbridge.pojo.Message">
+    UPDATE messages
+    SET conversation_id = #{conversationId},
+      sender_id = #{senderId},
+      type = #{type},
+      content = #{content},
+      read_at = #{readAt},
+      created_at = #{createdAt}
+    WHERE id = #{id}
+  </update>
+
+  <delete id="deleteById">
+    DELETE FROM messages
+    WHERE id = #{id}
+  </delete>
+
+</mapper>
