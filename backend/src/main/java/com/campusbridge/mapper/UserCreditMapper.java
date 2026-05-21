@@ -11,6 +11,8 @@ public interface UserCreditMapper {
 
     UserCredit selectById(Long id);
 
+    UserCredit selectByUserId(Long userId);
+
     List<UserCredit> selectAll();
 
     int updateById(UserCredit entity);

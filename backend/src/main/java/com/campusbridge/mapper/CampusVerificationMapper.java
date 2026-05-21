@@ -11,6 +11,8 @@ public interface CampusVerificationMapper {
 
     CampusVerification selectById(Long id);
 
+    CampusVerification selectLatestByUserId(Long userId);
+
     List<CampusVerification> selectAll();
 
     int updateById(CampusVerification entity);

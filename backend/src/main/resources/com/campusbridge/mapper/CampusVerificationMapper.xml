@@ -12,6 +12,13 @@
     WHERE id = #{id}
   </select>
 
+  <select id="selectLatestByUserId" resultType="com.campusbridge.pojo.CampusVerification">
+    SELECT * FROM campus_verifications
+    WHERE user_id = #{userId}
+    ORDER BY created_at DESC
+      LIMIT 1
+  </select>
+
   <select id="selectAll" resultType="com.campusbridge.pojo.CampusVerification">
     SELECT * FROM campus_verifications
   </select>

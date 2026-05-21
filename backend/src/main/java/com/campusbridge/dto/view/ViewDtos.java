@@ -1,7 +1,6 @@
 package com.campusbridge.dto.view;
 
 import com.campusbridge.dto.enums.ApiEnums;
-import com.campusbridge.pojo.CampusVerification;
 import com.campusbridge.pojo.CompletionProof;
 import com.campusbridge.pojo.Conversation;
 import com.campusbridge.pojo.Message;
@@ -13,7 +12,6 @@ import com.campusbridge.pojo.Task;
 import com.campusbridge.pojo.TaskApplication;
 import com.campusbridge.pojo.TaskHistory;
 import com.campusbridge.pojo.User;
-import com.campusbridge.pojo.UserProfile;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -38,9 +36,17 @@ public final class ViewDtos {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class UserHomepageView {
-        private User user;
-        private UserProfile profile;
-        private CampusVerification verification;
+        private Long userId;
+        private String nickname;
+        private String avatarUrl;
+        private String bio;
+        private String campus;
+        private String college;
+        private Boolean verified;
+        private Integer creditLevel;
+        private Integer points;
+        private List<String> interestTags;
+        private List<String> skillTags;
     }
 
     @Data
@@ -96,5 +102,31 @@ public final class ViewDtos {
     public static class ReportListItemView {
         private Report report;
         private String handlerName;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class UserView {
+        private Long id;
+        private String username;
+        private String role;
+        private Boolean enabled;
+        private LocalDateTime createdAt;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class UserProfileView {
+        private Long userId;
+        private String nickname;
+        private String bio;
+        private String campus;
+        private String college;
+        private String avatarUrl;
+        private String contactInfo;
+        private List<String> interestTags;
+        private List<String> skillTags;
     }
 }

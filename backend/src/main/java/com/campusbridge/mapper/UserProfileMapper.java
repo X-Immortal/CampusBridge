@@ -11,6 +11,8 @@ public interface UserProfileMapper {
 
     UserProfile selectById(Long id);
 
+    UserProfile selectByUserId(Long userId);
+
     List<UserProfile> selectAll();
 
     int updateById(UserProfile entity);
