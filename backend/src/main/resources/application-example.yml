@@ -4,9 +4,9 @@ spring:
   # Spring Boot datasource
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/campusbridge
-    username: root
-    password: "123456"
+    url: xxxxx
+    username: xxxxxx
+    password: "xxxxxx"
   servlet:
     multipart:
       # File upload limits

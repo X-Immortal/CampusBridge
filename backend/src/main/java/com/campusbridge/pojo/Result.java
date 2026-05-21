@@ -1,9 +1,7 @@
 package com.campusbridge.pojo;
 
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
-
+import lombok.*;
+import java.util.UUID;
 import java.time.LocalDateTime;
 
 @Data
@@ -20,21 +18,6 @@ public class Result {
         private String requestId;
         private LocalDateTime timestamp;
 
-        public String getRequestId() {
-            return requestId;
-        }
-
-        public void setRequestId(String requestId) {
-            this.requestId = requestId;
-        }
-
-        public LocalDateTime getTimestamp() {
-            return timestamp;
-        }
-
-        public void setTimestamp(LocalDateTime timestamp) {
-            this.timestamp = timestamp;
-        }
     }
 
     public static Result success() {
@@ -47,6 +30,7 @@ public class Result {
         result.message = "OK";
         result.data = data;
         Meta m = new Meta();
+        m.requestId = UUID.randomUUID().toString();
         m.timestamp = LocalDateTime.now();
         result.meta = m;
         return result;
@@ -62,6 +46,7 @@ public class Result {
         result.message = message;
         result.data = data;
         Meta m = new Meta();
+        m.requestId = UUID.randomUUID().toString();
         m.timestamp = LocalDateTime.now();
         result.meta = m;
         return result;
