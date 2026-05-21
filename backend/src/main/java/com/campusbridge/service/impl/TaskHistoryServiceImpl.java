@@ -25,7 +25,7 @@ public class TaskHistoryServiceImpl implements TaskHistoryService {
             Long operatorId,
             String note) {
         if (taskId == null || toStatus == null || toStatus.isBlank()) {
-            throw new BusinessException(ErrorCode.PARAM_INVALID, "任务历史记录参数不完整");
+            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "任务历史记录参数不完整");
         }
 
         TaskHistory history = new TaskHistory();
@@ -38,7 +38,7 @@ public class TaskHistoryServiceImpl implements TaskHistoryService {
 
         int affected = taskHistoryMapper.insert(history);
         if (affected <= 0) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "任务历史记录写入失败");
+            throw new BusinessException(ErrorCode.COMMON_999_INTERNAL_ERROR, "任务历史记录写入失败");
         }
     }
 }

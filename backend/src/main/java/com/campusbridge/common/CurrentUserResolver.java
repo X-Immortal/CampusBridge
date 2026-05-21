@@ -33,17 +33,17 @@ public class CurrentUserResolver {
     public Long requireCurrentUserId(HttpServletRequest request) {
         String token = resolveToken(request);
         if (token == null || token.isBlank()) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+            throw new BusinessException(ErrorCode.AUTH_001_UNAUTHORIZED);
         }
 
         try {
             Long userId = jwtUtil.extractAccountId(token);
             if (userId == null) {
-                throw new BusinessException(ErrorCode.UNAUTHORIZED);
+                throw new BusinessException(ErrorCode.AUTH_001_UNAUTHORIZED);
             }
             return userId;
         } catch (RuntimeException ex) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+            throw new BusinessException(ErrorCode.AUTH_001_UNAUTHORIZED);
         }
     }
 }

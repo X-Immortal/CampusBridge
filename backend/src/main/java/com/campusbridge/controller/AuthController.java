@@ -1,5 +1,7 @@
 package com.campusbridge.controller;
 
+import com.campusbridge.common.BusinessException;
+import com.campusbridge.common.ErrorCode;
 import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.pojo.Result;
 import com.campusbridge.service.AuthService;
@@ -23,13 +25,13 @@ public class AuthController {
     public Result register(@RequestBody RequestDtos.RegisterRequest request) {
         Long userId = authService.register(request);
         if (userId == null) {
-            return Result.error("AUTH_004_INVALID_INPUT", "注册参数不合法");
+            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "注册参数不合法");
         }
         if (userId == -1L) {
-            return Result.error("AUTH_005_USERNAME_EXISTS", "用户名已存在");
+            throw new BusinessException(ErrorCode.COMMON_003_CONFLICT, "用户名已存在");
         }
         if (userId == -2L) {
-            return Result.error("AUTH_006_PHONE_EXISTS", "手机号已存在");
+            throw new BusinessException(ErrorCode.COMMON_003_CONFLICT, "手机号已存在");
         }
         return Result.success(userId);
     }
@@ -38,14 +40,14 @@ public class AuthController {
     public Result login(@RequestBody RequestDtos.LoginRequest request) {
         Object loginResult = authService.login(request);
         if (loginResult == null) {
-            return Result.error("AUTH_004_INVALID_INPUT", "登录参数不合法");
+            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "登录参数不合法");
         }
         if (loginResult instanceof Long code) {
             if (code == -1L || code == -3L) {
-                return Result.error("AUTH_002_INVALID_CREDENTIALS", "用户名或密码错误");
+                throw new BusinessException(ErrorCode.AUTH_002_INVALID_CREDENTIALS);
             }
             if (code == -2L) {
-                return Result.error("AUTH_001_UNAUTHORIZED", "账号已被禁用");
+                throw new BusinessException(ErrorCode.AUTH_001_UNAUTHORIZED, "账号已被禁用");
             }
         }
         return Result.success(loginResult);
