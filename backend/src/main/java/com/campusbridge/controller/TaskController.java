@@ -2,6 +2,9 @@ package com.campusbridge.controller;
 
 import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.pojo.Result;
+import com.campusbridge.common.CurrentUserResolver;
+import com.campusbridge.service.TaskService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,11 +20,23 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 @RestController
 @RequestMapping("/api/v1/tasks")
 public class TaskController {
+    private final CurrentUserResolver currentUserResolver;
+    private final TaskService taskService;
+
+    public TaskController(
+            CurrentUserResolver currentUserResolver,
+            TaskService taskService) {
+        this.currentUserResolver = currentUserResolver;
+        this.taskService = taskService;
+    }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Result createTask(@RequestBody RequestDtos.CreateTaskRequest request) {
-        return Result.success();
+    public Result createTask(
+            HttpServletRequest servletRequest,
+            @RequestBody RequestDtos.CreateTaskRequest request) {
+        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        return Result.success(taskService.createTask(currentUserId, request));
     }
 
     @GetMapping
@@ -58,9 +73,11 @@ public class TaskController {
 
     @PostMapping("/{taskId}/status-transitions")
     public Result transitionTaskStatus(
+            HttpServletRequest servletRequest,
             @PathVariable Long taskId,
             @RequestBody RequestDtos.TaskStatusTransitionRequest request) {
-        return Result.success();
+        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        return Result.success(taskService.transitionTaskStatus(currentUserId, taskId, request));
     }
 
     @PostMapping("/{taskId}/completion")

@@ -42,6 +42,14 @@
     WHERE id = #{id}
   </update>
 
+  <update id="updateStatusById">
+    UPDATE tasks
+    SET status = #{toStatus},
+        updated_at = #{updatedAt}
+    WHERE id = #{id}
+      AND status = #{fromStatus}
+  </update>
+
   <delete id="deleteById">
     DELETE FROM tasks
     WHERE id = #{id}

@@ -13,8 +13,8 @@ import java.util.List;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(BusinessException.class)
-    public ResponseEntity<ApiError> handleBusinessException(BusinessException ex) {
-        ApiError body = ApiError.of(
+    public ResponseEntity<ErrorResponse> handleBusinessException(BusinessException ex) {
+        ErrorResponse body = ErrorResponse.of(
                 ex.getErrorCode(),
                 ex.getMessage(),
                 ex.getDetails()
@@ -27,8 +27,8 @@ public class GlobalExceptionHandler {
             HttpMessageNotReadableException.class,
             MethodArgumentNotValidException.class
     })
-    public ResponseEntity<ApiError> handleBadRequest(Exception ex) {
-        ApiError body = ApiError.of(
+    public ResponseEntity<ErrorResponse> handleBadRequest(Exception ex) {
+        ErrorResponse body = ErrorResponse.of(
                 ErrorCode.COMMON_001_VALIDATION_ERROR,
                 ErrorCode.COMMON_001_VALIDATION_ERROR.getDefaultMessage(),
                 detailsOf(ex)
@@ -37,8 +37,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiError> handleUnexpectedException(Exception ex) {
-        ApiError body = ApiError.of(
+    public ResponseEntity<ErrorResponse> handleUnexpectedException(Exception ex) {
+        ErrorResponse body = ErrorResponse.of(
                 ErrorCode.COMMON_999_INTERNAL_ERROR,
                 ErrorCode.COMMON_999_INTERNAL_ERROR.getDefaultMessage(),
                 null

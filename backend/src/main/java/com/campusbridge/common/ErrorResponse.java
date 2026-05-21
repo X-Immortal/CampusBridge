@@ -11,7 +11,7 @@ import java.util.UUID;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class ApiError {
+public class ErrorResponse {
     private String code;
     private String message;
     private List<String> details;
@@ -25,8 +25,8 @@ public class ApiError {
         private LocalDateTime timestamp;
     }
 
-    public static ApiError of(ErrorCode errorCode, String message, List<String> details) {
+    public static ErrorResponse of(ErrorCode errorCode, String message, List<String> details) {
         Meta meta = new Meta(UUID.randomUUID().toString(), LocalDateTime.now());
-        return new ApiError(errorCode.getCode(), message, details, meta);
+        return new ErrorResponse(errorCode.getCode(), message, details, meta);
     }
 }
