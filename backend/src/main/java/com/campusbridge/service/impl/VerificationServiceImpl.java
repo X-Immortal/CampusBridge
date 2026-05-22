@@ -1,6 +1,7 @@
 package com.campusbridge.service.impl;
 
 import com.campusbridge.dto.request.RequestDtos;
+import com.campusbridge.dto.enums.ApiEnums;
 import com.campusbridge.mapper.CampusVerificationMapper;
 import com.campusbridge.pojo.CampusVerification;
 import com.campusbridge.service.VerificationService;
@@ -18,6 +19,9 @@ public class VerificationServiceImpl implements VerificationService {
 
     @Autowired
     private CampusVerificationMapper campusVerificationMapper;
+
+    @Autowired
+    private VerificationAutoReviewService verificationAutoReviewService;
 
     @Override
     public Object submit(Long userId, RequestDtos.CreateVerificationRequest request) {
@@ -41,17 +45,16 @@ public class VerificationServiceImpl implements VerificationService {
         entity.setSchool(request.school);
         entity.setDepartment(request.department);
         entity.setEvidenceUrl(request.evidenceUrl);
-        if ("STUDENT_CARD_IMAGE".equals(entity.getMethod())) {
-            entity.setStatus("VERIFIED");
-            entity.setReviewedAt(now);
-        } else {
-            entity.setStatus("PENDING");
-        }
+        entity.setStatus("PENDING");
         entity.setCreatedAt(now);
 
         int affected = campusVerificationMapper.insert(entity);
         if (affected <= 0) {
             return -2L;
+        }
+
+        if (request.method == ApiEnums.VerificationMethod.STUDENT_CARD_IMAGE) {
+            verificationAutoReviewService.enqueueStudentCardReview(entity.getId());
         }
 
         Map<String, Object> payload = new HashMap<>();
