@@ -23,7 +23,7 @@ mybatis:
 aliyun:
   oss:
     endpoint: https://oss-cn-beijing.aliyuncs.com
-    bucketName: springbootweb-mybatis-tlias
+    bucketName: campusbridge
     region: cn-beijing
 
 # JWT
