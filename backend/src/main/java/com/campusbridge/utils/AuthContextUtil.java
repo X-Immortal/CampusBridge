@@ -20,9 +20,9 @@ public class AuthContextUtil {
         if (principal instanceof Number number) {
             return number.longValue();
         }
-        if (principal instanceof String s) {
+        if (principal instanceof String value) {
             try {
-                return Long.valueOf(s);
+                return Long.valueOf(value);
             } catch (NumberFormatException ignored) {
                 return null;
             }
