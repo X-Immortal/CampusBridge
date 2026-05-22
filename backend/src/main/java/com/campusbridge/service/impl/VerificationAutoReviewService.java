@@ -40,33 +40,72 @@ public class VerificationAutoReviewService {
             VerificationOcrClient.OcrExtractResult ocrResult =
                     verificationOcrClient.extractStudentCard(entity.getEvidenceUrl());
             if (ocrResult == null || !ocrResult.isAvailable()) {
-                LOGGER.info("OCR result unavailable for verificationId={}", verificationId);
+                LOGGER.info("OCR result unavailable, auto pass in relaxed mode, verificationId={}", verificationId);
+                markAsVerified(entity);
                 return;
             }
 
             boolean matched = isMatched(entity, ocrResult);
             if (matched) {
-                entity.setStatus("VERIFIED");
-                entity.setRejectReason(null);
+                markAsVerified(entity);
+                return;
             } else {
-                entity.setStatus("REJECTED");
-                entity.setRejectReason("OCR extracted fields do not match submitted data");
+                markAsRejected(entity, "OCR extracted fields do not match submitted data");
+                return;
             }
-            entity.setReviewedAt(LocalDateTime.now());
-            campusVerificationMapper.updateById(entity);
         } catch (Exception e) {
+            verifyWhenPossible(verificationId);
             LOGGER.warn("Auto review failed, verificationId={}", verificationId, e);
         }
     }
 
+    private void markAsVerified(CampusVerification entity) {
+        entity.setStatus("VERIFIED");
+        entity.setRejectReason(null);
+        entity.setReviewedAt(LocalDateTime.now());
+        campusVerificationMapper.updateById(entity);
+    }
+
+    private void markAsRejected(CampusVerification entity, String reason) {
+        entity.setStatus("REJECTED");
+        entity.setRejectReason(reason);
+        entity.setReviewedAt(LocalDateTime.now());
+        campusVerificationMapper.updateById(entity);
+    }
+
+    private void verifyWhenPossible(Long verificationId) {
+        CampusVerification current = campusVerificationMapper.selectById(verificationId);
+        if (current == null || !"PENDING".equals(current.getStatus())) {
+            return;
+        }
+        markAsVerified(current);
+    }
+
     private boolean isMatched(CampusVerification entity, VerificationOcrClient.OcrExtractResult ocrResult) {
-        return normalizedEquals(entity.getRealNameCipher(), ocrResult.getRealName())
-                && normalizedEquals(entity.getStudentNumberCipher(), ocrResult.getStudentNumber())
-                && normalizedContainsEither(entity.getSchool(), ocrResult.getSchool());
+        String submittedName = entity.getRealNameCipher();
+        String submittedNumber = entity.getStudentNumberCipher();
+        String submittedSchool = entity.getSchool();
+        String ocrName = ocrResult.getRealName();
+        String ocrNumber = ocrResult.getStudentNumber();
+        String ocrSchool = ocrResult.getSchool();
+
+        boolean numberExactMatch = normalizedEquals(submittedNumber, ocrNumber);
+        boolean numberLooseMatch = normalizedContainsEither(submittedNumber, ocrNumber);
+        boolean nameLooseMatch = normalizedContainsEither(submittedName, ocrName);
+        boolean schoolLooseMatch = normalizedContainsEither(submittedSchool, ocrSchool);
+
+        // Relaxed rule for coursework:
+        // pass if student number is exact/loosely matched, or name+school both loosely matched.
+        return numberExactMatch || numberLooseMatch || (nameLooseMatch && schoolLooseMatch);
     }
 
     private boolean normalizedEquals(String left, String right) {
-        return normalize(left).equals(normalize(right));
+        String a = normalize(left);
+        String b = normalize(right);
+        if (a.isEmpty() || b.isEmpty()) {
+            return false;
+        }
+        return a.equals(b);
     }
 
     private boolean normalizedContainsEither(String left, String right) {

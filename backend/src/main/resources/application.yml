@@ -33,3 +33,7 @@ jwt:
   refresh-expiration: 2592000000
   header: Authorization
   prefix: "Bearer "
+
+security:
+  jwt:
+    required: true
