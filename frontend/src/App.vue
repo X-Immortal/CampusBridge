@@ -1,43 +1,246 @@
 <template>
   <div class="app-shell">
-    <header class="header">
-      <h1>CampusBridge</h1>
-      <p>校园互助服务平台</p>
+    <header class="topbar">
+      <RouterLink
+        class="brand"
+        to="/"
+        aria-label="返回 CampusBridge 首页"
+      >
+        <span class="brand-mark">
+          <Handshake
+            :size="22"
+            aria-hidden="true"
+          />
+        </span>
+        <span>
+          <strong>CampusBridge</strong>
+          <small>校园互助服务平台</small>
+        </span>
+      </RouterLink>
+
+      <nav
+        class="nav"
+        aria-label="主导航"
+      >
+        <RouterLink
+          v-for="item in navItems"
+          :key="item.to"
+          class="nav-link"
+          :to="item.to"
+        >
+          <component
+            :is="item.icon"
+            :size="17"
+            aria-hidden="true"
+          />
+          <span>{{ item.label }}</span>
+        </RouterLink>
+      </nav>
+
+      <div class="account">
+        <span
+          v-if="isAuthenticated"
+          class="account-pill"
+        >
+          <ShieldCheck
+            :size="16"
+            aria-hidden="true"
+          />
+          {{ state.user?.username || '已登录' }}
+        </span>
+        <RouterLink
+          v-else
+          class="button button--secondary"
+          to="/auth"
+        >
+          <LogIn
+            :size="17"
+            aria-hidden="true"
+          />
+          登录
+        </RouterLink>
+        <button
+          v-if="isAuthenticated"
+          class="icon-button"
+          type="button"
+          title="退出登录"
+          @click="logout"
+        >
+          <LogOut
+            :size="17"
+            aria-hidden="true"
+          />
+        </button>
+      </div>
     </header>
+
     <main class="main-content">
       <router-view />
     </main>
   </div>
 </template>
 
-<style scoped>
-:global(body) {
-  margin: 0;
-  font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-  background: #f4f7fb;
-  color: #1e293b;
-}
+<script setup>
+import {
+  ClipboardList,
+  Handshake,
+  Home,
+  LogIn,
+  LogOut,
+  MessageSquare,
+  PlusCircle,
+  ShieldCheck,
+  UserCircle
+} from '@lucide/vue'
+import { RouterLink } from 'vue-router'
+import { useAuth } from './stores/auth'
 
+const { state, isAuthenticated, logout } = useAuth()
+
+const navItems = [
+  { to: '/', label: '工作台', icon: Home },
+  { to: '/tasks', label: '任务广场', icon: ClipboardList },
+  { to: '/tasks/new', label: '发布任务', icon: PlusCircle },
+  { to: '/messages', label: '站内沟通', icon: MessageSquare },
+  { to: '/auth', label: '认证档案', icon: UserCircle }
+]
+</script>
+
+<style scoped>
 .app-shell {
   min-height: 100vh;
 }
 
-.header {
-  padding: 2.5rem 1.5rem 1rem;
-  text-align: center;
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 20px;
+  min-height: 72px;
+  padding: 12px 24px;
+  border-bottom: 1px solid rgba(219, 228, 238, 0.85);
+  background: rgba(248, 250, 252, 0.94);
+  backdrop-filter: blur(12px);
 }
 
-.header h1 {
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 230px;
+}
+
+.brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  background: #0f172a;
+  color: #ffffff;
+}
+
+.brand strong {
+  display: block;
   margin: 0;
-  font-size: 2rem;
+  color: #0f172a;
+  font-size: 1rem;
 }
 
-.header p {
-  margin: 0.5rem 0 0;
+.brand small {
+  display: block;
+  margin-top: 2px;
   color: #475569;
+  font-size: 0.78rem;
+}
+
+.nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 0 11px;
+  border-radius: 8px;
+  color: #334155;
+  font-size: 0.92rem;
+  font-weight: 700;
+  transition:
+    background-color 180ms ease,
+    color 180ms ease;
+}
+
+.nav-link:hover,
+.nav-link.router-link-active {
+  background: #e0f2fe;
+  color: #075985;
+}
+
+.account {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.account-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid #bbf7d0;
+  border-radius: 999px;
+  background: #f0fdf4;
+  color: #166534;
+  font-size: 0.88rem;
+  font-weight: 700;
 }
 
 .main-content {
-  padding: 0 1.5rem 2rem;
+  min-height: calc(100vh - 72px);
+}
+
+@media (max-width: 980px) {
+  .topbar {
+    grid-template-columns: 1fr;
+  }
+
+  .brand {
+    min-width: 0;
+  }
+
+  .account {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 640px) {
+  .topbar {
+    width: 100vw;
+    max-width: 100vw;
+    overflow: hidden;
+    padding: 10px 14px;
+  }
+
+  .nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .nav-link {
+    justify-content: center;
+  }
 }
 </style>
