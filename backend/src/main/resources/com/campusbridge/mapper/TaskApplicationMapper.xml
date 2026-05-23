@@ -12,6 +12,18 @@
     WHERE id = #{id}
   </select>
 
+  <select id="selectByTaskIdAndApplicantId" resultType="com.campusbridge.pojo.TaskApplication">
+    SELECT * FROM task_applications
+    WHERE task_id = #{taskId}
+      AND applicant_id = #{applicantId}
+  </select>
+
+  <select id="selectByTaskId" resultType="com.campusbridge.pojo.TaskApplication">
+    SELECT * FROM task_applications
+    WHERE task_id = #{taskId}
+    ORDER BY created_at DESC, id DESC
+  </select>
+
   <select id="selectAll" resultType="com.campusbridge.pojo.TaskApplication">
     SELECT * FROM task_applications
   </select>
@@ -25,6 +37,23 @@
       created_at = #{createdAt},
       handled_at = #{handledAt}
     WHERE id = #{id}
+  </update>
+
+  <update id="updateStatusById">
+    UPDATE task_applications
+    SET status = #{toStatus},
+        handled_at = #{handledAt}
+    WHERE id = #{id}
+      AND status = #{fromStatus}
+  </update>
+
+  <update id="rejectOtherPendingByTaskId">
+    UPDATE task_applications
+    SET status = 'REJECTED',
+        handled_at = #{handledAt}
+    WHERE task_id = #{taskId}
+      AND id != #{acceptedApplicationId}
+      AND status = 'PENDING'
   </update>
 
   <delete id="deleteById">

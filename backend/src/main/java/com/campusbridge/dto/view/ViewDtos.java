@@ -118,6 +118,26 @@ public final class ViewDtos {
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
+    public static class TaskApplicationCandidateView {
+        private Long applicationId;
+        private Long applicantId;
+        private String username;
+        private String nickname;
+        private String avatarUrl;
+        private String bio;
+        private String campus;
+        private String college;
+        private Boolean verified;
+        private Integer creditLevel;
+        private Integer points;
+        private String message;
+        private String status;
+        private LocalDateTime createdAt;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class UserProfileView {
         private Long userId;
         private String nickname;

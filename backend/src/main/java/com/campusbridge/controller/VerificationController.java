@@ -34,7 +34,9 @@ public class VerificationController {
         }
         if (result instanceof Long code) {
             if (code == -1L) {
-                return Result.error("VERIFY_002_ALREADY_PENDING_OR_VERIFIED", "Verification already pending or approved");
+                return Result.error(
+                        "VERIFY_002_ALREADY_PENDING_OR_VERIFIED",
+                        "Verification already pending or approved");
             }
             return Result.error("VERIFY_003_SUBMIT_FAILED", "Failed to submit verification");
         }

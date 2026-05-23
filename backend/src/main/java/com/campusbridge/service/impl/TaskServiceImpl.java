@@ -8,6 +8,7 @@ import com.campusbridge.mapper.CampusVerificationMapper;
 import com.campusbridge.mapper.TaskMapper;
 import com.campusbridge.pojo.CampusVerification;
 import com.campusbridge.pojo.Task;
+import com.campusbridge.service.ContentModerationService;
 import com.campusbridge.service.TaskHistoryService;
 import com.campusbridge.service.TaskService;
 import org.springframework.stereotype.Service;
@@ -37,6 +38,7 @@ public class TaskServiceImpl implements TaskService {
     private final TaskMapper taskMapper;
     private final CampusVerificationMapper campusVerificationMapper;
     private final TaskHistoryService taskHistoryService;
+    private final ContentModerationService contentModerationService;
 
     private static final String STATUS_ACCEPTED = "ACCEPTED";
     private static final String STATUS_IN_PROGRESS = "IN_PROGRESS";
@@ -48,10 +50,12 @@ public class TaskServiceImpl implements TaskService {
     public TaskServiceImpl(
             TaskMapper taskMapper,
             CampusVerificationMapper campusVerificationMapper,
-            TaskHistoryService taskHistoryService) {
+            TaskHistoryService taskHistoryService,
+            ContentModerationService contentModerationService) {
         this.taskMapper = taskMapper;
         this.campusVerificationMapper = campusVerificationMapper;
         this.taskHistoryService = taskHistoryService;
+        this.contentModerationService = contentModerationService;
     }
 
     @Override
@@ -59,6 +63,7 @@ public class TaskServiceImpl implements TaskService {
         requireRequesterId(requesterId);
         requireVerifiedUser(requesterId);
         validateCreateTaskRequest(request);
+        contentModerationService.assertTaskPublishAllowed(requesterId, request);
 
         Task task = buildTask(requesterId, request);
         int affectedRows = taskMapper.insert(task);

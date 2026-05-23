@@ -56,7 +56,9 @@ public class SecurityConfig {
         return (request, response, authException) -> {
             response.setStatus(HttpStatus.UNAUTHORIZED.value());
             response.setContentType("application/json;charset=UTF-8");
-            response.getWriter().write("{\"code\":\"AUTH_001_UNAUTHORIZED\",\"message\":\"Missing or invalid JWT token\"}");
+            response.getWriter().write(
+                    "{\"code\":\"AUTH_001_UNAUTHORIZED\","
+                            + "\"message\":\"Missing or invalid JWT token\"}");
         };
     }
 

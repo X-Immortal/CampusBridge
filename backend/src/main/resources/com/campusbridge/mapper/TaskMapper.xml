@@ -50,6 +50,17 @@
       AND status = #{fromStatus}
   </update>
 
+  <update id="acceptProviderById">
+    UPDATE tasks
+    SET provider_id = #{providerId},
+        status = 'ACCEPTED',
+        updated_at = #{updatedAt}
+    WHERE id = #{id}
+      AND requester_id = #{requesterId}
+      AND status = 'OPEN'
+      AND provider_id IS NULL
+  </update>
+
   <delete id="deleteById">
     DELETE FROM tasks
     WHERE id = #{id}
