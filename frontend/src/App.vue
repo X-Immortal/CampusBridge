@@ -1,6 +1,9 @@
 <template>
   <div class="app-shell">
-    <header class="topbar">
+    <header
+      v-if="!isAuthRoute"
+      class="topbar"
+    >
       <RouterLink
         class="brand"
         to="/"
@@ -81,11 +84,14 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { Handshake, Home, LogIn, LogOut, ShieldCheck, UserCircle } from '@lucide/vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 import { useAuth } from './stores/auth'
 
 const { state, isAuthenticated, logout } = useAuth()
+const route = useRoute()
+const isAuthRoute = computed(() => route.name === 'auth')
 
 const navItems = [
   { to: '/', label: '工作台', icon: Home },
