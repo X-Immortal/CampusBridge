@@ -23,6 +23,7 @@ const feedback = ref('')
 const feedbackType = ref('success')
 const showPassword = ref(false)
 const rememberMe = ref(true)
+const pendingAction = ref('')
 
 const loginForm = reactive({
   username: '',
@@ -39,8 +40,11 @@ const registerForm = reactive({
 const formTitle = computed(() => (mode.value === 'login' ? '欢迎回来' : '创建账号'))
 const formSubtitle = computed(() => (mode.value === 'login' ? '登录后进入工作台完成校内认证' : '先创建账号，再进入可信互助空间'))
 const submitLabel = computed(() => (mode.value === 'login' ? '登录' : '注册'))
+const isSubmitting = computed(() => state.loading && Boolean(pendingAction.value))
+const submitText = computed(() => (isSubmitting.value ? (pendingAction.value === 'register' ? '正在注册' : '正在登录') : submitLabel.value))
 
 function switchMode(nextMode) {
+  if (state.loading) return
   mode.value = nextMode
   feedback.value = ''
 }
@@ -51,22 +55,30 @@ function setFeedback(message, type = 'success') {
 }
 
 async function handleLogin() {
+  pendingAction.value = 'login'
+  feedback.value = ''
   try {
     await login(loginForm)
     setFeedback('登录成功，正在进入认证工作台。')
     await router.push('/')
   } catch (error) {
     setFeedback(error.message, 'danger')
+  } finally {
+    pendingAction.value = ''
   }
 }
 
 async function handleRegister() {
+  pendingAction.value = 'register'
+  feedback.value = ''
   try {
     await register(registerForm)
     setFeedback('注册成功，请使用新账号登录。')
     mode.value = 'login'
   } catch (error) {
     setFeedback(error.message, 'danger')
+  } finally {
+    pendingAction.value = ''
   }
 }
 </script>
@@ -87,6 +99,7 @@ async function handleRegister() {
       <section
         class="auth-card"
         aria-labelledby="auth-title"
+        :aria-busy="isSubmitting"
       >
         <div
           class="auth-tabs"
@@ -98,6 +111,7 @@ async function handleRegister() {
             role="tab"
             :aria-selected="mode === 'login'"
             :class="{ active: mode === 'login' }"
+            :disabled="state.loading"
             @click="switchMode('login')"
           >
             登录
@@ -107,6 +121,7 @@ async function handleRegister() {
             role="tab"
             :aria-selected="mode === 'register'"
             :class="{ active: mode === 'register' }"
+            :disabled="state.loading"
             @click="switchMode('register')"
           >
             注册
@@ -159,6 +174,7 @@ async function handleRegister() {
                   autocomplete="username"
                   placeholder="请输入手机号 / 邮箱 / 学号"
                   required
+                  :disabled="state.loading"
                 >
               </div>
             </div>
@@ -177,11 +193,13 @@ async function handleRegister() {
                   autocomplete="current-password"
                   placeholder="请输入密码"
                   required
+                  :disabled="state.loading"
                 >
                 <button
                   class="ghost-icon"
                   type="button"
                   :aria-label="showPassword ? '隐藏密码' : '显示密码'"
+                  :disabled="state.loading"
                   @click="showPassword = !showPassword"
                 >
                   <EyeOff
@@ -203,12 +221,14 @@ async function handleRegister() {
                 <input
                   v-model="rememberMe"
                   type="checkbox"
+                  :disabled="state.loading"
                 >
                 <span>记住我</span>
               </label>
               <button
                 class="text-button"
                 type="button"
+                :disabled="state.loading"
               >
                 忘记密码?
               </button>
@@ -216,16 +236,19 @@ async function handleRegister() {
 
             <button
               class="submit-button"
+              :class="{ 'submit-button--loading': isSubmitting }"
               type="submit"
               :disabled="state.loading"
             >
               <LoaderCircle
-                v-if="state.loading"
+                v-if="isSubmitting"
+                class="spin-icon"
                 :size="20"
                 aria-hidden="true"
               />
-              <span>{{ submitLabel }}</span>
+              <span>{{ submitText }}</span>
               <ArrowRight
+                v-if="!isSubmitting"
                 :size="21"
                 aria-hidden="true"
               />
@@ -250,6 +273,7 @@ async function handleRegister() {
                   autocomplete="username"
                   placeholder="请输入学号或用户名"
                   required
+                  :disabled="state.loading"
                 >
               </div>
             </div>
@@ -267,6 +291,7 @@ async function handleRegister() {
                     v-model.trim="registerForm.phone"
                     inputmode="tel"
                     placeholder="请输入手机号"
+                    :disabled="state.loading"
                   >
                 </div>
               </div>
@@ -283,6 +308,7 @@ async function handleRegister() {
                     type="email"
                     autocomplete="email"
                     placeholder="请输入邮箱"
+                    :disabled="state.loading"
                   >
                 </div>
               </div>
@@ -302,22 +328,26 @@ async function handleRegister() {
                   autocomplete="new-password"
                   placeholder="设置登录密码"
                   required
+                  :disabled="state.loading"
                 >
               </div>
             </div>
 
             <button
               class="submit-button"
+              :class="{ 'submit-button--loading': isSubmitting }"
               type="submit"
               :disabled="state.loading"
             >
               <LoaderCircle
-                v-if="state.loading"
+                v-if="isSubmitting"
+                class="spin-icon"
                 :size="20"
                 aria-hidden="true"
               />
-              <span>{{ submitLabel }}</span>
+              <span>{{ submitText }}</span>
               <ArrowRight
+                v-if="!isSubmitting"
                 :size="21"
                 aria-hidden="true"
               />
@@ -328,6 +358,7 @@ async function handleRegister() {
             <span>{{ mode === 'login' ? '还没有账号？' : '已经有账号？' }}</span>
             <button
               type="button"
+              :disabled="state.loading"
               @click="switchMode(mode === 'login' ? 'register' : 'login')"
             >
               {{ mode === 'login' ? '立即注册' : '返回登录' }}
@@ -396,6 +427,11 @@ async function handleRegister() {
   color: #736974;
   font-size: 1.2rem;
   font-weight: 800;
+}
+
+.auth-tabs button:disabled {
+  cursor: wait;
+  opacity: 0.7;
 }
 
 .auth-tabs button.active {
@@ -515,6 +551,11 @@ async function handleRegister() {
     background-color 180ms ease;
 }
 
+.input-shell:has(input:disabled) {
+  background: rgba(248, 244, 247, 0.86);
+  color: #b8acb4;
+}
+
 .input-shell:focus-within {
   border-color: #9d5c8e;
   background: #ffffff;
@@ -533,6 +574,10 @@ async function handleRegister() {
   color: #b9aeb5;
 }
 
+.input-shell input:disabled {
+  cursor: wait;
+}
+
 .ghost-icon {
   display: inline-flex;
   align-items: center;
@@ -548,6 +593,13 @@ async function handleRegister() {
 .ghost-icon:hover {
   background: #f5edf3;
   color: #8a3f78;
+}
+
+.ghost-icon:disabled,
+.text-button:disabled,
+.quick-switch button:disabled {
+  cursor: wait;
+  opacity: 0.58;
 }
 
 .form-options {
@@ -595,6 +647,12 @@ async function handleRegister() {
     transform 180ms ease;
 }
 
+.submit-button--loading {
+  cursor: wait;
+  background: linear-gradient(135deg, #2a1a2b, #5c3254);
+  box-shadow: 0 18px 40px rgba(138, 63, 120, 0.26);
+}
+
 .submit-button svg:last-child {
   position: absolute;
   right: 26px;
@@ -603,6 +661,10 @@ async function handleRegister() {
 .submit-button:hover:not(:disabled) {
   box-shadow: 0 18px 36px rgba(36, 24, 43, 0.3);
   transform: translateY(-1px);
+}
+
+.spin-icon {
+  animation: auth-spin 0.9s linear infinite;
 }
 
 .quick-switch {
@@ -657,6 +719,23 @@ async function handleRegister() {
   .quick-switch {
     align-items: flex-start;
     flex-direction: column;
+  }
+}
+
+@keyframes auth-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .submit-button {
+    transition-duration: 0.01ms;
+  }
+
+  .spin-icon {
+    animation-duration: 1ms;
+    animation-iteration-count: 1;
   }
 }
 </style>
