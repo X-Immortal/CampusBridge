@@ -95,7 +95,7 @@ const isAuthRoute = computed(() => route.name === 'auth')
 
 const navItems = [
   { to: '/', label: '工作台', icon: Home },
-  { to: '/auth', label: '认证档案', icon: UserCircle }
+  { to: '/auth', label: '登录注册', icon: UserCircle }
 ]
 </script>
 

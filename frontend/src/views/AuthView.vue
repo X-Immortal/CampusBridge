@@ -5,25 +5,18 @@ import {
   BadgeCheck,
   Eye,
   EyeOff,
-  HeartHandshake,
   IdCard,
   LoaderCircle,
   LockKeyhole,
   Mail,
-  MessageCircle,
-  RefreshCw,
   School,
-  Send,
-  ShieldCheck,
-  Star,
   UserRound
 } from '@lucide/vue'
-import { RouterLink } from 'vue-router'
-import StatusBadge from '../components/StatusBadge.vue'
-import { VERIFICATION_METHODS, optionLabel } from '../constants'
+import { useRouter } from 'vue-router'
 import { useAuth } from '../stores/auth'
 
-const { state, isAuthenticated, verificationStatus, login, register, refreshSession, submitVerification } = useAuth()
+const { state, login, register } = useAuth()
+const router = useRouter()
 
 const mode = ref('login')
 const feedback = ref('')
@@ -43,19 +36,9 @@ const registerForm = reactive({
   email: ''
 })
 
-const verificationForm = reactive({
-  method: 'STUDENT_CARD_IMAGE',
-  realName: '',
-  studentNumber: '',
-  school: '',
-  department: '',
-  evidenceUrl: ''
-})
-
 const formTitle = computed(() => (mode.value === 'login' ? '欢迎回来' : '创建账号'))
-const formSubtitle = computed(() => (mode.value === 'login' ? '登录你的账号，继续互助之旅' : '完成基础信息，加入可信校园互助'))
+const formSubtitle = computed(() => (mode.value === 'login' ? '登录后进入工作台完成校内认证' : '先创建账号，再进入可信互助空间'))
 const submitLabel = computed(() => (mode.value === 'login' ? '登录' : '注册'))
-const verificationTone = computed(() => (verificationStatus.value === 'VERIFIED' ? 'success' : 'warning'))
 
 function switchMode(nextMode) {
   mode.value = nextMode
@@ -70,7 +53,8 @@ function setFeedback(message, type = 'success') {
 async function handleLogin() {
   try {
     await login(loginForm)
-    setFeedback('登录成功，已同步当前用户和认证状态。')
+    setFeedback('登录成功，正在进入认证工作台。')
+    await router.push('/')
   } catch (error) {
     setFeedback(error.message, 'danger')
   }
@@ -79,26 +63,8 @@ async function handleLogin() {
 async function handleRegister() {
   try {
     await register(registerForm)
-    setFeedback('注册成功，请切换到登录并使用新账号进入。')
+    setFeedback('注册成功，请使用新账号登录。')
     mode.value = 'login'
-  } catch (error) {
-    setFeedback(error.message, 'danger')
-  }
-}
-
-async function handleRefresh() {
-  try {
-    await refreshSession()
-    setFeedback('账号状态已刷新。')
-  } catch (error) {
-    setFeedback(error.message, 'danger')
-  }
-}
-
-async function handleVerificationSubmit() {
-  try {
-    await submitVerification(verificationForm)
-    setFeedback('认证资料已提交，等待审核。')
   } catch (error) {
     setFeedback(error.message, 'danger')
   }
@@ -107,78 +73,15 @@ async function handleVerificationSubmit() {
 
 <template>
   <section class="auth-screen">
-    <div class="brand-panel">
-      <RouterLink
-        class="auth-brand"
-        to="/"
-        aria-label="返回 CampusBridge 首页"
-      >
-        <span class="auth-logo">
-          <HeartHandshake
-            :size="34"
-            aria-hidden="true"
-          />
-        </span>
-        <span>
-          <strong>校园互助</strong>
-          <small>HELP EACH OTHER</small>
-        </span>
-      </RouterLink>
-
-      <div class="brand-copy">
-        <p class="brand-kicker">
-          FE01 AUTH
-        </p>
-        <h1>互帮互助 · 连接校园</h1>
-        <p>让每一次帮助，都发生在可信任的校园里。</p>
-        <span
-          class="gold-line"
-          aria-hidden="true"
-        />
-      </div>
-
+    <aside
+      class="visual-panel"
+      aria-label="南京大学校园互助视觉"
+    >
       <div
-        class="campus-illustration"
+        class="campus-photo"
         aria-hidden="true"
-      >
-        <span class="campus-arc" />
-        <span class="campus-ground" />
-        <span class="campus-building building-left" />
-        <span class="campus-building building-mid" />
-        <span class="campus-clock" />
-      </div>
-
-      <div class="trust-points">
-        <article>
-          <ShieldCheck
-            :size="25"
-            aria-hidden="true"
-          />
-          <strong>安全可信</strong>
-          <span>校内认证 严格审核</span>
-        </article>
-        <article>
-          <MessageCircle
-            :size="25"
-            aria-hidden="true"
-          />
-          <strong>高效沟通</strong>
-          <span>账号先行 状态清晰</span>
-        </article>
-        <article>
-          <Star
-            :size="25"
-            aria-hidden="true"
-          />
-          <strong>互助共赢</strong>
-          <span>认证通过 再启互助</span>
-        </article>
-      </div>
-
-      <p class="copyright">
-        © 2026 校园互助平台
-      </p>
-    </div>
+      />
+    </aside>
 
     <main class="auth-main">
       <section
@@ -331,7 +234,7 @@ async function handleVerificationSubmit() {
 
           <form
             v-else
-            class="auth-form"
+            class="auth-form register-form"
             @submit.prevent="handleRegister"
           >
             <div class="auth-field">
@@ -430,367 +333,73 @@ async function handleVerificationSubmit() {
               {{ mode === 'login' ? '立即注册' : '返回登录' }}
             </button>
           </div>
-
-          <section class="account-strip">
-            <div>
-              <span>当前账号</span>
-              <strong>{{ state.user?.username || '未登录' }}</strong>
-            </div>
-            <StatusBadge
-              :status="verificationStatus"
-              :tone="verificationTone"
-            />
-            <button
-              class="refresh-button"
-              type="button"
-              title="刷新账号状态"
-              @click="handleRefresh"
-            >
-              <RefreshCw
-                :size="17"
-                aria-hidden="true"
-              />
-            </button>
-          </section>
         </div>
       </section>
-
-      <form
-        class="verification-card"
-        @submit.prevent="handleVerificationSubmit"
-      >
-        <div class="verification-heading">
-          <div>
-            <p class="form-eyebrow">
-              <ShieldCheck
-                :size="16"
-                aria-hidden="true"
-              />
-              校内认证
-            </p>
-            <h2>认证后开启完整互助权限</h2>
-          </div>
-          <StatusBadge
-            :status="verificationStatus"
-            :tone="verificationTone"
-          />
-        </div>
-
-        <div class="verification-grid">
-          <div class="auth-field">
-            <label for="verify-method">认证方式</label>
-            <select
-              id="verify-method"
-              v-model="verificationForm.method"
-              :disabled="!isAuthenticated"
-            >
-              <option
-                v-for="method in VERIFICATION_METHODS"
-                :key="method.value"
-                :value="method.value"
-              >
-                {{ method.label }}
-              </option>
-            </select>
-          </div>
-          <div class="auth-field">
-            <label for="verify-name">真实姓名</label>
-            <input
-              id="verify-name"
-              v-model.trim="verificationForm.realName"
-              :disabled="!isAuthenticated"
-              required
-            >
-          </div>
-          <div class="auth-field">
-            <label for="verify-number">学号</label>
-            <input
-              id="verify-number"
-              v-model.trim="verificationForm.studentNumber"
-              :disabled="!isAuthenticated"
-              required
-            >
-          </div>
-          <div class="auth-field">
-            <label for="verify-school">学校</label>
-            <input
-              id="verify-school"
-              v-model.trim="verificationForm.school"
-              :disabled="!isAuthenticated"
-              required
-            >
-          </div>
-          <div class="auth-field">
-            <label for="verify-department">院系</label>
-            <input
-              id="verify-department"
-              v-model.trim="verificationForm.department"
-              :disabled="!isAuthenticated"
-            >
-          </div>
-          <div class="auth-field">
-            <label for="verify-evidence">材料链接</label>
-            <input
-              id="verify-evidence"
-              v-model.trim="verificationForm.evidenceUrl"
-              :disabled="!isAuthenticated"
-              placeholder="可填写学生证或校园邮箱证明材料链接"
-            >
-          </div>
-        </div>
-
-        <button
-          class="verify-submit"
-          type="submit"
-          :disabled="!isAuthenticated"
-        >
-          <Send
-            :size="17"
-            aria-hidden="true"
-          />
-          提交认证
-        </button>
-
-        <p class="verification-note">
-          {{ isAuthenticated ? `认证方式：${optionLabel(VERIFICATION_METHODS, state.verification?.method)}` : '请先登录后提交校内认证。' }}
-        </p>
-      </form>
     </main>
   </section>
 </template>
 
 <style scoped>
 .auth-screen {
-  min-height: 100vh;
+  height: 100vh;
   display: grid;
-  grid-template-columns: minmax(420px, 45vw) minmax(0, 1fr);
-  background:
-    radial-gradient(circle at 18% 14%, rgba(193, 164, 111, 0.18), transparent 30%),
-    linear-gradient(115deg, #fbf8f2 0%, #ffffff 44%, #eef0f2 44%, #f8f9fb 100%);
-  color: #171717;
+  grid-template-columns: minmax(560px, 42vw) minmax(480px, 1fr);
+  overflow: hidden;
+  background: #f5f0f5;
+  color: #241a28;
   font-family: KaiTi, STKaiti, "楷体", "华文楷体", serif;
 }
 
-.brand-panel {
+.visual-panel {
   position: relative;
-  display: grid;
-  align-content: space-between;
+  isolation: isolate;
   min-height: 100vh;
-  padding: 42px clamp(28px, 4vw, 66px) 34px;
   overflow: hidden;
 }
 
-.auth-brand {
-  position: relative;
-  z-index: 2;
-  display: inline-flex;
-  align-items: center;
-  gap: 14px;
-  width: fit-content;
-}
-
-.auth-logo {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 58px;
-  height: 58px;
-  color: #ad8a4d;
-}
-
-.auth-brand strong,
-.auth-brand small {
-  display: block;
-}
-
-.auth-brand strong {
-  color: #171717;
-  font-size: 1.35rem;
-  letter-spacing: 0;
-}
-
-.auth-brand small {
-  margin-top: 4px;
-  color: #77716a;
-  font-size: 0.78rem;
-  letter-spacing: 0.08em;
-}
-
-.brand-copy {
-  position: relative;
-  z-index: 2;
-  display: grid;
-  gap: 20px;
-  max-width: 560px;
-}
-
-.brand-kicker {
-  margin: 0;
-  color: #ad8a4d;
-  font-size: 0.82rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-}
-
-.brand-copy h1 {
-  margin: 0;
-  color: #171717;
-  font-size: clamp(2.4rem, 3.35vw, 3.75rem);
-  font-weight: 500;
-  line-height: 1.12;
-  letter-spacing: 0;
-  white-space: nowrap;
-}
-
-.brand-copy p:not(.brand-kicker) {
-  margin: 0;
-  color: #78716c;
-  font-size: 1.1rem;
-  line-height: 1.7;
-}
-
-.gold-line {
-  width: 48px;
-  height: 2px;
-  background: #b99a60;
-}
-
-.campus-illustration {
+.campus-photo {
   position: absolute;
-  inset: auto 0 110px 0;
-  height: 380px;
-  opacity: 0.7;
-}
-
-.campus-arc {
-  position: absolute;
-  left: -18%;
-  bottom: 10px;
-  width: 125%;
-  height: 260px;
-  border-top: 2px solid rgba(185, 154, 96, 0.45);
-  border-radius: 50% 50% 0 0;
-  transform: rotate(-3deg);
-}
-
-.campus-ground {
-  position: absolute;
-  left: -8%;
-  right: 6%;
-  bottom: 0;
-  height: 140px;
-  border-top: 1px solid rgba(185, 154, 96, 0.22);
-  border-radius: 55% 45% 0 0;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.52), rgba(255, 255, 255, 0.92));
-}
-
-.campus-building {
-  position: absolute;
-  bottom: 70px;
-  border: 1px solid rgba(185, 154, 96, 0.22);
-  background: rgba(255, 255, 255, 0.45);
-  box-shadow: inset 0 0 0 999px rgba(255, 255, 255, 0.18);
-}
-
-.building-left {
-  left: 18%;
-  width: 260px;
-  height: 86px;
-  transform: skewY(-6deg);
-}
-
-.building-mid {
-  right: 13%;
-  width: 86px;
-  height: 230px;
-  border-radius: 38px 38px 0 0;
-}
-
-.campus-clock {
-  position: absolute;
-  right: calc(13% + 22px);
-  bottom: 240px;
-  width: 42px;
-  height: 42px;
-  border: 1px solid rgba(185, 154, 96, 0.28);
-  border-radius: 50%;
-  background:
-    linear-gradient(90deg, transparent 48%, rgba(185, 154, 96, 0.35) 49%, rgba(185, 154, 96, 0.35) 51%, transparent 52%),
-    linear-gradient(0deg, transparent 48%, rgba(185, 154, 96, 0.35) 49%, rgba(185, 154, 96, 0.35) 51%, transparent 52%),
-    rgba(255, 255, 255, 0.58);
-}
-
-.trust-points {
-  position: relative;
-  z-index: 2;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 24px;
-  max-width: 640px;
-  color: #ad8a4d;
-}
-
-.trust-points article {
-  display: grid;
-  gap: 8px;
-}
-
-.trust-points strong {
-  color: #171717;
-  font-size: 1rem;
-}
-
-.trust-points span {
-  color: #8a8177;
-  font-size: 0.86rem;
-  line-height: 1.5;
-}
-
-.copyright {
-  position: relative;
-  z-index: 2;
-  margin: 24px 0 0;
-  color: #918b84;
-  font-size: 0.82rem;
+  inset: 0;
+  background: url("/auth-left.png") center / cover no-repeat;
 }
 
 .auth-main {
   min-height: 100vh;
   display: grid;
-  align-content: center;
-  justify-items: center;
-  gap: 22px;
-  padding: 42px 28px;
+  place-items: center;
+  padding: 28px;
+  background:
+    radial-gradient(circle at 22% 20%, rgba(166, 105, 160, 0.16), transparent 28%),
+    linear-gradient(135deg, #f9f7f5 0%, #f4eef4 100%);
 }
 
-.auth-card,
-.verification-card {
-  width: min(100%, 670px);
+.auth-card {
+  width: min(100%, 600px);
   border: 1px solid rgba(255, 255, 255, 0.72);
-  border-radius: 30px;
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 28px 80px rgba(24, 24, 27, 0.14);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 28px 86px rgba(55, 42, 67, 0.16);
   backdrop-filter: blur(18px);
 }
 
 .auth-tabs {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  min-height: 96px;
-  border-bottom: 1px solid #ebe7df;
+  min-height: 78px;
+  border-bottom: 1px solid #ebe3e6;
 }
 
 .auth-tabs button {
   position: relative;
   border: 0;
   background: transparent;
-  color: #6f6b66;
-  font-size: 1.25rem;
-  font-weight: 700;
+  color: #736974;
+  font-size: 1.2rem;
+  font-weight: 800;
 }
 
 .auth-tabs button.active {
-  color: #171717;
+  color: #20151f;
 }
 
 .auth-tabs button.active::after {
@@ -798,23 +407,23 @@ async function handleVerificationSubmit() {
   position: absolute;
   left: 50%;
   bottom: 0;
-  width: 66px;
+  width: 70px;
   height: 2px;
   border-radius: 999px;
-  background: #b99a60;
+  background: #8a3f78;
   transform: translateX(-50%);
 }
 
 .auth-card-body {
-  width: min(100%, 470px);
+  width: min(100%, 430px);
   margin: 0 auto;
-  padding: 54px 0 44px;
+  padding: 34px 0 36px;
 }
 
 .form-heading {
   display: grid;
-  gap: 10px;
-  margin-bottom: 34px;
+  gap: 9px;
+  margin-bottom: 24px;
 }
 
 .form-eyebrow {
@@ -822,25 +431,23 @@ async function handleVerificationSubmit() {
   align-items: center;
   gap: 8px;
   margin: 0;
-  color: #ad8a4d;
+  color: #8a3f78;
   font-size: 0.82rem;
   font-weight: 800;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
-.form-heading h2,
-.verification-heading h2 {
+.form-heading h2 {
   margin: 0;
-  color: #171717;
+  color: #20151f;
   font-size: 2rem;
   font-weight: 600;
-  letter-spacing: 0;
 }
 
-.form-heading p:not(.form-eyebrow) {
+.form-heading p {
   margin: 0;
-  color: #7a746d;
+  color: #786f77;
   line-height: 1.6;
 }
 
@@ -848,9 +455,9 @@ async function handleVerificationSubmit() {
   display: flex;
   gap: 10px;
   align-items: flex-start;
-  margin-bottom: 22px;
-  padding: 12px 14px;
-  border-radius: 14px;
+  margin-bottom: 18px;
+  padding: 11px 13px;
+  border-radius: 12px;
   line-height: 1.5;
 }
 
@@ -868,36 +475,40 @@ async function handleVerificationSubmit() {
 
 .auth-form {
   display: grid;
-  gap: 22px;
+  gap: 18px;
+}
+
+.register-form {
+  gap: 15px;
 }
 
 .auth-field,
 .auth-field-grid {
   display: grid;
-  gap: 9px;
+  gap: 8px;
 }
 
 .auth-field-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: 12px;
 }
 
 .auth-field label {
-  color: #27221d;
+  color: #2c202a;
   font-size: 0.95rem;
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .input-shell {
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-height: 58px;
-  padding: 0 16px;
-  border: 1px solid #dedbd5;
+  gap: 11px;
+  min-height: 54px;
+  padding: 0 15px;
+  border: 1px solid #e0d6dc;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.85);
-  color: #aaa39b;
+  background: rgba(255, 255, 255, 0.82);
+  color: #a79ba3;
   transition:
     border-color 180ms ease,
     box-shadow 180ms ease,
@@ -905,32 +516,21 @@ async function handleVerificationSubmit() {
 }
 
 .input-shell:focus-within {
-  border-color: #b99a60;
+  border-color: #9d5c8e;
   background: #ffffff;
-  box-shadow: 0 0 0 4px rgba(185, 154, 96, 0.14);
+  box-shadow: 0 0 0 4px rgba(138, 63, 120, 0.12);
 }
 
-.input-shell input,
-.auth-field input,
-.auth-field select {
+.input-shell input {
   width: 100%;
   border: 0;
   outline: 0;
   background: transparent;
-  color: #171717;
-}
-
-.auth-field > input,
-.auth-field > select {
-  min-height: 48px;
-  padding: 0 12px;
-  border: 1px solid #dedbd5;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.86);
+  color: #20151f;
 }
 
 .input-shell input::placeholder {
-  color: #b8b2ac;
+  color: #b9aeb5;
 }
 
 .ghost-icon {
@@ -942,12 +542,12 @@ async function handleVerificationSubmit() {
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: #aaa39b;
+  color: #9b9098;
 }
 
 .ghost-icon:hover {
-  background: #f4f0e8;
-  color: #6f5b33;
+  background: #f5edf3;
+  color: #8a3f78;
 }
 
 .form-options {
@@ -955,22 +555,22 @@ async function handleVerificationSubmit() {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-top: -4px;
+  margin-top: -2px;
 }
 
 .remember-row {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: #4b4640;
-  font-weight: 600;
+  color: #4d414b;
+  font-weight: 700;
 }
 
 .text-button,
 .quick-switch button {
   border: 0;
   background: transparent;
-  color: #ad8a4d;
+  color: #8a3f78;
   font-weight: 800;
 }
 
@@ -980,23 +580,19 @@ async function handleVerificationSubmit() {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  min-height: 58px;
+  min-height: 56px;
   padding: 0 18px;
   border: 0;
   border-radius: 999px;
-  background: linear-gradient(135deg, #111111, #252525);
+  background: linear-gradient(135deg, #171217, #2d2730);
   color: #ffffff;
   font-size: 1.1rem;
   font-weight: 800;
   white-space: nowrap;
-  box-shadow: 0 16px 30px rgba(17, 17, 17, 0.18);
+  box-shadow: 0 16px 30px rgba(36, 24, 43, 0.2);
   transition:
     box-shadow 180ms ease,
-    background-color 180ms ease;
-}
-
-.submit-button span {
-  white-space: nowrap;
+    transform 180ms ease;
 }
 
 .submit-button svg:last-child {
@@ -1005,158 +601,60 @@ async function handleVerificationSubmit() {
 }
 
 .submit-button:hover:not(:disabled) {
-  box-shadow: 0 18px 34px rgba(17, 17, 17, 0.25);
+  box-shadow: 0 18px 36px rgba(36, 24, 43, 0.3);
+  transform: translateY(-1px);
 }
 
 .quick-switch {
   display: flex;
   justify-content: center;
   gap: 8px;
-  margin-top: 28px;
-  color: #4b4640;
+  margin-top: 22px;
+  color: #4d414b;
   font-size: 1rem;
 }
 
-.account-strip {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  align-items: center;
-  gap: 12px;
-  margin-top: 28px;
-  padding: 14px 16px;
-  border: 1px solid #ebe7df;
-  border-radius: 16px;
-  background: #fbfaf7;
-}
-
-.account-strip span,
-.verification-note {
-  color: #7a746d;
-  font-size: 0.84rem;
-}
-
-.account-strip strong {
-  display: block;
-  margin-top: 4px;
-  color: #171717;
-}
-
-.refresh-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border: 1px solid #dedbd5;
-  border-radius: 50%;
-  background: #ffffff;
-  color: #6f5b33;
-}
-
-.verification-card {
-  display: grid;
-  gap: 18px;
-  padding: 24px;
-}
-
-.verification-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.verification-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.verify-submit {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: fit-content;
-  min-height: 42px;
-  padding: 0 16px;
-  border: 1px solid #b99a60;
-  border-radius: 999px;
-  background: #fffaf0;
-  color: #6f5b33;
-  font-weight: 800;
-}
-
-.verification-note {
-  margin: 0;
-}
-
-@media (max-width: 1100px) {
+@media (max-width: 1050px) {
   .auth-screen {
     grid-template-columns: 1fr;
+    height: auto;
+    min-height: 100vh;
+    overflow: auto;
   }
 
-  .brand-copy h1 {
-    white-space: normal;
-  }
-
-  .brand-panel {
-    min-height: auto;
-    gap: 44px;
-  }
-
-  .campus-illustration {
-    height: 260px;
-    bottom: 82px;
-  }
-}
-
-@media (max-width: 720px) {
-  .auth-screen {
-    background: #fbf8f2;
-  }
-
-  .brand-panel {
-    padding: 26px 18px 18px;
-  }
-
-  .brand-copy h1 {
-    font-size: 2.2rem;
-  }
-
-  .campus-illustration,
-  .copyright {
-    display: none;
-  }
-
-  .trust-points,
-  .auth-field-grid,
-  .verification-grid {
-    grid-template-columns: 1fr;
+  .visual-panel {
+    min-height: 46vh;
   }
 
   .auth-main {
     min-height: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .visual-panel {
+    min-height: 38vh;
+  }
+
+  .auth-main {
     padding: 18px;
   }
 
-  .auth-card,
-  .verification-card {
+  .auth-card {
     border-radius: 22px;
   }
 
   .auth-card-body {
     width: 100%;
-    padding: 34px 20px;
+    padding: 28px 18px 30px;
   }
 
-  .auth-tabs {
-    min-height: 72px;
+  .auth-field-grid {
+    grid-template-columns: 1fr;
   }
 
   .form-options,
-  .quick-switch,
-  .verification-heading {
+  .quick-switch {
     align-items: flex-start;
     flex-direction: column;
   }
