@@ -1,12 +1,11 @@
 <script setup>
 import { computed, reactive, ref } from 'vue'
-import { BadgeCheck, LoaderCircle, LogIn, RefreshCw, Save, Send, ShieldCheck, UserPlus } from '@lucide/vue'
+import { BadgeCheck, LoaderCircle, LogIn, RefreshCw, Send, ShieldCheck, UserPlus } from '@lucide/vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import { VERIFICATION_METHODS, optionLabel } from '../constants'
 import { useAuth } from '../stores/auth'
 
-const { state, isAuthenticated, verificationStatus, login, register, refreshSession, submitVerification, updateProfile } =
-  useAuth()
+const { state, isAuthenticated, verificationStatus, login, register, refreshSession, submitVerification } = useAuth()
 
 const mode = ref('login')
 const feedback = ref('')
@@ -22,17 +21,6 @@ const registerForm = reactive({
   password: '',
   phone: '',
   email: ''
-})
-
-const profileForm = reactive({
-  nickname: state.profile?.nickname || '',
-  bio: state.profile?.bio || '',
-  campus: state.profile?.campus || '',
-  college: state.profile?.college || '',
-  contactInfo: state.profile?.contactInfo || '',
-  avatarUrl: state.profile?.avatarUrl || '',
-  interestTags: (state.profile?.interestTags || []).join('，'),
-  skillTags: (state.profile?.skillTags || []).join('，')
 })
 
 const verificationForm = reactive({
@@ -51,17 +39,10 @@ function setFeedback(message, type = 'success') {
   feedbackType.value = type
 }
 
-function splitTags(value) {
-  return String(value || '')
-    .split(/[，,]/)
-    .map((tag) => tag.trim())
-    .filter(Boolean)
-}
-
 async function handleLogin() {
   try {
     await login(loginForm)
-    setFeedback('登录成功，已同步当前用户、档案和认证状态。')
+    setFeedback('登录成功，已同步当前用户和认证状态。')
   } catch (error) {
     setFeedback(error.message, 'danger')
   }
@@ -81,24 +62,6 @@ async function handleRefresh() {
   try {
     await refreshSession()
     setFeedback('账号状态已刷新。')
-  } catch (error) {
-    setFeedback(error.message, 'danger')
-  }
-}
-
-async function handleProfileSave() {
-  try {
-    await updateProfile({
-      nickname: profileForm.nickname,
-      bio: profileForm.bio,
-      campus: profileForm.campus,
-      college: profileForm.college,
-      contactInfo: profileForm.contactInfo,
-      avatarUrl: profileForm.avatarUrl,
-      interestTags: splitTags(profileForm.interestTags),
-      skillTags: splitTags(profileForm.skillTags)
-    })
-    setFeedback('公开档案已保存。')
   } catch (error) {
     setFeedback(error.message, 'danger')
   }
@@ -128,7 +91,7 @@ async function handleVerificationSubmit() {
         登录、注册和认证状态管理。
       </h1>
       <p class="page-subtitle">
-        对齐后端 `POST /auth/register`、`POST /auth/login`、`GET/POST /verifications` 与用户档案接口，提交后会给出明确成功或错误反馈。
+        对齐后端 `POST /auth/register`、`POST /auth/login`、`GET /users/me`、`GET/POST /verifications`，提交后给出明确成功或错误反馈。
       </p>
     </header>
 
@@ -331,179 +294,92 @@ async function handleVerificationSubmit() {
       </aside>
     </section>
 
-    <section class="grid grid--two">
-      <form
-        class="panel stack"
-        @submit.prevent="handleProfileSave"
-      >
-        <div class="panel-title">
-          <h2>公开档案</h2>
-          <span class="muted">BE03 联调入口</span>
-        </div>
-        <div class="form-row">
-          <div class="field">
-            <label for="profile-nickname">昵称</label>
-            <input
-              id="profile-nickname"
-              v-model.trim="profileForm.nickname"
-              :disabled="!isAuthenticated"
+    <form
+      class="panel stack"
+      @submit.prevent="handleVerificationSubmit"
+    >
+      <div class="panel-title">
+        <h2>校内认证</h2>
+        <span class="muted">BE02 联调入口</span>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label for="verify-method">认证方式</label>
+          <select
+            id="verify-method"
+            v-model="verificationForm.method"
+            :disabled="!isAuthenticated"
+          >
+            <option
+              v-for="method in VERIFICATION_METHODS"
+              :key="method.value"
+              :value="method.value"
             >
-          </div>
-          <div class="field">
-            <label for="profile-campus">校区</label>
-            <input
-              id="profile-campus"
-              v-model.trim="profileForm.campus"
-              :disabled="!isAuthenticated"
-            >
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="field">
-            <label for="profile-college">学院</label>
-            <input
-              id="profile-college"
-              v-model.trim="profileForm.college"
-              :disabled="!isAuthenticated"
-            >
-          </div>
-          <div class="field">
-            <label for="profile-contact">站内联系备注</label>
-            <input
-              id="profile-contact"
-              v-model.trim="profileForm.contactInfo"
-              :disabled="!isAuthenticated"
-            >
-          </div>
+              {{ method.label }}
+            </option>
+          </select>
         </div>
         <div class="field">
-          <label for="profile-bio">简介</label>
-          <textarea
-            id="profile-bio"
-            v-model.trim="profileForm.bio"
+          <label for="verify-name">真实姓名</label>
+          <input
+            id="verify-name"
+            v-model.trim="verificationForm.realName"
             :disabled="!isAuthenticated"
-          />
+            required
+          >
         </div>
-        <div class="form-row">
-          <div class="field">
-            <label for="profile-interests">兴趣标签</label>
-            <input
-              id="profile-interests"
-              v-model.trim="profileForm.interestTags"
-              :disabled="!isAuthenticated"
-              placeholder="用逗号分隔"
-            >
-          </div>
-          <div class="field">
-            <label for="profile-skills">技能标签</label>
-            <input
-              id="profile-skills"
-              v-model.trim="profileForm.skillTags"
-              :disabled="!isAuthenticated"
-              placeholder="用逗号分隔"
-            >
-          </div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label for="verify-number">学号</label>
+          <input
+            id="verify-number"
+            v-model.trim="verificationForm.studentNumber"
+            :disabled="!isAuthenticated"
+            required
+          >
         </div>
-        <button
-          class="button"
-          type="submit"
-          :disabled="!isAuthenticated"
-        >
-          <Save
-            :size="17"
-            aria-hidden="true"
-          />
-          保存档案
-        </button>
-      </form>
-
-      <form
-        class="panel stack"
-        @submit.prevent="handleVerificationSubmit"
+        <div class="field">
+          <label for="verify-school">学校</label>
+          <input
+            id="verify-school"
+            v-model.trim="verificationForm.school"
+            :disabled="!isAuthenticated"
+            required
+          >
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label for="verify-department">院系</label>
+          <input
+            id="verify-department"
+            v-model.trim="verificationForm.department"
+            :disabled="!isAuthenticated"
+          >
+        </div>
+        <div class="field">
+          <label for="verify-evidence">材料链接</label>
+          <input
+            id="verify-evidence"
+            v-model.trim="verificationForm.evidenceUrl"
+            :disabled="!isAuthenticated"
+            placeholder="可填写学生证或校园邮箱证明材料链接"
+          >
+        </div>
+      </div>
+      <button
+        class="button"
+        type="submit"
+        :disabled="!isAuthenticated"
       >
-        <div class="panel-title">
-          <h2>校内认证</h2>
-          <span class="muted">BE02 联调入口</span>
-        </div>
-        <div class="form-row">
-          <div class="field">
-            <label for="verify-method">认证方式</label>
-            <select
-              id="verify-method"
-              v-model="verificationForm.method"
-              :disabled="!isAuthenticated"
-            >
-              <option
-                v-for="method in VERIFICATION_METHODS"
-                :key="method.value"
-                :value="method.value"
-              >
-                {{ method.label }}
-              </option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="verify-name">真实姓名</label>
-            <input
-              id="verify-name"
-              v-model.trim="verificationForm.realName"
-              :disabled="!isAuthenticated"
-              required
-            >
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="field">
-            <label for="verify-number">学号</label>
-            <input
-              id="verify-number"
-              v-model.trim="verificationForm.studentNumber"
-              :disabled="!isAuthenticated"
-              required
-            >
-          </div>
-          <div class="field">
-            <label for="verify-school">学校</label>
-            <input
-              id="verify-school"
-              v-model.trim="verificationForm.school"
-              :disabled="!isAuthenticated"
-              required
-            >
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="field">
-            <label for="verify-department">院系</label>
-            <input
-              id="verify-department"
-              v-model.trim="verificationForm.department"
-              :disabled="!isAuthenticated"
-            >
-          </div>
-          <div class="field">
-            <label for="verify-evidence">材料链接</label>
-            <input
-              id="verify-evidence"
-              v-model.trim="verificationForm.evidenceUrl"
-              :disabled="!isAuthenticated"
-              placeholder="先使用附件接口上传后填入 URL"
-            >
-          </div>
-        </div>
-        <button
-          class="button"
-          type="submit"
-          :disabled="!isAuthenticated"
-        >
-          <Send
-            :size="17"
-            aria-hidden="true"
-          />
-          提交认证
-        </button>
-      </form>
-    </section>
+        <Send
+          :size="17"
+          aria-hidden="true"
+        />
+        提交认证
+      </button>
+    </form>
   </section>
 </template>
 

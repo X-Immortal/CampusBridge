@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { CheckCircle2, Clock3, ShieldAlert } from '@lucide/vue'
-import { optionLabel, statusTone, TASK_STATUSES } from '../constants'
+import { STATUS_OPTIONS, optionLabel, statusTone } from '../constants'
 
 const props = defineProps({
   status: {
@@ -19,7 +19,7 @@ const props = defineProps({
 })
 
 const badgeTone = computed(() => props.tone || statusTone(props.status))
-const displayLabel = computed(() => props.label || optionLabel(TASK_STATUSES, props.status))
+const displayLabel = computed(() => props.label || optionLabel(STATUS_OPTIONS, props.status))
 const icon = computed(() => {
   if (badgeTone.value === 'success') return CheckCircle2
   if (badgeTone.value === 'danger') return ShieldAlert

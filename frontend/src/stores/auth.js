@@ -15,7 +15,6 @@ const authState = reactive({
   token: initialAuth.token || '',
   refreshToken: initialAuth.refreshToken || '',
   user: initialAuth.user || null,
-  profile: initialAuth.profile || null,
   verification: initialAuth.verification || null,
   loading: false,
   error: ''
@@ -32,7 +31,6 @@ function persistAuth() {
       token: authState.token,
       refreshToken: authState.refreshToken,
       user: authState.user,
-      profile: authState.profile,
       verification: authState.verification,
       userId: currentUserId.value
     })
@@ -87,13 +85,8 @@ async function register(payload) {
 async function refreshSession() {
   if (!authState.token) return
   try {
-    const [user, profile, verification] = await Promise.allSettled([
-      api.getCurrentUser(),
-      api.getMyProfile(),
-      api.getVerification()
-    ])
+    const [user, verification] = await Promise.allSettled([api.getCurrentUser(), api.getVerification()])
     if (user.status === 'fulfilled' && user.value) authState.user = user.value
-    if (profile.status === 'fulfilled' && profile.value) authState.profile = profile.value
     if (verification.status === 'fulfilled' && verification.value) authState.verification = verification.value
     persistAuth()
   } catch {
@@ -108,18 +101,10 @@ async function submitVerification(payload) {
   return result
 }
 
-async function updateProfile(payload) {
-  const result = await api.updateMyProfile(payload)
-  authState.profile = result
-  persistAuth()
-  return result
-}
-
 function logout() {
   authState.token = ''
   authState.refreshToken = ''
   authState.user = null
-  authState.profile = null
   authState.verification = null
   authState.error = ''
   localStorage.removeItem(AUTH_STORAGE_KEY)
@@ -135,7 +120,6 @@ export function useAuth() {
     register,
     logout,
     refreshSession,
-    submitVerification,
-    updateProfile
+    submitVerification
   }
 }

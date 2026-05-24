@@ -81,17 +81,7 @@
 </template>
 
 <script setup>
-import {
-  ClipboardList,
-  Handshake,
-  Home,
-  LogIn,
-  LogOut,
-  MessageSquare,
-  PlusCircle,
-  ShieldCheck,
-  UserCircle
-} from '@lucide/vue'
+import { Handshake, Home, LogIn, LogOut, ShieldCheck, UserCircle } from '@lucide/vue'
 import { RouterLink } from 'vue-router'
 import { useAuth } from './stores/auth'
 
@@ -99,9 +89,6 @@ const { state, isAuthenticated, logout } = useAuth()
 
 const navItems = [
   { to: '/', label: '工作台', icon: Home },
-  { to: '/tasks', label: '任务广场', icon: ClipboardList },
-  { to: '/tasks/new', label: '发布任务', icon: PlusCircle },
-  { to: '/messages', label: '站内沟通', icon: MessageSquare },
   { to: '/auth', label: '认证档案', icon: UserCircle }
 ]
 </script>
@@ -211,9 +198,13 @@ const navItems = [
   min-height: calc(100vh - 72px);
 }
 
-@media (max-width: 980px) {
+@media (max-width: 760px) {
   .topbar {
     grid-template-columns: 1fr;
+    width: 100vw;
+    max-width: 100vw;
+    overflow: hidden;
+    padding: 10px 14px;
   }
 
   .brand {
@@ -222,25 +213,6 @@ const navItems = [
 
   .account {
     justify-content: flex-start;
-  }
-}
-
-@media (max-width: 640px) {
-  .topbar {
-    width: 100vw;
-    max-width: 100vw;
-    overflow: hidden;
-    padding: 10px 14px;
-  }
-
-  .nav {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-  }
-
-  .nav-link {
-    justify-content: center;
   }
 }
 </style>
