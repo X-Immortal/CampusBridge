@@ -5,7 +5,6 @@ import {
   BadgeCheck,
   Eye,
   EyeOff,
-  IdCard,
   LoaderCircle,
   LockKeyhole,
   Mail,
@@ -73,7 +72,7 @@ async function handleRegister() {
   feedback.value = ''
   try {
     await register(registerForm)
-    setFeedback('注册成功，请使用新账号登录。')
+    setFeedback('注册成功，请使用用户名和密码登录。')
     mode.value = 'login'
   } catch (error) {
     setFeedback(error.message, 'danger')
@@ -162,7 +161,7 @@ async function handleRegister() {
             @submit.prevent="handleLogin"
           >
             <div class="auth-field">
-              <label for="login-username">手机号 / 邮箱 / 学号</label>
+              <label for="login-username">用户名</label>
               <div class="input-shell">
                 <UserRound
                   :size="20"
@@ -172,7 +171,7 @@ async function handleRegister() {
                   id="login-username"
                   v-model.trim="loginForm.username"
                   autocomplete="username"
-                  placeholder="请输入手机号 / 邮箱 / 学号"
+                  placeholder="请输入用户名"
                   required
                   :disabled="state.loading"
                 >
@@ -261,9 +260,9 @@ async function handleRegister() {
             @submit.prevent="handleRegister"
           >
             <div class="auth-field">
-              <label for="register-username">学号 / 用户名</label>
+              <label for="register-username">用户名</label>
               <div class="input-shell">
-                <IdCard
+                <UserRound
                   :size="20"
                   aria-hidden="true"
                 />
@@ -271,7 +270,7 @@ async function handleRegister() {
                   id="register-username"
                   v-model.trim="registerForm.username"
                   autocomplete="username"
-                  placeholder="请输入学号或用户名"
+                  placeholder="请设置用户名"
                   required
                   :disabled="state.loading"
                 >
@@ -373,6 +372,7 @@ async function handleRegister() {
 <style scoped>
 .auth-screen {
   height: 100vh;
+  height: 100dvh;
   display: grid;
   grid-template-columns: minmax(560px, 42vw) minmax(480px, 1fr);
   overflow: hidden;
@@ -384,18 +384,23 @@ async function handleRegister() {
 .visual-panel {
   position: relative;
   isolation: isolate;
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
   overflow: hidden;
 }
 
 .campus-photo {
   position: absolute;
   inset: 0;
+  width: 100%;
+  height: 100%;
   background: url("/auth-left.png") center / cover no-repeat;
 }
 
 .auth-main {
   min-height: 100vh;
+  min-height: 100dvh;
   display: grid;
   place-items: center;
   padding: 28px;
@@ -681,10 +686,13 @@ async function handleRegister() {
     grid-template-columns: 1fr;
     height: auto;
     min-height: 100vh;
+    min-height: 100dvh;
     overflow: auto;
   }
 
   .visual-panel {
+    height: 46vh;
+    height: 46dvh;
     min-height: 46vh;
   }
 
@@ -695,6 +703,8 @@ async function handleRegister() {
 
 @media (max-width: 640px) {
   .visual-panel {
+    height: 38vh;
+    height: 38dvh;
     min-height: 38vh;
   }
 
