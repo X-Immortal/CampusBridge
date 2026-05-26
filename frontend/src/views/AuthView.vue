@@ -21,12 +21,23 @@ const mode = ref('login')
 const feedback = ref('')
 const feedbackType = ref('success')
 const showPassword = ref(false)
-const rememberMe = ref(true)
 const pendingAction = ref('')
+const REMEMBER_LOGIN_KEY = 'campusbridge.rememberedLogin'
+
+function readRememberedLogin() {
+  try {
+    return JSON.parse(localStorage.getItem(REMEMBER_LOGIN_KEY) || '{}')
+  } catch {
+    return {}
+  }
+}
+
+const rememberedLogin = readRememberedLogin()
+const rememberMe = ref(Boolean(rememberedLogin.username || rememberedLogin.password))
 
 const loginForm = reactive({
-  username: '',
-  password: ''
+  username: rememberedLogin.username || '',
+  password: rememberedLogin.password || ''
 })
 
 const registerForm = reactive({
@@ -53,11 +64,27 @@ function setFeedback(message, type = 'success') {
   feedbackType.value = type
 }
 
+function syncRememberedLogin() {
+  if (rememberMe.value) {
+    localStorage.setItem(
+      REMEMBER_LOGIN_KEY,
+      JSON.stringify({
+        username: loginForm.username,
+        password: loginForm.password
+      })
+    )
+    return
+  }
+
+  localStorage.removeItem(REMEMBER_LOGIN_KEY)
+}
+
 async function handleLogin() {
   pendingAction.value = 'login'
   feedback.value = ''
   try {
     await login(loginForm)
+    syncRememberedLogin()
     setFeedback('登录成功，正在进入认证工作台。')
     await router.push('/')
   } catch (error) {
@@ -224,13 +251,6 @@ async function handleRegister() {
                 >
                 <span>记住我</span>
               </label>
-              <button
-                class="text-button"
-                type="button"
-                :disabled="state.loading"
-              >
-                忘记密码?
-              </button>
             </div>
 
             <button
@@ -601,7 +621,6 @@ async function handleRegister() {
 }
 
 .ghost-icon:disabled,
-.text-button:disabled,
 .quick-switch button:disabled {
   cursor: wait;
   opacity: 0.58;
@@ -610,7 +629,7 @@ async function handleRegister() {
 .form-options {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 12px;
   margin-top: -2px;
 }
@@ -623,7 +642,6 @@ async function handleRegister() {
   font-weight: 700;
 }
 
-.text-button,
 .quick-switch button {
   border: 0;
   background: transparent;
