@@ -91,6 +91,8 @@ export default {
   register: (body) => request('/auth/register', { method: 'POST', body }),
   login: (body) => request('/auth/login', { method: 'POST', body }),
   getCurrentUser: () => request('/users/me'),
+  getMyProfile: () => request('/users/me/profile'),
+  updateMyProfile: (body) => request('/users/me/profile', { method: 'PUT', body }),
   submitVerification: (body) => request('/verifications', { method: 'POST', body }),
   getVerification: () => request('/verifications')
 }

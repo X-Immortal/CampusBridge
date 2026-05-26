@@ -15,13 +15,14 @@ const authState = reactive({
   token: initialAuth.token || '',
   refreshToken: initialAuth.refreshToken || '',
   user: initialAuth.user || null,
+  profile: initialAuth.profile || null,
   verification: initialAuth.verification || null,
   loading: false,
   error: ''
 })
 
 const isAuthenticated = computed(() => Boolean(authState.token))
-const currentUserId = computed(() => authState.user?.id || authState.user?.userId || authState.userId || null)
+const currentUserId = computed(() => authState.user?.id || authState.user?.userId || initialAuth.userId || null)
 const verificationStatus = computed(() => authState.verification?.status || 'UNVERIFIED')
 
 function persistAuth() {
@@ -31,6 +32,7 @@ function persistAuth() {
       token: authState.token,
       refreshToken: authState.refreshToken,
       user: authState.user,
+      profile: authState.profile,
       verification: authState.verification,
       userId: currentUserId.value
     })
@@ -85,9 +87,17 @@ async function register(payload) {
 async function refreshSession() {
   if (!authState.token) return
   try {
-    const [user, verification] = await Promise.allSettled([api.getCurrentUser(), api.getVerification()])
+    const [user, profile, verification] = await Promise.allSettled([
+      api.getCurrentUser(),
+      api.getMyProfile(),
+      api.getVerification()
+    ])
     if (user.status === 'fulfilled' && user.value) authState.user = user.value
+    if (profile.status === 'fulfilled' && profile.value) authState.profile = profile.value
     if (verification.status === 'fulfilled' && verification.value) authState.verification = verification.value
+    if (verification.status === 'rejected' && verification.reason?.code === 'VERIFY_004_NOT_FOUND') {
+      authState.verification = null
+    }
     persistAuth()
   } catch {
     persistAuth()
@@ -105,6 +115,7 @@ function logout() {
   authState.token = ''
   authState.refreshToken = ''
   authState.user = null
+  authState.profile = null
   authState.verification = null
   authState.error = ''
   localStorage.removeItem(AUTH_STORAGE_KEY)
