@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campusbridge.mapper.TaskMapper">
+
+  <insert id="insert" parameterType="com.campusbridge.pojo.Task" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO tasks (requester_id, provider_id, category, title, description, campus, location, deadline, reward_type, reward_description, completion_standard, requires_proof, only_in_app_contact, allow_offline_contact, is_instant_task, route_hint, risk_disclosure_confirmed, sensitive_reason, status, created_at, updated_at)
+    VALUES (#{requesterId}, #{providerId}, #{category}, #{title}, #{description}, #{campus}, #{location}, #{deadline}, #{rewardType}, #{rewardDescription}, #{completionStandard}, #{requiresProof}, #{onlyInAppContact}, #{allowOfflineContact}, #{isInstantTask}, #{routeHint}, #{riskDisclosureConfirmed}, #{sensitiveReason}, #{status}, #{createdAt}, #{updatedAt})
+  </insert>
+
+  <select id="selectById" resultType="com.campusbridge.pojo.Task">
+    SELECT * FROM tasks
+    WHERE id = #{id}
+  </select>
+
+  <select id="selectAll" resultType="com.campusbridge.pojo.Task">
+    SELECT * FROM tasks
+  </select>
+
+  <update id="updateById" parameterType="com.campusbridge.pojo.Task">
+    UPDATE tasks
+    SET requester_id = #{requesterId},
+      provider_id = #{providerId},
+      category = #{category},
+      title = #{title},
+      description = #{description},
+      campus = #{campus},
+      location = #{location},
+      deadline = #{deadline},
+      reward_type = #{rewardType},
+      reward_description = #{rewardDescription},
+      completion_standard = #{completionStandard},
+      requires_proof = #{requiresProof},
+      only_in_app_contact = #{onlyInAppContact},
+      allow_offline_contact = #{allowOfflineContact},
+      is_instant_task = #{isInstantTask},
+      route_hint = #{routeHint},
+      risk_disclosure_confirmed = #{riskDisclosureConfirmed},
+      sensitive_reason = #{sensitiveReason},
+      status = #{status},
+      created_at = #{createdAt},
+      updated_at = #{updatedAt}
+    WHERE id = #{id}
+  </update>
+
+  <update id="updateStatusById">
+    UPDATE tasks
+    SET status = #{toStatus},
+        updated_at = #{updatedAt}
+    WHERE id = #{id}
+      AND status = #{fromStatus}
+  </update>
+
+  <update id="acceptProviderById">
+    UPDATE tasks
+    SET provider_id = #{providerId},
+        status = 'ACCEPTED',
+        updated_at = #{updatedAt}
+    WHERE id = #{id}
+      AND requester_id = #{requesterId}
+      AND status = 'OPEN'
+      AND provider_id IS NULL
+  </update>
+
+  <delete id="deleteById">
+    DELETE FROM tasks
+    WHERE id = #{id}
+  </delete>
+
+  <select id="selectWithFilters" resultType="com.campusbridge.pojo.Task">
+    SELECT * FROM tasks
+    <where>
+      <if test="keyword != null and keyword != ''">
+        AND (title LIKE CONCAT('%', #{keyword}, '%') OR description LIKE CONCAT('%', #{keyword}, '%'))
+      </if>
+      <if test="category != null and category != ''">
+        AND category = #{category}
+      </if>
+      <if test="campus != null and campus != ''">
+        AND campus = #{campus}
+      </if>
+      <if test="status != null and status != ''">
+        AND status = #{status}
+      </if>
+      <if test="rewardType != null and rewardType != ''">
+        AND reward_type = #{rewardType}
+      </if>
+      <if test="requiresProof != null">
+        AND requires_proof = #{requiresProof}
+      </if>
+    </where>
+    <choose>
+      <when test="sortBy == 'DEADLINE_ASC'">
+        ORDER BY deadline ASC
+      </when>
+      <when test="sortBy == 'DEADLINE_DESC'">
+        ORDER BY deadline DESC
+      </when>
+      <when test="sortBy == 'CREATED_AT_DESC'">
+        ORDER BY created_at DESC
+      </when>
+      <otherwise>
+        ORDER BY created_at DESC
+      </otherwise>
+    </choose>
+    LIMIT #{limit} OFFSET #{offset}
+  </select>
+
+</mapper>

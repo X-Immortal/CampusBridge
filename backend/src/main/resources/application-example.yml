@@ -1,0 +1,39 @@
+spring:
+  application:
+    name: campusbridge
+  # Spring Boot datasource
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: xxxxx
+    username: xxxxxx
+    password: "xxxxxx"
+  servlet:
+    multipart:
+      # File upload limits
+      max-file-size: 1MB
+      max-request-size: 10MB
+
+# MyBatis
+mybatis:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    map-underscore-to-camel-case: true
+
+# Aliyun OSS
+aliyun:
+  oss:
+    endpoint: https://oss-cn-beijing.aliyuncs.com
+    bucketName: campusbridge
+    region: cn-beijing
+
+# JWT
+jwt:
+  secret: ${JWT_SECRET:your-very-long-and-secure-secret-key-at-least-64-characters-for-hs256}
+  expiration: 86400000
+  refresh-expiration: 2592000000
+  header: Authorization
+  prefix: "Bearer "
+
+security:
+  jwt:
+    required: true

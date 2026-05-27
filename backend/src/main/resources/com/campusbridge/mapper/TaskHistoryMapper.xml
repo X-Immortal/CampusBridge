@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campusbridge.mapper.TaskHistoryMapper">
+
+  <insert id="insert" parameterType="com.campusbridge.pojo.TaskHistory" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO task_histories (task_id, from_status, to_status, operator_id, note, created_at)
+    VALUES (#{taskId}, #{fromStatus}, #{toStatus}, #{operatorId}, #{note}, #{createdAt})
+  </insert>
+
+  <select id="selectById" resultType="com.campusbridge.pojo.TaskHistory">
+    SELECT * FROM task_histories
+    WHERE id = #{id}
+  </select>
+
+  <select id="selectAll" resultType="com.campusbridge.pojo.TaskHistory">
+    SELECT * FROM task_histories
+  </select>
+
+  <update id="updateById" parameterType="com.campusbridge.pojo.TaskHistory">
+    UPDATE task_histories
+    SET task_id = #{taskId},
+      from_status = #{fromStatus},
+      to_status = #{toStatus},
+      operator_id = #{operatorId},
+      note = #{note},
+      created_at = #{createdAt}
+    WHERE id = #{id}
+  </update>
+
+  <delete id="deleteById">
+    DELETE FROM task_histories
+    WHERE id = #{id}
+  </delete>
+
+</mapper>

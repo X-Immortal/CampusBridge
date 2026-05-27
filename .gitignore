@@ -31,3 +31,6 @@ backend/.mvn/
 # Temporary files
 *.tmp
 *.swp
+
+# Local Spring Boot config
+backend/src/main/resources/application.yml

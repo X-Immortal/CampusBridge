@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campusbridge.mapper.ModerationRecordMapper">
+
+  <insert id="insert" parameterType="com.campusbridge.pojo.ModerationRecord" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO moderation_records (report_id, target_type, target_id, handler_id, status, decision, handled_at)
+    VALUES (#{reportId}, #{targetType}, #{targetId}, #{handlerId}, #{status}, #{decision}, #{handledAt})
+  </insert>
+
+  <select id="selectById" resultType="com.campusbridge.pojo.ModerationRecord">
+    SELECT * FROM moderation_records
+    WHERE id = #{id}
+  </select>
+
+  <select id="selectAll" resultType="com.campusbridge.pojo.ModerationRecord">
+    SELECT * FROM moderation_records
+  </select>
+
+  <update id="updateById" parameterType="com.campusbridge.pojo.ModerationRecord">
+    UPDATE moderation_records
+    SET report_id = #{reportId},
+      target_type = #{targetType},
+      target_id = #{targetId},
+      handler_id = #{handlerId},
+      status = #{status},
+      decision = #{decision},
+      handled_at = #{handledAt}
+    WHERE id = #{id}
+  </update>
+
+  <delete id="deleteById">
+    DELETE FROM moderation_records
+    WHERE id = #{id}
+  </delete>
+
+</mapper>

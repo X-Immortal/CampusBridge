@@ -1,0 +1,2156 @@
+﻿openapi: 3.0.3
+info:
+  title: 校园互助服务平台 API
+  version: 1.0.0
+  description: 校园互助服务平台 RESTful API 规范（P0/P1/P2需求覆盖）
+servers:
+  - url: /api/v1
+tags:
+  - name: Auth
+  - name: User
+  - name: Verification
+  - name: Content
+  - name: Post
+  - name: Task
+  - name: TaskApplication
+  - name: Review
+  - name: Conversation
+  - name: Attachment
+  - name: Interaction
+  - name: Report
+  - name: AdminModeration
+security:
+  - bearerAuth: []
+paths:
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: 用户注册
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: 注册成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseAuthResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: 用户登录
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: 登录成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseAuthResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /users/me:
+    get:
+      tags: [User]
+      summary: 获取当前用户基础信息
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseUser'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /users/me/profile:
+    get:
+      tags: [User]
+      summary: 获取当前用户公开档案
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseUserProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    put:
+      tags: [User]
+      summary: 更新当前用户公开档案
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserProfileRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseUserProfile'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /users/{userId}/profile:
+    get:
+      tags: [User]
+      summary: 查看用户个人主页
+      parameters:
+        - $ref: '#/components/parameters/UserIdPath'
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseUserHomepageView'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /verifications:
+    post:
+      tags: [Verification]
+      summary: 提交校内认证
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateVerificationRequest'
+      responses:
+        '202':
+          description: 已提交认证审核
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseCampusVerification'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    get:
+      tags: [Verification]
+      summary: 查询当前用户认证记录
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseCampusVerification'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /content:
+    get:
+      tags: [Content]
+      summary: 浏览需求列表（统一内容流，含筛选）
+      parameters:
+        - $ref: '#/components/parameters/KeywordQuery'
+        - name: itemTypes
+          in: query
+          description: 内容类型（POST,TASK，多值逗号分隔）
+          schema:
+            type: string
+            example: TASK,POST
+        - name: categoryCode
+          in: query
+          schema: { type: string }
+        - name: campus
+          in: query
+          schema: { type: string }
+        - name: locationKeyword
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string }
+        - name: rewardType
+          in: query
+          schema:
+            $ref: '#/components/schemas/RewardType'
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [CREATED_AT, DEADLINE, DISTANCE, CREDIT]
+            default: CREATED_AT
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/SizeQuery'
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponsePagedContentItemView'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /posts:
+    post:
+      tags: [Post]
+      summary: 发布社区型需求（帖子）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePostRequest'
+      responses:
+        '201':
+          description: 发布成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponsePost'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    get:
+      tags: [Post]
+      summary: 社区需求列表
+      parameters:
+        - $ref: '#/components/parameters/KeywordQuery'
+        - name: category
+          in: query
+          schema: { $ref: '#/components/schemas/PostCategory' }
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/PostStatus' }
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/SizeQuery'
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponsePagedPost'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /posts/{postId}:
+    get:
+      tags: [Post]
+      summary: 查看帖子详情
+      parameters:
+        - $ref: '#/components/parameters/PostIdPath'
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponsePostDetailView'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    patch:
+      tags: [Post]
+      summary: 修改帖子
+      parameters:
+        - $ref: '#/components/parameters/PostIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePostRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponsePost'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      tags: [Post]
+      summary: 删除/关闭帖子
+      parameters:
+        - $ref: '#/components/parameters/PostIdPath'
+      responses:
+        '204':
+          description: 删除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /posts/{postId}/replies:
+    post:
+      tags: [Post]
+      summary: 回复帖子
+      parameters:
+        - $ref: '#/components/parameters/PostIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReplyRequest'
+      responses:
+        '201':
+          description: 回复成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseReply'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /posts/{postId}/interactions:
+    post:
+      tags: [Interaction]
+      summary: 对帖子执行点赞或标记
+      parameters:
+        - $ref: '#/components/parameters/PostIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePostInteractionRequest'
+      responses:
+        '201':
+          description: 互动成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponsePostInteraction'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      tags: [Interaction]
+      summary: 取消帖子点赞或标记
+      parameters:
+        - $ref: '#/components/parameters/PostIdPath'
+        - name: type
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/PostInteractionType'
+      responses:
+        '204':
+          description: 取消成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /posts/{postId}/replies/{replyId}/accept:
+    post:
+      tags: [Interaction]
+      summary: 采纳帖子回复
+      parameters:
+        - $ref: '#/components/parameters/PostIdPath'
+        - $ref: '#/components/parameters/ReplyIdPath'
+      responses:
+        '200':
+          description: 采纳成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponsePostDetailView'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /tasks:
+    post:
+      tags: [Task]
+      summary: 发布任务型需求（发单）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskRequest'
+      responses:
+        '201':
+          description: 发布成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseTask'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    get:
+      tags: [Task]
+      summary: 任务列表（含筛选）
+      parameters:
+        - $ref: '#/components/parameters/KeywordQuery'
+        - name: category
+          in: query
+          schema: { $ref: '#/components/schemas/TaskCategory' }
+        - name: campus
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/TaskStatus' }
+        - name: rewardType
+          in: query
+          schema: { $ref: '#/components/schemas/RewardType' }
+        - name: requiresProof
+          in: query
+          schema: { type: boolean }
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [CREATED_AT, DEADLINE, DISTANCE, CREDIT]
+            default: CREATED_AT
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/SizeQuery'
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponsePagedTask'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /tasks/{taskId}:
+    get:
+      tags: [Task]
+      summary: 查看订单详情
+      parameters:
+        - $ref: '#/components/parameters/TaskIdPath'
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseTaskDetailView'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    patch:
+      tags: [Task]
+      summary: 修改任务（草稿/待接单状态）
+      parameters:
+        - $ref: '#/components/parameters/TaskIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTaskRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseTask'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      tags: [Task]
+      summary: 取消任务
+      parameters:
+        - $ref: '#/components/parameters/TaskIdPath'
+      responses:
+        '204':
+          description: 取消成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /tasks/{taskId}/applications:
+    post:
+      tags: [TaskApplication]
+      summary: 接单申请
+      parameters:
+        - $ref: '#/components/parameters/TaskIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskApplicationRequest'
+      responses:
+        '201':
+          description: 申请成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseTaskApplication'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    get:
+      tags: [TaskApplication]
+      summary: 查看某任务候选申请列表（求助者）
+      parameters:
+        - $ref: '#/components/parameters/TaskIdPath'
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseTaskApplicationList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /tasks/{taskId}/applications/{applicationId}/accept:
+    post:
+      tags: [TaskApplication]
+      summary: 选择帮助者（接受申请）
+      parameters:
+        - $ref: '#/components/parameters/TaskIdPath'
+        - $ref: '#/components/parameters/ApplicationIdPath'
+      responses:
+        '200':
+          description: 选择成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseTask'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /tasks/{taskId}/status-transitions:
+    post:
+      tags: [Task]
+      summary: 任务状态流转（统一入口）
+      parameters:
+        - $ref: '#/components/parameters/TaskIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskStatusTransitionRequest'
+      responses:
+        '200':
+          description: 状态流转成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseTask'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /tasks/{taskId}/completion:
+    post:
+      tags: [Task]
+      summary: 提交完成凭证
+      parameters:
+        - $ref: '#/components/parameters/TaskIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitCompletionRequest'
+      responses:
+        '200':
+          description: 提交成功（任务进入待确认）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseCompletionProof'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /tasks/{taskId}/reviews:
+    post:
+      tags: [Review]
+      summary: 提交评价
+      parameters:
+        - $ref: '#/components/parameters/TaskIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReviewRequest'
+      responses:
+        '201':
+          description: 评价成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseReview'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    get:
+      tags: [Review]
+      summary: 查看任务评价列表
+      parameters:
+        - $ref: '#/components/parameters/TaskIdPath'
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseReviewList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /conversations:
+    get:
+      tags: [Conversation]
+      summary: 会话列表
+      parameters:
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/SizeQuery'
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponsePagedConversation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      tags: [Conversation]
+      summary: 由帖子或任务创建私聊会话
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateConversationRequest'
+      responses:
+        '201':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseConversation'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /conversations/{conversationId}/messages:
+    get:
+      tags: [Conversation]
+      summary: 会话消息列表
+      parameters:
+        - $ref: '#/components/parameters/ConversationIdPath'
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/SizeQuery'
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponsePagedMessage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      tags: [Conversation]
+      summary: 发送站内消息
+      parameters:
+        - $ref: '#/components/parameters/ConversationIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendMessageRequest'
+      responses:
+        '201':
+          description: 发送成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseMessage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /attachments:
+    post:
+      tags: [Attachment]
+      summary: 上传附件
+      description: 上传后返回临时附件记录；发帖、发任务、提交完成凭证或发送消息时可通过 attachmentIds 绑定。
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UploadAttachmentRequest'
+      responses:
+        '201':
+          description: 上传成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseAttachment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '413':
+          description: 文件过大
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '415':
+          description: 不支持的文件类型
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /reports:
+    post:
+      tags: [Report]
+      summary: 提交举报/申诉
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReportRequest'
+      responses:
+        '201':
+          description: 提交成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseReport'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    get:
+      tags: [Report]
+      summary: 当前用户举报/申诉列表
+      parameters:
+        - $ref: '#/components/parameters/PageQuery'
+        - $ref: '#/components/parameters/SizeQuery'
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponsePagedReport'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /admin/moderation/tasks/pending:
+    get:
+      tags: [AdminModeration]
+      summary: 待审核敏感任务列表（管理员）
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseTaskList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /admin/moderation/tasks/{taskId}/approve:
+    post:
+      tags: [AdminModeration]
+      summary: 审核通过敏感任务（管理员）
+      parameters:
+        - $ref: '#/components/parameters/TaskIdPath'
+      responses:
+        '200':
+          description: 处理成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseTask'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /admin/moderation/tasks/{taskId}/reject:
+    post:
+      tags: [AdminModeration]
+      summary: 驳回敏感任务（管理员）
+      parameters:
+        - $ref: '#/components/parameters/TaskIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: 处理成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseTask'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /admin/reports/{reportId}/resolve:
+    post:
+      tags: [AdminModeration]
+      summary: 处理举报/申诉（管理员）
+      parameters:
+        - $ref: '#/components/parameters/ReportIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision, status]
+              properties:
+                decision:
+                  type: string
+                status:
+                  $ref: '#/components/schemas/ModerationStatus'
+      responses:
+        '200':
+          description: 处理成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseModerationRecord'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    PageQuery:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    SizeQuery:
+      name: size
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    KeywordQuery:
+      name: keyword
+      in: query
+      schema: { type: string }
+    UserIdPath:
+      name: userId
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    PostIdPath:
+      name: postId
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    ReplyIdPath:
+      name: replyId
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    TaskIdPath:
+      name: taskId
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    ApplicationIdPath:
+      name: applicationId
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    ConversationIdPath:
+      name: conversationId
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    ReportIdPath:
+      name: reportId
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+
+  responses:
+    ErrorResponse:
+      description: 失败响应
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    BadRequest:
+      description: 请求参数错误
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Unauthorized:
+      description: 未认证或认证过期
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Forbidden:
+      description: 无权限执行该操作
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    NotFound:
+      description: 资源不存在
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    Conflict:
+      description: 资源状态冲突
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    UnprocessableEntity:
+      description: 业务规则校验未通过
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    TooManyRequests:
+      description: 请求过于频繁
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    InternalServerError:
+      description: 服务器内部错误
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+
+  schemas:
+    ApiMeta:
+      type: object
+      properties:
+        requestId: { type: string }
+        timestamp: { type: string, format: date-time }
+
+    ApiError:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: 错误码，见 ErrorCode
+        message:
+          type: string
+        details:
+          type: array
+          items: { type: string }
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+
+    ErrorCode:
+      type: string
+      enum:
+        - AUTH_001_UNAUTHORIZED
+        - AUTH_002_INVALID_CREDENTIALS
+        - AUTH_003_TOKEN_EXPIRED
+        - USER_001_NOT_FOUND
+        - USER_002_NOT_VERIFIED
+        - POST_001_NOT_FOUND
+        - POST_002_PERMISSION_DENIED
+        - POST_003_REPLY_NOT_FOUND
+        - TASK_001_NOT_FOUND
+        - TASK_002_INVALID_STATUS_TRANSITION
+        - TASK_003_PERMISSION_DENIED
+        - TASK_004_APPLICATION_NOT_FOUND
+        - TASK_005_SENSITIVE_REVIEW_REQUIRED
+        - TASK_006_COMPLETION_PROOF_REQUIRED
+        - REVIEW_001_DUPLICATE_REVIEW
+        - CONV_001_NOT_FOUND
+        - CONV_002_NOT_REPLYABLE
+        - FILE_001_TOO_LARGE
+        - FILE_002_UNSUPPORTED_TYPE
+        - FILE_003_NOT_FOUND
+        - REPORT_001_NOT_FOUND
+        - MOD_001_PERMISSION_DENIED
+        - COMMON_001_VALIDATION_ERROR
+        - COMMON_002_RATE_LIMITED
+        - COMMON_003_CONFLICT
+        - COMMON_999_INTERNAL_ERROR
+
+    ApiResponseBase:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          example: SUCCESS
+        message:
+          type: string
+          example: OK
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+
+    PagedResult:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { type: object }
+        page: { type: integer }
+        size: { type: integer }
+        total: { type: integer, format: int64 }
+
+    RegisterRequest:
+      type: object
+      required: [username, password, phone]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 32
+          pattern: '^[a-zA-Z0-9_]+$'
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 64
+        phone:
+          type: string
+          pattern: '^1[3-9]\d{9}$'
+        email: { type: string, format: email }
+
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 32
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 64
+
+    AuthResult:
+      type: object
+      properties:
+        userId: { type: integer, format: int64 }
+        username: { type: string }
+        role: { $ref: '#/components/schemas/UserRole' }
+        accessToken: { type: string }
+        expiresAt: { type: string, format: date-time }
+        profileCompleted: { type: boolean }
+
+    UserRole:
+      type: string
+      enum: [USER, ADMIN]
+
+    VerificationMethod:
+      type: string
+      enum: [STUDENT_CARD_IMAGE, CAMPUS_EMAIL, MANUAL_REVIEW]
+
+    VerificationStatus:
+      type: string
+      enum: [UNVERIFIED, PENDING, VERIFIED, REJECTED]
+
+    User:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        username: { type: string }
+        role: { $ref: '#/components/schemas/UserRole' }
+        enabled: { type: boolean }
+        createdAt: { type: string, format: date-time }
+
+    UserProfile:
+      type: object
+      properties:
+        userId: { type: integer, format: int64 }
+        nickname: { type: string }
+        bio: { type: string }
+        campus: { type: string }
+        college: { type: string }
+        avatarUrl: { type: string }
+        contactInfo: { type: string, description: 可选公开联系方式 }
+        interestTags:
+          type: array
+          items: { type: string }
+        skillTags:
+          type: array
+          items: { type: string }
+
+    UserHomepageView:
+      type: object
+      description: 个人主页展示对象，仅返回可公开展示的信息。
+      properties:
+        userId: { type: integer, format: int64 }
+        nickname: { type: string }
+        avatarUrl: { type: string }
+        bio: { type: string }
+        campus: { type: string }
+        college: { type: string }
+        verified: { type: boolean }
+        creditLevel: { type: integer }
+        points: { type: integer }
+        interestTags:
+          type: array
+          items: { type: string }
+        skillTags:
+          type: array
+          items: { type: string }
+
+    UpdateUserProfileRequest:
+      type: object
+      properties:
+        nickname: { type: string }
+        bio: { type: string }
+        campus: { type: string }
+        college: { type: string }
+        avatarUrl: { type: string }
+        contactInfo: { type: string }
+        interestTags:
+          type: array
+          items: { type: string }
+        skillTags:
+          type: array
+          items: { type: string }
+
+    CampusVerification:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        userId: { type: integer, format: int64 }
+        method: { $ref: '#/components/schemas/VerificationMethod' }
+        school: { type: string }
+        department: { type: string }
+        status: { $ref: '#/components/schemas/VerificationStatus' }
+        rejectReason: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    CreateVerificationRequest:
+      type: object
+      required: [method, realName, studentNumber, school]
+      properties:
+        method: { $ref: '#/components/schemas/VerificationMethod' }
+        realName: { type: string }
+        studentNumber: { type: string }
+        school: { type: string }
+        department: { type: string }
+        evidenceUrl: { type: string }
+
+    ContentItemType:
+      type: string
+      enum: [POST, TASK]
+
+    ContentItemView:
+      type: object
+      properties:
+        itemType: { $ref: '#/components/schemas/ContentItemType' }
+        sourceId: { type: integer, format: int64 }
+        title: { type: string }
+        summary: { type: string }
+        authorId: { type: integer, format: int64 }
+        authorName: { type: string }
+        categoryName: { type: string }
+        statusLabel: { type: string }
+        createdAt: { type: string, format: date-time }
+        sortTime: { type: string, format: date-time }
+        rewardLabel: { type: string }
+
+    PostCategory:
+      type: string
+      enum: [INQUIRY_HELP, SECOND_HAND, TEAM_FRIEND, CAMPUS_SOCIAL]
+
+    PostStatus:
+      type: string
+      enum: [DRAFT, PUBLISHED, PENDING_REVIEW, HIDDEN, CLOSED, DELETED, REJECTED]
+
+    Post:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        authorId: { type: integer, format: int64 }
+        category: { $ref: '#/components/schemas/PostCategory' }
+        title: { type: string }
+        content: { type: string }
+        status: { $ref: '#/components/schemas/PostStatus' }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    CreatePostRequest:
+      type: object
+      required: [category, title, content]
+      properties:
+        category: { $ref: '#/components/schemas/PostCategory' }
+        title:
+          type: string
+          minLength: 1
+          maxLength: 100
+        content:
+          type: string
+          minLength: 1
+          maxLength: 5000
+        attachmentIds:
+          type: array
+          maxItems: 9
+          items: { type: integer, format: int64 }
+          description: 通过 /attachments 上传得到的临时附件ID。
+
+    UpdatePostRequest:
+      type: object
+      properties:
+        title: { type: string }
+        content: { type: string }
+        status: { $ref: '#/components/schemas/PostStatus' }
+
+    Reply:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        postId: { type: integer, format: int64 }
+        authorId: { type: integer, format: int64 }
+        parentReplyId: { type: integer, format: int64 }
+        content: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    CreateReplyRequest:
+      type: object
+      required: [content]
+      properties:
+        parentReplyId: { type: integer, format: int64 }
+        content: { type: string }
+        attachmentIds:
+          type: array
+          maxItems: 9
+          items: { type: integer, format: int64 }
+
+    PostInteractionType:
+      type: string
+      enum: [LIKE, MARK]
+
+    PostInteraction:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        userId: { type: integer, format: int64 }
+        targetType: { type: string, enum: [POST, REPLY] }
+        targetId: { type: integer, format: int64 }
+        type: { $ref: '#/components/schemas/PostInteractionType' }
+        createdAt: { type: string, format: date-time }
+
+    CreatePostInteractionRequest:
+      type: object
+      required: [type]
+      properties:
+        type: { $ref: '#/components/schemas/PostInteractionType' }
+
+    TaskCategory:
+      type: string
+      enum: [ERRAND, AGENCY, ATTENDANCE_ASSIST]
+
+    RewardType:
+      type: string
+      enum: [FREE, POINTS, CASH, NEGOTIABLE]
+
+    TaskStatus:
+      type: string
+      enum: [DRAFT, OPEN, PENDING_REVIEW, ACCEPTED, IN_PROGRESS, PENDING_CONFIRMATION, COMPLETED, REVIEWED, CANCELLED, DISPUTED, REJECTED]
+
+    Task:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        requesterId: { type: integer, format: int64 }
+        providerId: { type: integer, format: int64 }
+        category: { $ref: '#/components/schemas/TaskCategory' }
+        title: { type: string }
+        description: { type: string }
+        campus: { type: string }
+        location: { type: string }
+        deadline: { type: string, format: date-time }
+        rewardType: { $ref: '#/components/schemas/RewardType' }
+        rewardDescription: { type: string }
+        completionStandard: { type: string }
+        requiresProof: { type: boolean }
+        onlyInAppContact: { type: boolean, description: 是否仅站内沟通 }
+        allowOfflineContact: { type: boolean, description: 是否允许线下接触 }
+        status: { $ref: '#/components/schemas/TaskStatus' }
+        createdAt: { type: string, format: date-time }
+
+    CreateTaskRequest:
+      type: object
+      required:
+        - category
+        - title
+        - description
+        - campus
+        - location
+        - deadline
+        - rewardType
+        - completionStandard
+        - requiresProof
+      properties:
+        category: { $ref: '#/components/schemas/TaskCategory' }
+        title:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        campus:
+          type: string
+          minLength: 1
+          maxLength: 50
+        location:
+          type: string
+          minLength: 1
+          maxLength: 120
+        deadline: { type: string, format: date-time }
+        rewardType: { $ref: '#/components/schemas/RewardType' }
+        rewardDescription:
+          type: string
+          maxLength: 200
+        completionStandard:
+          type: string
+          minLength: 1
+          maxLength: 500
+        requiresProof: { type: boolean }
+        onlyInAppContact: { type: boolean, default: true }
+        allowOfflineContact: { type: boolean, default: false }
+        isInstantTask: { type: boolean, default: false, description: 顺路/即时协助模式 }
+        routeHint: { type: string, description: 顺路信息（可选） }
+        riskDisclosureConfirmed: { type: boolean, default: false }
+        sensitiveReason:
+          type: string
+          maxLength: 300
+          description: 敏感任务原因说明
+        attachmentIds:
+          type: array
+          maxItems: 9
+          items: { type: integer, format: int64 }
+          description: 通过 /attachments 上传得到的临时附件ID。
+
+    UpdateTaskRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        deadline: { type: string, format: date-time }
+        rewardType: { $ref: '#/components/schemas/RewardType' }
+        rewardDescription:
+          type: string
+          maxLength: 200
+        completionStandard:
+          type: string
+          minLength: 1
+          maxLength: 500
+        requiresProof: { type: boolean }
+        onlyInAppContact: { type: boolean }
+        allowOfflineContact: { type: boolean }
+
+    TaskApplication:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        taskId: { type: integer, format: int64 }
+        applicantId: { type: integer, format: int64 }
+        message: { type: string }
+        status: { $ref: '#/components/schemas/ApplicationStatus' }
+        createdAt: { type: string, format: date-time }
+
+    ApplicationStatus:
+      type: string
+      enum: [PENDING, ACCEPTED, REJECTED, WITHDRAWN]
+
+    CreateTaskApplicationRequest:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+          minLength: 1
+          maxLength: 300
+
+    CompletionProof:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        taskId: { type: integer, format: int64 }
+        submitterId: { type: integer, format: int64 }
+        description: { type: string }
+        attachmentUrls:
+          type: array
+          items: { type: string }
+        submittedAt: { type: string, format: date-time }
+
+    SubmitCompletionRequest:
+      type: object
+      required: [description]
+      properties:
+        description:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        attachmentIds:
+          type: array
+          maxItems: 9
+          items: { type: integer, format: int64 }
+
+    TaskHistory:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        taskId: { type: integer, format: int64 }
+        fromStatus: { $ref: '#/components/schemas/TaskStatus' }
+        toStatus: { $ref: '#/components/schemas/TaskStatus' }
+        operatorId: { type: integer, format: int64 }
+        note: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    Review:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        taskId: { type: integer, format: int64 }
+        reviewerId: { type: integer, format: int64 }
+        revieweeId: { type: integer, format: int64 }
+        rating: { type: integer, minimum: 1, maximum: 5 }
+        comment: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    CreateReviewRequest:
+      type: object
+      required: [revieweeId, rating]
+      properties:
+        revieweeId: { type: integer, format: int64 }
+        rating: { type: integer, minimum: 1, maximum: 5 }
+        comment:
+          type: string
+          maxLength: 500
+
+    Conversation:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        type: { $ref: '#/components/schemas/ConversationType' }
+        title: { type: string }
+        ownerId: { type: integer, format: int64 }
+        peerUserId: { type: integer, format: int64 }
+        relatedType: { type: string }
+        relatedId: { type: integer, format: int64 }
+        replyable: { type: boolean }
+        lastMessageAt: { type: string, format: date-time }
+
+    CreateConversationRequest:
+      type: object
+      required: [relatedType, relatedId, peerUserId]
+      properties:
+        relatedType:
+          type: string
+          enum: [POST, TASK]
+          description: 会话来源，可由帖子或任务发起。
+        relatedId: { type: integer, format: int64 }
+        peerUserId:
+          type: integer
+          format: int64
+          description: 希望私聊的对方用户ID。
+        initialMessage:
+          type: string
+          maxLength: 1000
+
+    ConversationType:
+      type: string
+      enum: [PRIVATE, SYSTEM, TASK]
+
+    MessageType:
+      type: string
+      enum: [TEXT, IMAGE, SYSTEM_NOTIFICATION]
+
+    Message:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        conversationId: { type: integer, format: int64 }
+        senderId: { type: integer, format: int64 }
+        type: { $ref: '#/components/schemas/MessageType' }
+        content: { type: string }
+        readAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+
+    SendMessageRequest:
+      type: object
+      required: [type, content]
+      properties:
+        type: { $ref: '#/components/schemas/MessageType' }
+        content:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        attachmentIds:
+          type: array
+          maxItems: 9
+          items: { type: integer, format: int64 }
+
+    AttachmentOwnerType:
+      type: string
+      enum: [POST, REPLY, TASK, COMPLETION_PROOF, MESSAGE, REPORT]
+
+    AttachmentType:
+      type: string
+      enum: [IMAGE, FILE]
+
+    AttachmentStatus:
+      type: string
+      enum: [TEMPORARY, BOUND, DELETED]
+
+    Attachment:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        uploaderId: { type: integer, format: int64 }
+        ownerType: { $ref: '#/components/schemas/AttachmentOwnerType' }
+        ownerId: { type: integer, format: int64 }
+        type: { $ref: '#/components/schemas/AttachmentType' }
+        fileName: { type: string }
+        fileUrl: { type: string, format: uri }
+        contentType: { type: string }
+        size: { type: integer, format: int64 }
+        status: { $ref: '#/components/schemas/AttachmentStatus' }
+        createdAt: { type: string, format: date-time }
+
+    UploadAttachmentRequest:
+      type: object
+      required: [file]
+      properties:
+        file:
+          type: string
+          format: binary
+        expectedOwnerType:
+          $ref: '#/components/schemas/AttachmentOwnerType'
+        type:
+          $ref: '#/components/schemas/AttachmentType'
+
+    ReportTargetType:
+      type: string
+      enum: [POST, REPLY, TASK, USER, MESSAGE]
+
+    ModerationStatus:
+      type: string
+      enum: [PENDING, PROCESSING, APPROVED, REJECTED, RESOLVED, PUNISHED]
+
+    Report:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        reporterId: { type: integer, format: int64 }
+        targetType: { $ref: '#/components/schemas/ReportTargetType' }
+        targetId: { type: integer, format: int64 }
+        reason: { type: string }
+        description: { type: string }
+        status: { $ref: '#/components/schemas/ModerationStatus' }
+        createdAt: { type: string, format: date-time }
+
+    CreateReportRequest:
+      type: object
+      required: [targetType, targetId, reason]
+      properties:
+        targetType: { $ref: '#/components/schemas/ReportTargetType' }
+        targetId: { type: integer, format: int64 }
+        reason:
+          type: string
+          minLength: 2
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 1000
+
+    TaskStatusTransitionAction:
+      type: string
+      enum: [START, CONFIRM_COMPLETION, REJECT_COMPLETION, DISPUTE, CANCEL]
+
+    TaskStatusTransitionRequest:
+      type: object
+      required: [action]
+      properties:
+        action:
+          $ref: '#/components/schemas/TaskStatusTransitionAction'
+        reason:
+          type: string
+          maxLength: 300
+
+    ModerationRecord:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        reportId: { type: integer, format: int64 }
+        targetType: { $ref: '#/components/schemas/ReportTargetType' }
+        targetId: { type: integer, format: int64 }
+        handlerId: { type: integer, format: int64 }
+        status: { $ref: '#/components/schemas/ModerationStatus' }
+        decision: { type: string }
+        handledAt: { type: string, format: date-time }
+
+    TaskDetailView:
+      type: object
+      properties:
+        task: { $ref: '#/components/schemas/Task' }
+        applications:
+          type: array
+          items: { $ref: '#/components/schemas/TaskApplication' }
+        completionProof: { $ref: '#/components/schemas/CompletionProof' }
+        history:
+          type: array
+          items: { $ref: '#/components/schemas/TaskHistory' }
+        reviews:
+          type: array
+          items: { $ref: '#/components/schemas/Review' }
+
+    PostDetailView:
+      type: object
+      properties:
+        post: { $ref: '#/components/schemas/Post' }
+        replies:
+          type: array
+          items: { $ref: '#/components/schemas/Reply' }
+        likedByCurrentUser: { type: boolean }
+        markedByCurrentUser: { type: boolean }
+        acceptedReplyId: { type: integer, format: int64 }
+
+    ApiResponseAuthResult:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/AuthResult' }
+    ApiResponseUser:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/User' }
+    ApiResponseUserProfile:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/UserProfile' }
+    ApiResponseUserHomepageView:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/UserHomepageView' }
+    ApiResponseCampusVerification:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/CampusVerification' }
+    ApiResponsePost:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/Post' }
+    ApiResponseReply:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/Reply' }
+    ApiResponsePostInteraction:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/PostInteraction' }
+    ApiResponseTask:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/Task' }
+    ApiResponseTaskDetailView:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/TaskDetailView' }
+    ApiResponsePostDetailView:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/PostDetailView' }
+    ApiResponseTaskApplication:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/TaskApplication' }
+    ApiResponseTaskApplicationList:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/TaskApplication' }
+    ApiResponseCompletionProof:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/CompletionProof' }
+    ApiResponseReview:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/Review' }
+    ApiResponseReviewList:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/Review' }
+    ApiResponseConversation:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/Conversation' }
+    ApiResponseMessage:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/Message' }
+    ApiResponseAttachment:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/Attachment' }
+    ApiResponseReport:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/Report' }
+    ApiResponseModerationRecord:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/ModerationRecord' }
+
+    ApiResponsePagedContentItemView:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items: { $ref: '#/components/schemas/ContentItemView' }
+                page: { type: integer }
+                size: { type: integer }
+                total: { type: integer, format: int64 }
+    ApiResponsePagedPost:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items: { $ref: '#/components/schemas/Post' }
+                page: { type: integer }
+                size: { type: integer }
+                total: { type: integer, format: int64 }
+    ApiResponsePagedTask:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items: { $ref: '#/components/schemas/Task' }
+                page: { type: integer }
+                size: { type: integer }
+                total: { type: integer, format: int64 }
+    ApiResponsePagedConversation:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items: { $ref: '#/components/schemas/Conversation' }
+                page: { type: integer }
+                size: { type: integer }
+                total: { type: integer, format: int64 }
+    ApiResponsePagedMessage:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items: { $ref: '#/components/schemas/Message' }
+                page: { type: integer }
+                size: { type: integer }
+                total: { type: integer, format: int64 }
+    ApiResponsePagedReport:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                items:
+                  type: array
+                  items: { $ref: '#/components/schemas/Report' }
+                page: { type: integer }
+                size: { type: integer }
+                total: { type: integer, format: int64 }
+    ApiResponseTaskList:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/Task' }
+
+
+

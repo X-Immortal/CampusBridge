@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campusbridge.mapper.CompletionProofMapper">
+
+  <insert id="insert" parameterType="com.campusbridge.pojo.CompletionProof" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO completion_proofs (task_id, submitter_id, description, submitted_at)
+    VALUES (#{taskId}, #{submitterId}, #{description}, #{submittedAt})
+  </insert>
+
+  <select id="selectById" resultType="com.campusbridge.pojo.CompletionProof">
+    SELECT * FROM completion_proofs
+    WHERE id = #{id}
+  </select>
+
+  <select id="selectAll" resultType="com.campusbridge.pojo.CompletionProof">
+    SELECT * FROM completion_proofs
+  </select>
+
+  <update id="updateById" parameterType="com.campusbridge.pojo.CompletionProof">
+    UPDATE completion_proofs
+    SET task_id = #{taskId},
+      submitter_id = #{submitterId},
+      description = #{description},
+      submitted_at = #{submittedAt}
+    WHERE id = #{id}
+  </update>
+
+  <delete id="deleteById">
+    DELETE FROM completion_proofs
+    WHERE id = #{id}
+  </delete>
+
+</mapper>

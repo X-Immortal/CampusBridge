@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campusbridge.mapper.CampusVerificationMapper">
+
+  <insert id="insert" parameterType="com.campusbridge.pojo.CampusVerification" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO campus_verifications (user_id, method, real_name_cipher, student_number_cipher, student_number_hash, school, department, evidence_url, status, reviewer_id, reject_reason, created_at, reviewed_at)
+    VALUES (#{userId}, #{method}, #{realNameCipher}, #{studentNumberCipher}, #{studentNumberHash}, #{school}, #{department}, #{evidenceUrl}, #{status}, #{reviewerId}, #{rejectReason}, #{createdAt}, #{reviewedAt})
+  </insert>
+
+  <select id="selectById" resultType="com.campusbridge.pojo.CampusVerification">
+    SELECT * FROM campus_verifications
+    WHERE id = #{id}
+  </select>
+
+  <select id="selectLatestByUserId" resultType="com.campusbridge.pojo.CampusVerification">
+    SELECT * FROM campus_verifications
+    WHERE user_id = #{userId}
+    ORDER BY created_at DESC, id DESC
+    LIMIT 1
+  </select>
+
+  <select id="selectAll" resultType="com.campusbridge.pojo.CampusVerification">
+    SELECT * FROM campus_verifications
+  </select>
+
+  <update id="updateById" parameterType="com.campusbridge.pojo.CampusVerification">
+    UPDATE campus_verifications
+    SET user_id = #{userId},
+      method = #{method},
+      real_name_cipher = #{realNameCipher},
+      student_number_cipher = #{studentNumberCipher},
+      student_number_hash = #{studentNumberHash},
+      school = #{school},
+      department = #{department},
+      evidence_url = #{evidenceUrl},
+      status = #{status},
+      reviewer_id = #{reviewerId},
+      reject_reason = #{rejectReason},
+      created_at = #{createdAt},
+      reviewed_at = #{reviewedAt}
+    WHERE id = #{id}
+  </update>
+
+  <delete id="deleteById">
+    DELETE FROM campus_verifications
+    WHERE id = #{id}
+  </delete>
+
+</mapper>

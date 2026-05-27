@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campusbridge.mapper.ConversationMapper">
+
+  <insert id="insert" parameterType="com.campusbridge.pojo.Conversation" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO conversations (type, title, owner_id, peer_user_id, related_type, related_id, replyable, last_message_at, created_at)
+    VALUES (#{type}, #{title}, #{ownerId}, #{peerUserId}, #{relatedType}, #{relatedId}, #{replyable}, #{lastMessageAt}, #{createdAt})
+  </insert>
+
+  <select id="selectById" resultType="com.campusbridge.pojo.Conversation">
+    SELECT * FROM conversations
+    WHERE id = #{id}
+  </select>
+
+  <select id="selectAll" resultType="com.campusbridge.pojo.Conversation">
+    SELECT * FROM conversations
+  </select>
+
+  <update id="updateById" parameterType="com.campusbridge.pojo.Conversation">
+    UPDATE conversations
+    SET type = #{type},
+      title = #{title},
+      owner_id = #{ownerId},
+      peer_user_id = #{peerUserId},
+      related_type = #{relatedType},
+      related_id = #{relatedId},
+      replyable = #{replyable},
+      last_message_at = #{lastMessageAt},
+      created_at = #{createdAt}
+    WHERE id = #{id}
+  </update>
+
+  <delete id="deleteById">
+    DELETE FROM conversations
+    WHERE id = #{id}
+  </delete>
+
+</mapper>

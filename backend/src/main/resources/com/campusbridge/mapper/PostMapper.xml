@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campusbridge.mapper.PostMapper">
+
+  <insert id="insert" parameterType="com.campusbridge.pojo.Post" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO posts (author_id, category, title, content, status, reply_count, like_count, mark_count, accepted_reply_id, created_at, updated_at)
+    VALUES (#{authorId}, #{category}, #{title}, #{content}, #{status}, #{replyCount}, #{likeCount}, #{markCount}, #{acceptedReplyId}, #{createdAt}, #{updatedAt})
+  </insert>
+
+  <select id="selectById" resultType="com.campusbridge.pojo.Post">
+    SELECT * FROM posts
+    WHERE id = #{id}
+  </select>
+
+  <select id="selectAll" resultType="com.campusbridge.pojo.Post">
+    SELECT * FROM posts
+  </select>
+
+  <update id="updateById" parameterType="com.campusbridge.pojo.Post">
+    UPDATE posts
+    SET author_id = #{authorId},
+      category = #{category},
+      title = #{title},
+      content = #{content},
+      status = #{status},
+      reply_count = #{replyCount},
+      like_count = #{likeCount},
+      mark_count = #{markCount},
+      accepted_reply_id = #{acceptedReplyId},
+      created_at = #{createdAt},
+      updated_at = #{updatedAt}
+    WHERE id = #{id}
+  </update>
+
+  <delete id="deleteById">
+    DELETE FROM posts
+    WHERE id = #{id}
+  </delete>
+
+</mapper>
