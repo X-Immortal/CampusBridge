@@ -247,6 +247,21 @@ const shouldShowCompletionPanel = computed(() => {
         isDetailProvider.value)
   )
 })
+const canOpenConversation = computed(() => {
+  const status = detailTask.value?.status
+  return Boolean(
+    detailTask.value?.id &&
+      (isDetailOwner.value || isDetailProvider.value) &&
+      ['ACCEPTED', 'IN_PROGRESS', 'PENDING_CONFIRMATION', 'COMPLETED', 'REVIEWED', 'DISPUTED'].includes(status)
+  )
+})
+const detailConversationRoute = computed(() => ({
+  name: 'conversation-list',
+  query: {
+    relatedType: 'TASK',
+    relatedId: detailTask.value?.id
+  }
+}))
 const completionStageItems = computed(() => buildCompletionStageItems(detailTask.value?.status))
 const completionPanelCopy = computed(() => {
   const status = detailTask.value?.status
@@ -1634,6 +1649,29 @@ onMounted(async () => {
                 />
                 <span>{{ optionLabel(TASK_CATEGORY_OPTIONS, detailTask.category) }}</span>
               </div>
+
+              <section
+                v-if="canOpenConversation"
+                class="conversation-entry"
+                aria-labelledby="conversation-entry-title"
+              >
+                <MessageCircle
+                  :size="21"
+                  aria-hidden="true"
+                />
+                <div>
+                  <strong id="conversation-entry-title">站内会话已开启</strong>
+                  <span>
+                    {{ detailTask.onlyInAppContact ? '当前任务优先保留平台内沟通记录，不需要交换站外联系方式。' : '可在会话中确认地点、时间、完成凭证和异常说明。' }}
+                  </span>
+                </div>
+                <RouterLink
+                  class="ghost-action"
+                  :to="detailConversationRoute"
+                >
+                  打开会话
+                </RouterLink>
+              </section>
 
               <section
                 v-if="operationFeedback"
@@ -3083,6 +3121,32 @@ onMounted(async () => {
   line-height: 1.55;
 }
 
+.conversation-entry {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 14px;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.conversation-entry > div {
+  display: grid;
+  gap: 3px;
+}
+
+.conversation-entry strong {
+  color: #166534;
+}
+
+.conversation-entry span {
+  color: #166534;
+  line-height: 1.5;
+}
+
 .operation-feedback--danger {
   border-color: #fecaca;
   background: #fef2f2;
@@ -3871,6 +3935,7 @@ onMounted(async () => {
   .application-heading,
   .completion-heading,
   .completion-action-box,
+  .conversation-entry,
   .candidate-heading,
   .candidate-top,
   .candidate-actions,

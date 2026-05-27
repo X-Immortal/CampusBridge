@@ -120,7 +120,12 @@ export default {
     request(`/tasks/${taskId}/applications`, { method: 'POST', body }),
   getTaskApplications: (taskId) => request(`/tasks/${taskId}/applications`),
   acceptTaskApplication: (taskId, applicationId) =>
-    request(`/tasks/${taskId}/applications/${applicationId}/accept`, { method: 'POST' })
+    request(`/tasks/${taskId}/applications/${applicationId}/accept`, { method: 'POST' }),
+  getConversations: (params) => request(`/conversations${buildQuery(params)}`),
+  getConversationMessages: (conversationId, params) =>
+    request(`/conversations/${conversationId}/messages${buildQuery(params)}`),
+  sendConversationMessage: (conversationId, body) =>
+    request(`/conversations/${conversationId}/messages`, { method: 'POST', body })
 }
 
 export { API_BASE_URL, AUTH_STORAGE_KEY }

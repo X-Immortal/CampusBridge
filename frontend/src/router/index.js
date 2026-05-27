@@ -3,6 +3,7 @@ import HomeView from '../views/HomeView.vue'
 import AuthView from '../views/AuthView.vue'
 import TaskPublishView from '../views/TaskPublishView.vue'
 import TaskListView from '../views/TaskListView.vue'
+import ConversationView from '../views/ConversationView.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -47,6 +48,16 @@ const router = createRouter({
       path: '/tasks/:taskId',
       name: 'task-detail',
       component: TaskListView
+    },
+    {
+      path: '/conversations',
+      name: 'conversation-list',
+      component: ConversationView
+    },
+    {
+      path: '/conversations/:conversationId',
+      name: 'conversation-detail',
+      component: ConversationView
     }
   ]
 })
