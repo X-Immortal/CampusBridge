@@ -15,11 +15,66 @@ export const STATUS_OPTIONS = [
   { value: 'GUEST', label: '游客模式', tone: 'warning' }
 ]
 
+export const TASK_CATEGORY_OPTIONS = [
+  {
+    value: 'ERRAND',
+    label: '跑腿代取',
+    description: '取快递、带物、临时跑腿等低门槛互助'
+  },
+  {
+    value: 'AGENCY',
+    label: '委托代办',
+    description: '资料提交、手续办理、排队协助等明确任务'
+  },
+  {
+    value: 'ATTENDANCE_ASSIST',
+    label: '出勤/签到协助',
+    description: '敏感任务，提交后进入管理员审核'
+  }
+]
+
+export const REWARD_TYPE_OPTIONS = [
+  { value: 'FREE', label: '无偿互助', description: '适合轻量、顺手帮忙的需求' },
+  { value: 'POINTS', label: '积分奖励', description: '用平台积分表达感谢' },
+  { value: 'CASH', label: '小额报酬', description: '适合耗时较长或成本明确的任务' },
+  { value: 'NEGOTIABLE', label: '双方协商', description: '先说明范围，接单后再确认' }
+]
+
+export const TASK_STATUS_OPTIONS = [
+  { value: 'DRAFT', label: '草稿', tone: 'muted' },
+  { value: 'OPEN', label: '待接单', tone: 'accent' },
+  { value: 'PENDING_REVIEW', label: '待审核', tone: 'warning' },
+  { value: 'ACCEPTED', label: '已选人', tone: 'info' },
+  { value: 'IN_PROGRESS', label: '进行中', tone: 'info' },
+  { value: 'PENDING_CONFIRMATION', label: '待确认', tone: 'warning' },
+  { value: 'COMPLETED', label: '已完成', tone: 'success' },
+  { value: 'REVIEWED', label: '已评价', tone: 'success' },
+  { value: 'CANCELLED', label: '已取消', tone: 'muted' },
+  { value: 'DISPUTED', label: '争议中', tone: 'danger' },
+  { value: 'REJECTED', label: '未通过', tone: 'danger' }
+]
+
+export const APPLICATION_STATUS_OPTIONS = [
+  { value: 'PENDING', label: '待选择', tone: 'warning' },
+  { value: 'ACCEPTED', label: '已选中', tone: 'success' },
+  { value: 'REJECTED', label: '已婉拒', tone: 'muted' },
+  { value: 'WITHDRAWN', label: '已撤回', tone: 'muted' }
+]
+
+export const TASK_SORT_OPTIONS = [
+  { value: 'CREATED_AT', label: '最新发布' },
+  { value: 'DEADLINE', label: '截止时间近' },
+  { value: 'DISTANCE', label: '距离优先' },
+  { value: 'CREDIT', label: '信用优先' }
+]
+
 export function optionLabel(options, value) {
   if (value === null || value === undefined || value === '') return '未设置'
   return options.find((option) => option.value === value)?.label ?? value
 }
 
 export function statusTone(status) {
-  return STATUS_OPTIONS.find((item) => item.value === status)?.tone ?? 'muted'
+  return [...STATUS_OPTIONS, ...TASK_STATUS_OPTIONS, ...APPLICATION_STATUS_OPTIONS].find(
+    (item) => item.value === status
+  )?.tone ?? 'muted'
 }

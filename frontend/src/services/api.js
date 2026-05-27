@@ -87,6 +87,18 @@ async function request(path, { method = 'GET', body, headers = {} } = {}) {
   return payload
 }
 
+function buildQuery(params = {}) {
+  const query = new URLSearchParams()
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === '') return
+    query.set(key, String(value))
+  })
+
+  const queryString = query.toString()
+  return queryString ? `?${queryString}` : ''
+}
+
 export default {
   register: (body) => request('/auth/register', { method: 'POST', body }),
   login: (body) => request('/auth/login', { method: 'POST', body }),
@@ -94,7 +106,21 @@ export default {
   getMyProfile: () => request('/users/me/profile'),
   updateMyProfile: (body) => request('/users/me/profile', { method: 'PUT', body }),
   submitVerification: (body) => request('/verifications', { method: 'POST', body }),
-  getVerification: () => request('/verifications')
+  getVerification: () => request('/verifications'),
+  createTask: (body) => request('/tasks', { method: 'POST', body }),
+  updateTask: (taskId, body) => request(`/tasks/${taskId}`, { method: 'PATCH', body }),
+  cancelTask: (taskId) => request(`/tasks/${taskId}`, { method: 'DELETE' }),
+  transitionTaskStatus: (taskId, body) =>
+    request(`/tasks/${taskId}/status-transitions`, { method: 'POST', body }),
+  submitTaskCompletion: (taskId, body) =>
+    request(`/tasks/${taskId}/completion`, { method: 'POST', body }),
+  getTasks: (params) => request(`/tasks${buildQuery(params)}`),
+  getTaskDetail: (taskId) => request(`/tasks/${taskId}`),
+  createTaskApplication: (taskId, body) =>
+    request(`/tasks/${taskId}/applications`, { method: 'POST', body }),
+  getTaskApplications: (taskId) => request(`/tasks/${taskId}/applications`),
+  acceptTaskApplication: (taskId, applicationId) =>
+    request(`/tasks/${taskId}/applications/${applicationId}/accept`, { method: 'POST' })
 }
 
 export { API_BASE_URL, AUTH_STORAGE_KEY }

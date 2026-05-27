@@ -41,12 +41,12 @@ const feedback = ref('')
 const feedbackType = ref('success')
 
 const navItems = [
-  { label: '个人主页', icon: Home, active: true },
-  { label: '任务广场', icon: Grid2X2 },
-  { label: '发布任务', icon: PlusCircle },
-  { label: '我的任务', icon: ClipboardList },
-  { label: '站内沟通', icon: MessageCircle },
-  { label: '消息中心', icon: Bell }
+  { label: '个人主页', icon: Home, active: true, to: '/' },
+  { label: '任务广场', icon: Grid2X2, to: '/tasks' },
+  { label: '发布任务', icon: PlusCircle, to: '/tasks/new' },
+  { label: '我的任务', icon: ClipboardList, to: '/tasks/mine' },
+  { label: '站内沟通', icon: MessageCircle, to: '/conversations' },
+  { label: '消息中心', icon: Bell, to: '/notifications' }
 ]
 
 const verificationForm = reactive({
@@ -194,12 +194,12 @@ onMounted(async () => {
         class="sidebar-nav"
         aria-label="主导航"
       >
-        <a
+        <RouterLink
           v-for="item in navItems"
           :key="item.label"
           class="nav-item"
           :class="{ active: item.active }"
-          href="#"
+          :to="item.to"
           :title="sidebarCollapsed ? item.label : undefined"
         >
           <component
@@ -208,7 +208,7 @@ onMounted(async () => {
             aria-hidden="true"
           />
           <span>{{ item.label }}</span>
-        </a>
+        </RouterLink>
       </nav>
     </aside>
 
@@ -714,7 +714,7 @@ onMounted(async () => {
   left: var(--sidebar-width);
   z-index: 25;
   display: grid;
-  grid-template-columns: minmax(320px, 680px) 1fr;
+  grid-template-columns: minmax(240px, 1fr) auto;
   align-items: center;
   height: var(--topbar-height);
   padding: 0 42px 0 50px;
@@ -761,6 +761,7 @@ onMounted(async () => {
   align-items: center;
   justify-content: flex-end;
   gap: 24px;
+  min-width: max-content;
 }
 
 .notice-button,
@@ -816,6 +817,10 @@ onMounted(async () => {
   border-radius: 13px;
   font-size: 1.14rem;
   font-weight: 900;
+}
+
+.account-button > span:not(.avatar) {
+  white-space: nowrap;
 }
 
 .avatar {
