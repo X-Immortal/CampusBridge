@@ -2701,7 +2701,16 @@ onMounted(async () => {
   min-height: 44px;
   padding: 0;
   border: 0;
+  box-shadow: none;
+  outline: 0;
   background: transparent;
+}
+
+.filter-field .select-shell input:focus,
+.filter-field .select-shell select:focus {
+  border-color: transparent;
+  box-shadow: none;
+  outline: 0;
 }
 
 .select-shell select {
