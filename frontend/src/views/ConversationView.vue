@@ -2,61 +2,315 @@
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
-  ArrowLeft,
-  ArrowRight,
-  BadgeCheck,
-  Clock3,
+  CalendarClock,
+  ChevronLeft,
+  ChevronRight,
   ClipboardCheck,
-  ImagePlus,
-  Inbox,
+  Image,
   Info,
-  Link2,
   LoaderCircle,
-  LockKeyhole,
   MessageCircle,
+  MoreVertical,
   RefreshCw,
   Search,
   Send,
   ShieldCheck,
-  UploadCloud,
-  UserRound,
-  X
+  UserRound
 } from '@lucide/vue'
 import DashboardShell from '../components/DashboardShell.vue'
 import StatusBadge from '../components/StatusBadge.vue'
-import {
-  CONVERSATION_TYPE_OPTIONS,
-  optionLabel,
-  REWARD_TYPE_OPTIONS,
-  TASK_CATEGORY_OPTIONS,
-  TASK_STATUS_OPTIONS,
-  statusTone
-} from '../constants'
 import api from '../services/api'
 import { useAuth } from '../stores/auth'
 
 const route = useRoute()
 const router = useRouter()
-const { isAuthenticated, currentUserId } = useAuth()
+const { currentUserId } = useAuth()
+
+const DEMO_USER_ID = 231098080
+const fallbackImage = '/auth-left.png'
+
+const mockConversations = [
+  {
+    id: 1001,
+    type: 'TASK',
+    title: '图书馆取书任务沟通',
+    ownerId: DEMO_USER_ID,
+    peerUserId: 20240001,
+    relatedType: 'TASK',
+    relatedId: 301,
+    replyable: true,
+    lastMessageAt: '2026-05-28T20:20:00',
+    createdAt: '2026-05-28T19:30:00',
+    lastMessagePreview: '好的，我大概 20 分钟后到',
+    category: 'ERRAND',
+    unreadCount: 1,
+    timeLabel: '20:20'
+  },
+  {
+    id: 1002,
+    type: 'TASK',
+    title: '快递代取沟通',
+    ownerId: DEMO_USER_ID,
+    peerUserId: 20240002,
+    relatedType: 'TASK',
+    relatedId: 287,
+    replyable: true,
+    lastMessageAt: '2026-05-28T18:42:00',
+    createdAt: '2026-05-28T18:10:00',
+    lastMessagePreview: '已经到驿站了，稍等我拍照给你',
+    category: 'AGENCY',
+    unreadCount: 1,
+    timeLabel: '18:42'
+  },
+  {
+    id: 1003,
+    type: 'TASK',
+    title: '打印资料送达确认',
+    ownerId: DEMO_USER_ID,
+    peerUserId: 20240003,
+    relatedType: 'TASK',
+    relatedId: 265,
+    replyable: true,
+    lastMessageAt: '2026-05-27T21:10:00',
+    createdAt: '2026-05-27T20:40:00',
+    lastMessagePreview: '图片已放在宿舍楼下自提柜',
+    category: 'ATTENDANCE_ASSIST',
+    unreadCount: 0,
+    timeLabel: '昨天'
+  },
+  {
+    id: 1004,
+    type: 'TASK',
+    title: '实验器材借还沟通',
+    ownerId: DEMO_USER_ID,
+    peerUserId: 20240004,
+    relatedType: 'TASK',
+    relatedId: 244,
+    replyable: true,
+    lastMessageAt: '2026-05-27T16:25:00',
+    createdAt: '2026-05-27T15:30:00',
+    lastMessagePreview: '明天下午 3 点在教学楼门口可以吗？',
+    category: 'ERRAND',
+    unreadCount: 0,
+    timeLabel: '昨天'
+  }
+]
+
+const mockMessagesByConversation = {
+  1001: [
+    {
+      id: 5001,
+      conversationId: 1001,
+      senderId: 20240001,
+      type: 'TEXT',
+      content: '你好，这个任务现在还能接吗？',
+      readAt: '2026-05-28T20:12:00',
+      createdAt: '2026-05-28T20:10:00'
+    },
+    {
+      id: 5002,
+      conversationId: 1001,
+      senderId: DEMO_USER_ID,
+      type: 'TEXT',
+      content: '可以的，我现在还在图书馆这边。',
+      readAt: '2026-05-28T20:13:00',
+      createdAt: '2026-05-28T20:12:00'
+    },
+    {
+      id: 5003,
+      conversationId: 1001,
+      senderId: 20240001,
+      type: 'IMAGE',
+      content: fallbackImage,
+      readAt: '2026-05-28T20:16:00',
+      createdAt: '2026-05-28T20:15:00'
+    },
+    {
+      id: 5004,
+      conversationId: 1001,
+      senderId: 20240001,
+      type: 'TEXT',
+      content: '书已经找到，拍给你确认一下',
+      readAt: '2026-05-28T20:16:00',
+      createdAt: '2026-05-28T20:15:10'
+    },
+    {
+      id: 5005,
+      conversationId: 1001,
+      senderId: DEMO_USER_ID,
+      type: 'TEXT',
+      content: '好的，我大概 20 分钟后到',
+      readAt: null,
+      createdAt: '2026-05-28T20:20:00'
+    },
+    {
+      id: 5006,
+      conversationId: 1001,
+      senderId: 20240001,
+      type: 'TEXT',
+      content: '没问题，我在图书馆北门等你。',
+      readAt: null,
+      createdAt: '2026-05-28T20:22:00'
+    }
+  ],
+  1002: [
+    {
+      id: 5101,
+      conversationId: 1002,
+      senderId: 20240002,
+      type: 'TEXT',
+      content: '快递取件码是 3921，麻烦到站后拍一下外包装。',
+      readAt: null,
+      createdAt: '2026-05-28T18:36:00'
+    },
+    {
+      id: 5102,
+      conversationId: 1002,
+      senderId: DEMO_USER_ID,
+      type: 'TEXT',
+      content: '收到，我 10 分钟左右到驿站。',
+      readAt: null,
+      createdAt: '2026-05-28T18:38:00'
+    },
+    {
+      id: 5103,
+      conversationId: 1002,
+      senderId: DEMO_USER_ID,
+      type: 'TEXT',
+      content: '已经到驿站了，稍等我拍照给你',
+      readAt: null,
+      createdAt: '2026-05-28T18:42:00'
+    }
+  ],
+  1003: [
+    {
+      id: 5201,
+      conversationId: 1003,
+      senderId: 20240003,
+      type: 'TEXT',
+      content: '资料打印好了，放在宿舍楼下自提柜 06 格。',
+      readAt: null,
+      createdAt: '2026-05-27T21:06:00'
+    },
+    {
+      id: 5202,
+      conversationId: 1003,
+      senderId: DEMO_USER_ID,
+      type: 'TEXT',
+      content: '收到，晚点我去取。',
+      readAt: null,
+      createdAt: '2026-05-27T21:10:00'
+    }
+  ],
+  1004: [
+    {
+      id: 5301,
+      conversationId: 1004,
+      senderId: DEMO_USER_ID,
+      type: 'TEXT',
+      content: '明天下午 3 点在教学楼门口可以吗？',
+      readAt: null,
+      createdAt: '2026-05-27T16:25:00'
+    }
+  ]
+}
+
+const mockTasks = {
+  301: {
+    id: 301,
+    title: '图书馆取书任务',
+    category: 'ERRAND',
+    campus: '仙林校区',
+    location: '图书馆北门',
+    rewardType: 'POINTS',
+    completionStandard: '拍照确认书籍封面，并在约定地点交接。',
+    onlyInAppContact: true,
+    status: 'IN_PROGRESS'
+  },
+  287: {
+    id: 287,
+    title: '快递代取',
+    category: 'AGENCY',
+    campus: '仙林校区',
+    location: '菜鸟驿站',
+    rewardType: 'CASH',
+    completionStandard: '取件后拍照确认，送到宿舍楼下。',
+    onlyInAppContact: true,
+    status: 'ACCEPTED'
+  },
+  265: {
+    id: 265,
+    title: '打印资料送达',
+    category: 'ATTENDANCE_ASSIST',
+    campus: '鼓楼校区',
+    location: '宿舍楼自提柜',
+    rewardType: 'FREE',
+    completionStandard: '资料完整送达并留存图片。',
+    onlyInAppContact: true,
+    status: 'PENDING_CONFIRMATION'
+  },
+  244: {
+    id: 244,
+    title: '实验器材借还',
+    category: 'ERRAND',
+    campus: '仙林校区',
+    location: '教学楼门口',
+    rewardType: 'NEGOTIABLE',
+    completionStandard: '按约定时间交接器材。',
+    onlyInAppContact: false,
+    status: 'OPEN'
+  }
+}
+
+const categoryMeta = {
+  ERRAND: {
+    icon: CalendarClock,
+    tone: 'blue'
+  },
+  AGENCY: {
+    icon: ClipboardCheck,
+    tone: 'orange'
+  },
+  ATTENDANCE_ASSIST: {
+    icon: ShieldCheck,
+    tone: 'green'
+  }
+}
+
+const taskCategoryLabels = {
+  ERRAND: '跑腿代取',
+  AGENCY: '委托代办',
+  ATTENDANCE_ASSIST: '签到协助'
+}
+
+const taskStatusLabels = {
+  OPEN: '待接单',
+  ACCEPTED: '已选人',
+  IN_PROGRESS: '进行中',
+  PENDING_CONFIRMATION: '待确认'
+}
+
+const rewardTypeLabels = {
+  FREE: '免费互助',
+  POINTS: '积分奖励',
+  CASH: '小额酬谢',
+  NEGOTIABLE: '双方协商'
+}
 
 const conversations = ref([])
 const messages = ref([])
 const relatedTask = ref(null)
 const listLoading = ref(false)
 const messagesLoading = ref(false)
-const taskLoading = ref(false)
 const sending = ref(false)
-const listError = ref('')
-const messagesError = ref('')
-const taskError = ref('')
+const usingMockData = ref(false)
 const pageFeedback = ref('')
-const pageFeedbackType = ref('success')
 const conversationSearch = ref('')
 const threadRef = ref(null)
 
 const conversationPage = reactive({
   page: 1,
-  size: 12,
+  size: 4,
   total: 0
 })
 
@@ -67,32 +321,28 @@ const messagePage = reactive({
 })
 
 const composer = reactive({
-  mode: 'TEXT',
-  text: '',
-  imageUrl: '',
-  imageDataUrl: '',
-  imageName: ''
+  text: ''
 })
-
-const composerErrors = reactive({})
 
 let listRequestId = 0
 let messagesRequestId = 0
-let taskRequestId = 0
 
 const selectedConversationId = computed(() =>
   route.params.conversationId ? String(route.params.conversationId) : ''
 )
 
-const relatedQuery = computed(() => ({
-  type: String(firstQueryValue(route.query.relatedType) || '').toUpperCase(),
-  id: String(firstQueryValue(route.query.relatedId) || '')
-}))
-
 const activeConversation = computed(
   () =>
     conversations.value.find((conversation) => String(conversation.id) === selectedConversationId.value) ||
+    conversations.value[0] ||
     null
+)
+
+const currentUser = computed(() => (usingMockData.value ? DEMO_USER_ID : currentUserId.value || DEMO_USER_ID))
+const conversationReplyable = computed(() => activeConversation.value?.replyable ?? true)
+const onlyInAppActive = computed(() => Boolean(relatedTask.value?.onlyInAppContact))
+const totalConversationPages = computed(() =>
+  Math.max(1, Math.ceil(conversationPage.total / conversationPage.size))
 )
 
 const filteredConversations = computed(() => {
@@ -115,37 +365,17 @@ const filteredConversations = computed(() => {
   })
 })
 
-const totalConversationPages = computed(() =>
-  Math.max(1, Math.ceil(conversationPage.total / conversationPage.size))
-)
-
-const conversationReplyable = computed(() => activeConversation.value?.replyable ?? false)
-const isTaskConversation = computed(() => {
-  const conversation = activeConversation.value
-  return Boolean(
-    conversation &&
-      String(conversation.relatedType || conversation.type || '').toUpperCase().includes('TASK') &&
-      conversation.relatedId
-  )
+const chatDateLabel = computed(() => {
+  const firstMessage = messages.value[0]
+  if (!firstMessage?.createdAt) return '今天'
+  return formatDateDivider(firstMessage.createdAt)
 })
 
-const onlyInAppActive = computed(() => Boolean(relatedTask.value?.onlyInAppContact))
-const taskStatusTone = computed(() => statusTone(relatedTask.value?.status))
-const relatedQueryMissing = computed(() => {
-  if (selectedConversationId.value || !relatedQuery.value.id) return false
-  return !conversations.value.some((conversation) => {
-    return (
-      String(conversation.relatedType).toUpperCase() === relatedQuery.value.type &&
-      String(conversation.relatedId) === relatedQuery.value.id
-    )
-  })
-})
+const activeIcon = computed(() => getCategoryMeta(activeConversation.value?.category).icon)
+const activeIconTone = computed(() => `task-icon--${getCategoryMeta(activeConversation.value?.category).tone}`)
 
-const composerModeLabel = computed(() => (composer.mode === 'IMAGE' ? '图片消息' : '文字消息'))
-const imageDraftSource = computed(() => composer.imageDataUrl || composer.imageUrl.trim())
-
-function firstQueryValue(value) {
-  return Array.isArray(value) ? value[0] : value
+function getCategoryMeta(category) {
+  return categoryMeta[category] || categoryMeta.ERRAND
 }
 
 function normalizePagedResult(result, fallbackSize) {
@@ -183,17 +413,18 @@ function normalizeBoolean(value, fallback = false) {
 
 function normalizeConversation(conversation = {}) {
   const id = conversation.id ?? conversation.conversationId
+  const relatedId = conversation.relatedId
+  const task = mockTasks[relatedId] || {}
   const type = conversation.type || 'TASK'
-  const title = conversation.title || (conversation.relatedId ? `任务会话 #${conversation.relatedId}` : '站内会话')
 
   return {
     id,
     type,
-    title,
+    title: conversation.title || (relatedId ? `任务 #${relatedId} 沟通` : '站内会话'),
     ownerId: conversation.ownerId,
     peerUserId: conversation.peerUserId,
     relatedType: conversation.relatedType || (type === 'TASK' ? 'TASK' : type),
-    relatedId: conversation.relatedId,
+    relatedId,
     replyable: normalizeBoolean(conversation.replyable, true),
     lastMessageAt: conversation.lastMessageAt || conversation.updatedAt || conversation.createdAt || '',
     createdAt: conversation.createdAt || conversation.lastMessageAt || '',
@@ -202,187 +433,56 @@ function normalizeConversation(conversation = {}) {
       conversation.lastMessageContent ||
       conversation.lastMessage ||
       conversation.preview ||
-      ''
+      '',
+    category: conversation.category || task.category || 'ERRAND',
+    unreadCount: Number(conversation.unreadCount || 0),
+    timeLabel: conversation.timeLabel || formatConversationTime(conversation.lastMessageAt)
   }
 }
 
 function normalizeMessage(message = {}) {
   return {
     id: message.id ?? `local-${message.createdAt || Date.now()}`,
-    conversationId: message.conversationId ?? selectedConversationId.value,
+    conversationId: message.conversationId ?? activeConversation.value?.id,
     senderId: message.senderId,
     type: message.type || 'TEXT',
     content: message.content || '',
-    readAt: message.readAt || '',
+    readAt: message.readAt || null,
     createdAt: message.createdAt || new Date().toISOString()
   }
 }
 
-function buildOptimisticMessage(payload) {
-  return normalizeMessage({
-    id: `local-${Date.now()}`,
-    conversationId: selectedConversationId.value,
-    senderId: currentUserId.value,
-    type: payload.type,
-    content: payload.content,
-    createdAt: new Date().toISOString()
-  })
-}
-
-function setFeedback(message, type = 'success') {
-  pageFeedback.value = message
-  pageFeedbackType.value = type
-}
-
-function clearComposerError(field) {
-  delete composerErrors[field]
-}
-
-function clearComposerErrors() {
-  Object.keys(composerErrors).forEach((field) => {
-    delete composerErrors[field]
-  })
-}
-
-function setComposerError(field, message) {
-  composerErrors[field] = message
-}
-
-function formatDateTime(value) {
-  if (!value) return '暂无记录'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleString('zh-CN', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
-
-function formatMessageTime(value) {
-  if (!value) return ''
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleTimeString('zh-CN', {
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
-
-function conversationTitle(conversation) {
-  if (!conversation) return '站内会话'
-  return conversation.title || `会话 #${conversation.id}`
-}
-
-function conversationSubtitle(conversation) {
-  if (!conversation) return '选择会话后查看消息'
-  if (String(conversation.relatedType).toUpperCase() === 'TASK') {
-    return conversation.relatedId ? `关联任务 #${conversation.relatedId}` : '任务协作会话'
-  }
-  return conversation.peerUserId ? `对方用户 #${conversation.peerUserId}` : '站内沟通记录'
-}
-
-function conversationTypeLabel(type) {
-  return optionLabel(CONVERSATION_TYPE_OPTIONS, type)
-}
-
-function avatarInitial(conversation) {
-  const title = conversationTitle(conversation).trim()
-  return title ? title.slice(0, 1) : '会'
-}
-
-function isOwnMessage(message) {
-  if (message.senderId === undefined || message.senderId === null || currentUserId.value === null) return false
-  return String(message.senderId) === String(currentUserId.value)
-}
-
-function isSystemMessage(message) {
-  return message.type === 'SYSTEM_NOTIFICATION'
-}
-
-function isImageUri(value) {
-  if (!value) return false
-  if (value.startsWith('data:image/')) return true
-
-  try {
-    const url = new URL(value)
-    return /\.(png|jpe?g|webp|gif|bmp|svg)$/i.test(url.pathname)
-  } catch {
-    return false
+function mockPagedConversations() {
+  return {
+    items: mockConversations,
+    page: 1,
+    size: conversationPage.size,
+    total: mockConversations.length
   }
 }
 
-function isImageMessage(message) {
-  return message.type === 'IMAGE' || isImageUri(message.content)
-}
-
-function isSupportedImageUri(value) {
-  if (!value) return false
-  if (value.startsWith('data:image/')) return true
-
-  try {
-    const url = new URL(value)
-    return ['http:', 'https:'].includes(url.protocol)
-  } catch {
-    return false
-  }
-}
-
-function hasExternalContact(text) {
-  return /(微信|v信|wechat|vx|电话|手机号|手机|qq|QQ|[1][3-9]\d{9})/i.test(text)
-}
-
-function messagePreviewFromPayload(payload) {
-  if (payload.type === 'IMAGE') return '已发送图片'
-  return payload.content.length > 28 ? `${payload.content.slice(0, 28)}...` : payload.content
-}
-
-function syncConversationAfterSend(message, payload) {
-  const index = conversations.value.findIndex(
-    (conversation) => String(conversation.id) === String(message.conversationId)
-  )
-  if (index < 0) return
-
-  conversations.value[index] = {
-    ...conversations.value[index],
-    lastMessageAt: message.createdAt,
-    lastMessagePreview: messagePreviewFromPayload(payload)
-  }
-}
-
-async function scrollMessagesToBottom() {
-  await nextTick()
-  if (threadRef.value) {
-    threadRef.value.scrollTop = threadRef.value.scrollHeight
+function mockPagedMessages(conversationId) {
+  const items = mockMessagesByConversation[conversationId] || []
+  return {
+    items,
+    page: 1,
+    size: messagePage.size,
+    total: items.length
   }
 }
 
 function selectInitialConversation() {
   if (!conversations.value.length) return null
-
   if (selectedConversationId.value) {
     return conversations.value.find(
       (conversation) => String(conversation.id) === selectedConversationId.value
     )
   }
-
-  if (relatedQuery.value.id) {
-    const related = conversations.value.find((conversation) => {
-      return (
-        String(conversation.relatedType).toUpperCase() === relatedQuery.value.type &&
-        String(conversation.relatedId) === relatedQuery.value.id
-      )
-    })
-    if (related) return related
-  }
-
   return conversations.value[0]
 }
 
 async function loadConversations() {
   listLoading.value = true
-  listError.value = ''
   const requestId = ++listRequestId
 
   try {
@@ -393,24 +493,83 @@ async function loadConversations() {
     if (requestId !== listRequestId) return
 
     const paged = normalizePagedResult(result, conversationPage.size)
-    conversations.value = paged.items.map(normalizeConversation).filter((conversation) => conversation.id)
-    conversationPage.page = paged.page || conversationPage.page
-    conversationPage.size = paged.size || conversationPage.size
-    conversationPage.total = paged.total || conversations.value.length
+    const source = paged.items.length ? paged : mockPagedConversations()
+    usingMockData.value = !paged.items.length
 
-    const target = selectInitialConversation()
-    if (!selectedConversationId.value && target?.id) {
-      await router.replace({
-        name: 'conversation-detail',
-        params: { conversationId: target.id },
-        query: route.query
-      })
-    }
-  } catch (error) {
-    listError.value = error.message || '会话列表加载失败，请稍后重试。'
+    applyConversationPage(source)
+  } catch {
+    if (requestId !== listRequestId) return
+    usingMockData.value = true
+    applyConversationPage(mockPagedConversations())
   } finally {
     if (requestId === listRequestId) listLoading.value = false
   }
+}
+
+function applyConversationPage(paged) {
+  conversations.value = paged.items.map(normalizeConversation).filter((conversation) => conversation.id)
+  conversationPage.page = paged.page || 1
+  conversationPage.size = paged.size || conversationPage.size
+  conversationPage.total = paged.total || conversations.value.length
+
+  const target = selectInitialConversation()
+  if (!selectedConversationId.value && target?.id) {
+    router.replace({
+      name: 'conversation-detail',
+      params: { conversationId: target.id },
+      query: route.query
+    })
+  }
+}
+
+async function loadMessages() {
+  messages.value = []
+  if (!activeConversation.value?.id) return
+
+  messagesLoading.value = true
+  const requestId = ++messagesRequestId
+  const conversationId = activeConversation.value.id
+
+  try {
+    const result = await api.getConversationMessages(conversationId, {
+      page: messagePage.page,
+      size: messagePage.size
+    })
+    if (requestId !== messagesRequestId) return
+
+    const paged = normalizePagedResult(result, messagePage.size)
+    const source = paged.items.length ? paged : mockPagedMessages(conversationId)
+    usingMockData.value = usingMockData.value || !paged.items.length
+
+    applyMessagePage(source)
+  } catch {
+    if (requestId !== messagesRequestId) return
+    usingMockData.value = true
+    applyMessagePage(mockPagedMessages(conversationId))
+  } finally {
+    if (requestId === messagesRequestId) messagesLoading.value = false
+  }
+}
+
+function applyMessagePage(paged) {
+  messages.value = paged.items
+    .map(normalizeMessage)
+    .sort((current, next) => new Date(current.createdAt) - new Date(next.createdAt))
+  messagePage.page = paged.page || 1
+  messagePage.size = paged.size || messagePage.size
+  messagePage.total = paged.total || messages.value.length
+  scrollMessagesToBottom()
+}
+
+function loadRelatedTask() {
+  const relatedId = activeConversation.value?.relatedId
+  relatedTask.value = relatedId ? mockTasks[relatedId] || null : null
+}
+
+async function reloadDemo() {
+  pageFeedback.value = ''
+  await loadConversations()
+  await loadMessages()
 }
 
 async function changeConversationPage(page) {
@@ -427,208 +586,142 @@ async function selectConversation(conversation) {
   })
 }
 
-async function loadMessages() {
-  messages.value = []
-  messagesError.value = ''
-  if (!selectedConversationId.value) return
-
-  messagesLoading.value = true
-  const requestId = ++messagesRequestId
-
-  try {
-    const result = await api.getConversationMessages(selectedConversationId.value, {
-      page: messagePage.page,
-      size: messagePage.size
-    })
-    if (requestId !== messagesRequestId) return
-
-    const paged = normalizePagedResult(result, messagePage.size)
-    messages.value = paged.items
-      .map(normalizeMessage)
-      .sort((current, next) => new Date(current.createdAt) - new Date(next.createdAt))
-    messagePage.page = paged.page || messagePage.page
-    messagePage.size = paged.size || messagePage.size
-    messagePage.total = paged.total || messages.value.length
-    await scrollMessagesToBottom()
-  } catch (error) {
-    messagesError.value = error.message || '消息加载失败，请稍后重试。'
-  } finally {
-    if (requestId === messagesRequestId) messagesLoading.value = false
-  }
-}
-
-async function loadRelatedTask() {
-  const conversation = activeConversation.value
-  relatedTask.value = null
-  taskError.value = ''
-
-  if (
-    !conversation ||
-    !conversation.relatedId ||
-    !String(conversation.relatedType || conversation.type || '').toUpperCase().includes('TASK')
-  ) {
-    return
-  }
-
-  taskLoading.value = true
-  const requestId = ++taskRequestId
-
-  try {
-    const result = await api.getTaskDetail(conversation.relatedId)
-    if (requestId !== taskRequestId) return
-
-    relatedTask.value = result?.task || result || null
-  } catch (error) {
-    taskError.value = error.message || '关联任务加载失败。'
-  } finally {
-    if (requestId === taskRequestId) taskLoading.value = false
-  }
-}
-
-function resetComposer() {
-  composer.text = ''
-  composer.imageUrl = ''
-  composer.imageDataUrl = ''
-  composer.imageName = ''
-  clearComposerErrors()
-}
-
-function switchComposerMode(mode) {
-  composer.mode = mode
-  clearComposerErrors()
-}
-
-function readFileAsDataUri(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(String(reader.result || ''))
-    reader.onerror = () => reject(new Error('图片读取失败，请重新选择。'))
-    reader.readAsDataURL(file)
+function buildOptimisticMessage(payload) {
+  return normalizeMessage({
+    id: `local-${Date.now()}`,
+    conversationId: activeConversation.value?.id,
+    senderId: currentUser.value,
+    type: payload.type,
+    content: payload.content,
+    createdAt: new Date().toISOString()
   })
 }
 
-async function handleImageFile(event) {
-  const file = event.target.files?.[0]
-  if (!file) return
+function syncConversationAfterSend(message, payload) {
+  const index = conversations.value.findIndex(
+    (conversation) => String(conversation.id) === String(message.conversationId)
+  )
+  if (index < 0) return
 
-  clearComposerError('image')
-  if (!file.type.startsWith('image/')) {
-    setComposerError('image', '目前只支持发送图片文件。')
-    event.target.value = ''
-    return
-  }
-
-  if (file.size > 4 * 1024 * 1024) {
-    setComposerError('image', '单张图片请控制在 4MB 以内。')
-    event.target.value = ''
-    return
-  }
-
-  try {
-    composer.imageDataUrl = await readFileAsDataUri(file)
-    composer.imageName = file.name || '本地图片'
-    composer.imageUrl = ''
-    composer.mode = 'IMAGE'
-  } catch (error) {
-    setComposerError('image', error.message)
-  } finally {
-    event.target.value = ''
-  }
-}
-
-function removeImageDraft() {
-  composer.imageDataUrl = ''
-  composer.imageName = ''
-  clearComposerError('image')
-}
-
-function validateComposer() {
-  clearComposerErrors()
-
-  if (!isAuthenticated.value) {
-    setComposerError('auth', '请先登录后再发送站内消息。')
-  }
-
-  if (!conversationReplyable.value) {
-    setComposerError('replyable', '当前会话已关闭回复。')
-  }
-
-  if (composer.mode === 'TEXT') {
-    const content = composer.text.trim()
-    if (!content) setComposerError('text', '请先输入要发送的内容。')
-    if (content.length > 2000) setComposerError('text', '文字消息最多 2000 个字。')
-    if (onlyInAppActive.value && hasExternalContact(content)) {
-      setComposerError('text', '当前任务开启仅站内沟通，请不要在消息中填写微信、电话或 QQ。')
-    }
-  }
-
-  if (composer.mode === 'IMAGE') {
-    const imageSource = imageDraftSource.value
-    if (!imageSource) setComposerError('image', '请粘贴图片链接或选择本地图片。')
-    if (imageSource && !isSupportedImageUri(imageSource)) {
-      setComposerError('image', '图片链接需为 http、https，或选择本地图片。')
-    }
-  }
-
-  return !Object.keys(composerErrors).length
-}
-
-function buildMessagePayload() {
-  if (composer.mode === 'IMAGE') {
-    const imageSource = imageDraftSource.value
-    return {
-      type: 'IMAGE',
-      content: imageSource,
-      attachmentUrls: [imageSource]
-    }
-  }
-
-  return {
-    type: 'TEXT',
-    content: composer.text.trim()
+  conversations.value[index] = {
+    ...conversations.value[index],
+    lastMessageAt: message.createdAt,
+    lastMessagePreview: payload.content,
+    timeLabel: formatConversationTime(message.createdAt),
+    unreadCount: 0
   }
 }
 
 async function sendMessage() {
-  if (!activeConversation.value?.id || sending.value || !validateComposer()) return
+  const content = composer.text.trim()
+  if (!activeConversation.value?.id || sending.value || !conversationReplyable.value || !content) return
 
   sending.value = true
   pageFeedback.value = ''
-  const payload = buildMessagePayload()
+  const payload = {
+    type: 'TEXT',
+    content
+  }
 
   try {
-    const result = await api.sendConversationMessage(activeConversation.value.id, payload)
+    let result = null
+    if (!usingMockData.value) {
+      result = await api.sendConversationMessage(activeConversation.value.id, payload)
+    }
+
     const message = result ? normalizeMessage(result) : buildOptimisticMessage(payload)
     messages.value = [...messages.value, message]
     syncConversationAfterSend(message, payload)
-    resetComposer()
-    setFeedback(`${composerModeLabel.value}已发送。`)
+    composer.text = ''
     await scrollMessagesToBottom()
-  } catch (error) {
-    setFeedback(error.message || '消息发送失败，请稍后重试。', 'danger')
+  } catch {
+    const message = buildOptimisticMessage(payload)
+    messages.value = [...messages.value, message]
+    syncConversationAfterSend(message, payload)
+    composer.text = ''
+    usingMockData.value = true
+    pageFeedback.value = '当前以后端接口格式模拟发送，接入服务后会自动使用真实返回。'
+    await scrollMessagesToBottom()
   } finally {
     sending.value = false
   }
 }
 
+async function scrollMessagesToBottom() {
+  await nextTick()
+  if (threadRef.value) {
+    threadRef.value.scrollTop = threadRef.value.scrollHeight
+  }
+}
+
+function formatConversationTime(value) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleTimeString('zh-CN', {
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+function formatMessageTime(value) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleTimeString('zh-CN', {
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+function formatDateDivider(value) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '今天'
+  return `今天 ${date.toLocaleTimeString('zh-CN', {
+    hour: '2-digit',
+    minute: '2-digit'
+  })}`
+}
+
+function isOwnMessage(message) {
+  return String(message.senderId) === String(currentUser.value)
+}
+
+function isImageMessage(message) {
+  return message.type === 'IMAGE'
+}
+
+function conversationSubtitle(conversation) {
+  if (!conversation) return ''
+  const taskNo = conversation.relatedId ? `任务 #${conversation.relatedId}` : '站内沟通'
+  return `${taskNo} · 围绕任务的站内沟通留痕`
+}
+
+function categoryLabel(category) {
+  return taskCategoryLabels[category] || '任务会话'
+}
+
+function taskStatusLabel(status) {
+  return taskStatusLabels[status] || status || '同步中'
+}
+
+function rewardTypeLabel(type) {
+  return rewardTypeLabels[type] || type || '未设置'
+}
+
 watch(
   () => route.params.conversationId,
   async () => {
-    resetComposer()
+    loadRelatedTask()
     await loadMessages()
   }
 )
 
-watch(
-  activeConversation,
-  async () => {
-    await loadRelatedTask()
-  },
-  { immediate: true }
-)
+watch(activeConversation, loadRelatedTask)
 
 onMounted(async () => {
   await loadConversations()
+  loadRelatedTask()
   await loadMessages()
 })
 </script>
@@ -636,10 +729,10 @@ onMounted(async () => {
 <template>
   <DashboardShell active-label="站内沟通">
     <main class="conversation-page">
-      <section class="page-title-card conversation-title-card">
+      <section class="page-title-card">
         <div class="title-icon">
           <MessageCircle
-            :size="32"
+            :size="34"
             aria-hidden="true"
           />
         </div>
@@ -655,49 +748,34 @@ onMounted(async () => {
       </section>
 
       <section
-        v-if="pageFeedback"
+        v-if="usingMockData || pageFeedback"
         class="page-feedback"
-        :class="pageFeedbackType === 'danger' ? 'page-feedback--danger' : 'page-feedback--success'"
         role="status"
       >
         <Info
           :size="18"
           aria-hidden="true"
         />
-        <span>{{ pageFeedback }}</span>
+        <span>{{ pageFeedback || '当前展示数据按 openapi.yaml 的会话和消息接口格式模拟生成。' }}</span>
       </section>
 
-      <section
-        v-if="relatedQueryMissing"
-        class="page-feedback page-feedback--info"
-        role="status"
-      >
-        <Info
-          :size="18"
-          aria-hidden="true"
-        />
-        <span>对应任务会话尚未同步。双方确认合作后，会话会自动出现在这里。</span>
-      </section>
-
-      <section class="conversation-layout">
-        <aside class="panel-card conversation-list-panel">
+      <section class="conversation-workspace">
+        <aside class="conversation-list-panel">
           <div class="panel-heading">
             <div>
-              <p class="section-kicker">
-                会话列表
-              </p>
+              <p>会话列表</p>
               <h2>正在协作</h2>
             </div>
             <button
-              class="icon-action"
+              class="icon-button"
               type="button"
-              aria-label="刷新会话列表"
+              aria-label="刷新会话"
               :disabled="listLoading"
-              @click="loadConversations"
+              @click="reloadDemo"
             >
               <RefreshCw
                 :class="{ spinning: listLoading }"
-                :size="17"
+                :size="20"
                 aria-hidden="true"
               />
             </button>
@@ -709,7 +787,7 @@ onMounted(async () => {
               aria-hidden="true"
             />
             <input
-              v-model.trim="conversationSearch"
+              v-model="conversationSearch"
               type="search"
               placeholder="搜索会话、任务编号"
               aria-label="搜索会话、任务编号"
@@ -717,40 +795,16 @@ onMounted(async () => {
           </label>
 
           <div
-            v-if="listLoading"
-            class="loading-state compact-loading"
+            v-if="listLoading && !conversations.length"
+            class="loading-state"
             role="status"
           >
             <LoaderCircle
               class="spinning"
-              :size="22"
+              :size="24"
               aria-hidden="true"
             />
-            <span>正在同步会话...</span>
-          </div>
-
-          <div
-            v-else-if="listError"
-            class="inline-error"
-            role="status"
-          >
-            <Info
-              :size="18"
-              aria-hidden="true"
-            />
-            <span>{{ listError }}</span>
-          </div>
-
-          <div
-            v-else-if="!filteredConversations.length"
-            class="empty-state list-empty"
-          >
-            <Inbox
-              :size="32"
-              aria-hidden="true"
-            />
-            <h3>暂无站内会话</h3>
-            <p>确认帮助者后，任务会话会自动建立，用于后续澄清、凭证和争议追溯。</p>
+            <span>正在加载会话...</span>
           </div>
 
           <div
@@ -760,532 +814,241 @@ onMounted(async () => {
             <button
               v-for="conversation in filteredConversations"
               :key="conversation.id"
-              class="conversation-item"
-              :class="{ selected: String(conversation.id) === selectedConversationId }"
+              class="conversation-card"
+              :class="{ active: String(conversation.id) === String(activeConversation?.id) }"
               type="button"
               @click="selectConversation(conversation)"
             >
-              <span class="conversation-avatar">{{ avatarInitial(conversation) }}</span>
-              <span class="conversation-main">
-                <span class="conversation-row">
-                  <strong>{{ conversationTitle(conversation) }}</strong>
-                  <small>{{ formatDateTime(conversation.lastMessageAt) }}</small>
-                </span>
-                <span>{{ conversationSubtitle(conversation) }}</span>
-                <span class="conversation-preview">
-                  {{ conversation.lastMessagePreview || '等待新的站内消息' }}
-                </span>
+              <span
+                class="task-icon"
+                :class="`task-icon--${getCategoryMeta(conversation.category).tone}`"
+              >
+                <component
+                  :is="getCategoryMeta(conversation.category).icon"
+                  :size="24"
+                  aria-hidden="true"
+                />
               </span>
+              <span class="conversation-card-body">
+                <span class="conversation-card-top">
+                  <strong>{{ conversation.title }}</strong>
+                  <small>{{ conversation.timeLabel || formatConversationTime(conversation.lastMessageAt) }}</small>
+                </span>
+                <span class="conversation-preview">{{ conversation.lastMessagePreview }}</span>
+                <span class="conversation-meta">任务 #{{ conversation.relatedId }}</span>
+              </span>
+              <span
+                v-if="conversation.unreadCount"
+                class="unread-dot"
+                aria-label="有未读消息"
+              />
             </button>
           </div>
 
-          <nav
-            class="pagination-bar"
-            aria-label="会话分页"
-          >
+          <div class="pagination-bar">
             <button
-              class="ghost-action"
+              class="pager-button"
               type="button"
-              :disabled="conversationPage.page <= 1 || listLoading"
+              :disabled="conversationPage.page <= 1"
               @click="changeConversationPage(conversationPage.page - 1)"
             >
-              <ArrowLeft
-                :size="15"
+              <ChevronLeft
+                :size="16"
                 aria-hidden="true"
               />
               上一页
             </button>
             <span>{{ conversationPage.page }} / {{ totalConversationPages }}</span>
             <button
-              class="ghost-action"
+              class="pager-button"
               type="button"
-              :disabled="conversationPage.page >= totalConversationPages || listLoading"
+              :disabled="conversationPage.page >= totalConversationPages"
               @click="changeConversationPage(conversationPage.page + 1)"
             >
               下一页
-              <ArrowRight
-                :size="15"
+              <ChevronRight
+                :size="16"
                 aria-hidden="true"
               />
             </button>
-          </nav>
+          </div>
         </aside>
 
-        <section class="panel-card chat-panel">
-          <template v-if="activeConversation">
-            <header class="chat-heading">
-              <div class="chat-person">
-                <span class="chat-avatar">
-                  <UserRound
-                    :size="24"
-                    aria-hidden="true"
-                  />
-                </span>
-                <div>
-                  <p class="section-kicker">
-                    {{ conversationTypeLabel(activeConversation.type) }}
-                  </p>
-                  <h2>{{ conversationTitle(activeConversation) }}</h2>
-                  <span>{{ conversationSubtitle(activeConversation) }}</span>
-                </div>
-              </div>
-              <div class="chat-heading-actions">
-                <StatusBadge
-                  v-if="onlyInAppActive"
-                  label="仅站内沟通"
-                  tone="success"
+        <section
+          v-if="activeConversation"
+          class="chat-panel"
+        >
+          <header class="chat-header">
+            <div class="chat-title">
+              <span
+                class="task-icon"
+                :class="activeIconTone"
+              >
+                <component
+                  :is="activeIcon"
+                  :size="25"
+                  aria-hidden="true"
                 />
-                <StatusBadge
-                  v-else-if="isTaskConversation"
-                  label="站内优先"
-                  tone="info"
-                />
-                <button
-                  class="icon-action"
-                  type="button"
-                  aria-label="刷新消息"
-                  :disabled="messagesLoading"
-                  @click="loadMessages"
-                >
-                  <RefreshCw
-                    :class="{ spinning: messagesLoading }"
-                    :size="17"
-                    aria-hidden="true"
-                  />
-                </button>
+              </span>
+              <div>
+                <h2>{{ activeConversation.title }}</h2>
+                <p>{{ conversationSubtitle(activeConversation) }}</p>
               </div>
-            </header>
-
-            <div
-              v-if="onlyInAppActive"
-              class="mode-banner"
-              role="status"
+            </div>
+            <button
+              class="icon-button"
+              type="button"
+              aria-label="更多会话操作"
             >
-              <LockKeyhole
-                :size="18"
+              <MoreVertical
+                :size="22"
                 aria-hidden="true"
               />
-              <span>该任务开启仅站内沟通，页面不会要求填写或交换站外联系方式。</span>
-            </div>
+            </button>
+          </header>
 
-            <div
-              ref="threadRef"
-              class="message-thread"
-              aria-live="polite"
-            >
-              <div
-                v-if="messagesLoading"
-                class="loading-state"
-                role="status"
-              >
-                <LoaderCircle
-                  class="spinning"
-                  :size="24"
-                  aria-hidden="true"
-                />
-                <span>正在加载消息...</span>
-              </div>
-
-              <div
-                v-else-if="messagesError"
-                class="inline-error"
-                role="status"
-              >
-                <Info
-                  :size="18"
-                  aria-hidden="true"
-                />
-                <span>{{ messagesError }}</span>
-              </div>
-
-              <div
-                v-else-if="!messages.length"
-                class="empty-state message-empty"
-              >
-                <MessageCircle
-                  :size="34"
-                  aria-hidden="true"
-                />
-                <h3>还没有消息</h3>
-                <p>合作双方可以先确认地点、时间、完成标准和凭证要求。</p>
-              </div>
-
-              <template v-else>
-                <article
-                  v-for="message in messages"
-                  :key="message.id"
-                  class="message-row"
-                  :class="{
-                    'message-row--mine': isOwnMessage(message),
-                    'message-row--system': isSystemMessage(message)
-                  }"
-                >
-                  <span
-                    v-if="!isSystemMessage(message)"
-                    class="message-author"
-                  >
-                    {{ isOwnMessage(message) ? '我' : '对方' }}
-                  </span>
-                  <div class="message-bubble">
-                    <template v-if="isImageMessage(message)">
-                      <a
-                        class="message-image-link"
-                        :href="message.content"
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        <img
-                          :src="message.content"
-                          :alt="`${isOwnMessage(message) ? '我' : '对方'}发送的图片`"
-                        >
-                      </a>
-                    </template>
-                    <p v-else>
-                      {{ message.content || '空消息' }}
-                    </p>
-                    <time :datetime="message.createdAt">
-                      {{ formatMessageTime(message.createdAt) }}
-                    </time>
-                  </div>
-                </article>
-              </template>
-            </div>
-
-            <form
-              class="message-composer"
-              novalidate
-              @submit.prevent="sendMessage"
-            >
-              <div
-                class="composer-tabs"
-                role="tablist"
-                aria-label="消息类型"
-              >
-                <button
-                  type="button"
-                  :class="{ active: composer.mode === 'TEXT' }"
-                  @click="switchComposerMode('TEXT')"
-                >
-                  <MessageCircle
-                    :size="16"
-                    aria-hidden="true"
-                  />
-                  文字
-                </button>
-                <button
-                  type="button"
-                  :class="{ active: composer.mode === 'IMAGE' }"
-                  @click="switchComposerMode('IMAGE')"
-                >
-                  <ImagePlus
-                    :size="16"
-                    aria-hidden="true"
-                  />
-                  图片
-                </button>
-              </div>
-
-              <p
-                v-if="composerErrors.auth || composerErrors.replyable"
-                class="field-error"
-              >
-                {{ composerErrors.auth || composerErrors.replyable }}
-              </p>
-
-              <label
-                v-if="composer.mode === 'TEXT'"
-                class="composer-field"
-                for="message-text"
-              >
-                <span>消息内容</span>
-                <textarea
-                  id="message-text"
-                  v-model="composer.text"
-                  maxlength="2000"
-                  placeholder="说明取件码发送方式、到达时间、交接位置或完成标准。"
-                  :aria-invalid="Boolean(composerErrors.text)"
-                  :aria-describedby="composerErrors.text ? 'message-text-error' : 'message-text-hint'"
-                  @input="clearComposerError('text')"
-                />
-                <small id="message-text-hint">{{ composer.text.length }}/2000</small>
-                <small
-                  v-if="composerErrors.text"
-                  id="message-text-error"
-                  class="field-error"
-                >
-                  {{ composerErrors.text }}
-                </small>
-              </label>
-
-              <section
-                v-else
-                class="image-composer"
-                aria-labelledby="image-composer-title"
-              >
-                <div class="image-composer-grid">
-                  <label
-                    class="composer-field"
-                    for="message-image-url"
-                  >
-                    <span id="image-composer-title">图片链接</span>
-                    <span class="image-url-row">
-                      <input
-                        id="message-image-url"
-                        v-model.trim="composer.imageUrl"
-                        placeholder="https://example.com/proof.jpg"
-                        :disabled="Boolean(composer.imageDataUrl)"
-                        :aria-invalid="Boolean(composerErrors.image)"
-                        @input="clearComposerError('image')"
-                      >
-                      <Link2
-                        :size="17"
-                        aria-hidden="true"
-                      />
-                    </span>
-                  </label>
-
-                  <label
-                    class="file-pick-control"
-                    for="message-image-file"
-                  >
-                    <UploadCloud
-                      :size="20"
-                      aria-hidden="true"
-                    />
-                    <span>
-                      <strong>选择本地图片</strong>
-                      <small>单张不超过 4MB。</small>
-                    </span>
-                    <input
-                      id="message-image-file"
-                      type="file"
-                      accept="image/*"
-                      @change="handleImageFile"
-                    >
-                  </label>
-                </div>
-
-                <div
-                  v-if="imageDraftSource"
-                  class="image-preview"
-                >
-                  <img
-                    :src="imageDraftSource"
-                    alt="待发送图片预览"
-                  >
-                  <button
-                    v-if="composer.imageDataUrl"
-                    type="button"
-                    aria-label="移除待发送图片"
-                    @click="removeImageDraft"
-                  >
-                    <X
-                      :size="15"
-                      aria-hidden="true"
-                    />
-                    移除
-                  </button>
-                  <span>{{ composer.imageName || '图片链接预览' }}</span>
-                </div>
-
-                <p
-                  v-if="composerErrors.image"
-                  class="field-error"
-                >
-                  {{ composerErrors.image }}
-                </p>
-              </section>
-
-              <div class="composer-actions">
-                <span>{{ conversationReplyable ? '消息会保留在站内记录中' : '当前不可回复' }}</span>
-                <button
-                  class="primary-action"
-                  type="submit"
-                  :disabled="sending || !conversationReplyable"
-                >
-                  <LoaderCircle
-                    v-if="sending"
-                    class="spinning"
-                    :size="18"
-                    aria-hidden="true"
-                  />
-                  <Send
-                    v-else
-                    :size="18"
-                    aria-hidden="true"
-                  />
-                  发送
-                </button>
-              </div>
-            </form>
-          </template>
+          <div class="date-divider">
+            <span>{{ chatDateLabel }}</span>
+          </div>
 
           <div
-            v-else
-            class="empty-state chat-empty"
+            ref="threadRef"
+            class="message-thread"
+            :aria-busy="messagesLoading"
           >
-            <MessageCircle
-              :size="42"
-              aria-hidden="true"
-            />
-            <h2>选择一个会话</h2>
-            <p>站内沟通会围绕已确认的任务自动生成，文本、图片和时间戳会一起保留。</p>
-          </div>
-        </section>
-
-        <aside class="context-column">
-          <article class="panel-card context-card">
-            <div class="panel-heading">
-              <div>
-                <p class="section-kicker">
-                  沟通边界
-                </p>
-                <h2>{{ onlyInAppActive ? '仅站内模式已开启' : '站内沟通优先' }}</h2>
-              </div>
-              <LockKeyhole
-                :size="24"
-                aria-hidden="true"
-              />
-            </div>
-            <div class="boundary-list">
-              <span :class="{ active: onlyInAppActive }">
-                <LockKeyhole
-                  :size="16"
-                  aria-hidden="true"
-                />
-                {{ onlyInAppActive ? '不交换站外联系方式' : '可按任务偏好协商' }}
-              </span>
-              <span class="active">
-                <MessageCircle
-                  :size="16"
-                  aria-hidden="true"
-                />
-                文字和图片留痕
-              </span>
-              <span class="active">
-                <ShieldCheck
-                  :size="16"
-                  aria-hidden="true"
-                />
-                争议可回溯
-              </span>
-            </div>
-          </article>
-
-          <article class="panel-card context-card">
-            <div class="panel-heading">
-              <div>
-                <p class="section-kicker">
-                  关联任务
-                </p>
-                <h2>{{ relatedTask?.title || '任务上下文' }}</h2>
-              </div>
-              <ClipboardCheck
-                :size="24"
-                aria-hidden="true"
-              />
-            </div>
-
             <div
-              v-if="taskLoading"
-              class="loading-state compact-loading"
+              v-if="messagesLoading && !messages.length"
+              class="loading-state message-loading"
               role="status"
             >
               <LoaderCircle
                 class="spinning"
-                :size="22"
-                aria-hidden="true"
-              />
-              <span>正在同步任务...</span>
-            </div>
-
-            <div
-              v-else-if="taskError"
-              class="inline-error"
-              role="status"
-            >
-              <Info
-                :size="18"
-                aria-hidden="true"
-              />
-              <span>{{ taskError }}</span>
-            </div>
-
-            <template v-else-if="relatedTask">
-              <div class="task-status-row">
-                <StatusBadge
-                  :label="optionLabel(TASK_STATUS_OPTIONS, relatedTask.status)"
-                  :tone="taskStatusTone"
-                />
-                <span>{{ optionLabel(TASK_CATEGORY_OPTIONS, relatedTask.category) }}</span>
-              </div>
-              <dl class="task-context-list">
-                <div>
-                  <dt>校区地点</dt>
-                  <dd>{{ relatedTask.campus || '未填校区' }} · {{ relatedTask.location || '未填地点' }}</dd>
-                </div>
-                <div>
-                  <dt>奖励方式</dt>
-                  <dd>{{ optionLabel(REWARD_TYPE_OPTIONS, relatedTask.rewardType) }}</dd>
-                </div>
-                <div>
-                  <dt>完成标准</dt>
-                  <dd>{{ relatedTask.completionStandard || '暂未填写完成标准' }}</dd>
-                </div>
-              </dl>
-              <RouterLink
-                class="ghost-action context-link"
-                :to="{ name: 'task-detail', params: { taskId: relatedTask.id || activeConversation.relatedId } }"
-              >
-                查看任务详情
-              </RouterLink>
-            </template>
-
-            <p
-              v-else
-              class="context-copy"
-            >
-              当前会话没有可同步的任务上下文。
-            </p>
-          </article>
-
-          <article class="panel-card context-card">
-            <div class="panel-heading">
-              <div>
-                <p class="section-kicker">
-                  协作检查
-                </p>
-                <h2>发送前确认</h2>
-              </div>
-              <BadgeCheck
                 :size="24"
                 aria-hidden="true"
               />
+              <span>正在加载消息...</span>
             </div>
-            <div class="check-list">
-              <span>
-                <Clock3
-                  :size="16"
+
+            <article
+              v-for="message in messages"
+              v-else
+              :key="message.id"
+              class="message-row"
+              :class="{ 'message-row--mine': isOwnMessage(message) }"
+            >
+              <span
+                v-if="!isOwnMessage(message)"
+                class="message-avatar"
+              >
+                <UserRound
+                  :size="24"
                   aria-hidden="true"
                 />
-                明确到达或处理时间
               </span>
-              <span>
-                <ImagePlus
-                  :size="16"
+              <time>{{ formatMessageTime(message.createdAt) }}</time>
+              <div class="message-bubble">
+                <a
+                  v-if="isImageMessage(message)"
+                  class="message-image"
+                  :href="message.content"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <img
+                    :src="message.content"
+                    alt="消息图片"
+                  >
+                </a>
+                <p v-else>
+                  {{ message.content }}
+                </p>
+              </div>
+              <span
+                v-if="isOwnMessage(message)"
+                class="message-avatar message-avatar--mine"
+              >
+                <UserRound
+                  :size="24"
                   aria-hidden="true"
                 />
-                图片用于补充凭证
               </span>
-              <span>
-                <ShieldCheck
-                  :size="16"
-                  aria-hidden="true"
-                />
-                重要口径留在站内
-              </span>
+            </article>
+          </div>
+
+          <form
+            class="message-composer"
+            @submit.prevent="sendMessage"
+          >
+            <input
+              v-model="composer.text"
+              type="text"
+              placeholder="输入消息..."
+              aria-label="输入消息"
+              :disabled="sending || !conversationReplyable"
+            >
+            <button
+              class="image-button"
+              type="button"
+              aria-label="发送图片"
+            >
+              <Image
+                :size="24"
+                aria-hidden="true"
+              />
+            </button>
+            <button
+              class="send-button"
+              type="submit"
+              aria-label="发送消息"
+              :disabled="sending || !composer.text.trim() || !conversationReplyable"
+            >
+              <Send
+                :size="25"
+                aria-hidden="true"
+              />
+            </button>
+          </form>
+        </section>
+
+        <aside
+          v-if="relatedTask"
+          class="task-side-panel"
+        >
+          <div class="panel-heading">
+            <div>
+              <p>关联任务</p>
+              <h2>{{ relatedTask.title }}</h2>
             </div>
-          </article>
+            <StatusBadge
+              :label="taskStatusLabel(relatedTask.status)"
+              tone="info"
+            />
+          </div>
+          <dl class="task-detail-list">
+            <div>
+              <dt>任务类型</dt>
+              <dd>{{ categoryLabel(relatedTask.category) }}</dd>
+            </div>
+            <div>
+              <dt>校区地点</dt>
+              <dd>{{ relatedTask.campus }} · {{ relatedTask.location }}</dd>
+            </div>
+            <div>
+              <dt>奖励方式</dt>
+              <dd>{{ rewardTypeLabel(relatedTask.rewardType) }}</dd>
+            </div>
+            <div>
+              <dt>完成标准</dt>
+              <dd>{{ relatedTask.completionStandard }}</dd>
+            </div>
+          </dl>
+          <div class="mode-note">
+            <ShieldCheck
+              :size="18"
+              aria-hidden="true"
+            />
+            <span>{{ onlyInAppActive ? '当前任务开启仅站内沟通' : '当前任务允许按偏好协商沟通方式' }}</span>
+          </div>
         </aside>
       </section>
     </main>
@@ -1294,31 +1057,46 @@ onMounted(async () => {
 
 <style scoped>
 .conversation-page {
+  --chat-primary: #3035ff;
+  --chat-primary-dark: #2529d6;
+  --chat-text: #17172d;
+  --chat-muted: #596070;
+  --chat-border: #dfe5f4;
+  --chat-soft: #f5f7ff;
   display: grid;
-  gap: 20px;
+  gap: 18px;
+  color: var(--chat-text);
 }
 
 .page-title-card,
-.panel-card,
+.conversation-list-panel,
+.chat-panel,
+.task-side-panel,
 .page-feedback {
-  border: 1px solid #e4e1ea;
+  border: 1px solid var(--chat-border);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.98);
-  box-shadow: 0 18px 36px rgba(42, 38, 61, 0.045);
+  box-shadow: 0 18px 36px rgba(40, 46, 92, 0.06);
 }
 
 .page-title-card {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 28px;
   min-height: 132px;
+  gap: 28px;
   padding: 26px 38px;
 }
 
-.title-icon {
-  display: grid;
+.title-icon,
+.task-icon,
+.message-avatar {
+  display: inline-grid;
   place-items: center;
+  flex: 0 0 auto;
+}
+
+.title-icon {
   width: 78px;
   height: 82px;
   border-radius: 8px;
@@ -1332,7 +1110,7 @@ onMounted(async () => {
 }
 
 .title-copy p,
-.section-kicker {
+.panel-heading p {
   margin: 0;
   color: #746dc3;
   font-size: 0.92rem;
@@ -1341,11 +1119,11 @@ onMounted(async () => {
 
 .title-copy h1,
 .panel-heading h2,
-.chat-heading h2 {
+.chat-title h2 {
   margin: 0;
-  color: #3c3543;
+  color: var(--chat-text);
   font-weight: 900;
-  line-height: 1.15;
+  line-height: 1.16;
 }
 
 .title-copy h1 {
@@ -1353,153 +1131,159 @@ onMounted(async () => {
 }
 
 .title-copy span,
-.chat-person span,
-.context-copy {
-  color: #8a8792;
-  line-height: 1.55;
+.chat-title p,
+.conversation-preview,
+.conversation-meta,
+.task-detail-list dt {
+  color: var(--chat-muted);
+  line-height: 1.5;
+}
+
+.page-title-card :deep(.status-badge--success) {
+  min-height: 32px;
+  padding: 0 13px;
+  border: 1px solid #86efac;
+  background: #dcfce7;
+  color: #047857;
+  font-size: 0.86rem;
+  font-weight: 900;
+  box-shadow: 0 8px 18px rgba(22, 163, 74, 0.14);
 }
 
 .page-feedback {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
-  padding: 13px 14px;
-  line-height: 1.55;
-}
-
-.page-feedback--success {
-  border-color: #bbf7d0;
-  background: #f0fdf4;
-  color: #166534;
-}
-
-.page-feedback--danger {
-  border-color: #fecaca;
-  background: #fef2f2;
-  color: #991b1b;
-}
-
-.page-feedback--info {
-  border-color: #bae6fd;
-  background: #f0f9ff;
+  padding: 12px 14px;
   color: #075985;
+  background: #f0f9ff;
 }
 
-.conversation-layout {
+.conversation-workspace {
   display: grid;
-  grid-template-columns: minmax(280px, 0.34fr) minmax(0, 1fr) minmax(280px, 0.34fr);
-  gap: 22px;
-  align-items: start;
+  grid-template-columns: minmax(300px, 0.34fr) minmax(520px, 1fr);
+  gap: 14px;
+  align-items: stretch;
 }
 
-.panel-card {
+.conversation-list-panel,
+.chat-panel,
+.task-side-panel {
   display: grid;
   align-content: start;
-  gap: 18px;
-  padding: 22px;
-}
-
-.panel-heading,
-.chat-heading,
-.chat-heading-actions,
-.conversation-row,
-.composer-actions,
-.task-status-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 14px;
-}
-
-.panel-heading h2,
-.chat-heading h2 {
-  margin-top: 4px;
-  font-size: 1.18rem;
-}
-
-.icon-action {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 38px;
-  height: 38px;
-  border: 1px solid #e0ddec;
-  border-radius: 8px;
-  background: #ffffff;
-  color: #746dc3;
-  transition:
-    border-color 180ms ease,
-    background-color 180ms ease,
-    box-shadow 180ms ease;
-}
-
-.icon-action:hover:not(:disabled) {
-  border-color: #b9b2e8;
-  background: #f7f4ff;
-  box-shadow: 0 8px 18px rgba(116, 109, 195, 0.1);
-}
-
-.icon-action:disabled {
-  cursor: not-allowed;
-  opacity: 0.62;
+  gap: 16px;
+  padding: 18px;
 }
 
 .conversation-list-panel {
-  position: sticky;
-  top: 118px;
+  min-height: 660px;
+}
+
+.panel-heading,
+.chat-header,
+.conversation-card-top,
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.panel-heading h2 {
+  margin-top: 3px;
+  font-size: 1.2rem;
+}
+
+.icon-button,
+.pager-button,
+.image-button,
+.send-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--chat-border);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--chat-primary);
+  transition:
+    border-color 180ms ease,
+    background-color 180ms ease,
+    color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.icon-button {
+  width: 42px;
+  height: 42px;
+}
+
+.icon-button:hover:not(:disabled),
+.pager-button:hover:not(:disabled),
+.image-button:hover:not(:disabled) {
+  border-color: #aab5ff;
+  background: #f6f7ff;
+  box-shadow: 0 10px 20px rgba(48, 53, 255, 0.08);
+}
+
+.icon-button:disabled,
+.pager-button:disabled,
+.send-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
 }
 
 .conversation-search {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 46px;
+  min-height: 48px;
   padding: 0 12px;
-  border: 1px solid #ddd9e8;
+  border: 1px solid var(--chat-border);
   border-radius: 8px;
   background: #ffffff;
-  color: #9a96a3;
-  transition:
-    border-color 180ms ease,
-    box-shadow 180ms ease;
+  color: #475569;
 }
 
 .conversation-search:focus-within,
-.composer-field textarea:focus,
-.composer-field input:focus,
-.file-pick-control:focus-within,
-.primary-action:focus-visible,
-.ghost-action:focus-visible,
-.composer-tabs button:focus-visible,
-.conversation-item:focus-visible,
-.icon-action:focus-visible {
-  border-color: #9a93dc;
-  box-shadow: 0 0 0 4px rgba(116, 109, 195, 0.12);
+.message-composer input:focus,
+.icon-button:focus-visible,
+.pager-button:focus-visible,
+.conversation-card:focus-visible,
+.image-button:focus-visible,
+.send-button:focus-visible {
+  border-color: #7c83ff;
+  box-shadow: 0 0 0 4px rgba(48, 53, 255, 0.12);
   outline: 0;
 }
 
 .conversation-search input,
-.composer-field input {
+.message-composer input {
   width: 100%;
   border: 0;
   outline: 0;
   background: transparent;
-  color: #393545;
+  color: var(--chat-text);
+}
+
+.conversation-search input::placeholder,
+.message-composer input::placeholder {
+  color: #697386;
 }
 
 .conversation-list {
   display: grid;
-  gap: 10px;
+  gap: 11px;
 }
 
-.conversation-item {
+.conversation-card {
   position: relative;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   gap: 12px;
   width: 100%;
-  padding: 13px;
-  border: 1px solid #e4e1ea;
+  min-height: 104px;
+  padding: 14px 13px;
+  border: 1px solid var(--chat-border);
   border-radius: 8px;
   background: #ffffff;
   color: inherit;
@@ -1510,540 +1294,310 @@ onMounted(async () => {
     box-shadow 180ms ease;
 }
 
-.conversation-item:hover,
-.conversation-item.selected {
-  border-color: #b9b2e8;
-  background: #fbf9ff;
-  box-shadow: 0 14px 28px rgba(116, 109, 195, 0.08);
+.conversation-card:hover,
+.conversation-card.active {
+  border-color: #8f98ff;
+  background: linear-gradient(135deg, #f9faff, #ffffff);
+  box-shadow: 0 14px 30px rgba(48, 53, 255, 0.08);
 }
 
-.conversation-item.selected::before {
+.conversation-card.active::before {
   content: "";
   position: absolute;
-  inset: 12px auto 12px 0;
+  inset: 14px auto 14px 0;
   width: 3px;
   border-radius: 999px;
-  background: #746dc3;
+  background: var(--chat-primary);
 }
 
-.conversation-avatar,
-.chat-avatar {
-  display: inline-grid;
-  place-items: center;
-  flex: 0 0 auto;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
+.task-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 8px;
+}
+
+.task-icon--blue {
   background: #eef2ff;
-  color: #4338ca;
+  color: var(--chat-primary);
+}
+
+.task-icon--orange {
+  background: #fff4e6;
+  color: #f97316;
+}
+
+.task-icon--green {
+  background: #e9fbeF;
+  color: #16a34a;
+}
+
+.conversation-card-body {
+  display: grid;
+  gap: 7px;
+}
+
+.conversation-card-top strong {
+  color: var(--chat-text);
+  font-size: 1rem;
+  line-height: 1.3;
+}
+
+.conversation-card-top small {
+  flex: 0 0 auto;
+  color: var(--chat-primary);
+  font-size: 0.88rem;
+}
+
+.conversation-preview,
+.conversation-meta {
+  font-size: 0.9rem;
+}
+
+.conversation-meta {
+  color: #4b5563;
+}
+
+.unread-dot {
+  position: absolute;
+  right: 14px;
+  bottom: 18px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--chat-primary);
+  box-shadow: 0 0 0 3px #eef2ff;
+}
+
+.pagination-bar {
+  margin-top: auto;
+  color: var(--chat-text);
+  font-weight: 800;
+}
+
+.pager-button {
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 14px;
   font-weight: 900;
 }
 
-.conversation-main {
-  display: grid;
-  gap: 5px;
-}
-
-.conversation-row strong {
-  color: #3c3543;
-  font-size: 0.98rem;
-  line-height: 1.35;
-}
-
-.conversation-row small,
-.conversation-main > span,
-.conversation-preview,
-.pagination-bar {
-  color: #8a8792;
-  font-size: 0.86rem;
-  line-height: 1.45;
-}
-
-.conversation-preview {
-  color: #746f7a;
-}
-
-.pagination-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
 .chat-panel {
-  min-height: 720px;
-  gap: 16px;
+  min-height: 660px;
 }
 
-.chat-heading {
-  align-items: center;
-  padding-bottom: 4px;
+.chat-header {
+  padding: 5px 0 12px;
+  border-bottom: 1px dashed var(--chat-border);
 }
 
-.chat-person {
+.chat-title {
   display: flex;
   align-items: center;
   gap: 14px;
 }
 
-.chat-heading-actions {
-  align-items: center;
-  flex-wrap: wrap;
+.chat-title h2 {
+  font-size: 1.2rem;
 }
 
-.mode-banner {
+.chat-title p {
+  margin: 5px 0 0;
+  font-size: 0.92rem;
+}
+
+.date-divider {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 11px 12px;
-  border: 1px solid #bbf7d0;
-  border-radius: 8px;
-  background: #f0fdf4;
-  color: #166534;
-  line-height: 1.5;
+  align-items: center;
+  gap: 12px;
+  color: #334155;
+  font-size: 0.9rem;
+}
+
+.date-divider::before,
+.date-divider::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  border-top: 1px dashed var(--chat-border);
+}
+
+.date-divider span {
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: #f1f4fb;
 }
 
 .message-thread {
   display: flex;
   flex-direction: column;
-  gap: 13px;
-  min-height: 390px;
+  gap: 18px;
+  min-height: 430px;
   max-height: 52vh;
-  padding: 18px;
+  padding: 12px 4px;
   overflow-y: auto;
-  border: 1px solid #eeeaf2;
-  border-radius: 8px;
-  background:
-    linear-gradient(180deg, #fcfbff 0%, #ffffff 100%);
 }
 
 .message-row {
   display: grid;
-  justify-items: start;
-  gap: 5px;
-  max-width: min(76%, 560px);
+  grid-template-columns: 52px auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
 }
 
 .message-row--mine {
-  justify-self: end;
-  justify-items: end;
+  grid-template-columns: minmax(0, 1fr) auto 52px;
 }
 
-.message-row--system {
-  justify-self: center;
-  justify-items: center;
-  max-width: min(88%, 620px);
+.message-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #eef2ff, #dbe0ff);
+  color: #6b73ff;
 }
 
-.message-author {
-  color: #8a8792;
-  font-size: 0.82rem;
-  font-weight: 900;
+.message-avatar--mine {
+  background: linear-gradient(135deg, #818cf8, #6d5dfc);
+  color: #ffffff;
 }
 
-.message-bubble {
-  display: grid;
-  gap: 7px;
-  padding: 11px 13px;
-  border: 1px solid #e4e1ea;
-  border-radius: 8px;
-  background: #ffffff;
-  color: #3c3543;
-  box-shadow: 0 10px 24px rgba(42, 38, 61, 0.04);
+.message-row time {
+  color: #475569;
+  font-size: 0.88rem;
+}
+
+.message-row--mine time {
+  order: 1;
 }
 
 .message-row--mine .message-bubble {
-  border-color: #c7d2fe;
-  background: #eef2ff;
-  color: #312e81;
+  order: 2;
+  justify-self: end;
 }
 
-.message-row--system .message-bubble {
-  border-color: #dbeafe;
-  background: #eff6ff;
-  color: #075985;
+.message-row--mine .message-avatar {
+  order: 3;
+}
+
+.message-bubble {
+  width: fit-content;
+  max-width: min(520px, 100%);
+  padding: 12px 16px;
+  border: 1px solid var(--chat-border);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 10px 22px rgba(30, 41, 59, 0.05);
+}
+
+.message-row--mine .message-bubble {
+  border-color: #dfe3ff;
+  background: #eef0ff;
 }
 
 .message-bubble p {
   margin: 0;
+  color: var(--chat-text);
   line-height: 1.65;
   white-space: pre-wrap;
 }
 
-.message-bubble time {
-  justify-self: end;
-  color: #8a8792;
-  font-size: 0.78rem;
-}
-
-.message-image-link {
+.message-image {
   display: block;
-  width: min(280px, 100%);
   overflow: hidden;
+  width: min(300px, 100%);
   border-radius: 8px;
   background: #f8fafc;
 }
 
-.message-image-link img,
-.image-preview img {
+.message-image img {
   display: block;
   width: 100%;
-  height: auto;
-  max-height: 260px;
-  object-fit: contain;
+  height: 126px;
+  object-fit: cover;
 }
 
 .message-composer {
   display: grid;
-  gap: 13px;
-  padding-top: 2px;
-}
-
-.composer-tabs {
-  display: inline-grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  width: fit-content;
-  padding: 4px;
-  border: 1px solid #e4e1ea;
-  border-radius: 8px;
-  background: #fbf9fc;
-}
-
-.composer-tabs button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  min-height: 36px;
-  padding: 0 12px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: transparent;
-  color: #746f7a;
-  font-weight: 900;
-}
-
-.composer-tabs button.active {
-  border-color: #d6d1e8;
-  background: #ffffff;
-  color: #746dc3;
-  box-shadow: 0 8px 16px rgba(116, 109, 195, 0.08);
-}
-
-.composer-field {
-  display: grid;
-  gap: 8px;
-}
-
-.composer-field > span:first-child {
-  color: #3c3543;
-  font-weight: 900;
-}
-
-.composer-field textarea,
-.composer-field input {
-  width: 100%;
-  border: 1px solid #ddd9e8;
-  border-radius: 8px;
-  background: #ffffff;
-  color: #393545;
-  outline: 0;
-  padding: 11px 12px;
-  line-height: 1.5;
-  transition:
-    border-color 180ms ease,
-    box-shadow 180ms ease;
-}
-
-.composer-field textarea {
-  min-height: 104px;
-  resize: vertical;
-}
-
-.composer-field textarea[aria-invalid="true"],
-.composer-field input[aria-invalid="true"] {
-  border-color: #ef4444;
-}
-
-.composer-field small {
-  color: #8a8792;
-}
-
-.image-composer {
-  display: grid;
-  gap: 12px;
-}
-
-.image-composer-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(210px, 0.42fr);
-  gap: 12px;
-  align-items: end;
-}
-
-.image-url-row {
-  display: flex;
-  align-items: center;
+  grid-template-columns: minmax(0, 1fr) 58px 66px;
   gap: 10px;
-  min-height: 46px;
-  padding: 0 11px;
-  border: 1px solid #ddd9e8;
-  border-radius: 8px;
-  background: #ffffff;
-  color: #746dc3;
-}
-
-.file-pick-control {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  min-height: 72px;
-  padding: 14px;
-  border: 1px dashed #bfdbfe;
-  border-radius: 8px;
-  background: #ffffff;
-  color: #075985;
-  transition:
-    border-color 180ms ease,
-    background-color 180ms ease,
-    box-shadow 180ms ease;
-}
-
-.file-pick-control:hover {
-  border-color: #93c5fd;
-  background: #eff6ff;
-}
-
-.file-pick-control span {
-  display: grid;
-  gap: 3px;
-}
-
-.file-pick-control strong {
-  color: #075985;
-}
-
-.file-pick-control small {
-  color: #64748b;
-}
-
-.file-pick-control input {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  cursor: pointer;
-}
-
-.image-preview {
-  display: grid;
-  grid-template-columns: 96px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 10px;
-  padding: 10px;
-  border: 1px solid #dbeafe;
-  border-radius: 8px;
-  background: #f8fcff;
-  color: #075985;
-  font-weight: 900;
-}
-
-.image-preview img {
-  max-height: 76px;
+  padding: 12px;
+  border: 1px solid var(--chat-border);
   border-radius: 8px;
   background: #ffffff;
 }
 
-.image-preview button {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  min-height: 32px;
-  border: 1px solid #bfdbfe;
-  border-radius: 8px;
-  background: #ffffff;
-  color: #075985;
-  font-weight: 900;
+.message-composer input {
+  min-height: 48px;
+  padding: 0 2px;
+  font-size: 0.96rem;
 }
 
-.composer-actions {
-  align-items: center;
+.image-button,
+.send-button {
+  height: 48px;
 }
 
-.composer-actions > span {
-  color: #8a8792;
-  line-height: 1.5;
-}
-
-.primary-action,
-.ghost-action {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 42px;
-  border-radius: 8px;
-  font-weight: 900;
-}
-
-.primary-action {
-  min-width: 112px;
-  border: 1px solid #746dc3;
-  background: #746dc3;
+.send-button {
+  border-color: var(--chat-primary);
+  background: var(--chat-primary);
   color: #ffffff;
-  box-shadow: 0 14px 26px rgba(116, 109, 195, 0.16);
+  box-shadow: 0 14px 24px rgba(48, 53, 255, 0.18);
 }
 
-.primary-action:hover:not(:disabled) {
-  background: #625ab4;
+.send-button:hover:not(:disabled) {
+  background: var(--chat-primary-dark);
 }
 
-.ghost-action {
-  padding: 0 12px;
-  border: 1px solid #e0ddec;
-  background: #ffffff;
-  color: #746dc3;
+.task-side-panel {
+  display: none;
 }
 
-.ghost-action:hover:not(:disabled) {
-  border-color: #b9b2e8;
-  background: #f7f4ff;
-}
-
-.primary-action:disabled,
-.ghost-action:disabled {
-  cursor: not-allowed;
-  opacity: 0.62;
-}
-
-.context-column {
-  position: sticky;
-  top: 118px;
+.task-detail-list {
   display: grid;
-  gap: 18px;
+  gap: 10px;
+  margin: 0;
 }
 
-.boundary-list,
-.check-list {
+.task-detail-list div {
   display: grid;
-  gap: 9px;
-}
-
-.boundary-list span,
-.check-list span {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  min-height: 38px;
-  padding: 9px 10px;
-  border: 1px solid #e6e2eb;
+  gap: 5px;
+  padding: 12px;
+  border: 1px solid var(--chat-border);
   border-radius: 8px;
-  background: #fbf9fc;
-  color: #746f7a;
+  background: #fbfcff;
+}
+
+.task-detail-list dd {
+  margin: 0;
+  color: var(--chat-text);
   font-weight: 900;
   line-height: 1.45;
 }
 
-.boundary-list span.active,
-.check-list span {
-  border-color: #bbf7d0;
+.mode-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 12px;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
   background: #f0fdf4;
   color: #166534;
-}
-
-.task-context-list {
-  display: grid;
-  gap: 10px;
-  margin: 0;
-}
-
-.task-context-list div {
-  display: grid;
-  gap: 5px;
-  padding: 11px;
-  border: 1px solid #eeeaf2;
-  border-radius: 8px;
-  background: #fcfbfd;
-}
-
-.task-context-list dt {
-  color: #8a8792;
-  font-size: 0.84rem;
-}
-
-.task-context-list dd {
-  margin: 0;
-  color: #3c3543;
   font-weight: 900;
   line-height: 1.45;
-}
-
-.context-link {
-  width: fit-content;
-}
-
-.loading-state,
-.empty-state,
-.inline-error {
-  display: grid;
-  place-items: center;
-  gap: 10px;
-  min-height: 180px;
-  padding: 20px;
-  border-radius: 8px;
-  text-align: center;
 }
 
 .loading-state {
-  color: #746dc3;
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  min-height: 160px;
+  color: var(--chat-primary);
   font-weight: 900;
 }
 
-.compact-loading {
-  min-height: 116px;
-}
-
-.empty-state {
-  border: 1px dashed #d7d1e5;
-  background: #fbf9fc;
-  color: #8a8792;
-}
-
-.empty-state h2,
-.empty-state h3,
-.empty-state p {
-  margin: 0;
-}
-
-.empty-state h2,
-.empty-state h3 {
-  color: #3c3543;
-}
-
-.message-empty {
-  min-height: 330px;
-}
-
-.chat-empty {
-  min-height: 620px;
-}
-
-.inline-error,
-.field-error {
-  color: #991b1b;
-}
-
-.inline-error {
-  border: 1px solid #fecaca;
-  background: #fef2f2;
-  line-height: 1.55;
-}
-
-.field-error {
-  margin: 0;
-  font-size: 0.9rem;
-  font-weight: 800;
-  line-height: 1.45;
+.message-loading {
+  min-height: 360px;
 }
 
 .spinning {
@@ -2056,74 +1610,77 @@ onMounted(async () => {
   }
 }
 
-@media (max-width: 1280px) {
-  .conversation-layout {
-    grid-template-columns: minmax(260px, 0.36fr) minmax(0, 1fr);
-  }
-
-  .context-column {
-    position: static;
-    grid-column: 1 / -1;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .conversation-list-panel {
-    position: static;
+@media (min-width: 1440px) {
+  .conversation-workspace {
+    grid-template-columns: minmax(310px, 370px) minmax(0, 1fr);
   }
 }
 
-@media (max-width: 980px) {
-  .conversation-layout,
-  .context-column,
-  .page-title-card,
-  .image-composer-grid {
+@media (max-width: 1280px) {
+  .conversation-workspace {
+    grid-template-columns: minmax(280px, 0.4fr) minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 1020px) {
+  .conversation-workspace {
     grid-template-columns: 1fr;
   }
 
+  .conversation-list-panel,
   .chat-panel {
-    min-height: 620px;
+    min-height: auto;
   }
 
-  .message-row {
-    max-width: 88%;
+  .conversation-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .task-side-panel {
+    display: grid;
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 720px) {
   .page-title-card {
-    gap: 18px;
-    padding: 22px;
+    grid-template-columns: 1fr;
+    padding: 20px;
   }
 
-  .title-icon {
-    width: 64px;
-    height: 64px;
-  }
-
-  .panel-card {
-    padding: 18px;
-  }
-
-  .chat-heading,
-  .composer-actions,
-  .pagination-bar,
-  .image-preview {
-    display: grid;
-  }
-
-  .composer-tabs,
-  .primary-action,
-  .ghost-action {
-    width: 100%;
-  }
-
-  .message-thread {
-    max-height: none;
+  .conversation-list {
+    grid-template-columns: 1fr;
   }
 
   .message-row,
-  .message-row--system {
-    max-width: 100%;
+  .message-row--mine {
+    grid-template-columns: 44px minmax(0, 1fr);
+    align-items: end;
+  }
+
+  .message-row time,
+  .message-row--mine time {
+    grid-column: 2;
+    order: initial;
+  }
+
+  .message-row--mine .message-avatar {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    order: initial;
+  }
+
+  .message-row--mine .message-bubble {
+    grid-column: 2;
+    justify-self: start;
+    order: initial;
+  }
+
+  .message-composer {
+    grid-template-columns: minmax(0, 1fr) 50px 54px;
+  }
+
+  .pager-button {
+    padding-inline: 10px;
   }
 }
 </style>
