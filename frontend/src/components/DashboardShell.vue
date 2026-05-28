@@ -25,6 +25,10 @@ defineProps({
   activeLabel: {
     type: String,
     default: '个人主页'
+  },
+  publishMode: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -88,9 +92,12 @@ onBeforeUnmount(() => {
 <template>
   <section
     class="dashboard-shell"
-    :class="{ 'is-collapsed': sidebarCollapsed }"
+    :class="{ 'is-collapsed': sidebarCollapsed && !publishMode, 'dashboard-shell--publish': publishMode }"
   >
-    <aside class="dashboard-sidebar">
+    <aside
+      v-if="!publishMode"
+      class="dashboard-sidebar"
+    >
       <button
         class="collapse-button"
         type="button"
@@ -282,13 +289,11 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .dashboard-shell {
-  --sidebar-width: 304px;
-  --topbar-height: 96px;
+  --sidebar-width: 260px;
+  --topbar-height: 76px;
   min-height: 100vh;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(248, 247, 251, 0.96)),
-    #fbfafc;
-  color: #2b2733;
+  background: #fbfafc;
+  color: #202033;
   font-family:
     KaiTi,
     STKaiti,
@@ -299,7 +304,7 @@ onBeforeUnmount(() => {
 }
 
 .dashboard-shell.is-collapsed {
-  --sidebar-width: 92px;
+  --sidebar-width: 78px;
 }
 
 .dashboard-sidebar,
@@ -320,7 +325,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
   width: var(--sidebar-width);
   height: 100vh;
-  padding: 46px 20px 28px;
+  padding: 36px 18px 24px;
   border-right: 1px solid #e4e1ea;
   background: rgba(255, 255, 255, 0.97);
   box-shadow: 14px 0 42px rgba(92, 82, 125, 0.045);
@@ -338,8 +343,7 @@ onBeforeUnmount(() => {
   border: 1px solid #e2def0;
   border-radius: 8px;
   background: #ffffff;
-  color: #746dc3;
-  box-shadow: 0 8px 22px rgba(116, 109, 195, 0.1);
+  color: #4f46e5;
   transition:
     background-color 180ms ease,
     border-color 180ms ease,
@@ -347,17 +351,17 @@ onBeforeUnmount(() => {
 }
 
 .collapse-button:hover {
-  border-color: #c9c2ee;
-  background: #f7f4ff;
+  border-color: #c7d2fe;
+  background: #f5f3ff;
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-height: 68px;
-  padding: 0 14px;
-  color: #7067be;
+  gap: 10px;
+  min-height: 58px;
+  padding: 0 10px;
+  color: #4f46e5;
   text-decoration: none;
 }
 
@@ -366,13 +370,12 @@ onBeforeUnmount(() => {
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  color: #746dc3;
 }
 
 .brand-text {
-  max-width: 168px;
-  color: #7067be;
-  font-size: 1.28rem;
+  max-width: 148px;
+  color: #4338ca;
+  font-size: 1.08rem;
   font-weight: 900;
   line-height: 1.08;
   overflow-wrap: anywhere;
@@ -384,20 +387,20 @@ onBeforeUnmount(() => {
 
 .sidebar-nav {
   display: grid;
-  gap: 12px;
-  margin-top: 42px;
+  gap: 10px;
+  margin-top: 34px;
 }
 
 .nav-item {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 16px;
-  min-height: 58px;
-  padding: 0 22px;
+  gap: 14px;
+  min-height: 50px;
+  padding: 0 18px;
   border-radius: 8px;
-  color: #8b8994;
-  font-size: 1.14rem;
+  color: #78738a;
+  font-size: 1rem;
   font-weight: 800;
   letter-spacing: 0;
   text-decoration: none;
@@ -411,9 +414,9 @@ onBeforeUnmount(() => {
 
 .nav-item:hover,
 .nav-item.active {
-  background: linear-gradient(90deg, #f1ecff 0%, #fbf9ff 100%);
-  color: #746dc3;
-  box-shadow: 0 14px 30px rgba(116, 109, 195, 0.085);
+  background: linear-gradient(90deg, #eef2ff 0%, #f8f7ff 100%);
+  color: #4f46e5;
+  box-shadow: 0 14px 30px rgba(79, 70, 229, 0.085);
 }
 
 .nav-item.active::before {
@@ -424,17 +427,11 @@ onBeforeUnmount(() => {
   bottom: 10px;
   width: 3px;
   border-radius: 999px;
-  background: #746dc3;
-}
-
-.nav-item span {
-  transition:
-    opacity 160ms ease,
-    max-width 180ms ease;
+  background: #4f46e5;
 }
 
 .is-collapsed .dashboard-sidebar {
-  padding-inline: 14px;
+  padding-inline: 12px;
 }
 
 .is-collapsed .collapse-button {
@@ -454,10 +451,6 @@ onBeforeUnmount(() => {
   overflow: hidden;
 }
 
-.is-collapsed .sidebar-nav {
-  margin-top: 42px;
-}
-
 .is-collapsed .nav-item {
   justify-content: center;
   gap: 0;
@@ -474,8 +467,8 @@ onBeforeUnmount(() => {
   grid-template-columns: minmax(240px, 1fr) auto;
   align-items: center;
   height: var(--topbar-height);
-  padding: 0 42px 0 50px;
-  border-bottom: 1px solid #e4e1ea;
+  padding: 0 30px 0 34px;
+  border-bottom: 1px solid #e4e7ef;
   background: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(18px);
 }
@@ -483,21 +476,21 @@ onBeforeUnmount(() => {
 .search-box {
   display: flex;
   align-items: center;
-  gap: 14px;
-  height: 56px;
-  padding: 0 20px;
-  border: 1px solid #ddd9e8;
+  gap: 12px;
+  height: 46px;
+  padding: 0 16px;
+  border: 1px solid #dbe1ee;
   border-radius: 8px;
   background: #ffffff;
-  color: #a3a0ad;
+  color: #667085;
   transition:
     border-color 180ms ease,
     box-shadow 180ms ease;
 }
 
 .search-box:focus-within {
-  border-color: #9a93dc;
-  box-shadow: 0 0 0 4px rgba(116, 109, 195, 0.12);
+  border-color: #818cf8;
+  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
 }
 
 .search-box input {
@@ -505,19 +498,19 @@ onBeforeUnmount(() => {
   border: 0;
   outline: 0;
   background: transparent;
-  color: #393545;
-  font-size: 1.08rem;
+  color: #111827;
+  font-size: 0.92rem;
 }
 
 .search-box input::placeholder {
-  color: #b8b5c1;
+  color: #667085;
 }
 
 .topbar-account {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 24px;
+  gap: 18px;
   min-width: max-content;
 }
 
@@ -526,7 +519,7 @@ onBeforeUnmount(() => {
 .account-menu-item {
   border: 0;
   background: transparent;
-  color: #393746;
+  color: #202033;
 }
 
 .notice-button {
@@ -534,37 +527,37 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 48px;
-  height: 48px;
+  width: 42px;
+  height: 42px;
   border-radius: 8px;
 }
 
 .notice-button:hover,
 .account-button:hover,
 .account-button.active {
-  background: #f6f4ff;
-  color: #746dc3;
+  background: #f5f3ff;
+  color: #4f46e5;
 }
 
 .notice-button span {
   position: absolute;
-  top: 2px;
-  right: 3px;
-  min-width: 22px;
-  height: 22px;
+  top: 0;
+  right: 2px;
+  min-width: 20px;
+  height: 20px;
   padding: 0 6px;
   border-radius: 999px;
-  background: #746dc3;
+  background: #4f46e5;
   color: #ffffff;
-  font-size: 0.84rem;
+  font-size: 0.78rem;
   font-weight: 800;
-  line-height: 22px;
+  line-height: 20px;
 }
 
 .topbar-divider {
   width: 1px;
-  height: 38px;
-  background: #dfdce5;
+  height: 34px;
+  background: #e4e7ef;
 }
 
 .account-menu {
@@ -574,11 +567,11 @@ onBeforeUnmount(() => {
 .account-button {
   display: inline-flex;
   align-items: center;
-  gap: 13px;
-  min-height: 56px;
+  gap: 11px;
+  min-height: 46px;
   padding: 0 10px;
   border-radius: 8px;
-  font-size: 1.14rem;
+  font-size: 1rem;
   font-weight: 900;
 }
 
@@ -598,13 +591,11 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 50px;
-  height: 50px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
-  background:
-    radial-gradient(circle at 32% 28%, #f5f2ff 0 23%, transparent 24%),
-    linear-gradient(135deg, #d9d3ff, #f1efff);
-  color: #746dc3;
+  background: linear-gradient(135deg, #e0e7ff, #f5f3ff);
+  color: #4f46e5;
 }
 
 .avatar--compact {
@@ -621,7 +612,7 @@ onBeforeUnmount(() => {
   gap: 6px;
   width: min(260px, calc(100vw - 32px));
   padding: 10px;
-  border: 1px solid #e4e1ea;
+  border: 1px solid #e4e7ef;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.98);
   box-shadow: 0 18px 40px rgba(42, 38, 61, 0.14);
@@ -633,7 +624,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 10px;
   padding: 8px 9px 12px;
-  border-bottom: 1px solid #eeeaf2;
+  border-bottom: 1px solid #eef0f6;
 }
 
 .account-dropdown-head div {
@@ -642,13 +633,13 @@ onBeforeUnmount(() => {
 }
 
 .account-dropdown-head strong {
-  color: #3c3543;
+  color: #111827;
   font-size: 0.98rem;
   line-height: 1.25;
 }
 
 .account-dropdown-head small {
-  color: #8a8792;
+  color: #667085;
   line-height: 1.35;
 }
 
@@ -660,7 +651,7 @@ onBeforeUnmount(() => {
   min-height: 40px;
   padding: 0 10px;
   border-radius: 8px;
-  color: #4a4650;
+  color: #374151;
   font-size: 0.96rem;
   font-weight: 900;
   text-align: left;
@@ -672,8 +663,8 @@ onBeforeUnmount(() => {
 
 .account-menu-item:hover,
 .account-menu-item:focus-visible {
-  background: #f6f4ff;
-  color: #746dc3;
+  background: #f5f3ff;
+  color: #4f46e5;
   outline: 0;
 }
 
@@ -690,28 +681,38 @@ onBeforeUnmount(() => {
 .dashboard-main {
   min-height: 100vh;
   margin-left: var(--sidebar-width);
-  padding: calc(var(--topbar-height) + 30px) 30px 42px;
+  padding: calc(var(--topbar-height) + 22px) 24px 36px;
+}
+
+.dashboard-shell--publish {
+  --sidebar-width: 0px;
+  --topbar-height: 68px;
+  background: #ffffff;
+}
+
+.dashboard-shell--publish .dashboard-topbar {
+  left: 0;
+  height: var(--topbar-height);
+  padding: 0 32px 0 62px;
+  grid-template-columns: minmax(280px, 934px) auto;
+}
+
+.dashboard-shell--publish .dashboard-main {
+  margin-left: 0;
+  padding: 76px 28px 20px;
+}
+
+.dashboard-shell--publish .search-box {
+  height: 44px;
 }
 
 @media (max-width: 1100px) {
   .dashboard-shell {
-    --sidebar-width: 248px;
+    --sidebar-width: 224px;
   }
 
   .dashboard-shell.is-collapsed {
-    --sidebar-width: 84px;
-  }
-
-  .dashboard-sidebar {
-    padding-inline: 14px;
-  }
-
-  .brand-text {
-    font-size: 1.08rem;
-  }
-
-  .nav-item {
-    font-size: 1.06rem;
+    --sidebar-width: 78px;
   }
 
   .dashboard-topbar {
@@ -724,6 +725,11 @@ onBeforeUnmount(() => {
 
   .topbar-account {
     justify-content: flex-start;
+  }
+
+  .dashboard-shell--publish .dashboard-topbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding-inline: 20px;
   }
 }
 
@@ -740,7 +746,7 @@ onBeforeUnmount(() => {
     height: auto;
     padding: 20px 16px;
     border-right: 0;
-    border-bottom: 1px solid #e4e1ea;
+    border-bottom: 1px solid #e4e7ef;
   }
 
   .collapse-button {
@@ -776,6 +782,23 @@ onBeforeUnmount(() => {
   .dashboard-main {
     margin-left: 0;
     padding: 20px 16px 32px;
+  }
+
+  .dashboard-shell--publish {
+    --topbar-height: 132px;
+  }
+
+  .dashboard-shell--publish .dashboard-topbar {
+    grid-template-columns: 1fr;
+    padding-inline: 16px;
+  }
+
+  .dashboard-shell--publish .topbar-account {
+    justify-content: space-between;
+  }
+
+  .dashboard-shell--publish .dashboard-main {
+    padding: 16px;
   }
 }
 </style>

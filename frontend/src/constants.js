@@ -29,14 +29,14 @@ export const TASK_CATEGORY_OPTIONS = [
   {
     value: 'ATTENDANCE_ASSIST',
     label: '出勤/签到协助',
-    description: '敏感任务，提交后进入管理员审核'
+    description: '会场入场、签到、公干等普通协助'
   }
 ]
 
 export const REWARD_TYPE_OPTIONS = [
-  { value: 'FREE', label: '无偿互助', description: '适合轻量、顺手帮忙的需求' },
-  { value: 'POINTS', label: '积分奖励', description: '用平台积分表达感谢' },
-  { value: 'CASH', label: '小额报酬', description: '适合耗时较长或成本明确的任务' },
+  { value: 'FREE', label: '免费互助', description: '适合轻量、顺手帮忙的需求' },
+  { value: 'POINTS', label: '积分奖励', description: '用于平台积分或活动确认' },
+  { value: 'CASH', label: '小额酬谢', description: '适合时效或有跑腿成本的任务' },
   { value: 'NEGOTIABLE', label: '双方协商', description: '先说明范围，接单后再确认' }
 ]
 

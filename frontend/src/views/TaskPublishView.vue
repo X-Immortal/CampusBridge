@@ -1,22 +1,33 @@
-<script setup>
+﻿<script setup>
 import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
-  AlertTriangle,
   ArrowLeft,
   BadgeCheck,
   CalendarClock,
+  CheckCircle2,
   ClipboardCheck,
-  Info,
+  Clock3,
+  Circle,
+  CircleDollarSign,
+  Eye,
+  Gift,
+  Handshake,
+  Lightbulb,
+  ListChecks,
   LoaderCircle,
   LockKeyhole,
+  MapPin,
   MessageCircle,
   Pencil,
-  PlusCircle,
   RefreshCw,
   Repeat2,
   Save,
-  ShieldCheck
+  Send,
+  Shield,
+  ShieldCheck,
+  Star,
+  Target
 } from '@lucide/vue'
 import DashboardShell from '../components/DashboardShell.vue'
 import StatusBadge from '../components/StatusBadge.vue'
@@ -38,6 +49,7 @@ const feedbackType = ref('success')
 const lastCreatedTask = ref(null)
 const sourceTask = ref(null)
 const savedDraft = ref(readSavedDraft())
+const previewCardRef = ref(null)
 const errors = reactive({})
 
 const taskForm = reactive({
@@ -73,19 +85,18 @@ const categoryCards = [
   {
     ...TASK_CATEGORY_OPTIONS[2],
     icon: ShieldCheck,
-    note: '会进入审核，不直接公开'
+    note: '会场入场、签到、公干等'
   }
 ]
 
-const taskStatusLabels = {
-  OPEN: '已发布',
-  PENDING_REVIEW: '待审核',
-  DRAFT: '草稿',
-  REJECTED: '未通过'
+const rewardIcons = {
+  FREE: Gift,
+  POINTS: Star,
+  CASH: CircleDollarSign,
+  NEGOTIABLE: Handshake
 }
 
 const minDeadline = computed(() => formatLocalDateTime(new Date(Date.now() + 10 * 60 * 1000)))
-const isSensitiveCategory = computed(() => taskForm.category === 'ATTENDANCE_ASSIST')
 const canPublish = computed(() => isAuthenticated.value && verificationStatus.value === 'VERIFIED')
 const publishMode = computed(() => {
   if (route.name === 'task-edit') return 'edit'
@@ -118,8 +129,8 @@ const pageMeta = computed(() => {
 
   return {
     kicker: '任务发布',
-    title: '把需要帮助的事说清楚',
-    copy: '控制在少量关键步骤里，明确地点、时间、奖励和验收标准。',
+    title: '发布校园任务',
+    copy: '用清晰的信息描述你的需求，让同学更快理解并接单。',
     status: canPublish.value ? '可发布' : '需认证'
   }
 })
@@ -157,19 +168,27 @@ const publishGate = computed(() => {
   return null
 })
 
-const requiredChecklist = computed(() => [
-  { label: '标题', done: Boolean(taskForm.title.trim()) },
-  { label: '分类', done: Boolean(taskForm.category) },
-  { label: '地点', done: Boolean(taskForm.campus.trim() && taskForm.location.trim()) },
-  { label: '截止时间', done: Boolean(taskForm.deadline) },
-  { label: '奖励方式', done: Boolean(taskForm.rewardType) },
-  { label: '说明与标准', done: Boolean(taskForm.description.trim() && taskForm.completionStandard.trim()) }
+const publishProgressItems = computed(() => [
+  { label: '选择任务类型', done: Boolean(taskForm.category) },
+  { label: '填写任务标题', done: Boolean(taskForm.title.trim()) },
+  { label: '设置地点', done: Boolean(taskForm.campus.trim() && taskForm.location.trim()) },
+  { label: '设置截止时间', done: Boolean(taskForm.deadline) },
+  { label: '填写任务说明', done: Boolean(taskForm.description.trim()) },
+  { label: '设置完成标准', done: Boolean(taskForm.completionStandard.trim()) }
 ])
-
-const completedRequiredCount = computed(
-  () => requiredChecklist.value.filter((item) => item.done).length
+const completedPublishStepCount = computed(
+  () => publishProgressItems.value.filter((item) => item.done).length
 )
-
+const previewTitle = computed(() => taskForm.title.trim() || '代取菜鸟驿站的快递')
+const previewLocation = computed(() => {
+  const campus = taskForm.campus.trim() || '仙林校区'
+  const location = taskForm.location.trim() || '快递站 3 号架'
+  return `${campus} · ${location}`
+})
+const previewReward = computed(() => {
+  if (taskForm.rewardDescription.trim()) return taskForm.rewardDescription.trim()
+  return optionLabel(REWARD_TYPE_OPTIONS, taskForm.rewardType)
+})
 const previewDeadline = computed(() => formatDisplayDate(taskForm.deadline))
 const selectedRewardDescription = computed(
   () => REWARD_TYPE_OPTIONS.find((item) => item.value === taskForm.rewardType)?.description || ''
@@ -278,6 +297,10 @@ function handleSaveDraft() {
   setFeedback('草稿已保存在本机，可在下次进入发布页时恢复。')
 }
 
+function handlePreviewTask() {
+  previewCardRef.value?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+}
+
 function normalizeDeadline(value) {
   if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) {
     return `${value}:00`
@@ -320,15 +343,15 @@ function selectCategory(category) {
   if (!canChangeFixedFields.value) return
   taskForm.category = category
   clearError('category')
-  if (category !== 'ATTENDANCE_ASSIST') {
-    clearError('sensitiveReason')
-    clearError('riskDisclosureConfirmed')
-  }
 }
 
 function selectRewardType(rewardType) {
   taskForm.rewardType = rewardType
   clearError('rewardType')
+}
+
+function rewardIcon(rewardType) {
+  return rewardIcons[rewardType] || Gift
 }
 
 function resetForm() {
@@ -435,7 +458,6 @@ function validateForm() {
   validateTextLength('rewardDescription', taskForm.rewardDescription, 200, '奖励说明最多 200 个字。')
   validateTextLength('completionStandard', taskForm.completionStandard, 500, '完成标准最多 500 个字。')
   validateTextLength('routeHint', taskForm.routeHint, 200, '顺路信息最多 200 个字。')
-  validateTextLength('sensitiveReason', taskForm.sensitiveReason, 300, '敏感任务原因最多 300 个字。')
 
   if (taskForm.deadline) {
     const deadline = new Date(taskForm.deadline)
@@ -446,15 +468,6 @@ function validateForm() {
 
   if (!isEditMode.value && taskForm.isInstantTask && !taskForm.routeHint.trim()) {
     setError('routeHint', '开启顺路/即时协助时，请填写顺路信息。')
-  }
-
-  if (!isEditMode.value && isSensitiveCategory.value) {
-    if (!taskForm.sensitiveReason.trim()) {
-      setError('sensitiveReason', '敏感任务需要填写原因说明。')
-    }
-    if (!taskForm.riskDisclosureConfirmed) {
-      setError('riskDisclosureConfirmed', '请先确认敏感任务风险告知。')
-    }
   }
 
   return Object.keys(errors).length === 0
@@ -482,8 +495,8 @@ function buildPayload() {
     allowOfflineContact: taskForm.allowOfflineContact,
     isInstantTask: taskForm.isInstantTask,
     routeHint: taskForm.isInstantTask ? optionalText(taskForm.routeHint) : undefined,
-    riskDisclosureConfirmed: isSensitiveCategory.value ? taskForm.riskDisclosureConfirmed : false,
-    sensitiveReason: isSensitiveCategory.value ? optionalText(taskForm.sensitiveReason) : undefined
+    riskDisclosureConfirmed: false,
+    sensitiveReason: undefined
   }
 }
 
@@ -558,11 +571,9 @@ async function handleSubmitTask() {
     lastCreatedTask.value = createdTask
     clearSavedDraft()
     setFeedback(
-      createdTask?.status === 'PENDING_REVIEW'
-        ? '任务已提交，敏感分类会先进入管理员审核。'
-        : isRepostMode.value
-          ? '任务已重新发布，新的接单流程已经开始。'
-          : '任务已发布，等待合适的同学申请接单。'
+      isRepostMode.value
+        ? '任务已重新发布，新的接单流程已经开始。'
+        : '任务已发布，等待合适的同学申请接单。'
     )
   } catch (error) {
     setFeedback(error.message || '任务保存失败，请稍后再试。', 'danger')
@@ -597,7 +608,7 @@ watch(
     >
       <section class="page-title-card task-title-card">
         <div class="title-icon">
-          <PlusCircle
+          <Send
             :size="32"
             aria-hidden="true"
           />
@@ -703,8 +714,8 @@ watch(
             <div class="section-heading">
               <span>1</span>
               <div>
-                <p>基本信息</p>
-                <h2>先让帮助者知道这是什么事</h2>
+                <h2>基本信息</h2>
+                <p>先让帮助者知道这是什么事</p>
               </div>
             </div>
 
@@ -747,63 +758,65 @@ watch(
               当前接口仅支持修改任务内容与偏好；分类、校区和地点如需变化，请取消后重发。
             </p>
 
-            <label
-              class="publish-field"
-              for="task-title"
-            >
-              <span>任务标题</span>
-              <input
-                id="task-title"
-                v-model.trim="taskForm.title"
-                maxlength="100"
-                placeholder="例如：今晚 8 点前帮取南门快递"
-                required
-                :aria-invalid="Boolean(errors.title)"
-                :aria-describedby="describedBy('title', 'title-hint')"
-                @input="clearError('title')"
+            <div class="form-row form-row--intro">
+              <label
+                class="publish-field"
+                for="task-title"
               >
-              <small id="title-hint">用一句话说明任务，帮助者浏览时会优先看到它。</small>
-              <small
-                v-if="errors.title"
-                id="title-error"
-                class="field-error"
-              >
-                {{ errors.title }}
-              </small>
-            </label>
+                <span>任务标题</span>
+                <input
+                  id="task-title"
+                  v-model.trim="taskForm.title"
+                  maxlength="100"
+                  placeholder="例如：代取菜鸟驿站的快递"
+                  required
+                  :aria-invalid="Boolean(errors.title)"
+                  :aria-describedby="describedBy('title', 'title-hint')"
+                  @input="clearError('title')"
+                >
+                <small id="title-hint">用一句话说明任务，帮助者浏览时会优先看到它。</small>
+                <small
+                  v-if="errors.title"
+                  id="title-error"
+                  class="field-error"
+                >
+                  {{ errors.title }}
+                </small>
+              </label>
 
-            <label
-              class="publish-field"
-              for="task-description"
-            >
-              <span>任务说明</span>
-              <textarea
-                id="task-description"
-                v-model.trim="taskForm.description"
-                maxlength="2000"
-                placeholder="补充物品位置、办理流程、希望对方注意的细节。"
-                required
-                :aria-invalid="Boolean(errors.description)"
-                :aria-describedby="describedBy('description', 'description-hint')"
-                @input="clearError('description')"
-              />
-              <small id="description-hint">{{ taskForm.description.length }}/2000</small>
-              <small
-                v-if="errors.description"
-                id="description-error"
-                class="field-error"
+              <label
+                class="publish-field"
+                for="task-description"
               >
-                {{ errors.description }}
-              </small>
-            </label>
+                <span>任务说明</span>
+                <textarea
+                  id="task-description"
+                  v-model.trim="taskForm.description"
+                  maxlength="2000"
+                  placeholder="补充细节和注意事项，帮助同学更好地理解任务。"
+                  required
+                  :aria-invalid="Boolean(errors.description)"
+                  :aria-describedby="describedBy('description', 'description-hint')"
+                  @input="clearError('description')"
+                />
+                <small id="description-hint">{{ taskForm.description.length }}/2000</small>
+                <small
+                  v-if="errors.description"
+                  id="description-error"
+                  class="field-error"
+                >
+                  {{ errors.description }}
+                </small>
+              </label>
+            </div>
           </section>
 
           <section class="form-section">
             <div class="section-heading">
               <span>2</span>
               <div>
-                <p>时间地点</p>
-                <h2>让接单判断成本和路线</h2>
+                <h2>时间地点</h2>
+                <p>让接单判断成本和路线</p>
               </div>
             </div>
 
@@ -816,6 +829,7 @@ watch(
                 <input
                   id="task-campus"
                   v-model.trim="taskForm.campus"
+                  list="campus-options"
                   maxlength="50"
                   placeholder="例如：仙林校区"
                   required
@@ -824,6 +838,11 @@ watch(
                   :aria-describedby="describedBy('campus')"
                   @input="clearError('campus')"
                 >
+                <datalist id="campus-options">
+                  <option value="仙林校区" />
+                  <option value="鼓楼校区" />
+                  <option value="浦口校区" />
+                </datalist>
                 <small
                   v-if="errors.campus"
                   id="campus-error"
@@ -927,8 +946,8 @@ watch(
             <div class="section-heading">
               <span>3</span>
               <div>
-                <p>奖励与验收</p>
-                <h2>提前说清怎样算完成</h2>
+                <h2>奖励与要求</h2>
+                <p>提前说清怎样算完成</p>
               </div>
             </div>
 
@@ -947,6 +966,11 @@ watch(
                 :aria-checked="taskForm.rewardType === reward.value"
                 @click="selectRewardType(reward.value)"
               >
+                <component
+                  :is="rewardIcon(reward.value)"
+                  :size="22"
+                  aria-hidden="true"
+                />
                 <strong>{{ reward.label }}</strong>
                 <span>{{ reward.description }}</span>
               </button>
@@ -959,62 +983,64 @@ watch(
               {{ errors.rewardType }}
             </p>
 
-            <label
-              class="publish-field"
-              for="task-reward-description"
-            >
-              <span>奖励说明</span>
-              <input
-                id="task-reward-description"
-                v-model.trim="taskForm.rewardDescription"
-                maxlength="200"
-                :placeholder="selectedRewardDescription"
-                :aria-invalid="Boolean(errors.rewardDescription)"
-                :aria-describedby="describedBy('rewardDescription', 'reward-hint')"
-                @input="clearError('rewardDescription')"
+            <div class="form-row form-row--reward-detail">
+              <label
+                class="publish-field"
+                for="task-reward-description"
               >
-              <small id="reward-hint">选填；例如积分数量、报酬范围或协商方式。</small>
-              <small
-                v-if="errors.rewardDescription"
-                id="rewardDescription-error"
-                class="field-error"
-              >
-                {{ errors.rewardDescription }}
-              </small>
-            </label>
+                <span>奖励说明（可选）</span>
+                <textarea
+                  id="task-reward-description"
+                  v-model.trim="taskForm.rewardDescription"
+                  maxlength="200"
+                  :placeholder="selectedRewardDescription"
+                  :aria-invalid="Boolean(errors.rewardDescription)"
+                  :aria-describedby="describedBy('rewardDescription', 'reward-hint')"
+                  @input="clearError('rewardDescription')"
+                />
+                <small id="reward-hint">{{ taskForm.rewardDescription.length }}/200</small>
+                <small
+                  v-if="errors.rewardDescription"
+                  id="rewardDescription-error"
+                  class="field-error"
+                >
+                  {{ errors.rewardDescription }}
+                </small>
+              </label>
 
-            <label
-              class="publish-field"
-              for="task-completion-standard"
-            >
-              <span>完成标准</span>
-              <textarea
-                id="task-completion-standard"
-                v-model.trim="taskForm.completionStandard"
-                maxlength="500"
-                placeholder="例如：快递送到宿舍楼下并发送取件照片；材料提交成功后回传截图。"
-                required
-                :aria-invalid="Boolean(errors.completionStandard)"
-                :aria-describedby="describedBy('completionStandard', 'standard-hint')"
-                @input="clearError('completionStandard')"
-              />
-              <small id="standard-hint">{{ taskForm.completionStandard.length }}/500</small>
-              <small
-                v-if="errors.completionStandard"
-                id="completionStandard-error"
-                class="field-error"
+              <label
+                class="publish-field"
+                for="task-completion-standard"
               >
-                {{ errors.completionStandard }}
-              </small>
-            </label>
+                <span>完成标准</span>
+                <textarea
+                  id="task-completion-standard"
+                  v-model.trim="taskForm.completionStandard"
+                  maxlength="500"
+                  placeholder="例如：快递送到宿舍楼下并发送取件照片；材料提交成功后回传截图。"
+                  required
+                  :aria-invalid="Boolean(errors.completionStandard)"
+                  :aria-describedby="describedBy('completionStandard', 'standard-hint')"
+                  @input="clearError('completionStandard')"
+                />
+                <small id="standard-hint">{{ taskForm.completionStandard.length }}/500</small>
+                <small
+                  v-if="errors.completionStandard"
+                  id="completionStandard-error"
+                  class="field-error"
+                >
+                  {{ errors.completionStandard }}
+                </small>
+              </label>
+            </div>
           </section>
 
           <section class="form-section">
             <div class="section-heading">
               <span>4</span>
               <div>
-                <p>偏好与安全</p>
-                <h2>把接触边界写在任务里</h2>
+                <h2>确认与安全</h2>
+                <p>把接触边界写在任务里</p>
               </div>
             </div>
 
@@ -1024,6 +1050,10 @@ watch(
                   v-model="taskForm.requiresProof"
                   type="checkbox"
                 >
+                <ShieldCheck
+                  :size="22"
+                  aria-hidden="true"
+                />
                 <span>
                   <strong>要求完成凭证</strong>
                   <small>帮助者完成后需要提交图片或文字说明。</small>
@@ -1035,6 +1065,10 @@ watch(
                   v-model="taskForm.onlyInAppContact"
                   type="checkbox"
                 >
+                <MessageCircle
+                  :size="22"
+                  aria-hidden="true"
+                />
                 <span>
                   <strong>仅站内沟通</strong>
                   <small>不要求一开始交换私人联系方式。</small>
@@ -1046,91 +1080,16 @@ watch(
                   v-model="taskForm.allowOfflineContact"
                   type="checkbox"
                 >
+                <MapPin
+                  :size="22"
+                  aria-hidden="true"
+                />
                 <span>
                   <strong>允许线下接触</strong>
                   <small>适合当面交接，不适合时请关闭。</small>
                 </span>
               </label>
             </div>
-
-            <section
-              v-if="isSensitiveCategory && !isEditMode"
-              class="sensitive-panel"
-              aria-labelledby="sensitive-title"
-            >
-              <div class="sensitive-heading">
-                <Info
-                  :size="18"
-                  aria-hidden="true"
-                />
-                <div>
-                  <h3 id="sensitive-title">
-                    敏感任务审核提示
-                  </h3>
-                  <p>出勤/签到协助会先进入管理员审核，未通过前不会进入公开接单流程。</p>
-                </div>
-              </div>
-
-              <label
-                class="publish-field"
-                for="task-sensitive-reason"
-              >
-                <span>原因说明</span>
-                <textarea
-                  id="task-sensitive-reason"
-                  v-model.trim="taskForm.sensitiveReason"
-                  maxlength="300"
-                  placeholder="说明真实场景、紧急程度和边界，便于管理员判断是否允许展示。"
-                  :aria-invalid="Boolean(errors.sensitiveReason)"
-                  :aria-describedby="describedBy('sensitiveReason', 'sensitive-hint')"
-                  @input="clearError('sensitiveReason')"
-                />
-                <small id="sensitive-hint">{{ taskForm.sensitiveReason.length }}/300</small>
-                <small
-                  v-if="errors.sensitiveReason"
-                  id="sensitiveReason-error"
-                  class="field-error"
-                >
-                  {{ errors.sensitiveReason }}
-                </small>
-              </label>
-
-              <label class="confirm-row">
-                <input
-                  v-model="taskForm.riskDisclosureConfirmed"
-                  type="checkbox"
-                  :aria-invalid="Boolean(errors.riskDisclosureConfirmed)"
-                  @change="clearError('riskDisclosureConfirmed')"
-                >
-                <span>我确认该任务可能需要平台审核，并愿意接受发布结果。</span>
-              </label>
-              <p
-                v-if="errors.riskDisclosureConfirmed"
-                id="riskDisclosureConfirmed-error"
-                class="field-error"
-              >
-                {{ errors.riskDisclosureConfirmed }}
-              </p>
-            </section>
-
-            <section
-              v-else-if="isSensitiveCategory"
-              class="sensitive-panel"
-              aria-labelledby="sensitive-readonly-title"
-            >
-              <div class="sensitive-heading">
-                <AlertTriangle
-                  :size="18"
-                  aria-hidden="true"
-                />
-                <div>
-                  <h3 id="sensitive-readonly-title">
-                    敏感任务审核信息已锁定
-                  </h3>
-                  <p>编辑模式下保留原审核分类，若场景发生变化，请取消该任务后基于原内容重新发布。</p>
-                </div>
-              </div>
-            </section>
           </section>
 
           <div class="form-actions">
@@ -1158,6 +1117,18 @@ watch(
               保存草稿
             </button>
             <button
+              class="ghost-action"
+              type="button"
+              @click="handlePreviewTask"
+            >
+              <Eye
+                :size="17"
+                aria-hidden="true"
+              />
+              预览任务
+            </button>
+            <button
+              v-if="publishGate"
               class="ghost-action"
               type="button"
               :disabled="refreshing"
@@ -1191,7 +1162,7 @@ watch(
                 :size="18"
                 aria-hidden="true"
               />
-              <PlusCircle
+              <Send
                 v-else
                 :size="18"
                 aria-hidden="true"
@@ -1202,66 +1173,98 @@ watch(
         </form>
 
         <aside class="publish-side">
-          <article class="panel-card preview-card">
+          <article
+            ref="previewCardRef"
+            class="panel-card publish-preview-card"
+          >
             <div class="panel-heading">
-              <div>
-                <p class="section-kicker">
-                  实时预览
-                </p>
-                <h2>{{ taskForm.title || '任务标题会显示在这里' }}</h2>
-              </div>
-              <StatusBadge
-                v-if="lastCreatedTask?.status"
-                :label="taskStatusLabels[lastCreatedTask.status] || lastCreatedTask.status"
-                :tone="lastCreatedTask.status === 'PENDING_REVIEW' ? 'warning' : 'success'"
-              />
+              <span class="side-heading-title">
+                <Eye
+                  :size="19"
+                  aria-hidden="true"
+                />
+                任务预览
+              </span>
             </div>
 
-            <dl class="preview-list">
-              <div>
-                <dt>分类</dt>
-                <dd>{{ optionLabel(TASK_CATEGORY_OPTIONS, taskForm.category) }}</dd>
-              </div>
-              <div>
-                <dt>地点</dt>
-                <dd>{{ taskForm.campus || '未填校区' }} · {{ taskForm.location || '未填地点' }}</dd>
-              </div>
-              <div>
-                <dt>截止</dt>
-                <dd>{{ previewDeadline }}</dd>
-              </div>
-              <div>
-                <dt>奖励</dt>
-                <dd>{{ optionLabel(REWARD_TYPE_OPTIONS, taskForm.rewardType) }}</dd>
-              </div>
-            </dl>
+            <section class="task-preview-box">
+              <h3>{{ previewTitle }}</h3>
+              <dl class="preview-list">
+                <div>
+                  <dt>
+                    <ClipboardCheck
+                      :size="16"
+                      aria-hidden="true"
+                    />
+                    分类
+                  </dt>
+                  <dd>{{ optionLabel(TASK_CATEGORY_OPTIONS, taskForm.category) }}</dd>
+                </div>
+                <div>
+                  <dt>
+                    <MapPin
+                      :size="16"
+                      aria-hidden="true"
+                    />
+                    地点
+                  </dt>
+                  <dd>{{ previewLocation }}</dd>
+                </div>
+                <div>
+                  <dt>
+                    <Clock3
+                      :size="16"
+                      aria-hidden="true"
+                    />
+                    截止时间
+                  </dt>
+                  <dd>{{ previewDeadline }}</dd>
+                </div>
+                <div>
+                  <dt>
+                    <Gift
+                      :size="16"
+                      aria-hidden="true"
+                    />
+                    奖励
+                  </dt>
+                  <dd>{{ previewReward }}</dd>
+                </div>
+              </dl>
 
-            <p class="preview-copy">
-              {{ taskForm.description || '这里会呈现任务说明，帮助者需要快速判断能否接单。' }}
-            </p>
+              <p class="preview-copy">
+                {{ taskForm.description || '发布后，更多同学可以看到并按单完成任务。' }}
+              </p>
+            </section>
           </article>
 
-          <article class="panel-card helper-card">
+          <article class="panel-card publish-progress-card">
             <div class="panel-heading">
-              <div>
-                <p class="section-kicker">
-                  发布检查
-                </p>
-                <h2>{{ completedRequiredCount }}/{{ requiredChecklist.length }} 项已完成</h2>
-              </div>
-              <ClipboardCheck
-                :size="24"
-                aria-hidden="true"
-              />
+              <span class="side-heading-title">
+                <ListChecks
+                  :size="20"
+                  aria-hidden="true"
+                />
+                发布进度
+              </span>
+              <strong class="progress-count">
+                {{ completedPublishStepCount }}/{{ publishProgressItems.length }} 项已完成
+              </strong>
             </div>
             <div class="check-list">
               <div
-                v-for="item in requiredChecklist"
+                v-for="item in publishProgressItems"
                 :key="item.label"
                 class="check-item"
                 :class="{ done: item.done }"
               >
-                <BadgeCheck
+                <CheckCircle2
+                  v-if="item.done"
+                  :size="16"
+                  aria-hidden="true"
+                />
+                <Circle
+                  v-else
                   :size="16"
                   aria-hidden="true"
                 />
@@ -1270,24 +1273,54 @@ watch(
             </div>
           </article>
 
-          <article class="panel-card helper-card">
+          <article class="panel-card publish-tips-card">
             <div class="panel-heading">
-              <div>
-                <p class="section-kicker">
-                  真实场景建议
-                </p>
-                <h2>更容易被接单的写法</h2>
-              </div>
-              <MessageCircle
-                :size="24"
-                aria-hidden="true"
-              />
+              <span class="side-heading-title">
+                <Lightbulb
+                  :size="20"
+                  aria-hidden="true"
+                />
+                发布小贴士
+              </span>
             </div>
-            <ul class="tip-list">
-              <li>把地点写到可直接找到的位置，例如快递架号、楼栋或窗口。</li>
-              <li>用完成标准减少后续争议，例如“送达后拍照确认”。</li>
-              <li>不确定是否需要当面交接时，优先开启仅站内沟通。</li>
-            </ul>
+            <div class="tip-list">
+              <div class="tip-item">
+                <span>
+                  <Target
+                    :size="18"
+                    aria-hidden="true"
+                  />
+                </span>
+                <div>
+                  <strong>标题越具体，越容易被理解</strong>
+                  <p>清晰的标题能帮助同学快速判断是否能接。</p>
+                </div>
+              </div>
+              <div class="tip-item">
+                <span>
+                  <MapPin
+                    :size="18"
+                    aria-hidden="true"
+                  />
+                </span>
+                <div>
+                  <strong>时间地点写清楚，可以减少沟通成本</strong>
+                  <p>避开模糊、超宽范围的地点描述。</p>
+                </div>
+              </div>
+              <div class="tip-item">
+                <span>
+                  <Shield
+                    :size="18"
+                    aria-hidden="true"
+                  />
+                </span>
+                <div>
+                  <strong>不要发布涉及隐私、代考、违规内容</strong>
+                  <p>遵守平台规范，共建安全友善的校园互助环境。</p>
+                </div>
+              </div>
+            </div>
           </article>
         </aside>
       </section>
@@ -1526,6 +1559,13 @@ watch(
   color: #746dc3;
 }
 
+.reward-choice svg {
+  padding: 9px;
+  border-radius: 50%;
+  background: #f8f5ff;
+  box-sizing: content-box;
+}
+
 .choice-control strong,
 .toggle-control strong {
   color: #3c3543;
@@ -1745,32 +1785,82 @@ watch(
   gap: 18px;
 }
 
+.publish-preview-card,
+.publish-progress-card,
+.publish-tips-card {
+  gap: 16px;
+}
+
 .panel-heading {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 18px;
 }
 
+.side-heading-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #3c3543;
+  font-size: 1.05rem;
+  font-weight: 900;
+}
+
+.side-heading-title svg {
+  padding: 7px;
+  border-radius: 50%;
+  background: #f1ecff;
+  box-sizing: content-box;
+  color: #746dc3;
+}
+
+.progress-count {
+  color: #3c3543;
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+
+.task-preview-box {
+  display: grid;
+  gap: 18px;
+  padding: 22px;
+  border: 1px solid #ddd9e8;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.task-preview-box h3 {
+  margin: 0;
+  color: #2f2940;
+  font-size: 1.2rem;
+  line-height: 1.35;
+}
+
 .preview-list {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 16px;
   margin: 0;
 }
 
 .preview-list div {
   display: grid;
-  gap: 4px;
-  padding: 11px;
-  border: 1px solid #eeeaf2;
-  border-radius: 8px;
-  background: #fcfbfd;
+  grid-template-columns: 94px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
 }
 
 .preview-list dt {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   color: #8a8792;
-  font-size: 0.86rem;
+  font-size: 0.9rem;
+  font-weight: 900;
+}
+
+.preview-list dt svg {
+  color: #746dc3;
 }
 
 .preview-list dd {
@@ -1788,6 +1878,8 @@ watch(
 
 .preview-copy {
   margin: 0;
+  padding-top: 4px;
+  color: #8a8792;
 }
 
 .check-list {
@@ -1799,10 +1891,12 @@ watch(
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 9px 10px;
+  min-height: 42px;
+  padding: 9px 12px;
   border: 1px solid #e6e2eb;
   border-radius: 8px;
   background: #fbf9fc;
+  font-weight: 900;
 }
 
 .check-item.done {
@@ -1811,11 +1905,51 @@ watch(
   color: #166534;
 }
 
+.check-item svg {
+  color: #a5a1ad;
+}
+
+.check-item.done svg {
+  color: #22c55e;
+}
+
 .tip-list {
   display: grid;
-  gap: 10px;
+  gap: 15px;
   margin: 0;
-  padding-left: 18px;
+}
+
+.tip-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.tip-item > span {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #f1ecff;
+  color: #746dc3;
+}
+
+.tip-item strong,
+.tip-item p {
+  margin: 0;
+}
+
+.tip-item strong {
+  color: #3c3543;
+  line-height: 1.35;
+}
+
+.tip-item p {
+  margin-top: 4px;
+  color: #8a8792;
+  line-height: 1.55;
 }
 
 .spinning {
@@ -1846,6 +1980,7 @@ watch(
   .preference-grid,
   .form-row,
   .preview-list,
+  .preview-list div,
   .publish-side {
     grid-template-columns: 1fr;
   }
@@ -1877,6 +2012,717 @@ watch(
 
   .form-actions {
     display: grid;
+  }
+}
+
+.publish-page {
+  --publish-primary: #4f46e5;
+  --publish-primary-dark: #4338ca;
+  --publish-soft: #eef2ff;
+  --publish-border: #dfe3ef;
+  --publish-text: #111827;
+  --publish-muted: #667085;
+  max-width: 1388px;
+  margin: 0;
+  gap: 10px;
+  color: var(--publish-text);
+}
+
+.page-title-card,
+.panel-card,
+.page-feedback,
+.draft-alert,
+.gate-alert {
+  border: 1px solid var(--publish-border);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.page-title-card {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  min-height: 96px;
+  padding: 10px 4px 8px;
+  border: 0;
+  background: transparent;
+}
+
+.title-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: #ede9fe;
+  color: var(--publish-primary);
+}
+
+.title-copy {
+  gap: 4px;
+}
+
+.title-copy p {
+  color: var(--publish-primary);
+  font-size: 1rem;
+}
+
+.title-copy h1 {
+  color: #111827;
+  font-size: 2rem;
+  line-height: 1.08;
+}
+
+.title-copy span {
+  color: var(--publish-muted);
+  font-size: 0.94rem;
+}
+
+.publish-layout {
+  grid-template-columns: minmax(0, 2.24fr) minmax(360px, 0.98fr);
+  gap: 20px;
+}
+
+.panel-card.publish-form {
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.form-section {
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--publish-border);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.section-heading {
+  align-items: center;
+  gap: 16px;
+}
+
+.section-heading > span {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  background: #ede9fe;
+  color: var(--publish-primary);
+  font-size: 1.03rem;
+}
+
+.section-heading div {
+  display: flex;
+  align-items: baseline;
+  gap: 24px;
+}
+
+.section-heading h2 {
+  color: #111827;
+  font-size: 1.08rem;
+}
+
+.section-heading p {
+  color: var(--publish-muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.category-selector,
+.reward-selector,
+.preference-grid {
+  gap: 12px;
+}
+
+.choice-control,
+.toggle-control {
+  position: relative;
+  border-color: var(--publish-border);
+  background: #ffffff;
+  color: #374151;
+}
+
+.choice-control {
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  min-height: 74px;
+  padding: 12px 16px;
+  gap: 4px 12px;
+}
+
+.choice-control svg {
+  grid-row: span 2;
+  align-self: center;
+  color: var(--publish-primary);
+}
+
+.choice-control strong,
+.toggle-control strong {
+  color: #111827;
+  font-size: 0.95rem;
+}
+
+.choice-control span,
+.toggle-control small {
+  color: var(--publish-muted);
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.choice-control:hover,
+.choice-control.selected,
+.toggle-control:hover {
+  border-color: #7568ff;
+  background: #fbfbff;
+  box-shadow: none;
+}
+
+.choice-control.selected::after {
+  content: "";
+  position: absolute;
+  right: 9px;
+  bottom: 9px;
+  width: 14px;
+  height: 14px;
+  border: 4px solid #ffffff;
+  border-radius: 50%;
+  background: var(--publish-primary);
+  box-shadow: 0 0 0 1px var(--publish-primary);
+}
+
+.reward-selector {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.reward-choice {
+  min-height: 64px;
+}
+
+.reward-choice svg {
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.reward-choice:nth-child(2) svg,
+.reward-choice:nth-child(3) svg {
+  color: #f59e0b;
+}
+
+.form-row {
+  gap: 16px;
+}
+
+.form-row--intro {
+  grid-template-columns: minmax(240px, 0.85fr) minmax(280px, 1.25fr);
+}
+
+.form-row--reward-detail {
+  grid-template-columns: minmax(240px, 0.92fr) minmax(280px, 1.08fr);
+}
+
+.publish-field {
+  gap: 6px;
+}
+
+.publish-field span {
+  color: #111827;
+  font-size: 0.9rem;
+}
+
+.publish-field input,
+.publish-field textarea {
+  border-color: #d9dee9;
+  border-radius: 7px;
+  color: #111827;
+  padding: 9px 12px;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.publish-field input {
+  min-height: 40px;
+}
+
+.publish-field textarea {
+  min-height: 76px;
+  resize: vertical;
+}
+
+.publish-field input::placeholder,
+.publish-field textarea::placeholder {
+  color: #6b7280;
+}
+
+.publish-field input:focus,
+.publish-field textarea:focus,
+.choice-control:focus-visible,
+.toggle-control:focus-within,
+.gate-action:focus-visible,
+.primary-action:focus-visible,
+.ghost-action:focus-visible {
+  border-color: #7568ff;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.13);
+}
+
+.publish-field small {
+  color: var(--publish-muted);
+  font-size: 0.76rem;
+  line-height: 1.32;
+}
+
+#title-hint {
+  display: none;
+}
+
+.field-error {
+  font-size: 0.8rem;
+}
+
+.toggle-control,
+.confirm-row {
+  gap: 10px;
+  padding: 12px;
+}
+
+.toggle-control {
+  min-height: 64px;
+}
+
+.toggle-control > svg {
+  flex: 0 0 auto;
+  color: var(--publish-primary);
+}
+
+.toggle-control input,
+.confirm-row input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--publish-primary);
+}
+
+.preference-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.locked-hint,
+.sensitive-panel {
+  padding: 10px 12px;
+  font-size: 0.86rem;
+}
+
+.form-actions {
+  justify-content: center;
+  gap: 14px;
+  padding-top: 6px;
+}
+
+.primary-action,
+.ghost-action {
+  min-width: 166px;
+  min-height: 52px;
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+.primary-action {
+  border-color: var(--publish-primary-dark);
+  background: var(--publish-primary);
+  color: #ffffff;
+  box-shadow: 0 14px 24px rgba(79, 70, 229, 0.2);
+}
+
+.primary-action:hover:not(:disabled) {
+  background: var(--publish-primary-dark);
+}
+
+.ghost-action {
+  border-color: #8b7dff;
+  background: #ffffff;
+  color: var(--publish-primary);
+}
+
+.ghost-action:hover:not(:disabled) {
+  border-color: var(--publish-primary);
+  background: #f8f7ff;
+}
+
+.publish-side {
+  top: 84px;
+  gap: 10px;
+}
+
+.publish-side .panel-card {
+  gap: 12px;
+  padding: 16px;
+}
+
+.panel-heading {
+  gap: 12px;
+}
+
+.side-heading-title {
+  color: #111827;
+  font-size: 1.04rem;
+}
+
+.side-heading-title svg {
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--publish-primary);
+}
+
+.task-preview-box {
+  gap: 14px;
+  padding: 16px;
+  border-color: var(--publish-border);
+}
+
+.task-preview-box h3 {
+  color: #111827;
+  font-size: 1.06rem;
+}
+
+.preview-list {
+  gap: 13px;
+}
+
+.preview-list div {
+  grid-template-columns: 118px minmax(0, 1fr);
+  gap: 14px;
+}
+
+.preview-list dt {
+  color: var(--publish-muted);
+  font-size: 0.88rem;
+}
+
+.preview-list dd {
+  color: #111827;
+  font-size: 0.9rem;
+}
+
+.preview-copy {
+  color: var(--publish-muted);
+  font-size: 0.84rem;
+}
+
+.check-list {
+  gap: 5px;
+}
+
+.check-item {
+  min-height: 34px;
+  padding: 7px 12px;
+  border-color: var(--publish-border);
+  background: #fbfbfd;
+  color: var(--publish-muted);
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.check-item.done {
+  border-color: #bbf7d0;
+  background: #ecfdf3;
+  color: #15803d;
+}
+
+.progress-count {
+  font-size: 0.88rem;
+}
+
+.tip-list {
+  gap: 12px;
+}
+
+.tip-item {
+  gap: 10px;
+}
+
+.tip-item > span {
+  width: 32px;
+  height: 32px;
+  background: var(--publish-soft);
+  color: var(--publish-primary);
+}
+
+.tip-item strong {
+  color: #111827;
+  font-size: 0.9rem;
+}
+
+.tip-item p {
+  color: var(--publish-muted);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.gate-alert,
+.page-feedback,
+.draft-alert {
+  padding: 10px 12px;
+}
+
+@media (max-width: 1180px) {
+  .publish-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .publish-side {
+    position: static;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 920px) {
+  .form-row--intro,
+  .form-row--reward-detail,
+  .reward-selector,
+  .preference-grid,
+  .publish-side {
+    grid-template-columns: 1fr;
+  }
+
+  .section-heading div {
+    display: grid;
+    gap: 3px;
+  }
+}
+
+@media (max-width: 640px) {
+  .publish-page {
+    gap: 12px;
+  }
+
+  .page-title-card {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .title-icon {
+    width: 58px;
+    height: 58px;
+  }
+
+  .title-copy h1 {
+    font-size: 1.48rem;
+  }
+
+  .page-title-card :deep(.status-badge) {
+    grid-column: 1 / -1;
+  }
+
+  .category-selector {
+    grid-template-columns: 1fr;
+  }
+
+  .form-section {
+    padding: 12px;
+  }
+
+  .form-actions {
+    display: grid;
+  }
+
+  .primary-action,
+  .ghost-action {
+    width: 100%;
+  }
+}
+
+@media (min-width: 1181px) {
+  .publish-page {
+    gap: 8px;
+  }
+
+  .page-title-card {
+    min-height: 92px;
+    padding-block: 8px 6px;
+  }
+
+  .form-section {
+    gap: 8px;
+    padding: 10px 14px;
+  }
+
+  .section-heading > span {
+    width: 27px;
+    height: 27px;
+  }
+
+  .category-selector,
+  .reward-selector,
+  .preference-grid {
+    gap: 10px;
+  }
+
+  .choice-control {
+    min-height: 62px;
+    padding: 9px 14px;
+  }
+
+  .reward-choice {
+    min-height: 58px;
+  }
+
+  .form-row {
+    gap: 14px;
+  }
+
+  .publish-field input {
+    min-height: 38px;
+    padding-block: 8px;
+  }
+
+  .publish-field textarea {
+    min-height: 58px;
+    padding-block: 8px;
+  }
+
+  .publish-field small {
+    font-size: 0.72rem;
+  }
+
+  .toggle-control {
+    min-height: 54px;
+    padding: 9px 10px;
+  }
+
+  .form-actions {
+    padding-top: 4px;
+  }
+
+  .primary-action,
+  .ghost-action {
+    min-height: 48px;
+  }
+
+  .publish-side .panel-card {
+    padding: 14px 16px;
+  }
+
+  .task-preview-box {
+    padding: 14px;
+  }
+
+  .preview-list {
+    gap: 10px;
+  }
+
+  .check-item {
+    min-height: 31px;
+    padding-block: 5px;
+  }
+
+  .tip-list {
+    gap: 9px;
+  }
+}
+
+@media (min-width: 1181px) {
+  .publish-page {
+    width: 100%;
+    max-width: none;
+    gap: 12px;
+  }
+
+  .publish-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(390px, 420px);
+    gap: 18px;
+  }
+
+  .page-title-card {
+    min-height: 104px;
+  }
+
+  .title-copy h1 {
+    font-size: 2.12rem;
+  }
+
+  .title-copy span {
+    font-size: 1rem;
+  }
+
+  .form-section {
+    gap: 11px;
+    padding: 14px 16px;
+  }
+
+  .section-heading h2 {
+    font-size: 1.16rem;
+  }
+
+  .section-heading p {
+    font-size: 0.96rem;
+  }
+
+  .choice-control {
+    min-height: 70px;
+    padding: 11px 16px;
+  }
+
+  .reward-choice {
+    min-height: 66px;
+  }
+
+  .choice-control strong,
+  .toggle-control strong {
+    font-size: 1rem;
+  }
+
+  .choice-control span,
+  .toggle-control small {
+    font-size: 0.86rem;
+  }
+
+  .publish-field span {
+    font-size: 0.96rem;
+  }
+
+  .publish-field input {
+    min-height: 42px;
+  }
+
+  .publish-field textarea {
+    min-height: 66px;
+  }
+
+  .publish-field input,
+  .publish-field textarea {
+    font-size: 0.96rem;
+  }
+
+  .toggle-control {
+    min-height: 62px;
+    padding: 11px 12px;
+  }
+
+  .primary-action,
+  .ghost-action {
+    min-height: 52px;
+    font-size: 1.04rem;
+  }
+
+  .publish-side .panel-card {
+    padding: 16px;
+  }
+
+  .task-preview-box {
+    padding: 16px;
+  }
+
+  .task-preview-box h3,
+  .side-heading-title {
+    font-size: 1.1rem;
+  }
+
+  .preview-list dd,
+  .tip-item strong {
+    font-size: 0.96rem;
+  }
+
+  .preview-list dt,
+  .check-item,
+  .tip-item p {
+    font-size: 0.88rem;
   }
 }
 </style>

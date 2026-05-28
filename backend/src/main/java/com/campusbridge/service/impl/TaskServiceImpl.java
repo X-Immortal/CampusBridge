@@ -31,7 +31,6 @@ public class TaskServiceImpl implements TaskService {
     private static final int MAX_TRANSITION_REASON_LENGTH = 300;
 
     private static final String STATUS_OPEN = "OPEN";
-    private static final String STATUS_PENDING_REVIEW = "PENDING_REVIEW";
     private static final String VERIFICATION_STATUS_VERIFIED = "VERIFIED";
     private static final String HISTORY_NOTE_CREATED = "TASK_CREATED";
 
@@ -167,22 +166,11 @@ public class TaskServiceImpl implements TaskService {
                 "sensitiveReason is too long");
         validateAttachmentIds(request.getAttachmentIds());
         validateDeadline(request.getDeadline());
-        validateSensitiveTask(request);
     }
 
     private void validateDeadline(LocalDateTime deadline) {
         if (!deadline.isAfter(LocalDateTime.now())) {
             throwValidation("deadline must be in the future");
-        }
-    }
-
-    private void validateSensitiveTask(RequestDtos.CreateTaskRequest request) {
-        if (request.getCategory() != ApiEnums.TaskCategory.ATTENDANCE_ASSIST) {
-            return;
-        }
-        if (!Boolean.TRUE.equals(request.getRiskDisclosureConfirmed())
-                || isBlank(request.getSensitiveReason())) {
-            throw new BusinessException(ErrorCode.TASK_005_SENSITIVE_REVIEW_REQUIRED);
         }
     }
 
@@ -214,16 +202,13 @@ public class TaskServiceImpl implements TaskService {
         task.setRiskDisclosureConfirmed(
                 toInt(defaultBoolean(request.getRiskDisclosureConfirmed(), false)));
         task.setSensitiveReason(request.getSensitiveReason());
-        task.setStatus(resolveInitialStatus(request));
+        task.setStatus(resolveInitialStatus());
         task.setCreatedAt(now);
         task.setUpdatedAt(now);
         return task;
     }
 
-    private String resolveInitialStatus(RequestDtos.CreateTaskRequest request) {
-        if (request.getCategory() == ApiEnums.TaskCategory.ATTENDANCE_ASSIST) {
-            return STATUS_PENDING_REVIEW;
-        }
+    private String resolveInitialStatus() {
         return STATUS_OPEN;
     }
 
