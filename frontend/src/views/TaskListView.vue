@@ -2696,8 +2696,8 @@ onMounted(async () => {
   box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
 }
 
-.select-shell input,
-.select-shell select {
+.filter-field .select-shell input,
+.filter-field .select-shell select {
   min-height: 44px;
   padding: 0;
   border: 0;
@@ -2709,10 +2709,9 @@ onMounted(async () => {
 }
 
 .select-shell--plain {
-  display: block;
-  min-height: 0;
-  padding: 0;
-  border: 0;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  padding: 0 12px;
 }
 
 .filter-actions {
