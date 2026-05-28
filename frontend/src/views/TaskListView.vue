@@ -4,15 +4,19 @@ import { useRoute, useRouter } from 'vue-router'
 import {
   ArrowLeft,
   ArrowRight,
+  ArrowUpDown,
   Award,
   BadgeCheck,
   BookOpen,
   BriefcaseBusiness,
+  Building2,
   CalendarClock,
+  CheckCircle2,
   ClipboardCheck,
   Clock3,
   FileCheck2,
   Filter,
+  Gift,
   Inbox,
   Info,
   LoaderCircle,
@@ -22,7 +26,10 @@ import {
   PlusCircle,
   RefreshCw,
   Search,
+  ShieldCheck,
   ShieldAlert,
+  Tag,
+  Trash2,
   Utensils,
   X
 } from '@lucide/vue'
@@ -340,6 +347,44 @@ const activeFilterCount = computed(() => {
 const openTaskCount = computed(() => tasks.value.filter((task) => task.status === 'OPEN').length)
 const proofTaskCount = computed(() => tasks.value.filter((task) => task.requiresProof).length)
 const urgentTaskCount = computed(() => tasks.value.filter((task) => deadlineHours(task.deadline) <= 6).length)
+const verifiedOnlyTaskCount = computed(() =>
+  tasks.value.filter((task) =>
+    Boolean(task.requiresVerification || task.requiresRealName || task.requiresVerifiedApplicant)
+  ).length
+)
+const completedTaskCount = computed(() =>
+  tasks.value.filter((task) => ['COMPLETED', 'REVIEWED'].includes(task.status)).length
+)
+const mineMetricTiles = computed(() => [
+  {
+    key: 'open',
+    label: '本页可接',
+    value: openTaskCount.value,
+    icon: ClipboardCheck,
+    tone: 'purple'
+  },
+  {
+    key: 'urgent',
+    label: '6 小时内截止',
+    value: urgentTaskCount.value,
+    icon: Clock3,
+    tone: 'orange'
+  },
+  {
+    key: 'verified',
+    label: '需实名认证',
+    value: verifiedOnlyTaskCount.value,
+    icon: ShieldCheck,
+    tone: 'teal'
+  },
+  {
+    key: 'completed',
+    label: '已完成',
+    value: completedTaskCount.value,
+    icon: CheckCircle2,
+    tone: 'green'
+  }
+])
 const detailGuides = computed(() => buildDetailGuides(detailTask.value))
 const candidateStats = computed(() => {
   const items = candidates.value
@@ -366,7 +411,7 @@ const pageTitle = computed(() =>
 )
 const pageSubtitle = computed(() =>
   isMineView.value
-    ? '集中查看任务状态，按需要编辑、取消或基于原内容重新发布。'
+    ? '集中查看任务状态、报名情况、截止时间与完成进度。'
     : '按校区、奖励、凭证和任务状态快速筛选，再查看完整细节后申请。'
 )
 const listRouteName = computed(() => (isMineView.value ? 'my-tasks' : 'task-list'))
@@ -1505,10 +1550,17 @@ onMounted(async () => {
   <DashboardShell :active-label="isMineView ? '我的任务' : '任务广场'">
     <main
       class="tasks-page"
+      :class="{ 'tasks-page--mine': isMineView }"
       :aria-busy="listLoading"
     >
-      <section class="page-title-card tasks-title-card">
-        <div class="title-icon">
+      <section
+        class="page-title-card tasks-title-card"
+        :class="{ 'tasks-title-card--mine': isMineView }"
+      >
+        <div
+          v-if="!isMineView"
+          class="title-icon"
+        >
           <Filter
             :size="32"
             aria-hidden="true"
@@ -1518,6 +1570,23 @@ onMounted(async () => {
           <p>{{ isMineView ? '我的任务' : '任务广场' }}</p>
           <h1>{{ pageTitle }}</h1>
           <span>{{ pageSubtitle }}</span>
+        </div>
+        <div
+          v-if="isMineView"
+          class="mine-hero-art"
+          aria-hidden="true"
+        >
+          <span class="mine-hero-art__sheet">
+            <span />
+            <span />
+            <span />
+          </span>
+          <span class="mine-hero-art__check">
+            <CheckCircle2 :size="48" />
+          </span>
+          <span class="mine-hero-art__plane" />
+          <span class="mine-hero-art__spark mine-hero-art__spark--one" />
+          <span class="mine-hero-art__spark mine-hero-art__spark--two" />
         </div>
         <RouterLink
           class="publish-shortcut"
@@ -1537,10 +1606,14 @@ onMounted(async () => {
         <section class="tasks-main-column">
           <form
             class="panel-card filter-panel"
+            :class="{ 'filter-panel--mine': isMineView }"
             novalidate
             @submit.prevent="applyFilters"
           >
-            <div class="filter-heading">
+            <div
+              v-if="!isMineView"
+              class="filter-heading"
+            >
               <div>
                 <p class="section-kicker">
                   筛选条件
@@ -1569,6 +1642,7 @@ onMounted(async () => {
                 @input="queueFilterRefresh"
               >
               <button
+                v-if="!isMineView"
                 class="search-submit"
                 type="submit"
               >
@@ -1582,7 +1656,23 @@ onMounted(async () => {
                 for="task-campus"
               >
                 <span>校区</span>
+                <span
+                  v-if="isMineView"
+                  class="select-shell"
+                >
+                  <Building2
+                    :size="18"
+                    aria-hidden="true"
+                  />
+                  <input
+                    id="task-campus"
+                    v-model.trim="filters.campus"
+                    placeholder="全部校区"
+                    @input="queueFilterRefresh"
+                  >
+                </span>
                 <input
+                  v-else
                   id="task-campus"
                   v-model.trim="filters.campus"
                   placeholder="例如：仙林校区"
@@ -1595,22 +1685,32 @@ onMounted(async () => {
                 for="task-category"
               >
                 <span>分类</span>
-                <select
-                  id="task-category"
-                  v-model="filters.category"
-                  @change="applyFilters"
+                <span
+                  class="select-shell"
+                  :class="{ 'select-shell--plain': !isMineView }"
                 >
-                  <option value="">
-                    全部分类
-                  </option>
-                  <option
-                    v-for="category in TASK_CATEGORY_OPTIONS"
-                    :key="category.value"
-                    :value="category.value"
+                  <Tag
+                    v-if="isMineView"
+                    :size="18"
+                    aria-hidden="true"
+                  />
+                  <select
+                    id="task-category"
+                    v-model="filters.category"
+                    @change="applyFilters"
                   >
-                    {{ category.label }}
-                  </option>
-                </select>
+                    <option value="">
+                      全部分类
+                    </option>
+                    <option
+                      v-for="category in TASK_CATEGORY_OPTIONS"
+                      :key="category.value"
+                      :value="category.value"
+                    >
+                      {{ category.label }}
+                    </option>
+                  </select>
+                </span>
               </label>
 
               <label
@@ -1618,22 +1718,32 @@ onMounted(async () => {
                 for="task-status"
               >
                 <span>状态</span>
-                <select
-                  id="task-status"
-                  v-model="filters.status"
-                  @change="applyFilters"
+                <span
+                  class="select-shell"
+                  :class="{ 'select-shell--plain': !isMineView }"
                 >
-                  <option value="">
-                    全部状态
-                  </option>
-                  <option
-                    v-for="status in TASK_STATUS_OPTIONS"
-                    :key="status.value"
-                    :value="status.value"
+                  <Clock3
+                    v-if="isMineView"
+                    :size="18"
+                    aria-hidden="true"
+                  />
+                  <select
+                    id="task-status"
+                    v-model="filters.status"
+                    @change="applyFilters"
                   >
-                    {{ status.label }}
-                  </option>
-                </select>
+                    <option value="">
+                      全部状态
+                    </option>
+                    <option
+                      v-for="status in TASK_STATUS_OPTIONS"
+                      :key="status.value"
+                      :value="status.value"
+                    >
+                      {{ status.label }}
+                    </option>
+                  </select>
+                </span>
               </label>
 
               <label
@@ -1641,22 +1751,32 @@ onMounted(async () => {
                 for="task-reward"
               >
                 <span>奖励方式</span>
-                <select
-                  id="task-reward"
-                  v-model="filters.rewardType"
-                  @change="applyFilters"
+                <span
+                  class="select-shell"
+                  :class="{ 'select-shell--plain': !isMineView }"
                 >
-                  <option value="">
-                    全部奖励
-                  </option>
-                  <option
-                    v-for="reward in REWARD_TYPE_OPTIONS"
-                    :key="reward.value"
-                    :value="reward.value"
+                  <Gift
+                    v-if="isMineView"
+                    :size="18"
+                    aria-hidden="true"
+                  />
+                  <select
+                    id="task-reward"
+                    v-model="filters.rewardType"
+                    @change="applyFilters"
                   >
-                    {{ reward.label }}
-                  </option>
-                </select>
+                    <option value="">
+                      全部奖励
+                    </option>
+                    <option
+                      v-for="reward in REWARD_TYPE_OPTIONS"
+                      :key="reward.value"
+                      :value="reward.value"
+                    >
+                      {{ reward.label }}
+                    </option>
+                  </select>
+                </span>
               </label>
 
               <label
@@ -1664,19 +1784,29 @@ onMounted(async () => {
                 for="task-proof"
               >
                 <span>完成凭证</span>
-                <select
-                  id="task-proof"
-                  v-model="filters.requiresProof"
-                  @change="applyFilters"
+                <span
+                  class="select-shell"
+                  :class="{ 'select-shell--plain': !isMineView }"
                 >
-                  <option
-                    v-for="proof in proofOptions"
-                    :key="proof.value"
-                    :value="proof.value"
+                  <ShieldCheck
+                    v-if="isMineView"
+                    :size="18"
+                    aria-hidden="true"
+                  />
+                  <select
+                    id="task-proof"
+                    v-model="filters.requiresProof"
+                    @change="applyFilters"
                   >
-                    {{ proof.label }}
-                  </option>
-                </select>
+                    <option
+                      v-for="proof in proofOptions"
+                      :key="proof.value"
+                      :value="proof.value"
+                    >
+                      {{ proof.label }}
+                    </option>
+                  </select>
+                </span>
               </label>
 
               <label
@@ -1684,19 +1814,29 @@ onMounted(async () => {
                 for="task-sort"
               >
                 <span>排序</span>
-                <select
-                  id="task-sort"
-                  v-model="filters.sortBy"
-                  @change="applyFilters"
+                <span
+                  class="select-shell"
+                  :class="{ 'select-shell--plain': !isMineView }"
                 >
-                  <option
-                    v-for="sort in TASK_SORT_OPTIONS"
-                    :key="sort.value"
-                    :value="sort.value"
+                  <ArrowUpDown
+                    v-if="isMineView"
+                    :size="18"
+                    aria-hidden="true"
+                  />
+                  <select
+                    id="task-sort"
+                    v-model="filters.sortBy"
+                    @change="applyFilters"
                   >
-                    {{ sort.label }}
-                  </option>
-                </select>
+                    <option
+                      v-for="sort in TASK_SORT_OPTIONS"
+                      :key="sort.value"
+                      :value="sort.value"
+                    >
+                      {{ sort.label }}
+                    </option>
+                  </select>
+                </span>
               </label>
             </div>
 
@@ -1706,7 +1846,13 @@ onMounted(async () => {
                 type="button"
                 @click="resetFilters"
               >
+                <Trash2
+                  v-if="isMineView"
+                  :size="17"
+                  aria-hidden="true"
+                />
                 <X
+                  v-else
                   :size="17"
                   aria-hidden="true"
                 />
@@ -1728,21 +1874,49 @@ onMounted(async () => {
                   :size="18"
                   aria-hidden="true"
                 />
-                更新列表
+                {{ isMineView ? '更新列表' : '更新列表' }}
               </button>
             </div>
           </form>
 
-          <section class="metric-strip">
-            <article class="metric-tile">
+          <section
+            class="metric-strip"
+            :class="{ 'metric-strip--mine': isMineView }"
+          >
+            <article
+              v-for="metric in isMineView ? mineMetricTiles : []"
+              :key="metric.key"
+              class="metric-tile metric-tile--mine"
+              :class="`metric-tile--${metric.tone}`"
+            >
+              <span class="metric-icon">
+                <component
+                  :is="metric.icon"
+                  :size="26"
+                  aria-hidden="true"
+                />
+              </span>
+              <span>{{ metric.label }}</span>
+              <strong>{{ metric.value }}</strong>
+            </article>
+            <article
+              v-if="!isMineView"
+              class="metric-tile"
+            >
               <span>本页可接</span>
               <strong>{{ openTaskCount }}</strong>
             </article>
-            <article class="metric-tile metric-tile--warning">
+            <article
+              v-if="!isMineView"
+              class="metric-tile metric-tile--warning"
+            >
               <span>6 小时内截止</span>
               <strong>{{ urgentTaskCount }}</strong>
             </article>
-            <article class="metric-tile metric-tile--accent">
+            <article
+              v-if="!isMineView"
+              class="metric-tile metric-tile--accent"
+            >
               <span>需要凭证</span>
               <strong>{{ proofTaskCount }}</strong>
             </article>
@@ -1760,10 +1934,16 @@ onMounted(async () => {
             <span>{{ listError }}</span>
           </section>
 
-          <section class="panel-card list-panel">
+          <section
+            class="panel-card list-panel"
+            :class="{ 'list-panel--mine': isMineView }"
+          >
             <div class="list-toolbar">
               <div>
-                <p class="section-kicker">
+                <p
+                  v-if="!isMineView"
+                  class="section-kicker"
+                >
                   查询结果
                 </p>
                 <h2>{{ pagination.total }} 条任务 · 第 {{ pagination.page }} 页</h2>
@@ -1774,7 +1954,7 @@ onMounted(async () => {
                   class="size-field"
                   for="task-page-size"
                 >
-                  每页
+                  {{ isMineView ? '每页显示' : '每页' }}
                   <select
                     id="task-page-size"
                     v-model.number="filters.size"
@@ -1790,6 +1970,7 @@ onMounted(async () => {
                   </select>
                 </label>
                 <button
+                  v-if="!isMineView"
                   class="icon-action"
                   type="button"
                   aria-label="刷新任务列表"
@@ -1821,20 +2002,60 @@ onMounted(async () => {
             <div
               v-else-if="!tasks.length"
               class="empty-state"
+              :class="{ 'empty-state--mine': isMineView }"
             >
-              <Inbox
-                :size="36"
-                aria-hidden="true"
-              />
-              <h3>没有匹配的任务</h3>
-              <p>可以放宽校区、状态或奖励条件，也可以改用更短的关键词重新搜索。</p>
-              <button
-                class="ghost-action"
-                type="button"
-                @click="resetFilters"
-              >
-                清空条件
-              </button>
+              <template v-if="isMineView">
+                <div
+                  class="empty-illustration"
+                  aria-hidden="true"
+                >
+                  <span class="empty-illustration__clipboard">
+                    <span />
+                    <span />
+                    <span />
+                  </span>
+                  <span class="empty-illustration__clip" />
+                  <span class="empty-illustration__building empty-illustration__building--left" />
+                  <span class="empty-illustration__building empty-illustration__building--right" />
+                  <span class="empty-illustration__plane" />
+                </div>
+                <h3>还没有匹配的任务</h3>
+                <p>可以发布新任务，或调整筛选条件后重新查看。</p>
+                <div class="empty-actions">
+                  <RouterLink
+                    class="primary-action"
+                    to="/tasks/new"
+                  >
+                    <PlusCircle
+                      :size="18"
+                      aria-hidden="true"
+                    />
+                    发布任务
+                  </RouterLink>
+                  <button
+                    class="ghost-action"
+                    type="button"
+                    @click="resetFilters"
+                  >
+                    清空筛选
+                  </button>
+                </div>
+              </template>
+              <template v-else>
+                <Inbox
+                  :size="36"
+                  aria-hidden="true"
+                />
+                <h3>没有匹配的任务</h3>
+                <p>可以放宽校区、状态或奖励条件，也可以改用更短的关键词重新搜索。</p>
+                <button
+                  class="ghost-action"
+                  type="button"
+                  @click="resetFilters"
+                >
+                  清空条件
+                </button>
+              </template>
             </div>
 
             <div
@@ -1925,6 +2146,7 @@ onMounted(async () => {
 
             <nav
               class="pagination-bar"
+              :class="{ 'pagination-bar--mine': isMineView }"
               aria-label="任务分页"
             >
               <button
@@ -1939,7 +2161,7 @@ onMounted(async () => {
                 />
                 上一页
               </button>
-              <span>第 {{ pagination.page }} / {{ totalPages }} 页</span>
+              <span class="page-current">{{ pagination.page }}</span>
               <button
                 class="ghost-action page-button"
                 type="button"
@@ -2168,6 +2390,12 @@ onMounted(async () => {
   gap: 20px;
 }
 
+.tasks-page--mine {
+  gap: 14px;
+  width: 100%;
+  color: #111827;
+}
+
 .page-title-card,
 .panel-card,
 .page-feedback {
@@ -2186,6 +2414,43 @@ onMounted(async () => {
   padding: 26px 38px;
 }
 
+.tasks-title-card--mine {
+  position: relative;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.46fr) auto;
+  min-height: 156px;
+  overflow: hidden;
+  padding: 30px 32px 28px 48px;
+  border-color: #ece8ff;
+  background:
+    radial-gradient(circle at 74% 47%, rgba(124, 107, 239, 0.22), transparent 12%),
+    radial-gradient(circle at 83% 28%, rgba(188, 177, 255, 0.25), transparent 2%),
+    linear-gradient(96deg, #faf8ff 0%, #f4f0ff 48%, #ffffff 100%);
+  box-shadow: 0 18px 44px rgba(90, 79, 154, 0.08);
+}
+
+.tasks-title-card--mine::before {
+  content: "";
+  position: absolute;
+  right: 238px;
+  bottom: -8px;
+  width: 290px;
+  height: 46px;
+  border-radius: 50%;
+  background: rgba(119, 102, 224, 0.08);
+}
+
+.tasks-title-card--mine::after {
+  content: "";
+  position: absolute;
+  top: 42px;
+  right: 258px;
+  width: 220px;
+  height: 88px;
+  border-top: 2px dashed rgba(147, 130, 244, 0.2);
+  border-radius: 50%;
+  transform: rotate(8deg);
+}
+
 .title-icon {
   display: grid;
   place-items: center;
@@ -2201,12 +2466,27 @@ onMounted(async () => {
   gap: 8px;
 }
 
+.tasks-title-card--mine .title-copy {
+  position: relative;
+  z-index: 1;
+  gap: 10px;
+}
+
 .title-copy p,
 .section-kicker {
   margin: 0;
   color: #746dc3;
   font-size: 0.92rem;
   font-weight: 900;
+}
+
+.tasks-title-card--mine .title-copy p {
+  width: fit-content;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: #eeeaff;
+  color: #5145d4;
+  font-size: 0.96rem;
 }
 
 .title-copy h1,
@@ -2223,10 +2503,132 @@ onMounted(async () => {
   font-size: 1.9rem;
 }
 
+.tasks-title-card--mine .title-copy h1 {
+  color: #101225;
+  font-size: clamp(1.8rem, 2.4vw, 2.34rem);
+  letter-spacing: 0;
+}
+
 .title-copy span,
 .list-toolbar span {
   color: #8a8792;
   line-height: 1.55;
+}
+
+.tasks-title-card--mine .title-copy span {
+  color: #667085;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.mine-hero-art {
+  position: relative;
+  z-index: 1;
+  min-height: 124px;
+}
+
+.mine-hero-art__sheet {
+  position: absolute;
+  left: 50%;
+  top: 8px;
+  width: 126px;
+  height: 112px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.76);
+  box-shadow: 0 22px 50px rgba(117, 104, 210, 0.14);
+  transform: translateX(-50%);
+}
+
+.mine-hero-art__sheet span {
+  position: absolute;
+  left: 24px;
+  width: 70px;
+  height: 10px;
+  border-radius: 999px;
+  background: #e9e5ff;
+}
+
+.mine-hero-art__sheet span::before {
+  content: "";
+  position: absolute;
+  left: -22px;
+  top: -2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  background: #d9d2ff;
+}
+
+.mine-hero-art__sheet span:nth-child(1) {
+  top: 34px;
+}
+
+.mine-hero-art__sheet span:nth-child(2) {
+  top: 58px;
+  width: 58px;
+}
+
+.mine-hero-art__sheet span:nth-child(3) {
+  top: 82px;
+  width: 48px;
+}
+
+.mine-hero-art__check {
+  position: absolute;
+  left: calc(50% + 26px);
+  top: 54px;
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #bfb7ff, #8473e8);
+  color: #ffffff;
+  box-shadow: 0 18px 34px rgba(91, 75, 203, 0.24);
+}
+
+.mine-hero-art__plane {
+  position: absolute;
+  top: 36px;
+  right: 18px;
+  width: 0;
+  height: 0;
+  border-top: 14px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-left: 42px solid rgba(124, 107, 239, 0.42);
+  transform: rotate(-18deg);
+}
+
+.mine-hero-art__plane::after {
+  content: "";
+  position: absolute;
+  top: -8px;
+  left: -35px;
+  width: 26px;
+  height: 2px;
+  background: rgba(124, 107, 239, 0.22);
+  transform: rotate(22deg);
+}
+
+.mine-hero-art__spark {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 5px;
+  background: #c9c0ff;
+  transform: rotate(18deg);
+}
+
+.mine-hero-art__spark--one {
+  left: 32px;
+  top: 44px;
+}
+
+.mine-hero-art__spark--two {
+  right: 6px;
+  bottom: 42px;
+  width: 10px;
+  height: 10px;
 }
 
 .publish-shortcut,
@@ -2261,6 +2663,17 @@ onMounted(async () => {
 .publish-shortcut {
   padding: 0 16px;
   white-space: nowrap;
+}
+
+.tasks-title-card--mine .publish-shortcut {
+  position: relative;
+  z-index: 1;
+  min-width: 134px;
+  min-height: 50px;
+  padding: 0 20px;
+  border-color: #4f46e5;
+  background: linear-gradient(180deg, #5b4deb, #4937d0);
+  box-shadow: 0 18px 34px rgba(79, 70, 229, 0.28);
 }
 
 .publish-shortcut:hover,
@@ -2358,6 +2771,14 @@ onMounted(async () => {
   gap: 18px;
 }
 
+.filter-panel--mine {
+  gap: 18px;
+  padding: 18px;
+  border-color: #e6e9f2;
+  background: #ffffff;
+  box-shadow: 0 18px 42px rgba(42, 38, 61, 0.055);
+}
+
 .filter-heading,
 .list-toolbar,
 .detail-topbar {
@@ -2406,6 +2827,14 @@ onMounted(async () => {
   color: #b9b5c2;
 }
 
+.filter-panel--mine .search-field {
+  grid-template-columns: auto minmax(0, 1fr);
+  min-height: 46px;
+  padding: 0 16px;
+  border-color: #dfe4ef;
+  color: #667085;
+}
+
 .search-submit {
   min-height: 38px;
   padding: 0 13px;
@@ -2418,6 +2847,12 @@ onMounted(async () => {
   gap: 12px;
 }
 
+.filter-panel--mine .filter-grid {
+  gap: 18px 28px;
+  padding-top: 2px;
+  border-top: 1px solid #edf0f6;
+}
+
 .filter-field {
   display: grid;
   gap: 7px;
@@ -2427,6 +2862,11 @@ onMounted(async () => {
   color: #3c3543;
   font-size: 0.92rem;
   font-weight: 900;
+}
+
+.filter-panel--mine .filter-field > span:first-child {
+  color: #111827;
+  font-size: 0.94rem;
 }
 
 .filter-field input,
@@ -2442,6 +2882,46 @@ onMounted(async () => {
     box-shadow 180ms ease;
 }
 
+.select-shell {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 0 12px;
+  border: 1px solid #dfe4ef;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #667085;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.select-shell:focus-within {
+  border-color: #818cf8;
+  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
+}
+
+.select-shell input,
+.select-shell select {
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.select-shell select {
+  appearance: auto;
+}
+
+.select-shell--plain {
+  display: block;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+}
+
 .filter-actions {
   display: flex;
   flex-wrap: wrap;
@@ -2449,10 +2929,36 @@ onMounted(async () => {
   gap: 12px;
 }
 
+.filter-panel--mine .filter-actions {
+  justify-content: flex-end;
+}
+
+.filter-panel--mine .ghost-action,
+.filter-panel--mine .primary-action {
+  min-width: 132px;
+  min-height: 46px;
+  padding-inline: 18px;
+}
+
+.filter-panel--mine .primary-action {
+  border-color: #4f46e5;
+  background: linear-gradient(180deg, #5b4deb, #4937d0);
+  box-shadow: 0 16px 28px rgba(79, 70, 229, 0.22);
+}
+
+.filter-panel--mine .ghost-action {
+  border-color: #dfe4ef;
+  color: #4f46e5;
+}
+
 .metric-strip {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
+}
+
+.metric-strip--mine {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .metric-tile {
@@ -2464,6 +2970,39 @@ onMounted(async () => {
   border-radius: 8px;
   background: #eff6ff;
   color: #1e3a8a;
+}
+
+.metric-tile--mine {
+  position: relative;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    "icon label"
+    "icon value";
+  align-items: center;
+  gap: 3px 18px;
+  min-height: 96px;
+  padding: 18px 20px;
+  overflow: hidden;
+  box-shadow: 0 14px 34px rgba(42, 38, 61, 0.045);
+}
+
+.metric-tile--mine::after {
+  content: "";
+  position: absolute;
+  inset: -42px -20px auto auto;
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.48);
+}
+
+.metric-icon {
+  grid-area: icon;
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
 }
 
 .metric-tile--warning {
@@ -2478,14 +3017,65 @@ onMounted(async () => {
   color: #0f766e;
 }
 
+.metric-tile--purple {
+  border-color: #e8e4ff;
+  background: linear-gradient(105deg, #faf8ff, #f2efff);
+  color: #4f46e5;
+}
+
+.metric-tile--purple .metric-icon {
+  background: linear-gradient(135deg, #dcd6ff, #b7adff);
+}
+
+.metric-tile--orange {
+  border-color: #fce8c7;
+  background: linear-gradient(105deg, #fffdf8, #fff5e6);
+  color: #c65f00;
+}
+
+.metric-tile--orange .metric-icon {
+  background: #fff0d7;
+}
+
+.metric-tile--teal {
+  border-color: #d7f2f1;
+  background: linear-gradient(105deg, #fbfeff, #ecfbfb);
+  color: #0790a0;
+}
+
+.metric-tile--teal .metric-icon {
+  background: #d9f6f5;
+}
+
+.metric-tile--green {
+  border-color: #dcefd4;
+  background: linear-gradient(105deg, #fdfffb, #f1faed);
+  color: #4d9b1f;
+}
+
+.metric-tile--green .metric-icon {
+  background: #e6f5df;
+}
+
 .metric-tile span {
   font-size: 0.9rem;
   font-weight: 800;
 }
 
+.metric-tile--mine > span:not(.metric-icon) {
+  grid-area: label;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
 .metric-tile strong {
   font-size: 2rem;
   line-height: 1;
+}
+
+.metric-tile--mine strong {
+  grid-area: value;
+  font-size: 2.1rem;
 }
 
 .page-feedback,
@@ -2508,6 +3098,23 @@ onMounted(async () => {
   gap: 18px;
 }
 
+.list-panel--mine {
+  gap: 18px;
+  padding: 18px 24px 16px;
+  border-color: #e6e9f2;
+  background: #ffffff;
+  box-shadow: 0 18px 42px rgba(42, 38, 61, 0.055);
+}
+
+.list-panel--mine .list-toolbar {
+  align-items: center;
+}
+
+.list-panel--mine .list-toolbar h2 {
+  color: #111827;
+  font-size: 1.18rem;
+}
+
 .toolbar-actions {
   display: flex;
   align-items: center;
@@ -2522,8 +3129,17 @@ onMounted(async () => {
   font-weight: 900;
 }
 
+.list-panel--mine .size-field {
+  color: #111827;
+}
+
 .size-field select {
   min-width: 76px;
+}
+
+.list-panel--mine .size-field select {
+  min-width: 72px;
+  border-color: #dfe4ef;
 }
 
 .loading-state {
@@ -2548,6 +3164,107 @@ onMounted(async () => {
   text-align: center;
 }
 
+.empty-state--mine {
+  gap: 8px;
+  min-height: 236px;
+  padding: 20px 24px 18px;
+  border-color: #dfe4ef;
+  background:
+    radial-gradient(circle at 45% 0%, rgba(124, 107, 239, 0.06), transparent 24%),
+    #ffffff;
+}
+
+.empty-illustration {
+  position: relative;
+  width: 224px;
+  height: 98px;
+}
+
+.empty-illustration__clipboard {
+  position: absolute;
+  left: 68px;
+  top: 8px;
+  width: 72px;
+  height: 78px;
+  border: 6px solid #8f83ea;
+  border-radius: 9px;
+  background: #ffffff;
+  box-shadow: 0 14px 26px rgba(93, 79, 200, 0.16);
+}
+
+.empty-illustration__clipboard span {
+  position: absolute;
+  left: 17px;
+  width: 32px;
+  height: 6px;
+  border-radius: 999px;
+  background: #dfdbff;
+}
+
+.empty-illustration__clipboard span:nth-child(1) {
+  top: 18px;
+}
+
+.empty-illustration__clipboard span:nth-child(2) {
+  top: 35px;
+}
+
+.empty-illustration__clipboard span:nth-child(3) {
+  top: 52px;
+  width: 24px;
+}
+
+.empty-illustration__clip {
+  position: absolute;
+  left: 90px;
+  top: 0;
+  width: 30px;
+  height: 20px;
+  border-radius: 10px 10px 5px 5px;
+  background: #cfc8ff;
+  box-shadow: inset 0 8px 0 rgba(255, 255, 255, 0.45);
+}
+
+.empty-illustration__building {
+  position: absolute;
+  bottom: 0;
+  width: 32px;
+  height: 42px;
+  border-radius: 6px 6px 0 0;
+  background: #eeeaff;
+}
+
+.empty-illustration__building::before {
+  content: "";
+  position: absolute;
+  inset: 10px 9px auto;
+  height: 8px;
+  border-radius: 3px;
+  background: #d5cffb;
+  box-shadow: 0 14px 0 #d5cffb;
+}
+
+.empty-illustration__building--left {
+  left: 28px;
+}
+
+.empty-illustration__building--right {
+  right: 40px;
+  height: 30px;
+}
+
+.empty-illustration__plane {
+  position: absolute;
+  right: 24px;
+  top: 18px;
+  width: 0;
+  height: 0;
+  border-top: 8px solid transparent;
+  border-bottom: 6px solid transparent;
+  border-left: 28px solid #a79cff;
+  transform: rotate(-12deg);
+}
+
 .empty-state h3,
 .empty-state p {
   margin: 0;
@@ -2555,6 +3272,36 @@ onMounted(async () => {
 
 .empty-state h3 {
   color: #3c3543;
+}
+
+.empty-state--mine h3 {
+  color: #111827;
+  font-size: 1.16rem;
+}
+
+.empty-state--mine p {
+  color: #667085;
+  font-weight: 800;
+}
+
+.empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.empty-actions .primary-action,
+.empty-actions .ghost-action {
+  min-width: 150px;
+  min-height: 46px;
+  padding-inline: 18px;
+}
+
+.empty-actions .primary-action {
+  border-color: #4f46e5;
+  background: linear-gradient(180deg, #5b4deb, #4937d0);
 }
 
 .task-list {
@@ -2747,6 +3494,35 @@ onMounted(async () => {
   padding-top: 2px;
   color: #746f7a;
   font-weight: 900;
+}
+
+.pagination-bar--mine {
+  justify-content: center;
+  gap: 14px;
+  padding-top: 0;
+}
+
+.pagination-bar--mine .page-button {
+  min-width: 110px;
+  border-color: #e6e9f2;
+  color: #9ca3af;
+}
+
+.pagination-bar--mine .page-button:not(:disabled) {
+  color: #4f46e5;
+}
+
+.page-current {
+  display: inline-grid;
+  place-items: center;
+  min-width: 38px;
+  height: 42px;
+  padding: 0 12px;
+  border: 1px solid #8b7dff;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #4f46e5;
+  box-shadow: 0 8px 18px rgba(79, 70, 229, 0.12);
 }
 
 .page-button {
@@ -3771,6 +4547,14 @@ onMounted(async () => {
     grid-template-columns: 1fr;
   }
 
+  .tasks-title-card--mine {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .mine-hero-art {
+    display: none;
+  }
+
   .task-detail-column {
     grid-column: 1;
     position: static;
@@ -3781,6 +4565,7 @@ onMounted(async () => {
   .page-title-card,
   .filter-grid,
   .metric-strip,
+  .metric-strip--mine,
   .task-meta-grid,
   .detail-info-list div,
   .detail-facts,
@@ -3794,6 +4579,12 @@ onMounted(async () => {
   .page-title-card {
     gap: 18px;
     padding: 22px;
+  }
+
+  .tasks-title-card--mine {
+    grid-template-columns: 1fr;
+    min-height: 0;
+    padding: 24px;
   }
 
   .filter-heading,
@@ -3816,6 +4607,10 @@ onMounted(async () => {
 
   .toolbar-actions,
   .filter-actions {
+    justify-content: flex-start;
+  }
+
+  .filter-panel--mine .filter-actions {
     justify-content: flex-start;
   }
 }
@@ -3855,9 +4650,23 @@ onMounted(async () => {
     display: grid;
   }
 
+  .pagination-bar--mine {
+    grid-template-columns: 1fr auto 1fr;
+  }
+
   .title-icon {
     width: 64px;
     height: 64px;
+  }
+
+  .empty-actions {
+    display: grid;
+    width: 100%;
+  }
+
+  .empty-actions .primary-action,
+  .empty-actions .ghost-action {
+    width: 100%;
   }
 
   .panel-card {
