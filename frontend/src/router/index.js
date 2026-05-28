@@ -4,12 +4,23 @@ import AuthView from '../views/AuthView.vue'
 import TaskPublishView from '../views/TaskPublishView.vue'
 import TaskListView from '../views/TaskListView.vue'
 import ConversationView from '../views/ConversationView.vue'
+import { useAuth } from '../stores/auth'
+
+function redirectByAuth() {
+  const { isAuthenticated } = useAuth()
+  return isAuthenticated.value ? { name: 'home' } : { name: 'auth' }
+}
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
     {
       path: '/',
+      name: 'root',
+      redirect: redirectByAuth
+    },
+    {
+      path: '/home',
       name: 'home',
       component: HomeView
     },
@@ -60,6 +71,26 @@ const router = createRouter({
       component: ConversationView
     }
   ]
+})
+
+router.beforeEach((to) => {
+  const { isAuthenticated } = useAuth()
+  const publicRouteNames = new Set(['root', 'auth'])
+
+  if (to.name === 'auth' && isAuthenticated.value) {
+    return { name: 'home' }
+  }
+
+  if (!publicRouteNames.has(to.name) && !isAuthenticated.value) {
+    return {
+      name: 'auth',
+      query: {
+        redirect: to.fullPath
+      }
+    }
+  }
+
+  return true
 })
 
 export default router

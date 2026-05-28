@@ -48,7 +48,7 @@ const feedback = ref('')
 const feedbackType = ref('success')
 
 const navItems = [
-  { label: '个人主页', icon: Home, active: true, to: '/' },
+  { label: '个人主页', icon: Home, active: true, to: '/home' },
   { label: '任务广场', icon: Grid2X2, to: '/tasks' },
   { label: '发布任务', icon: PlusCircle, to: '/tasks/new' },
   { label: '我的任务', icon: ClipboardList, to: '/tasks/mine' },
@@ -221,7 +221,7 @@ onBeforeUnmount(() => {
 
       <a
         class="brand"
-        href="/"
+        href="/home"
         aria-label="CampusBridge"
       >
         <span class="brand-mark">
@@ -330,7 +330,7 @@ onBeforeUnmount(() => {
             <RouterLink
               v-if="isAuthenticated"
               class="account-menu-item"
-              to="/"
+              to="/home"
               role="menuitem"
               @click="closeAccountMenu"
             >

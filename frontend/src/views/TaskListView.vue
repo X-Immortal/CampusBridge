@@ -332,7 +332,7 @@ const applicationGate = computed(() => {
       title: '完成校内认证后再接单',
       copy: '认证状态会帮助求助者判断可信度，也能减少线下交接和失联风险。',
       action: '去认证中心',
-      to: '/'
+      to: '/home'
     }
   }
   if (detailTask.value.status !== 'OPEN') {

@@ -11,10 +11,11 @@ import {
   School,
   UserRound
 } from '@lucide/vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '../stores/auth'
 
 const { state, login, register } = useAuth()
+const route = useRoute()
 const router = useRouter()
 
 const mode = ref('login')
@@ -86,7 +87,7 @@ async function handleLogin() {
     await login(loginForm)
     syncRememberedLogin()
     setFeedback('登录成功，正在进入认证工作台。')
-    await router.push('/')
+    await router.push(typeof route.query.redirect === 'string' ? route.query.redirect : '/home')
   } catch (error) {
     setFeedback(error.message, 'danger')
   } finally {

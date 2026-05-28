@@ -150,7 +150,7 @@ const publishGate = computed(() => {
       title: '请先完成校内认证',
       copy: '通过认证后，其他同学会看到可信状态，平台也能拦截未认证发单。',
       action: '去认证中心',
-      to: '/'
+      to: '/home'
     }
   }
 
