@@ -1,0 +1,83 @@
+[
+  {
+    "path": "/tasks",
+    "text": "任务广场 找到值得接、能准时完成的校园互助 按校区、奖励、凭证和任务状态快速筛选，再查看完整细节后申请。 发布任务",
+    "h1": "找到值得接、能准时完成的校园互助",
+    "card": {
+      "x": 284,
+      "y": 98,
+      "width": 1058,
+      "height": 113
+    },
+    "icon": {
+      "width": 60,
+      "height": 60,
+      "radius": "8px",
+      "background": "linear-gradient(135deg, rgb(238, 234, 255), rgb(249, 247, 255))"
+    },
+    "action": {
+      "text": "发布任务",
+      "width": 120,
+      "height": 44
+    },
+    "grid": "60px 780px 120px",
+    "border": "1px rgb(228, 225, 234)",
+    "background": "rgba(255, 255, 255, 0.98)",
+    "radius": "8px",
+    "copyDisplay": "grid"
+  },
+  {
+    "path": "/tasks/mine",
+    "text": "我的任务 管理自己发布的任务 集中查看任务状态、报名情况、截止时间与完成进度。 发布任务",
+    "h1": "管理自己发布的任务",
+    "card": {
+      "x": 284,
+      "y": 98,
+      "width": 1058,
+      "height": 113
+    },
+    "icon": {
+      "width": 60,
+      "height": 60,
+      "radius": "8px",
+      "background": "linear-gradient(135deg, rgb(238, 234, 255), rgb(249, 247, 255))"
+    },
+    "action": {
+      "text": "发布任务",
+      "width": 120,
+      "height": 44
+    },
+    "grid": "60px 780px 120px",
+    "border": "1px rgb(228, 225, 234)",
+    "background": "rgba(255, 255, 255, 0.98)",
+    "radius": "8px",
+    "copyDisplay": "grid"
+  },
+  {
+    "path": "/tasks/new",
+    "text": "任务发布 发布校园任务 用清晰的信息描述你的需求，让同学更快理解并接单。 可发布",
+    "h1": "发布校园任务",
+    "card": {
+      "x": 284,
+      "y": 98,
+      "width": 1058,
+      "height": 104
+    },
+    "icon": {
+      "width": 80,
+      "height": 80,
+      "radius": "50%",
+      "background": "linear-gradient(135deg, rgb(238, 234, 255), rgb(249, 247, 255))"
+    },
+    "action": {
+      "text": "可发布",
+      "width": 79,
+      "height": 28
+    },
+    "grid": "80px 850.625px 79.375px",
+    "border": "0px rgb(17, 24, 39)",
+    "background": "rgba(0, 0, 0, 0)",
+    "radius": "8px",
+    "copyDisplay": "grid"
+  }
+]

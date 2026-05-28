@@ -1553,15 +1553,10 @@ onMounted(async () => {
       :class="{ 'tasks-page--mine': isMineView }"
       :aria-busy="listLoading"
     >
-      <section
-        class="page-title-card tasks-title-card"
-        :class="{ 'tasks-title-card--mine': isMineView }"
-      >
-        <div
-          v-if="!isMineView"
-          class="title-icon"
-        >
-          <Filter
+      <section class="page-title-card tasks-title-card">
+        <div class="title-icon">
+          <component
+            :is="isMineView ? ClipboardCheck : Filter"
             :size="32"
             aria-hidden="true"
           />
@@ -1570,23 +1565,6 @@ onMounted(async () => {
           <p>{{ isMineView ? '我的任务' : '任务广场' }}</p>
           <h1>{{ pageTitle }}</h1>
           <span>{{ pageSubtitle }}</span>
-        </div>
-        <div
-          v-if="isMineView"
-          class="mine-hero-art"
-          aria-hidden="true"
-        >
-          <span class="mine-hero-art__sheet">
-            <span />
-            <span />
-            <span />
-          </span>
-          <span class="mine-hero-art__check">
-            <CheckCircle2 :size="48" />
-          </span>
-          <span class="mine-hero-art__plane" />
-          <span class="mine-hero-art__spark mine-hero-art__spark--one" />
-          <span class="mine-hero-art__spark mine-hero-art__spark--two" />
         </div>
         <RouterLink
           class="publish-shortcut"
@@ -2414,43 +2392,6 @@ onMounted(async () => {
   padding: 26px 38px;
 }
 
-.tasks-title-card--mine {
-  position: relative;
-  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.46fr) auto;
-  min-height: 156px;
-  overflow: hidden;
-  padding: 30px 32px 28px 48px;
-  border-color: #ece8ff;
-  background:
-    radial-gradient(circle at 74% 47%, rgba(124, 107, 239, 0.22), transparent 12%),
-    radial-gradient(circle at 83% 28%, rgba(188, 177, 255, 0.25), transparent 2%),
-    linear-gradient(96deg, #faf8ff 0%, #f4f0ff 48%, #ffffff 100%);
-  box-shadow: 0 18px 44px rgba(90, 79, 154, 0.08);
-}
-
-.tasks-title-card--mine::before {
-  content: "";
-  position: absolute;
-  right: 238px;
-  bottom: -8px;
-  width: 290px;
-  height: 46px;
-  border-radius: 50%;
-  background: rgba(119, 102, 224, 0.08);
-}
-
-.tasks-title-card--mine::after {
-  content: "";
-  position: absolute;
-  top: 42px;
-  right: 258px;
-  width: 220px;
-  height: 88px;
-  border-top: 2px dashed rgba(147, 130, 244, 0.2);
-  border-radius: 50%;
-  transform: rotate(8deg);
-}
-
 .title-icon {
   display: grid;
   place-items: center;
@@ -2466,27 +2407,12 @@ onMounted(async () => {
   gap: 8px;
 }
 
-.tasks-title-card--mine .title-copy {
-  position: relative;
-  z-index: 1;
-  gap: 10px;
-}
-
 .title-copy p,
 .section-kicker {
   margin: 0;
   color: #746dc3;
   font-size: 0.92rem;
   font-weight: 900;
-}
-
-.tasks-title-card--mine .title-copy p {
-  width: fit-content;
-  padding: 5px 12px;
-  border-radius: 999px;
-  background: #eeeaff;
-  color: #5145d4;
-  font-size: 0.96rem;
 }
 
 .title-copy h1,
@@ -2503,132 +2429,10 @@ onMounted(async () => {
   font-size: 1.9rem;
 }
 
-.tasks-title-card--mine .title-copy h1 {
-  color: #101225;
-  font-size: clamp(1.8rem, 2.4vw, 2.34rem);
-  letter-spacing: 0;
-}
-
 .title-copy span,
 .list-toolbar span {
   color: #8a8792;
   line-height: 1.55;
-}
-
-.tasks-title-card--mine .title-copy span {
-  color: #667085;
-  font-size: 1rem;
-  font-weight: 800;
-}
-
-.mine-hero-art {
-  position: relative;
-  z-index: 1;
-  min-height: 124px;
-}
-
-.mine-hero-art__sheet {
-  position: absolute;
-  left: 50%;
-  top: 8px;
-  width: 126px;
-  height: 112px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.76);
-  box-shadow: 0 22px 50px rgba(117, 104, 210, 0.14);
-  transform: translateX(-50%);
-}
-
-.mine-hero-art__sheet span {
-  position: absolute;
-  left: 24px;
-  width: 70px;
-  height: 10px;
-  border-radius: 999px;
-  background: #e9e5ff;
-}
-
-.mine-hero-art__sheet span::before {
-  content: "";
-  position: absolute;
-  left: -22px;
-  top: -2px;
-  width: 14px;
-  height: 14px;
-  border-radius: 4px;
-  background: #d9d2ff;
-}
-
-.mine-hero-art__sheet span:nth-child(1) {
-  top: 34px;
-}
-
-.mine-hero-art__sheet span:nth-child(2) {
-  top: 58px;
-  width: 58px;
-}
-
-.mine-hero-art__sheet span:nth-child(3) {
-  top: 82px;
-  width: 48px;
-}
-
-.mine-hero-art__check {
-  position: absolute;
-  left: calc(50% + 26px);
-  top: 54px;
-  display: grid;
-  place-items: center;
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #bfb7ff, #8473e8);
-  color: #ffffff;
-  box-shadow: 0 18px 34px rgba(91, 75, 203, 0.24);
-}
-
-.mine-hero-art__plane {
-  position: absolute;
-  top: 36px;
-  right: 18px;
-  width: 0;
-  height: 0;
-  border-top: 14px solid transparent;
-  border-bottom: 8px solid transparent;
-  border-left: 42px solid rgba(124, 107, 239, 0.42);
-  transform: rotate(-18deg);
-}
-
-.mine-hero-art__plane::after {
-  content: "";
-  position: absolute;
-  top: -8px;
-  left: -35px;
-  width: 26px;
-  height: 2px;
-  background: rgba(124, 107, 239, 0.22);
-  transform: rotate(22deg);
-}
-
-.mine-hero-art__spark {
-  position: absolute;
-  width: 14px;
-  height: 14px;
-  border-radius: 5px;
-  background: #c9c0ff;
-  transform: rotate(18deg);
-}
-
-.mine-hero-art__spark--one {
-  left: 32px;
-  top: 44px;
-}
-
-.mine-hero-art__spark--two {
-  right: 6px;
-  bottom: 42px;
-  width: 10px;
-  height: 10px;
 }
 
 .publish-shortcut,
@@ -2663,17 +2467,6 @@ onMounted(async () => {
 .publish-shortcut {
   padding: 0 16px;
   white-space: nowrap;
-}
-
-.tasks-title-card--mine .publish-shortcut {
-  position: relative;
-  z-index: 1;
-  min-width: 134px;
-  min-height: 50px;
-  padding: 0 20px;
-  border-color: #4f46e5;
-  background: linear-gradient(180deg, #5b4deb, #4937d0);
-  box-shadow: 0 18px 34px rgba(79, 70, 229, 0.28);
 }
 
 .publish-shortcut:hover,
@@ -4547,14 +4340,6 @@ onMounted(async () => {
     grid-template-columns: 1fr;
   }
 
-  .tasks-title-card--mine {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-
-  .mine-hero-art {
-    display: none;
-  }
-
   .task-detail-column {
     grid-column: 1;
     position: static;
@@ -4579,12 +4364,6 @@ onMounted(async () => {
   .page-title-card {
     gap: 18px;
     padding: 22px;
-  }
-
-  .tasks-title-card--mine {
-    grid-template-columns: 1fr;
-    min-height: 0;
-    padding: 24px;
   }
 
   .filter-heading,

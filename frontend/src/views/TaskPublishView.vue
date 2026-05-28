@@ -606,7 +606,7 @@ watch(
       class="publish-page"
       :aria-busy="submitting"
     >
-      <section class="page-title-card task-title-card">
+      <section class="page-title-card">
         <div class="title-icon">
           <Send
             :size="32"
@@ -2028,7 +2028,6 @@ watch(
   color: var(--publish-text);
 }
 
-.page-title-card,
 .panel-card,
 .page-feedback,
 .draft-alert,
@@ -2041,38 +2040,39 @@ watch(
 
 .page-title-card {
   grid-template-columns: auto minmax(0, 1fr) auto;
-  min-height: 96px;
-  padding: 10px 4px 8px;
-  border: 0;
-  background: transparent;
+  min-height: 132px;
+  padding: 26px 38px;
+  border: 1px solid #e4e1ea;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 18px 36px rgba(42, 38, 61, 0.045);
 }
 
 .title-icon {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  background: #ede9fe;
-  color: var(--publish-primary);
+  width: 78px;
+  height: 82px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #eeeaff, #f9f7ff);
+  color: #746dc3;
 }
 
 .title-copy {
-  gap: 4px;
+  gap: 8px;
 }
 
 .title-copy p {
-  color: var(--publish-primary);
-  font-size: 1rem;
+  color: #746dc3;
+  font-size: 0.92rem;
 }
 
 .title-copy h1 {
-  color: #111827;
-  font-size: 2rem;
-  line-height: 1.08;
+  color: #3c3543;
+  font-size: 1.9rem;
+  line-height: 1.15;
 }
 
 .title-copy span {
-  color: var(--publish-muted);
-  font-size: 0.94rem;
+  color: #8a8792;
+  font-size: 1rem;
 }
 
 .publish-layout {
@@ -2494,12 +2494,12 @@ watch(
   }
 
   .page-title-card {
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: 1fr;
   }
 
   .title-icon {
-    width: 58px;
-    height: 58px;
+    width: 64px;
+    height: 64px;
   }
 
   .title-copy h1 {
@@ -2531,11 +2531,6 @@ watch(
 @media (min-width: 1181px) {
   .publish-page {
     gap: 8px;
-  }
-
-  .page-title-card {
-    min-height: 92px;
-    padding-block: 8px 6px;
   }
 
   .form-section {
@@ -2627,18 +2622,6 @@ watch(
   .publish-layout {
     grid-template-columns: minmax(0, 1fr) minmax(390px, 420px);
     gap: 18px;
-  }
-
-  .page-title-card {
-    min-height: 104px;
-  }
-
-  .title-copy h1 {
-    font-size: 2.12rem;
-  }
-
-  .title-copy span {
-    font-size: 1rem;
   }
 
   .form-section {
