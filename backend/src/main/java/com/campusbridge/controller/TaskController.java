@@ -5,6 +5,7 @@ import com.campusbridge.pojo.Result;
 import com.campusbridge.pojo.Task;
 import com.campusbridge.common.CurrentUserResolver;
 import com.campusbridge.service.TaskService;
+import com.campusbridge.service.CompletionService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -28,12 +29,15 @@ import java.util.Map;
 public class TaskController {
     private final CurrentUserResolver currentUserResolver;
     private final TaskService taskService;
+    private final CompletionService completionService;
 
     public TaskController(
             CurrentUserResolver currentUserResolver,
-            TaskService taskService) {
+            TaskService taskService,
+            CompletionService completionService) {
         this.currentUserResolver = currentUserResolver;
         this.taskService = taskService;
+        this.completionService = completionService;
     }
 
     @PostMapping
@@ -116,8 +120,41 @@ public class TaskController {
 
     @PostMapping("/{taskId}/completion")
     public Result submitCompletion(
+            HttpServletRequest servletRequest,
             @PathVariable Long taskId,
             @RequestBody RequestDtos.SubmitCompletionRequest request) {
+        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        return Result.success(completionService.submitCompletionProof(currentUserId, taskId, request));
+    }
+
+    @PostMapping("/{taskId}/completion/confirm")
+    public Result confirmCompletion(
+            HttpServletRequest servletRequest,
+            @PathVariable Long taskId) {
+        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        completionService.confirmCompletion(currentUserId, taskId);
+        return Result.success();
+    }
+
+    @PostMapping("/{taskId}/completion/reject")
+    public Result rejectCompletion(
+            HttpServletRequest servletRequest,
+            @PathVariable Long taskId,
+            @RequestBody java.util.Map<String, String> request) {
+        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        String reason = request.get("reason");
+        completionService.rejectCompletion(currentUserId, taskId, reason);
+        return Result.success();
+    }
+
+    @PostMapping("/{taskId}/completion/dispute")
+    public Result disputeCompletion(
+            HttpServletRequest servletRequest,
+            @PathVariable Long taskId,
+            @RequestBody java.util.Map<String, String> request) {
+        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        String reason = request.get("reason");
+        completionService.disputeCompletion(currentUserId, taskId, reason);
         return Result.success();
     }
 }
