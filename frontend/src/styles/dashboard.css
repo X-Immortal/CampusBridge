@@ -1,0 +1,228 @@
+#app .dashboard-shell {
+  --sidebar-width: 260px;
+  --topbar-height: 76px;
+  font-size: 15px;
+}
+
+#app .dashboard-shell.is-collapsed {
+  --sidebar-width: 78px;
+}
+
+#app .dashboard-sidebar {
+  padding: 36px 18px 24px;
+}
+
+#app .brand {
+  gap: 10px;
+  min-height: 58px;
+  padding: 0 10px;
+}
+
+#app .brand-text {
+  max-width: 148px;
+  font-size: 1.08rem;
+}
+
+#app .sidebar-nav {
+  gap: 10px;
+  margin-top: 34px;
+}
+
+#app .nav-item {
+  gap: 14px;
+  min-height: 50px;
+  padding: 0 18px;
+  font-size: 1rem;
+}
+
+#app .dashboard-shell.is-collapsed .dashboard-sidebar {
+  padding-inline: 12px;
+}
+
+#app .dashboard-shell.is-collapsed .collapse-button {
+  right: 50%;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  transform: translateX(50%);
+}
+
+#app .dashboard-shell.is-collapsed .collapse-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+#app .dashboard-shell.is-collapsed .brand {
+  justify-content: center;
+  min-height: 46px;
+  padding-inline: 0;
+}
+
+#app .dashboard-shell.is-collapsed .brand-mark svg {
+  width: 30px;
+  height: 30px;
+}
+
+#app .dashboard-shell.is-collapsed .sidebar-nav {
+  gap: 8px;
+  margin-top: 18px;
+}
+
+#app .dashboard-shell.is-collapsed .nav-item {
+  justify-content: center;
+  gap: 0;
+  min-height: 46px;
+  padding: 0;
+}
+
+#app .dashboard-topbar {
+  height: var(--topbar-height);
+  padding: 0 30px 0 34px;
+}
+
+#app .search-box {
+  gap: 12px;
+  height: 46px;
+  padding: 0 16px;
+  border-radius: 8px;
+}
+
+#app .search-box input {
+  font-size: 0.92rem;
+}
+
+#app .topbar-account {
+  gap: 18px;
+}
+
+#app .notice-button {
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+}
+
+#app .notice-button span {
+  min-width: 20px;
+  height: 20px;
+  font-size: 0.78rem;
+  line-height: 20px;
+}
+
+#app .account-button {
+  gap: 11px;
+  min-height: 46px;
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+#app .avatar {
+  width: 42px;
+  height: 42px;
+}
+
+#app .dashboard-main {
+  padding: calc(var(--topbar-height) + 22px) 24px 36px;
+}
+
+#app .page-title-card,
+#app .panel-card,
+#app .page-feedback {
+  border-radius: 8px;
+}
+
+#app .page-title-card {
+  gap: 20px;
+  min-height: 104px;
+  padding: 18px 28px;
+}
+
+#app .title-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+}
+
+#app .title-copy {
+  gap: 5px;
+}
+
+#app .title-copy p,
+#app .section-kicker {
+  font-size: 0.82rem;
+}
+
+#app .title-copy h1 {
+  font-size: 1.5rem;
+}
+
+#app .title-copy span {
+  font-size: 0.9rem;
+}
+
+@media (max-width: 1100px) {
+  #app .dashboard-shell {
+    --sidebar-width: 224px;
+  }
+
+  #app .dashboard-shell.is-collapsed {
+    --sidebar-width: 78px;
+  }
+
+  #app .dashboard-sidebar {
+    padding-inline: 12px;
+  }
+
+  #app .brand-text {
+    font-size: 1.02rem;
+  }
+
+  #app .nav-item {
+    font-size: 0.96rem;
+  }
+
+  #app .dashboard-topbar {
+    padding: 12px 20px;
+  }
+}
+
+@media (max-width: 760px) {
+  #app .dashboard-shell,
+  #app .dashboard-shell.is-collapsed {
+    --sidebar-width: 0px;
+    --topbar-height: 176px;
+  }
+
+  #app .dashboard-sidebar {
+    padding: 20px 16px;
+  }
+
+  #app .brand {
+    justify-content: flex-start;
+  }
+
+  #app .dashboard-shell.is-collapsed .brand-text,
+  #app .dashboard-shell.is-collapsed .nav-item span {
+    max-width: none;
+    opacity: 1;
+  }
+
+  #app .sidebar-nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: 18px;
+  }
+
+  #app .nav-item {
+    justify-content: flex-start;
+    padding: 0 16px;
+    font-size: 1rem;
+  }
+
+  #app .dashboard-main {
+    margin-left: 0;
+    padding: 20px 16px 32px;
+  }
+
+  #app .page-title-card {
+    grid-template-columns: 1fr;
+  }
+}
