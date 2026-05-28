@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
@@ -6,33 +6,24 @@ import {
   ArrowRight,
   Award,
   BadgeCheck,
+  BookOpen,
+  BriefcaseBusiness,
   CalendarClock,
-  CheckCircle2,
   ClipboardCheck,
   Clock3,
   FileCheck2,
   Filter,
   Inbox,
   Info,
-  ImagePlus,
-  Link2,
   LoaderCircle,
   MapPin,
   MessageCircle,
-  Pencil,
-  PlayCircle,
+  Package,
   PlusCircle,
   RefreshCw,
-  Repeat2,
-  Send,
   Search,
   ShieldAlert,
-  ShieldCheck,
-  Star,
-  Trash2,
-  UploadCloud,
-  UserCheck,
-  Users,
+  Utensils,
   X
 } from '@lucide/vue'
 import DashboardShell from '../components/DashboardShell.vue'
@@ -73,6 +64,199 @@ const proofOptions = [
 ]
 
 const pageSizeOptions = [8, 12, 20]
+
+const TASK_TYPE_META = {
+  ERRAND: {
+    label: '跑腿代取',
+    icon: Package,
+    tone: 'purple'
+  },
+  DINING: {
+    label: '生活服务',
+    icon: Utensils,
+    tone: 'orange'
+  },
+  STUDY: {
+    label: '学习互助',
+    icon: BookOpen,
+    tone: 'blue'
+  },
+  AGENCY: {
+    label: '委托代办',
+    icon: BriefcaseBusiness,
+    tone: 'green'
+  },
+  ATTENDANCE_ASSIST: {
+    label: '出勤协助',
+    icon: ClipboardCheck,
+    tone: 'amber'
+  }
+}
+
+const DEMO_TASKS = [
+  {
+    id: 2024051701,
+    requesterId: 10023,
+    providerId: null,
+    category: 'ERRAND',
+    typeKey: 'ERRAND',
+    typeLabel: '生活服务',
+    title: '代取快递（菜鸟驿站）',
+    description: '帮忙在菜鸟驿站代取一个快递，取件码已私聊发你，取完拍照回传，谢谢！',
+    campus: '仙林校区',
+    location: '菜鸟驿站（文苑路 8 号）',
+    deadline: demoDate(2),
+    rewardType: 'CASH',
+    rewardAmount: 8,
+    rewardDescription: '8 元现金',
+    completionStandard: '成功取件并拍摄快递单面照片清晰可见。',
+    requiresProof: true,
+    onlyInAppContact: true,
+    allowOfflineContact: false,
+    isInstantTask: true,
+    routeHint: '靠近西门，顺路可接。',
+    riskDisclosureConfirmed: true,
+    sensitiveReason: '',
+    status: 'OPEN',
+    createdAt: demoDate(-0.17),
+    updatedAt: demoDate(-0.17)
+  },
+  {
+    id: 2024051702,
+    requesterId: 10056,
+    providerId: null,
+    category: 'AGENCY',
+    typeKey: 'DINING',
+    typeLabel: '生活服务',
+    title: '食堂带饭（桃园食堂）',
+    description: '帮忙在桃园食堂买一份酸辣土豆丝和米饭，送到南苑 12 栋，谢谢！',
+    campus: '仙林校区',
+    location: '桃园食堂',
+    deadline: demoDate(3.5),
+    rewardType: 'CASH',
+    rewardAmount: 15,
+    rewardDescription: '15 元现金',
+    completionStandard: '按备注买到指定餐品并送达宿舍楼下，餐品包装完整。',
+    requiresProof: false,
+    onlyInAppContact: true,
+    allowOfflineContact: true,
+    isInstantTask: true,
+    routeHint: '南苑方向优先。',
+    riskDisclosureConfirmed: true,
+    sensitiveReason: '',
+    status: 'OPEN',
+    createdAt: demoDate(-0.42),
+    updatedAt: demoDate(-0.42)
+  },
+  {
+    id: 2024051703,
+    requesterId: 10078,
+    providerId: null,
+    category: 'AGENCY',
+    typeKey: 'STUDY',
+    typeLabel: '学习互助',
+    title: '图书馆占座（南京大学图书馆）',
+    description: '帮忙占一个南京大学图书馆自习座位，靠窗优先，占好后拍照确认。',
+    campus: '鼓楼校区',
+    location: '南京大学图书馆',
+    deadline: demoDate(18),
+    rewardType: 'CASH',
+    rewardAmount: 20,
+    rewardDescription: '20 元现金',
+    completionStandard: '座位确认可用，拍摄座位号或附近标识后回传。',
+    requiresProof: true,
+    onlyInAppContact: true,
+    allowOfflineContact: false,
+    isInstantTask: false,
+    routeHint: '',
+    riskDisclosureConfirmed: true,
+    sensitiveReason: '',
+    status: 'OPEN',
+    createdAt: demoDate(-1),
+    updatedAt: demoDate(-1)
+  },
+  {
+    id: 2024051704,
+    requesterId: 10102,
+    providerId: null,
+    category: 'AGENCY',
+    typeKey: 'AGENCY',
+    typeLabel: '委托代办',
+    title: '帮忙提交学院材料',
+    description: '把打印好的申请材料交到学院办公室，窗口老师收下后帮忙拍一张回执照片即可。',
+    campus: '仙林校区',
+    location: '计算机学院办公室',
+    deadline: demoDate(26),
+    rewardType: 'FREE',
+    rewardAmount: '',
+    rewardDescription: '无偿互助',
+    completionStandard: '材料成功交到办公室，并拍摄窗口或回执作为确认。',
+    requiresProof: true,
+    onlyInAppContact: true,
+    allowOfflineContact: false,
+    isInstantTask: false,
+    routeHint: '教学楼附近顺路优先。',
+    riskDisclosureConfirmed: true,
+    sensitiveReason: '',
+    status: 'OPEN',
+    createdAt: demoDate(-2.5),
+    updatedAt: demoDate(-2.5)
+  },
+  {
+    id: 2024051705,
+    requesterId: 10118,
+    providerId: null,
+    category: 'AGENCY',
+    typeKey: 'STUDY',
+    typeLabel: '学习互助',
+    title: '高数错题讲解 30 分钟',
+    description: '想找同学讲一下极限和导数相关错题，线上或图书馆都可以，重点是把思路讲清楚。',
+    campus: '鼓楼校区',
+    location: '逸夫馆自习区',
+    deadline: demoDate(30),
+    rewardType: 'POINTS',
+    rewardAmount: 60,
+    rewardDescription: '60 积分',
+    completionStandard: '讲完 4 道错题并整理关键步骤，双方确认理解。',
+    requiresProof: false,
+    onlyInAppContact: true,
+    allowOfflineContact: true,
+    isInstantTask: false,
+    routeHint: '',
+    riskDisclosureConfirmed: true,
+    sensitiveReason: '',
+    status: 'OPEN',
+    createdAt: demoDate(-4),
+    updatedAt: demoDate(-4)
+  },
+  {
+    id: 2024051706,
+    requesterId: 10136,
+    providerId: null,
+    category: 'ERRAND',
+    typeKey: 'ERRAND',
+    typeLabel: '跑腿代取',
+    title: '活动展板搬运协助',
+    description: '需要把两块轻量展板从活动中心搬到教学楼一楼，距离不远，时间可商量。',
+    campus: '仙林校区',
+    location: '大学生活动中心',
+    deadline: demoDate(8),
+    rewardType: 'NEGOTIABLE',
+    rewardAmount: '',
+    rewardDescription: '双方协商',
+    completionStandard: '展板安全搬到指定教室门口，避免弯折和磕碰。',
+    requiresProof: false,
+    onlyInAppContact: true,
+    allowOfflineContact: true,
+    isInstantTask: true,
+    routeHint: '两人一起更快，可沟通具体时间。',
+    riskDisclosureConfirmed: true,
+    sensitiveReason: '',
+    status: 'OPEN',
+    createdAt: demoDate(-0.75),
+    updatedAt: demoDate(-0.75)
+  }
+]
 
 const filters = reactive({
   keyword: readQuery('keyword', defaultFilters.keyword),
@@ -351,6 +535,13 @@ const applicationGate = computed(() => {
   return null
 })
 
+function demoDate(hourOffset) {
+  const date = new Date()
+  date.setMinutes(0, 0, 0)
+  date.setTime(date.getTime() + hourOffset * 60 * 60 * 1000)
+  return date.toISOString()
+}
+
 function firstValue(value) {
   return Array.isArray(value) ? value[0] : value
 }
@@ -418,6 +609,139 @@ function normalizeCandidate(application = {}) {
     status: application.status || 'PENDING',
     createdAt: application.createdAt || application.appliedAt || ''
   }
+}
+
+function taskTypeKey(task = {}) {
+  return task.typeKey || task.taskType || task.serviceType || task.category || 'AGENCY'
+}
+
+function taskTypeMeta(task = {}) {
+  return TASK_TYPE_META[taskTypeKey(task)] || TASK_TYPE_META[task.category] || TASK_TYPE_META.AGENCY
+}
+
+function taskCategoryLabel(task = {}) {
+  return task.typeLabel || taskTypeMeta(task).label || optionLabel(TASK_CATEGORY_OPTIONS, task.category)
+}
+
+function taskRewardValue(task = {}) {
+  if (task.rewardType === 'FREE') return '无偿互助'
+  if (task.rewardType === 'NEGOTIABLE') return '双方协商'
+
+  if (task.rewardAmount !== undefined && task.rewardAmount !== null && task.rewardAmount !== '') {
+    if (task.rewardType === 'POINTS') return `${task.rewardAmount} 积分`
+    if (task.rewardType === 'CASH') return `¥ ${task.rewardAmount}`
+    return String(task.rewardAmount)
+  }
+
+  if (task.rewardDescription) return task.rewardDescription
+  return optionLabel(REWARD_TYPE_OPTIONS, task.rewardType)
+}
+
+function taskRewardUnit(task = {}) {
+  if (task.rewardType === 'CASH') return '现金'
+  if (task.rewardType === 'POINTS') return '积分'
+  if (task.rewardType === 'FREE') return '互助'
+  if (task.rewardType === 'NEGOTIABLE') return '协商'
+  return optionLabel(REWARD_TYPE_OPTIONS, task.rewardType)
+}
+
+function taskRewardTone(task = {}) {
+  return {
+    CASH: 'cash',
+    POINTS: 'points',
+    FREE: 'free',
+    NEGOTIABLE: 'negotiable'
+  }[task.rewardType] || 'neutral'
+}
+
+function formatRelativeTime(value) {
+  if (!value) return '暂无记录'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+
+  const minutes = Math.max(0, Math.round((Date.now() - date.getTime()) / 60000))
+  if (minutes < 1) return '刚刚发布'
+  if (minutes < 60) return `${minutes} 分钟前发布`
+
+  const hours = Math.round(minutes / 60)
+  if (hours < 24) return `${hours} 小时前发布`
+
+  return `${Math.round(hours / 24)} 天前发布`
+}
+
+function taskContactCopy(task = {}) {
+  return task.onlyInAppContact ? '仅站内沟通' : '可协商站外沟通'
+}
+
+function taskSafetyCopy(task = {}) {
+  return task.allowOfflineContact ? '公开地点交接' : '不建议线下接触'
+}
+
+function isDemoTaskId(taskId) {
+  return DEMO_TASKS.some((task) => String(task.id) === String(taskId))
+}
+
+function demoTaskDetail(taskId) {
+  const task = DEMO_TASKS.find((item) => String(item.id) === String(taskId))
+  return task ? { task, applications: [], history: [], reviews: [] } : null
+}
+
+function buildDemoTaskResult() {
+  const keyword = filters.keyword.trim().toLowerCase()
+  const proofFilter = filters.requiresProof === '' ? null : filters.requiresProof === 'true'
+  let items = DEMO_TASKS.filter((task) => {
+    const searchableText = [
+      task.title,
+      task.description,
+      task.campus,
+      task.location,
+      taskCategoryLabel(task)
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
+
+    return (
+      (!keyword || searchableText.includes(keyword)) &&
+      (!filters.category || task.category === filters.category) &&
+      (!filters.campus.trim() || task.campus?.includes(filters.campus.trim())) &&
+      (!filters.status || task.status === filters.status) &&
+      (!filters.rewardType || task.rewardType === filters.rewardType) &&
+      (proofFilter === null || Boolean(task.requiresProof) === proofFilter)
+    )
+  })
+
+  items = [...items].sort((current, next) => {
+    if (filters.sortBy === 'DEADLINE') {
+      return new Date(current.deadline).getTime() - new Date(next.deadline).getTime()
+    }
+    if (filters.sortBy === 'CREDIT') {
+      return Number(next.requesterId || 0) - Number(current.requesterId || 0)
+    }
+    return new Date(next.createdAt).getTime() - new Date(current.createdAt).getTime()
+  })
+
+  const total = items.length
+  const page = Math.max(1, filters.page)
+  const size = Math.max(1, filters.size || defaultFilters.size)
+  const start = (page - 1) * size
+
+  return {
+    items: items.slice(start, start + size),
+    page,
+    size,
+    total
+  }
+}
+
+function applyTaskResult(result) {
+  const items = Array.isArray(result) ? result : result?.items || []
+  tasks.value = items
+  pagination.page = Number(result?.page || filters.page || 1)
+  pagination.size = Number(result?.size || filters.size || defaultFilters.size)
+  pagination.total = Number(result?.total ?? items.length)
+  filters.page = pagination.page
+  filters.size = pagination.size
 }
 
 function candidateScore(candidate) {
@@ -605,14 +929,13 @@ async function loadTasks() {
     if (requestId !== listRequestId) return
 
     const items = Array.isArray(result) ? result : result?.items || []
-    tasks.value = items
-    pagination.page = Number(result?.page || filters.page || 1)
-    pagination.size = Number(result?.size || filters.size || defaultFilters.size)
-    pagination.total = Number(result?.total ?? items.length)
-    filters.page = pagination.page
-    filters.size = pagination.size
+    applyTaskResult(!items.length && !isMineView.value ? buildDemoTaskResult() : result)
   } catch (error) {
     if (requestId !== listRequestId) return
+    if (!isMineView.value) {
+      applyTaskResult(buildDemoTaskResult())
+      return
+    }
     tasks.value = []
     pagination.page = filters.page
     pagination.size = filters.size
@@ -635,6 +958,15 @@ async function loadTaskDetail(taskId) {
   detailLoading.value = true
   detailError.value = ''
   const requestId = ++detailRequestId
+
+  if (!isMineView.value && isDemoTaskId(taskId)) {
+    taskDetail.value = demoTaskDetail(taskId)
+    candidateApplications.value = []
+    candidatesError.value = ''
+    candidatesLoading.value = false
+    detailLoading.value = false
+    return
+  }
 
   try {
     const result = await api.getTaskDetail(taskId)
@@ -1116,6 +1448,38 @@ function buildDetailGuides(task) {
   return guides
 }
 
+const retainedTaskWorkflowBindings = [
+  sortedCandidates,
+  detailHistory,
+  detailGuides,
+  candidateStats,
+  acceptedCandidate,
+  proofAttachmentItems,
+  hasDetailActions,
+  shouldShowCompletionPanel,
+  canOpenConversation,
+  completionStageItems,
+  completionPanelCopy,
+  resolutionMeta,
+  applicationGate,
+  applicationStatusLabel,
+  applicationStatusTone,
+  openEditTask,
+  openRepostTask,
+  openCancelPanel,
+  submitCancelTask,
+  addCompletionAttachmentUrl,
+  removeCompletionAttachment,
+  handleCompletionFiles,
+  startDetailTask,
+  submitCompletionProof,
+  openCompletionResolution,
+  submitCompletionResolution,
+  submitTaskApplication,
+  acceptCandidate
+]
+void retainedTaskWorkflowBindings
+
 watch(
   () => route.params.taskId,
   (taskId) => {
@@ -1168,8 +1532,7 @@ onMounted(async () => {
       </section>
 
       <section
-        class="tasks-layout"
-        :class="{ 'tasks-layout--full': !selectedTaskId }"
+        class="tasks-layout tasks-layout--full"
       >
         <section class="tasks-main-column">
           <form
@@ -1500,7 +1863,19 @@ onMounted(async () => {
 
                 <span class="task-card-main">
                   <span class="task-card-heading">
-                    <strong>{{ task.title || '未命名任务' }}</strong>
+                    <span class="task-card-titleline">
+                      <span
+                        class="task-type-icon"
+                        :class="`task-type-icon--${taskTypeMeta(task).tone}`"
+                      >
+                        <component
+                          :is="taskTypeMeta(task).icon"
+                          :size="22"
+                          aria-hidden="true"
+                        />
+                      </span>
+                      <strong>{{ task.title || '未命名任务' }}</strong>
+                    </span>
                     <StatusBadge
                       :label="taskStatusLabel(task.status)"
                       :tone="taskStatusTone(task.status)"
@@ -1529,7 +1904,7 @@ onMounted(async () => {
                         :size="15"
                         aria-hidden="true"
                       />
-                      {{ optionLabel(REWARD_TYPE_OPTIONS, task.rewardType) }}
+                      {{ taskRewardValue(task) }}
                     </span>
                     <span>
                       <FileCheck2
@@ -1542,7 +1917,7 @@ onMounted(async () => {
                 </span>
 
                 <span class="task-card-footer">
-                  <span>{{ optionLabel(TASK_CATEGORY_OPTIONS, task.category) }}</span>
+                  <span>{{ taskCategoryLabel(task) }}</span>
                   <span>发布于 {{ formatCreatedAt(task.createdAt) }}</span>
                 </span>
               </button>
@@ -1580,945 +1955,211 @@ onMounted(async () => {
             </nav>
           </section>
         </section>
+      </section>
+    </main>
+  </DashboardShell>
 
-        <aside
-          v-if="selectedTaskId"
-          class="task-detail-column"
-        >
-          <section
-            class="panel-card detail-panel"
+  <Teleport to="body">
+    <div
+      v-if="selectedTaskId"
+      class="task-detail-modal-layer"
+      @click.self="clearSelectedTask"
+    >
+      <section
+        class="panel-card detail-panel task-detail-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="task-detail-modal-title"
+      >
+        <div class="detail-topbar">
+          <div>
+            <p class="section-kicker">
+              任务详情
+            </p>
+            <h2 id="task-detail-modal-title">
+              {{ detailTask?.title || '正在加载任务详情' }}
+            </h2>
+          </div>
+          <button
+            class="icon-action"
+            type="button"
+            aria-label="关闭任务详情"
+            @click="clearSelectedTask"
           >
-            <div class="detail-topbar">
-              <div>
-                <p class="section-kicker">
-                  任务详情
-                </p>
-                <h2>{{ detailTask?.title || '正在加载任务详情' }}</h2>
+            <X
+              :size="18"
+              aria-hidden="true"
+            />
+          </button>
+        </div>
+
+        <div
+          v-if="detailLoading"
+          class="loading-state"
+          role="status"
+        >
+          <LoaderCircle
+            class="spinning"
+            :size="24"
+            aria-hidden="true"
+          />
+          <span>正在加载任务详情...</span>
+        </div>
+
+        <div
+          v-else-if="detailError"
+          class="detail-error"
+          role="status"
+        >
+          <Info
+            :size="18"
+            aria-hidden="true"
+          />
+          <span>{{ detailError }}</span>
+        </div>
+
+        <template v-else-if="detailTask">
+          <article class="task-detail-showcase">
+            <header class="detail-card-header">
+              <div class="detail-chip-row">
+                <StatusBadge
+                  :label="taskStatusLabel(detailTask.status)"
+                  :tone="taskStatusTone(detailTask.status)"
+                />
+                <span
+                  class="detail-type-chip"
+                  :class="`detail-type-chip--${taskTypeMeta(detailTask).tone}`"
+                >
+                  {{ taskCategoryLabel(detailTask) }}
+                </span>
               </div>
-              <button
-                class="icon-action"
-                type="button"
-                aria-label="关闭任务详情"
-                @click="clearSelectedTask"
+              <span class="detail-task-id">任务 ID #{{ detailTask.id }}</span>
+            </header>
+
+            <div class="detail-title-block">
+              <span
+                class="detail-type-icon"
+                :class="`detail-type-icon--${taskTypeMeta(detailTask).tone}`"
               >
-                <X
-                  :size="18"
+                <component
+                  :is="taskTypeMeta(detailTask).icon"
+                  :size="28"
                   aria-hidden="true"
                 />
-              </button>
+              </span>
+              <div>
+                <h3>{{ detailTask.title || '未命名任务' }}</h3>
+                <p>{{ shortDescription(detailTask.description) }}</p>
+              </div>
             </div>
 
             <div
-              v-if="detailLoading"
-              class="loading-state"
-              role="status"
+              class="detail-reward-strip"
+              :class="`detail-reward-strip--${taskRewardTone(detailTask)}`"
             >
-              <LoaderCircle
-                class="spinning"
-                :size="24"
-                aria-hidden="true"
-              />
-              <span>正在加载任务详情...</span>
+              <span>奖励</span>
+              <strong>{{ taskRewardValue(detailTask) }}</strong>
+              <small>{{ taskRewardUnit(detailTask) }}</small>
             </div>
 
-            <div
-              v-else-if="detailError"
-              class="detail-error"
+            <dl class="detail-info-list">
+              <div>
+                <dt>
+                  <MapPin
+                    :size="16"
+                    aria-hidden="true"
+                  />
+                  任务地点
+                </dt>
+                <dd>{{ detailTask.campus || '未填校区' }} · {{ detailTask.location || '未填地点' }}</dd>
+              </div>
+              <div>
+                <dt>
+                  <Clock3
+                    :size="16"
+                    aria-hidden="true"
+                  />
+                  截止时间
+                </dt>
+                <dd>{{ deadlineCopy(detailTask.deadline) }} · {{ formatDateTime(detailTask.deadline) }}</dd>
+              </div>
+              <div>
+                <dt>任务说明</dt>
+                <dd>{{ detailTask.description || '求助者暂未补充说明。' }}</dd>
+              </div>
+              <div>
+                <dt>完成标准</dt>
+                <dd>{{ detailTask.completionStandard || '暂未填写完成标准。' }}</dd>
+              </div>
+              <div>
+                <dt>完成凭证</dt>
+                <dd>{{ detailTask.requiresProof ? '需要凭证（按完成标准提交图片或说明）' : '无需凭证' }}</dd>
+              </div>
+              <div>
+                <dt>沟通方式</dt>
+                <dd>
+                  <span class="detail-soft-pill">{{ taskContactCopy(detailTask) }}</span>
+                </dd>
+              </div>
+              <div>
+                <dt>安全提示</dt>
+                <dd>
+                  <span class="detail-warning-pill">
+                    <ShieldAlert
+                      :size="14"
+                      aria-hidden="true"
+                    />
+                    {{ taskSafetyCopy(detailTask) }}
+                  </span>
+                </dd>
+              </div>
+              <div>
+                <dt>发布时间</dt>
+                <dd>{{ formatDateTime(detailTask.createdAt) }}（{{ formatRelativeTime(detailTask.createdAt) }}）</dd>
+              </div>
+            </dl>
+
+            <section
+              v-if="operationFeedback"
+              class="operation-feedback"
+              :class="operationFeedbackType === 'danger' ? 'operation-feedback--danger' : 'operation-feedback--success'"
               role="status"
             >
               <Info
                 :size="18"
                 aria-hidden="true"
               />
-              <span>{{ detailError }}</span>
-            </div>
+              <span>{{ operationFeedback }}</span>
+            </section>
+          </article>
 
-            <template v-else-if="detailTask">
-              <div class="detail-status-row">
-                <StatusBadge
-                  :label="taskStatusLabel(detailTask.status)"
-                  :tone="taskStatusTone(detailTask.status)"
-                />
-                <span>{{ optionLabel(TASK_CATEGORY_OPTIONS, detailTask.category) }}</span>
-              </div>
-
-              <section
-                v-if="canOpenConversation"
-                class="conversation-entry"
-                aria-labelledby="conversation-entry-title"
-              >
-                <MessageCircle
-                  :size="21"
-                  aria-hidden="true"
-                />
-                <div>
-                  <strong id="conversation-entry-title">站内会话已开启</strong>
-                  <span>
-                    {{ detailTask.onlyInAppContact ? '当前任务优先保留平台内沟通记录，不需要交换站外联系方式。' : '可在会话中确认地点、时间、完成凭证和异常说明。' }}
-                  </span>
-                </div>
-                <RouterLink
-                  class="ghost-action"
-                  :to="detailConversationRoute"
-                >
-                  打开会话
-                </RouterLink>
-              </section>
-
-              <section
-                v-if="operationFeedback"
-                class="operation-feedback"
-                :class="operationFeedbackType === 'danger' ? 'operation-feedback--danger' : 'operation-feedback--success'"
-                role="status"
-              >
-                <Info
-                  :size="18"
-                  aria-hidden="true"
-                />
-                <span>{{ operationFeedback }}</span>
-              </section>
-
-              <section
-                v-if="shouldShowCompletionPanel"
-                class="detail-section completion-panel"
-                aria-labelledby="completion-panel-title"
-              >
-                <div class="completion-heading">
-                  <div>
-                    <p class="section-kicker">
-                      完成闭环
-                    </p>
-                    <h3 id="completion-panel-title">
-                      凭证、确认和争议处理
-                    </h3>
-                    <p>{{ completionPanelCopy }}</p>
-                  </div>
-                  <StatusBadge
-                    :label="taskStatusLabel(detailTask.status)"
-                    :tone="taskStatusTone(detailTask.status)"
-                  />
-                </div>
-
-                <div
-                  class="completion-steps"
-                  aria-label="完成确认进度"
-                >
-                  <span
-                    v-for="stage in completionStageItems"
-                    :key="stage.label"
-                    :class="{ done: stage.done, active: stage.active }"
-                  >
-                    <CheckCircle2
-                      v-if="stage.done"
-                      :size="15"
-                      aria-hidden="true"
-                    />
-                    <Clock3
-                      v-else
-                      :size="15"
-                      aria-hidden="true"
-                    />
-                    {{ stage.label }}
-                  </span>
-                </div>
-
-                <article
-                  v-if="completionProof"
-                  class="proof-card"
-                >
-                  <div class="proof-card-heading">
-                    <div>
-                      <strong>帮助者提交的完成凭证</strong>
-                      <span>提交于 {{ formatDateTime(completionProof.submittedAt) }}</span>
-                    </div>
-                    <FileCheck2
-                      :size="21"
-                      aria-hidden="true"
-                    />
-                  </div>
-                  <p>{{ completionProof.description || '帮助者暂未补充完成说明。' }}</p>
-                  <div
-                    v-if="proofAttachmentItems.length"
-                    class="proof-attachment-list"
-                  >
-                    <a
-                      v-for="attachment in proofAttachmentItems"
-                      :key="attachment.url"
-                      :href="attachment.url"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      <ImagePlus
-                        :size="16"
-                        aria-hidden="true"
-                      />
-                      {{ attachment.name }}
-                    </a>
-                  </div>
-                  <span
-                    v-else
-                    class="proof-empty"
-                  >
-                    未附加图片或材料链接，仅提交文字说明。
-                  </span>
-                </article>
-
-                <div
-                  v-if="canStartDetailTask"
-                  class="completion-action-box"
-                >
-                  <div>
-                    <strong>开始执行前再确认一次边界</strong>
-                    <span>建议先在站内沟通里确认地点、时限和完成标准，避免后续反复。</span>
-                  </div>
-                  <button
-                    class="primary-action"
-                    type="button"
-                    :disabled="operationLoading === 'start'"
-                    @click="startDetailTask"
-                  >
-                    <LoaderCircle
-                      v-if="operationLoading === 'start'"
-                      class="spinning"
-                      :size="17"
-                      aria-hidden="true"
-                    />
-                    <PlayCircle
-                      v-else
-                      :size="17"
-                      aria-hidden="true"
-                    />
-                    开始执行
-                  </button>
-                </div>
-
-                <form
-                  v-if="canSubmitCompletion"
-                  class="completion-form"
-                  novalidate
-                  @submit.prevent="submitCompletionProof"
-                >
-                  <label
-                    class="completion-field"
-                    for="completion-description"
-                  >
-                    <span>完成说明</span>
-                    <textarea
-                      id="completion-description"
-                      v-model.trim="completionDescription"
-                      maxlength="1000"
-                      placeholder="例如：快递已送到 7 栋楼下货架，已按要求拍照；材料已在窗口提交并取得回执。"
-                      :aria-invalid="Boolean(completionErrors.description)"
-                      :aria-describedby="completionErrors.description ? 'completion-description-error' : 'completion-description-hint'"
-                      @input="clearCompletionError('description')"
-                    />
-                    <small id="completion-description-hint">{{ completionDescription.length }}/1000</small>
-                    <small
-                      v-if="completionErrors.description"
-                      id="completion-description-error"
-                      class="field-error"
-                    >
-                      {{ completionErrors.description }}
-                    </small>
-                  </label>
-
-                  <div class="completion-upload-grid">
-                    <label
-                      class="completion-field"
-                      for="completion-attachment-url"
-                    >
-                      <span>图片或材料链接</span>
-                      <span class="attachment-input-row">
-                        <input
-                          id="completion-attachment-url"
-                          v-model.trim="completionAttachmentInput"
-                          placeholder="https://... 或粘贴多条链接"
-                          :aria-invalid="Boolean(completionErrors.attachmentUrl)"
-                          :aria-describedby="completionErrors.attachmentUrl ? 'completion-attachment-url-error' : undefined"
-                          @input="clearCompletionError('attachmentUrl')"
-                        >
-                        <button
-                          class="ghost-action"
-                          type="button"
-                          @click="addCompletionAttachmentUrl"
-                        >
-                          <Link2
-                            :size="16"
-                            aria-hidden="true"
-                          />
-                          添加
-                        </button>
-                      </span>
-                      <small
-                        v-if="completionErrors.attachmentUrl"
-                        id="completion-attachment-url-error"
-                        class="field-error"
-                      >
-                        {{ completionErrors.attachmentUrl }}
-                      </small>
-                    </label>
-
-                    <label
-                      class="file-pick-control"
-                      for="completion-files"
-                    >
-                      <UploadCloud
-                        :size="20"
-                        aria-hidden="true"
-                      />
-                      <span>
-                        <strong>选择本地图片</strong>
-                        <small>最多 9 张，单张不超过 4MB。</small>
-                      </span>
-                      <input
-                        id="completion-files"
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        @change="handleCompletionFiles"
-                      >
-                    </label>
-                  </div>
-
-                  <div
-                    v-if="completionAttachments.length"
-                    class="attachment-preview-list"
-                  >
-                    <span
-                      v-for="(attachment, index) in completionAttachments"
-                      :key="`${attachment.name}-${index}`"
-                    >
-                      <ImagePlus
-                        :size="15"
-                        aria-hidden="true"
-                      />
-                      {{ attachment.name }}
-                      <button
-                        type="button"
-                        :aria-label="`移除${attachment.name}`"
-                        @click="removeCompletionAttachment(index)"
-                      >
-                        <X
-                          :size="14"
-                          aria-hidden="true"
-                        />
-                      </button>
-                    </span>
-                  </div>
-
-                  <p
-                    v-if="completionErrors.attachments"
-                    class="field-error"
-                  >
-                    {{ completionErrors.attachments }}
-                  </p>
-
-                  <button
-                    class="primary-action completion-submit"
-                    type="submit"
-                    :disabled="completionSubmitting"
-                  >
-                    <LoaderCircle
-                      v-if="completionSubmitting"
-                      class="spinning"
-                      :size="18"
-                      aria-hidden="true"
-                    />
-                    <FileCheck2
-                      v-else
-                      :size="18"
-                      aria-hidden="true"
-                    />
-                    提交完成凭证
-                  </button>
-                </form>
-
-                <div
-                  v-if="canReviewCompletion"
-                  class="review-actions"
-                  aria-label="完成确认操作"
-                >
-                  <button
-                    class="primary-action"
-                    type="button"
-                    @click="openCompletionResolution('CONFIRM_COMPLETION')"
-                  >
-                    <CheckCircle2
-                      :size="16"
-                      aria-hidden="true"
-                    />
-                    确认完成
-                  </button>
-                  <button
-                    class="ghost-action"
-                    type="button"
-                    @click="openCompletionResolution('REJECT_COMPLETION')"
-                  >
-                    <RefreshCw
-                      :size="16"
-                      aria-hidden="true"
-                    />
-                    驳回补充
-                  </button>
-                  <button
-                    class="danger-action"
-                    type="button"
-                    @click="openCompletionResolution('DISPUTE')"
-                  >
-                    <ShieldAlert
-                      :size="16"
-                      aria-hidden="true"
-                    />
-                    发起争议
-                  </button>
-                </div>
-
-                <section
-                  v-if="resolutionMeta"
-                  class="resolution-panel"
-                  :class="`resolution-panel--${resolutionMeta.tone}`"
-                  aria-labelledby="resolution-panel-title"
-                >
-                  <div>
-                    <h3 id="resolution-panel-title">
-                      {{ resolutionMeta.title }}
-                    </h3>
-                    <p>{{ resolutionMeta.copy }}</p>
-                  </div>
-                  <label
-                    class="completion-field"
-                    for="resolution-reason"
-                  >
-                    <span>{{ resolutionAction === 'CONFIRM_COMPLETION' ? '补充说明（选填）' : '处理原因' }}</span>
-                    <textarea
-                      id="resolution-reason"
-                      v-model.trim="resolutionReason"
-                      maxlength="300"
-                      placeholder="写下确认依据、驳回原因或争议焦点。"
-                      :aria-invalid="Boolean(resolutionReasonError)"
-                      :aria-describedby="resolutionReasonError ? 'resolution-reason-error' : 'resolution-reason-hint'"
-                      @input="resolutionReasonError = ''"
-                    />
-                    <small id="resolution-reason-hint">{{ resolutionReason.length }}/300</small>
-                    <small
-                      v-if="resolutionReasonError"
-                      id="resolution-reason-error"
-                      class="field-error"
-                    >
-                      {{ resolutionReasonError }}
-                    </small>
-                  </label>
-                  <div class="resolution-actions">
-                    <button
-                      class="ghost-action"
-                      type="button"
-                      :disabled="operationLoading === resolutionAction"
-                      @click="closeCompletionResolution"
-                    >
-                      先不处理
-                    </button>
-                    <button
-                      :class="resolutionAction === 'DISPUTE' ? 'danger-action' : 'primary-action'"
-                      type="button"
-                      :disabled="operationLoading === resolutionAction"
-                      @click="submitCompletionResolution"
-                    >
-                      <LoaderCircle
-                        v-if="operationLoading === resolutionAction"
-                        class="spinning"
-                        :size="16"
-                        aria-hidden="true"
-                      />
-                      {{ resolutionMeta.button }}
-                    </button>
-                  </div>
-                </section>
-              </section>
-
-              <section
-                v-if="!isDetailOwner"
-                class="application-panel"
-                :class="{ 'application-panel--locked': applicationGate }"
-                aria-labelledby="application-panel-title"
-              >
-                <div class="application-heading">
-                  <div>
-                    <p class="section-kicker">
-                      接单申请
-                    </p>
-                    <h3 id="application-panel-title">
-                      {{ applicationGate?.title || '说明你能如何完成这件事' }}
-                    </h3>
-                  </div>
-                  <Send
-                    :size="22"
-                    aria-hidden="true"
-                  />
-                </div>
-
-                <p class="application-copy">
-                  {{
-                    applicationGate?.copy ||
-                      '写清楚可到达时间、路线优势或类似经验，让求助者在多个候选中更快判断。'
-                  }}
-                </p>
-
-                <RouterLink
-                  v-if="applicationGate?.to"
-                  class="ghost-action application-gate-action"
-                  :to="applicationGate.to"
-                >
-                  {{ applicationGate.action }}
-                </RouterLink>
-
-                <form
-                  v-else-if="canApplyDetailTask"
-                  class="application-form"
-                  novalidate
-                  @submit.prevent="submitTaskApplication"
-                >
-                  <label
-                    class="application-field"
-                    for="application-message"
-                  >
-                    <span>申请说明</span>
-                    <textarea
-                      id="application-message"
-                      v-model.trim="applicationMessage"
-                      maxlength="300"
-                      placeholder="例如：我 18:30 在同校区，路过快递站，可以顺手带到宿舍楼下。"
-                      :aria-invalid="Boolean(applicationMessageError)"
-                      :aria-describedby="applicationMessageError ? 'application-message-error' : 'application-message-hint'"
-                      @input="applicationMessageError = ''"
-                    />
-                    <small id="application-message-hint">{{ applicationMessage.length }}/300</small>
-                  </label>
-                  <p
-                    v-if="applicationMessageError"
-                    id="application-message-error"
-                    class="field-error"
-                  >
-                    {{ applicationMessageError }}
-                  </p>
-                  <button
-                    class="primary-action"
-                    type="submit"
-                    :disabled="applicationSubmitting"
-                  >
-                    <LoaderCircle
-                      v-if="applicationSubmitting"
-                      class="spinning"
-                      :size="18"
-                      aria-hidden="true"
-                    />
-                    <Send
-                      v-else
-                      :size="18"
-                      aria-hidden="true"
-                    />
-                    提交申请
-                  </button>
-                </form>
-              </section>
-
-              <section
-                v-if="hasDetailActions"
-                class="owner-actions"
-                aria-label="任务操作"
-              >
-                <button
-                  v-if="canEditDetailTask"
-                  class="ghost-action"
-                  type="button"
-                  @click="openEditTask"
-                >
-                  <Pencil
-                    :size="16"
-                    aria-hidden="true"
-                  />
-                  编辑
-                </button>
-                <button
-                  v-if="canCancelDetailTask"
-                  class="danger-action"
-                  type="button"
-                  :disabled="operationLoading === 'cancel'"
-                  @click="openCancelPanel"
-                >
-                  <Trash2
-                    :size="16"
-                    aria-hidden="true"
-                  />
-                  取消
-                </button>
-                <button
-                  v-if="canRepostDetailTask"
-                  class="ghost-action"
-                  type="button"
-                  @click="openRepostTask"
-                >
-                  <Repeat2
-                    :size="16"
-                    aria-hidden="true"
-                  />
-                  重发
-                </button>
-              </section>
-
-              <section
-                v-if="cancelPanelOpen"
-                class="cancel-panel"
-                aria-labelledby="cancel-panel-title"
-              >
-                <div>
-                  <h3 id="cancel-panel-title">
-                    确认取消任务
-                  </h3>
-                  <p>取消后任务不会继续接单，原因会写入状态流转请求。</p>
-                </div>
-                <label
-                  class="cancel-reason-field"
-                  for="cancel-reason"
-                >
-                  <span>取消原因</span>
-                  <textarea
-                    id="cancel-reason"
-                    v-model.trim="cancelReason"
-                    maxlength="300"
-                    placeholder="例如：需求已解决、时间变化，或地点信息需要重新整理。"
-                    :aria-invalid="Boolean(cancelReasonError)"
-                    :aria-describedby="cancelReasonError ? 'cancel-reason-error' : undefined"
-                    @input="cancelReasonError = ''"
-                  />
-                </label>
-                <p
-                  v-if="cancelReasonError"
-                  id="cancel-reason-error"
-                  class="field-error"
-                >
-                  {{ cancelReasonError }}
-                </p>
-                <div class="cancel-actions">
-                  <button
-                    class="ghost-action"
-                    type="button"
-                    :disabled="operationLoading === 'cancel'"
-                    @click="closeCancelPanel"
-                  >
-                    保留任务
-                  </button>
-                  <button
-                    class="danger-action"
-                    type="button"
-                    :disabled="operationLoading === 'cancel'"
-                    @click="submitCancelTask"
-                  >
-                    <LoaderCircle
-                      v-if="operationLoading === 'cancel'"
-                      class="spinning"
-                      :size="16"
-                      aria-hidden="true"
-                    />
-                    确认取消
-                  </button>
-                </div>
-              </section>
-
-              <dl class="detail-facts">
-                <div>
-                  <dt>校区地点</dt>
-                  <dd>{{ detailTask.campus || '未填校区' }} · {{ detailTask.location || '未填地点' }}</dd>
-                </div>
-                <div>
-                  <dt>截止时间</dt>
-                  <dd>{{ formatDateTime(detailTask.deadline) }}</dd>
-                </div>
-                <div>
-                  <dt>奖励方式</dt>
-                  <dd>{{ optionLabel(REWARD_TYPE_OPTIONS, detailTask.rewardType) }}</dd>
-                </div>
-                <div>
-                  <dt>候选申请</dt>
-                  <dd>{{ candidates.length }} 人</dd>
-                </div>
-              </dl>
-
-              <section
-                v-if="isDetailOwner"
-                class="detail-section candidates-section"
-                aria-labelledby="candidates-title"
-              >
-                <div class="candidate-heading">
-                  <div>
-                    <h3 id="candidates-title">
-                      候选比较
-                    </h3>
-                    <p>优先看信用、历史完成数、认证状态和申请说明，再选择一位帮助者。</p>
-                  </div>
-                  <StatusBadge
-                    :label="`${candidateStats.pendingCount} 待选择`"
-                    :tone="candidateStats.pendingCount ? 'warning' : 'muted'"
-                  />
-                </div>
-
-                <div
-                  v-if="candidatesLoading"
-                  class="loading-state compact-loading"
-                  role="status"
-                >
-                  <LoaderCircle
-                    class="spinning"
-                    :size="22"
-                    aria-hidden="true"
-                  />
-                  <span>正在同步候选申请...</span>
-                </div>
-
-                <div
-                  v-else-if="candidatesError"
-                  class="detail-error"
-                  role="status"
-                >
-                  <Info
-                    :size="18"
-                    aria-hidden="true"
-                  />
-                  <span>{{ candidatesError }}</span>
-                </div>
-
-                <div
-                  v-else-if="!sortedCandidates.length"
-                  class="candidate-empty"
-                >
-                  <Users
-                    :size="28"
-                    aria-hidden="true"
-                  />
-                  <strong>还没有同学申请</strong>
-                  <span>保持地点和完成标准清晰，候选出现后可以在这里直接比较和选人。</span>
-                </div>
-
-                <template v-else>
-                  <div class="candidate-summary">
-                    <div>
-                      <Users
-                        :size="17"
-                        aria-hidden="true"
-                      />
-                      <span>共 {{ candidateStats.total }} 人</span>
-                    </div>
-                    <div>
-                      <ShieldCheck
-                        :size="17"
-                        aria-hidden="true"
-                      />
-                      <span>{{ candidateStats.verifiedCount }} 人已认证</span>
-                    </div>
-                    <div>
-                      <Star
-                        :size="17"
-                        aria-hidden="true"
-                      />
-                      <span>平均信用 Lv.{{ candidateStats.averageCredit || '-' }}</span>
-                    </div>
-                  </div>
-
-                  <div
-                    v-if="acceptedCandidate"
-                    class="accepted-candidate"
-                  >
-                    <CheckCircle2
-                      :size="18"
-                      aria-hidden="true"
-                    />
-                    <span>已选择 {{ acceptedCandidate.name }}，任务会进入后续协作流程。</span>
-                  </div>
-
-                  <div class="candidate-list">
-                    <article
-                      v-for="candidate in sortedCandidates"
-                      :key="candidate.applicationId || candidate.applicantId"
-                      class="candidate-card"
-                      :class="`candidate-card--${candidate.status.toLowerCase()}`"
-                    >
-                      <div class="candidate-top">
-                        <div class="candidate-avatar">
-                          <img
-                            v-if="candidate.avatarUrl"
-                            :src="candidate.avatarUrl"
-                            :alt="`${candidate.name}头像`"
-                          >
-                          <UserCheck
-                            v-else
-                            :size="22"
-                            aria-hidden="true"
-                          />
-                        </div>
-                        <div class="candidate-identity">
-                          <strong>{{ candidate.name }}</strong>
-                          <span>{{ candidate.college || candidate.campus || candidate.username || '公开资料未完善' }}</span>
-                        </div>
-                        <StatusBadge
-                          :label="applicationStatusLabel(candidate.status)"
-                          :tone="applicationStatusTone(candidate.status)"
-                        />
-                      </div>
-
-                      <dl class="candidate-metrics">
-                        <div>
-                          <dt>信用</dt>
-                          <dd>Lv.{{ candidate.creditLevel }}</dd>
-                        </div>
-                        <div>
-                          <dt>积分</dt>
-                          <dd>{{ candidate.points }}</dd>
-                        </div>
-                        <div>
-                          <dt>历史完成</dt>
-                          <dd>{{ candidate.completedCount ? `${candidate.completedCount} 单` : '暂无记录' }}</dd>
-                        </div>
-                      </dl>
-
-                      <div class="candidate-tags">
-                        <span
-                          v-if="candidate.verified"
-                          class="candidate-tag candidate-tag--verified"
-                        >
-                          已认证
-                        </span>
-                        <span
-                          v-for="tag in candidate.tags"
-                          :key="tag"
-                          class="candidate-tag"
-                        >
-                          {{ tag }}
-                        </span>
-                        <span
-                          v-if="!candidate.tags.length"
-                          class="candidate-tag candidate-tag--muted"
-                        >
-                          暂无公开标签
-                        </span>
-                      </div>
-
-                      <p class="candidate-message">
-                        {{ candidate.message || '候选人暂未补充接单说明。' }}
-                      </p>
-
-                      <div class="candidate-actions">
-                        <span>申请于 {{ formatDateTime(candidate.createdAt) }}</span>
-                        <button
-                          v-if="candidate.status === 'PENDING' && detailTask.status === 'OPEN'"
-                          class="primary-action"
-                          type="button"
-                          :disabled="operationLoading === `accept-${candidate.applicationId}`"
-                          @click="acceptCandidate(candidate)"
-                        >
-                          <LoaderCircle
-                            v-if="operationLoading === `accept-${candidate.applicationId}`"
-                            class="spinning"
-                            :size="16"
-                            aria-hidden="true"
-                          />
-                          <Award
-                            v-else
-                            :size="16"
-                            aria-hidden="true"
-                          />
-                          选择 TA
-                        </button>
-                      </div>
-                    </article>
-                  </div>
-                </template>
-              </section>
-
-              <section class="detail-section">
-                <h3>任务说明</h3>
-                <p>{{ detailTask.description || '求助者暂未补充说明。' }}</p>
-              </section>
-
-              <section class="detail-section">
-                <h3>完成标准</h3>
-                <p>{{ detailTask.completionStandard || '暂未填写完成标准。' }}</p>
-              </section>
-
-              <section
-                v-if="detailTask.rewardDescription"
-                class="detail-section"
-              >
-                <h3>奖励补充</h3>
-                <p>{{ detailTask.rewardDescription }}</p>
-              </section>
-
-              <div class="boundary-list">
-                <span :class="{ active: detailTask.requiresProof }">
-                  <FileCheck2
-                    :size="16"
-                    aria-hidden="true"
-                  />
-                  {{ detailTask.requiresProof ? '需要完成凭证' : '不要求完成凭证' }}
-                </span>
-                <span :class="{ active: detailTask.onlyInAppContact }">
-                  <MessageCircle
-                    :size="16"
-                    aria-hidden="true"
-                  />
-                  {{ detailTask.onlyInAppContact ? '仅站内沟通' : '可协商站外沟通' }}
-                </span>
-                <span :class="{ active: detailTask.allowOfflineContact }">
-                  <ShieldCheck
-                    :size="16"
-                    aria-hidden="true"
-                  />
-                  {{ detailTask.allowOfflineContact ? '允许线下交接' : '默认低接触' }}
-                </span>
-              </div>
-
-              <section class="detail-section">
-                <h3>接单前建议</h3>
-                <div class="guide-list">
-                  <div
-                    v-for="guide in detailGuides"
-                    :key="guide.title"
-                    class="guide-item"
-                  >
-                    <ClipboardCheck
-                      :size="17"
-                      aria-hidden="true"
-                    />
-                    <span>
-                      <strong>{{ guide.title }}</strong>
-                      <small>{{ guide.copy }}</small>
-                    </span>
-                  </div>
-                </div>
-              </section>
-
-              <section class="detail-section">
-                <h3>任务记录</h3>
-                <p v-if="!detailHistory.length">
-                  暂无状态流转记录。
-                </p>
-                <ol
-                  v-else
-                  class="history-list"
-                >
-                  <li
-                    v-for="history in detailHistory"
-                    :key="history.id || `${history.fromStatus}-${history.toStatus}-${history.createdAt}`"
-                  >
-                    <span>{{ taskStatusLabel(history.fromStatus) }} → {{ taskStatusLabel(history.toStatus) }}</span>
-                    <small>{{ formatDateTime(history.createdAt) }}</small>
-                  </li>
-                </ol>
-              </section>
-            </template>
-          </section>
-        </aside>
+          <footer class="detail-action-row">
+            <button
+              class="primary-action detail-primary-action"
+              type="button"
+              @click="setOperationFeedback('演示模式：后端完成后这里会提交接单申请。')"
+            >
+              <Award
+                :size="17"
+                aria-hidden="true"
+              />
+              立即接取
+            </button>
+            <RouterLink
+              class="ghost-action detail-secondary-action"
+              :to="detailConversationRoute"
+            >
+              <MessageCircle
+                :size="17"
+                aria-hidden="true"
+              />
+              联系发布者
+            </RouterLink>
+          </footer>
+        </template>
       </section>
-    </main>
-  </DashboardShell>
+    </div>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -2696,13 +2337,9 @@ onMounted(async () => {
 
 .tasks-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(340px, 0.46fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 22px;
   align-items: start;
-}
-
-.tasks-layout--full {
-  grid-template-columns: minmax(0, 1fr);
 }
 
 .tasks-main-column {
@@ -2999,6 +2636,63 @@ onMounted(async () => {
   gap: 14px;
 }
 
+.task-card-titleline {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.task-type-icon,
+.detail-type-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border-radius: 8px;
+}
+
+.task-type-icon {
+  width: 46px;
+  height: 46px;
+}
+
+.task-type-icon--purple,
+.detail-type-icon--purple,
+.detail-type-chip--purple {
+  background: #f1ecff;
+  color: #746dc3;
+}
+
+.task-type-icon--orange,
+.detail-type-icon--orange,
+.detail-type-chip--orange {
+  background: #fff3e8;
+  color: #c45a1a;
+}
+
+.task-type-icon--blue,
+.detail-type-icon--blue,
+.detail-type-chip--blue {
+  background: #edf5ff;
+  color: #3763c7;
+}
+
+.task-type-icon--green,
+.detail-type-icon--green,
+.detail-type-chip--green {
+  background: #eafaf3;
+  color: #0f766e;
+}
+
+.task-type-icon--amber,
+.detail-type-icon--amber,
+.detail-type-chip--amber {
+  background: #fff7df;
+  color: #92400e;
+}
+
 .task-card-heading strong {
   color: #3c3543;
   font-size: 1.14rem;
@@ -3060,6 +2754,7 @@ onMounted(async () => {
 }
 
 .task-detail-column {
+  grid-column: 2;
   position: sticky;
   top: 118px;
   display: grid;
@@ -3068,6 +2763,198 @@ onMounted(async () => {
 
 .detail-panel {
   gap: 18px;
+}
+
+.task-detail-modal-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: transparent;
+}
+
+.task-detail-modal {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  align-content: stretch;
+  width: min(72vw, 960px);
+  height: min(82vh, 780px);
+  max-width: calc(100vw - 48px);
+  max-height: calc(100vh - 48px);
+  overflow: hidden;
+  padding: clamp(24px, 3vw, 34px);
+  font-family: KaiTi, "楷体", STKaiti, "Microsoft YaHei", serif;
+  box-shadow: 0 24px 64px rgba(42, 38, 61, 0.18);
+}
+
+.task-detail-showcase {
+  display: grid;
+  gap: 18px;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.detail-card-header,
+.detail-chip-row,
+.detail-action-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.detail-chip-row {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.detail-type-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.detail-task-id {
+  color: #746f7a;
+  font-size: 0.86rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.detail-title-block {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.detail-type-icon {
+  width: 58px;
+  height: 58px;
+}
+
+.detail-title-block h3,
+.detail-title-block p {
+  margin: 0;
+}
+
+.detail-title-block h3 {
+  color: #2f2940;
+  font-size: 1.35rem;
+  line-height: 1.25;
+  font-weight: 900;
+}
+
+.detail-title-block p {
+  margin-top: 8px;
+  color: #746f7a;
+  line-height: 1.6;
+}
+
+.detail-reward-strip {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 12px;
+  padding: 0 0 16px;
+  border-bottom: 1px solid #eeeaf5;
+}
+
+.detail-reward-strip span,
+.detail-reward-strip small {
+  color: #746f7a;
+  font-weight: 900;
+}
+
+.detail-reward-strip strong {
+  color: #e11d48;
+  font-size: 1.5rem;
+  line-height: 1;
+  font-weight: 900;
+}
+
+.detail-reward-strip--points strong {
+  color: #4f46e5;
+}
+
+.detail-reward-strip--free strong {
+  color: #0f766e;
+}
+
+.detail-reward-strip--negotiable strong {
+  color: #a1490c;
+}
+
+.detail-info-list {
+  display: grid;
+  gap: 13px;
+  margin: 0;
+}
+
+.detail-info-list div {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.detail-info-list dt {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #5c5470;
+  font-size: 0.9rem;
+  font-weight: 900;
+}
+
+.detail-info-list dt svg {
+  color: #746dc3;
+}
+
+.detail-info-list dd {
+  margin: 0;
+  color: #4a4455;
+  line-height: 1.65;
+}
+
+.detail-soft-pill,
+.detail-warning-pill {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 9px;
+  border-radius: 8px;
+  font-size: 0.86rem;
+  font-weight: 900;
+}
+
+.detail-soft-pill {
+  background: #fff4e6;
+  color: #a1490c;
+}
+
+.detail-warning-pill {
+  background: #fff7ed;
+  color: #b45309;
+}
+
+.detail-action-row {
+  padding-top: 18px;
+  border-top: 1px solid #eeeaf5;
+}
+
+.detail-primary-action,
+.detail-secondary-action {
+  min-height: 44px;
+  flex: 1 1 0;
 }
 
 .detail-status-row {
@@ -3885,6 +3772,7 @@ onMounted(async () => {
   }
 
   .task-detail-column {
+    grid-column: 1;
     position: static;
   }
 }
@@ -3894,6 +3782,7 @@ onMounted(async () => {
   .filter-grid,
   .metric-strip,
   .task-meta-grid,
+  .detail-info-list div,
   .detail-facts,
   .candidate-summary,
   .candidate-metrics,
@@ -3911,6 +3800,8 @@ onMounted(async () => {
   .list-toolbar,
   .detail-topbar,
   .task-card-heading,
+  .detail-card-header,
+  .detail-action-row,
   .application-heading,
   .completion-heading,
   .completion-action-box,
@@ -3930,6 +3821,13 @@ onMounted(async () => {
 }
 
 @media (max-width: 640px) {
+  .task-detail-modal {
+    width: calc(100vw - 24px);
+    height: calc(100vh - 24px);
+    max-width: calc(100vw - 24px);
+    max-height: calc(100vh - 24px);
+  }
+
   .search-field {
     grid-template-columns: auto minmax(0, 1fr);
     padding: 12px;
