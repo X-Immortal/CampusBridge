@@ -10,7 +10,6 @@ import {
   CheckCircle2,
   ClipboardCheck,
   Clock3,
-  Eye,
   FileCheck2,
   Filter,
   Inbox,
@@ -1168,7 +1167,10 @@ onMounted(async () => {
         </RouterLink>
       </section>
 
-      <section class="tasks-layout">
+      <section
+        class="tasks-layout"
+        :class="{ 'tasks-layout--full': !selectedTaskId }"
+      >
         <section class="tasks-main-column">
           <form
             class="panel-card filter-panel"
@@ -1579,21 +1581,11 @@ onMounted(async () => {
           </section>
         </section>
 
-        <aside class="task-detail-column">
+        <aside
+          v-if="selectedTaskId"
+          class="task-detail-column"
+        >
           <section
-            v-if="!selectedTaskId"
-            class="panel-card detail-empty"
-          >
-            <Eye
-              :size="34"
-              aria-hidden="true"
-            />
-            <h2>选择一个任务查看详情</h2>
-            <p>详情里会集中展示地点、奖励、完成标准、沟通边界和候选申请数，适合接单前快速判断风险。</p>
-          </section>
-
-          <section
-            v-else
             class="panel-card detail-panel"
           >
             <div class="detail-topbar">
@@ -2579,8 +2571,7 @@ onMounted(async () => {
 .title-copy h1,
 .filter-heading h2,
 .list-toolbar h2,
-.detail-topbar h2,
-.detail-empty h2 {
+.detail-topbar h2 {
   margin: 0;
   color: #3c3543;
   font-weight: 900;
@@ -2592,8 +2583,7 @@ onMounted(async () => {
 }
 
 .title-copy span,
-.list-toolbar span,
-.detail-empty p {
+.list-toolbar span {
   color: #8a8792;
   line-height: 1.55;
 }
@@ -2709,6 +2699,10 @@ onMounted(async () => {
   grid-template-columns: minmax(0, 1fr) minmax(340px, 0.46fr);
   gap: 22px;
   align-items: start;
+}
+
+.tasks-layout--full {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .tasks-main-column {
@@ -3070,21 +3064,6 @@ onMounted(async () => {
   top: 118px;
   display: grid;
   gap: 18px;
-}
-
-.detail-empty {
-  min-height: 320px;
-  place-items: center;
-  text-align: center;
-}
-
-.detail-empty svg {
-  color: #746dc3;
-}
-
-.detail-empty p {
-  max-width: 360px;
-  margin: 0;
 }
 
 .detail-panel {
