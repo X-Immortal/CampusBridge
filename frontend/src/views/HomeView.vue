@@ -1,5 +1,6 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import {
   BadgeCheck,
   Bell,
@@ -14,6 +15,8 @@ import {
   Info,
   LoaderCircle,
   LockKeyhole,
+  LogIn,
+  LogOut,
   MessageCircle,
   PlusCircle,
   RefreshCw,
@@ -30,11 +33,15 @@ const {
   state,
   isAuthenticated,
   verificationStatus,
+  logout,
   refreshSession,
   submitVerification
 } = useAuth()
 
+const router = useRouter()
 const sidebarCollapsed = ref(false)
+const accountMenuOpen = ref(false)
+const accountMenuRef = ref(null)
 const loading = ref(false)
 const submitting = ref(false)
 const feedback = ref('')
@@ -58,7 +65,13 @@ const verificationForm = reactive({
   evidenceUrl: ''
 })
 
-const userName = computed(() => state.profile?.nickname || state.user?.username || '张同学')
+const userName = computed(() =>
+  isAuthenticated.value ? state.profile?.nickname || state.user?.username || '张同学' : '未登录'
+)
+const accountMeta = computed(() => {
+  if (!isAuthenticated.value) return '登录后同步认证和任务记录'
+  return state.profile?.campus || state.profile?.college || state.user?.role || '校园互助账号'
+})
 const verification = computed(() => state.verification || null)
 const canSubmitVerification = computed(() => {
   if (!isAuthenticated.value) return false
@@ -91,6 +104,29 @@ const stepItems = computed(() => {
 function setFeedback(message, type = 'success') {
   feedback.value = message
   feedbackType.value = type
+}
+
+function closeAccountMenu() {
+  accountMenuOpen.value = false
+}
+
+function toggleAccountMenu() {
+  accountMenuOpen.value = !accountMenuOpen.value
+}
+
+function handleDocumentPointerDown(event) {
+  if (!accountMenuOpen.value || !accountMenuRef.value) return
+  if (!accountMenuRef.value.contains(event.target)) closeAccountMenu()
+}
+
+function handleDocumentKeydown(event) {
+  if (event.key === 'Escape') closeAccountMenu()
+}
+
+async function handleLogout() {
+  logout()
+  closeAccountMenu()
+  await router.push('/auth')
 }
 
 function formatDate(value) {
@@ -142,6 +178,8 @@ async function handleSubmitVerification() {
 }
 
 onMounted(async () => {
+  document.addEventListener('pointerdown', handleDocumentPointerDown)
+  document.addEventListener('keydown', handleDocumentKeydown)
   if (!isAuthenticated.value) return
   loading.value = true
   try {
@@ -149,6 +187,11 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('pointerdown', handleDocumentPointerDown)
+  document.removeEventListener('keydown', handleDocumentKeydown)
 })
 </script>
 
@@ -238,22 +281,106 @@ onMounted(async () => {
           <span>3</span>
         </button>
         <div class="topbar-divider" />
-        <button
-          class="account-button"
-          type="button"
+        <div
+          ref="accountMenuRef"
+          class="account-menu"
         >
-          <span class="avatar">
-            <UserRound
-              :size="24"
+          <button
+            class="account-button"
+            :class="{ active: accountMenuOpen }"
+            type="button"
+            aria-haspopup="menu"
+            :aria-expanded="accountMenuOpen"
+            aria-controls="account-menu-list"
+            @click.stop="toggleAccountMenu"
+          >
+            <span class="avatar">
+              <UserRound
+                :size="24"
+                aria-hidden="true"
+              />
+            </span>
+            <span>{{ userName }}</span>
+            <ChevronDown
+              class="account-chevron"
+              :size="19"
               aria-hidden="true"
             />
-          </span>
-          <span>{{ userName }}</span>
-          <ChevronDown
-            :size="19"
-            aria-hidden="true"
-          />
-        </button>
+          </button>
+
+          <div
+            v-if="accountMenuOpen"
+            id="account-menu-list"
+            class="account-dropdown"
+            role="menu"
+          >
+            <div class="account-dropdown-head">
+              <span class="avatar avatar--compact">
+                <UserRound
+                  :size="20"
+                  aria-hidden="true"
+                />
+              </span>
+              <div>
+                <strong>{{ userName }}</strong>
+                <small>{{ accountMeta }}</small>
+              </div>
+            </div>
+
+            <RouterLink
+              v-if="isAuthenticated"
+              class="account-menu-item"
+              to="/"
+              role="menuitem"
+              @click="closeAccountMenu"
+            >
+              <ShieldCheck
+                :size="17"
+                aria-hidden="true"
+              />
+              认证中心
+            </RouterLink>
+            <RouterLink
+              v-if="isAuthenticated"
+              class="account-menu-item"
+              to="/tasks/mine"
+              role="menuitem"
+              @click="closeAccountMenu"
+            >
+              <ClipboardList
+                :size="17"
+                aria-hidden="true"
+              />
+              我的任务
+            </RouterLink>
+            <button
+              v-if="isAuthenticated"
+              class="account-menu-item account-menu-item--danger"
+              type="button"
+              role="menuitem"
+              @click="handleLogout"
+            >
+              <LogOut
+                :size="17"
+                aria-hidden="true"
+              />
+              退出登录
+            </button>
+            <RouterLink
+              v-else
+              class="account-menu-item"
+              to="/auth"
+              role="menuitem"
+              @click="closeAccountMenu"
+            >
+              <LogIn
+                :size="17"
+                aria-hidden="true"
+              />
+              登录 / 注册
+            </RouterLink>
+          </div>
+        </div>
       </div>
     </header>
 
@@ -765,7 +892,8 @@ onMounted(async () => {
 }
 
 .notice-button,
-.account-button {
+.account-button,
+.account-menu-item {
   border: 0;
   background: transparent;
   color: #393746;
@@ -782,7 +910,8 @@ onMounted(async () => {
 }
 
 .notice-button:hover,
-.account-button:hover {
+.account-button:hover,
+.account-button.active {
   background: #f6f4ff;
   color: #746dc3;
 }
@@ -808,6 +937,10 @@ onMounted(async () => {
   background: #dfdce5;
 }
 
+.account-menu {
+  position: relative;
+}
+
 .account-button {
   display: inline-flex;
   align-items: center;
@@ -817,6 +950,14 @@ onMounted(async () => {
   border-radius: 13px;
   font-size: 1.14rem;
   font-weight: 900;
+}
+
+.account-chevron {
+  transition: transform 180ms ease;
+}
+
+.account-button.active .account-chevron {
+  transform: rotate(180deg);
 }
 
 .account-button > span:not(.avatar) {
@@ -834,6 +975,86 @@ onMounted(async () => {
     radial-gradient(circle at 32% 28%, #f5f2ff 0 23%, transparent 24%),
     linear-gradient(135deg, #d9d3ff, #f1efff);
   color: #746dc3;
+}
+
+.avatar--compact {
+  width: 38px;
+  height: 38px;
+}
+
+.account-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 60;
+  display: grid;
+  gap: 6px;
+  width: min(260px, calc(100vw - 32px));
+  padding: 10px;
+  border: 1px solid #e4e1ea;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 18px 40px rgba(42, 38, 61, 0.14);
+}
+
+.account-dropdown-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 8px 9px 12px;
+  border-bottom: 1px solid #eeeaf2;
+}
+
+.account-dropdown-head div {
+  display: grid;
+  gap: 3px;
+}
+
+.account-dropdown-head strong {
+  color: #3c3543;
+  font-size: 0.98rem;
+  line-height: 1.25;
+}
+
+.account-dropdown-head small {
+  color: #8a8792;
+  line-height: 1.35;
+}
+
+.account-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 10px;
+  border-radius: 8px;
+  color: #4a4650;
+  font-size: 0.96rem;
+  font-weight: 900;
+  text-align: left;
+  text-decoration: none;
+  transition:
+    background-color 180ms ease,
+    color 180ms ease;
+}
+
+.account-menu-item:hover,
+.account-menu-item:focus-visible {
+  background: #f6f4ff;
+  color: #746dc3;
+  outline: 0;
+}
+
+.account-menu-item--danger {
+  color: #b91c1c;
+}
+
+.account-menu-item--danger:hover,
+.account-menu-item--danger:focus-visible {
+  background: #fef2f2;
+  color: #991b1b;
 }
 
 .dashboard-main {
