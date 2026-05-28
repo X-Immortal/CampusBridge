@@ -4,17 +4,18 @@ import { useRouter } from 'vue-router'
 import {
   BadgeCheck,
   Bell,
+  Briefcase,
   CalendarClock,
+  ChartLine,
   ChevronDown,
   ChevronsLeft,
   ChevronsRight,
-  ClipboardCheck,
+  CheckCircle2,
   ClipboardList,
   Grid2X2,
   Home,
   Info,
   LoaderCircle,
-  LockKeyhole,
   LogIn,
   LogOut,
   MessageCircle,
@@ -100,6 +101,29 @@ const stepItems = computed(() => {
     { label: '认证通过', done: verified }
   ]
 })
+
+const verificationBenefits = [
+  {
+    title: '可发布校园任务',
+    copy: '通过认证后，可发布任务，寻求他人帮助。',
+    icon: Briefcase
+  },
+  {
+    title: '可接取校园任务',
+    copy: '通过认证后，可接取任务，获得互助机会。',
+    icon: UserRound
+  },
+  {
+    title: '获得校园身份标识',
+    copy: '认证通过后，获得专属身份标识。',
+    icon: ShieldCheck
+  },
+  {
+    title: '提升账号可信度',
+    copy: '提升账号可信度，增加他人信任。',
+    icon: ChartLine
+  }
+]
 
 function setFeedback(message, type = 'success') {
   feedback.value = message
@@ -435,8 +459,8 @@ onBeforeUnmount(() => {
               class="step-item"
               :class="{ done: step.done }"
             >
-              <ClipboardCheck
-                :size="17"
+              <CheckCircle2
+                :size="18"
                 aria-hidden="true"
               />
               <span>{{ step.label }}</span>
@@ -467,36 +491,32 @@ onBeforeUnmount(() => {
           <div class="panel-heading">
             <div>
               <p class="section-kicker">
-                提交前请确认
+                认证权益
               </p>
-              <h2>需要准备什么</h2>
+              <h2>通过后你可以</h2>
             </div>
             <Info
-              :size="24"
+              :size="22"
               aria-hidden="true"
             />
           </div>
-          <ul class="rule-list">
-            <li>
-              <ShieldCheck
-                :size="17"
-                aria-hidden="true"
-              />
-              请填写与你本人一致的真实姓名、学号和学校信息。
-            </li>
-            <li>
-              <LockKeyhole
-                :size="17"
-                aria-hidden="true"
-              />
-              材料链接可选；如果提交，请确保审核期间可以正常访问。
-            </li>
-            <li>
-              <Info
-                :size="17"
-                aria-hidden="true"
-              />
-              审核中或已通过时，不需要重复提交。
+          <ul class="benefit-list">
+            <li
+              v-for="item in verificationBenefits"
+              :key="item.title"
+              class="benefit-item"
+            >
+              <span class="benefit-icon">
+                <component
+                  :is="item.icon"
+                  :size="20"
+                  aria-hidden="true"
+                />
+              </span>
+              <span>
+                <strong>{{ item.title }}</strong>
+                <small>{{ item.copy }}</small>
+              </span>
             </li>
           </ul>
         </article>
@@ -609,12 +629,40 @@ onBeforeUnmount(() => {
             v-else
             class="locked-state"
           >
-            <ShieldCheck
-              :size="34"
-              aria-hidden="true"
-            />
+            <span class="locked-state-visual">
+              <ShieldCheck
+                :size="56"
+                aria-hidden="true"
+              />
+            </span>
             <strong>{{ lockMessage }}</strong>
-            <span>如需更新状态，可点击右上角刷新按钮重新同步后端认证记录。</span>
+            <span>你的校园身份已认证成功，无需重复提交。</span>
+            <div class="locked-actions">
+              <button
+                class="primary-action primary-action--compact"
+                type="button"
+                @click="setFeedback('认证资料已在上方展示。')"
+              >
+                <ClipboardList
+                  :size="17"
+                  aria-hidden="true"
+                />
+                查看认证资料
+              </button>
+              <button
+                class="ghost-action ghost-action--compact"
+                type="button"
+                :disabled="loading || !isAuthenticated"
+                @click="handleRefresh"
+              >
+                <RefreshCw
+                  :class="{ spinning: loading }"
+                  :size="17"
+                  aria-hidden="true"
+                />
+                刷新状态
+              </button>
+            </div>
           </div>
         </article>
 
@@ -652,13 +700,14 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .dashboard-shell {
-  --sidebar-width: 304px;
-  --topbar-height: 96px;
+  --sidebar-width: 260px;
+  --topbar-height: 76px;
   min-height: 100vh;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(248, 247, 251, 0.96)),
     #fbfafc;
   color: #2b2733;
+  font-size: 15px;
   font-family:
     KaiTi,
     STKaiti,
@@ -669,7 +718,7 @@ onBeforeUnmount(() => {
 }
 
 .dashboard-shell.is-collapsed {
-  --sidebar-width: 92px;
+  --sidebar-width: 78px;
 }
 
 .dashboard-sidebar,
@@ -690,7 +739,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
   width: var(--sidebar-width);
   height: 100vh;
-  padding: 46px 20px 28px;
+  padding: 36px 18px 24px;
   border-right: 1px solid #e4e1ea;
   background: rgba(255, 255, 255, 0.97);
   box-shadow: 14px 0 42px rgba(92, 82, 125, 0.045);
@@ -724,9 +773,9 @@ onBeforeUnmount(() => {
 .brand {
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-height: 68px;
-  padding: 0 14px;
+  gap: 10px;
+  min-height: 58px;
+  padding: 0 10px;
   color: #7067be;
   text-decoration: none;
 }
@@ -740,9 +789,9 @@ onBeforeUnmount(() => {
 }
 
 .brand-text {
-  max-width: 168px;
+  max-width: 148px;
   color: #7067be;
-  font-size: 1.28rem;
+  font-size: 1.08rem;
   font-weight: 900;
   line-height: 1.08;
   overflow-wrap: anywhere;
@@ -754,20 +803,20 @@ onBeforeUnmount(() => {
 
 .sidebar-nav {
   display: grid;
-  gap: 12px;
-  margin-top: 42px;
+  gap: 10px;
+  margin-top: 34px;
 }
 
 .nav-item {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 16px;
-  min-height: 58px;
-  padding: 0 22px;
+  gap: 14px;
+  min-height: 50px;
+  padding: 0 18px;
   border-radius: 8px;
   color: #8b8994;
-  font-size: 1.14rem;
+  font-size: 1rem;
   font-weight: 800;
   letter-spacing: 0.02em;
   text-decoration: none;
@@ -804,17 +853,31 @@ onBeforeUnmount(() => {
 }
 
 .is-collapsed .dashboard-sidebar {
-  padding-inline: 14px;
+  padding-inline: 12px;
 }
 
 .is-collapsed .collapse-button {
   right: 50%;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
   transform: translateX(50%);
+}
+
+.is-collapsed .collapse-button svg {
+  width: 16px;
+  height: 16px;
 }
 
 .is-collapsed .brand {
   justify-content: center;
+  min-height: 46px;
   padding-inline: 0;
+}
+
+.is-collapsed .brand-mark svg {
+  width: 30px;
+  height: 30px;
 }
 
 .is-collapsed .brand-text,
@@ -825,12 +888,14 @@ onBeforeUnmount(() => {
 }
 
 .is-collapsed .sidebar-nav {
-  margin-top: 42px;
+  gap: 8px;
+  margin-top: 18px;
 }
 
 .is-collapsed .nav-item {
   justify-content: center;
   gap: 0;
+  min-height: 46px;
   padding: 0;
 }
 
@@ -844,7 +909,7 @@ onBeforeUnmount(() => {
   grid-template-columns: minmax(240px, 1fr) auto;
   align-items: center;
   height: var(--topbar-height);
-  padding: 0 42px 0 50px;
+  padding: 0 30px 0 34px;
   border-bottom: 1px solid #e4e1ea;
   background: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(18px);
@@ -853,11 +918,11 @@ onBeforeUnmount(() => {
 .search-box {
   display: flex;
   align-items: center;
-  gap: 14px;
-  height: 56px;
-  padding: 0 20px;
+  gap: 12px;
+  height: 46px;
+  padding: 0 16px;
   border: 1px solid #ddd9e8;
-  border-radius: 13px;
+  border-radius: 8px;
   background: #ffffff;
   color: #a3a0ad;
   transition:
@@ -876,7 +941,7 @@ onBeforeUnmount(() => {
   outline: 0;
   background: transparent;
   color: #393545;
-  font-size: 1.08rem;
+  font-size: 0.92rem;
 }
 
 .search-box input::placeholder {
@@ -887,7 +952,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 24px;
+  gap: 18px;
   min-width: max-content;
 }
 
@@ -904,9 +969,9 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 13px;
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
 }
 
 .notice-button:hover,
@@ -920,15 +985,15 @@ onBeforeUnmount(() => {
   position: absolute;
   top: 2px;
   right: 3px;
-  min-width: 22px;
-  height: 22px;
+  min-width: 20px;
+  height: 20px;
   padding: 0 6px;
   border-radius: 999px;
   background: #746dc3;
   color: #ffffff;
-  font-size: 0.84rem;
+  font-size: 0.78rem;
   font-weight: 800;
-  line-height: 22px;
+  line-height: 20px;
 }
 
 .topbar-divider {
@@ -944,11 +1009,11 @@ onBeforeUnmount(() => {
 .account-button {
   display: inline-flex;
   align-items: center;
-  gap: 13px;
-  min-height: 56px;
+  gap: 11px;
+  min-height: 46px;
   padding: 0 10px;
-  border-radius: 13px;
-  font-size: 1.14rem;
+  border-radius: 8px;
+  font-size: 1rem;
   font-weight: 900;
 }
 
@@ -968,8 +1033,8 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 50px;
-  height: 50px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
   background:
     radial-gradient(circle at 32% 28%, #f5f2ff 0 23%, transparent 24%),
@@ -1060,14 +1125,14 @@ onBeforeUnmount(() => {
 .dashboard-main {
   min-height: 100vh;
   margin-left: var(--sidebar-width);
-  padding: calc(var(--topbar-height) + 30px) 30px 42px;
+  padding: calc(var(--topbar-height) + 22px) 24px 36px;
 }
 
 .page-title-card,
 .panel-card,
 .page-feedback {
   border: 1px solid #e4e1ea;
-  border-radius: 15px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.98);
   box-shadow: 0 18px 36px rgba(42, 38, 61, 0.045);
 }
@@ -1076,53 +1141,70 @@ onBeforeUnmount(() => {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 28px;
-  min-height: 132px;
-  padding: 26px 38px;
+  gap: 20px;
+  min-height: 104px;
+  padding: 18px 28px;
 }
 
 .title-icon {
   display: grid;
   place-items: center;
-  width: 78px;
-  height: 82px;
-  border-radius: 18px;
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
   background: linear-gradient(135deg, #eeeaff, #f9f7ff);
   color: #746dc3;
 }
 
 .title-copy {
   display: grid;
-  gap: 8px;
+  gap: 5px;
 }
 
 .title-copy p,
 .section-kicker {
   margin: 0;
   color: #746dc3;
-  font-size: 0.92rem;
+  font-size: 0.82rem;
   font-weight: 900;
 }
 
 .title-copy h1 {
   margin: 0;
   color: #3c3543;
-  font-size: 1.9rem;
+  font-size: 1.5rem;
   font-weight: 900;
   line-height: 1.1;
 }
 
 .title-copy span {
   color: #8a8792;
-  font-size: 1rem;
+  font-size: 0.9rem;
+}
+
+.page-title-card :deep(.status-badge--success),
+.verification-overview :deep(.status-badge--success) {
+  min-height: 32px;
+  padding: 0 13px;
+  border: 1px solid #86efac;
+  background: #dcfce7;
+  color: #047857;
+  font-size: 0.86rem;
+  font-weight: 900;
+  box-shadow: 0 8px 18px rgba(22, 163, 74, 0.14);
+}
+
+.verification-overview .panel-heading h2 {
+  font-size: 1.35rem;
+  color: #211b2c;
 }
 
 .page-feedback {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  margin-top: 18px;
-  padding: 12px 14px;
+  margin-top: 14px;
+  padding: 10px 12px;
 }
 
 .page-feedback--success {
@@ -1139,20 +1221,20 @@ onBeforeUnmount(() => {
 
 .content-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.42fr) minmax(320px, 0.88fr);
+  grid-template-columns: minmax(0, 1.08fr) minmax(340px, 0.82fr);
   grid-template-areas:
     "overview safety"
     "form privacy";
-  gap: 22px;
-  margin-top: 22px;
+  gap: 18px;
+  margin-top: 18px;
 }
 
 .panel-card {
   display: grid;
   align-content: start;
-  gap: 18px;
-  min-height: 190px;
-  padding: 24px;
+  gap: 12px;
+  min-height: 172px;
+  padding: 22px;
 }
 
 .verification-overview {
@@ -1175,13 +1257,13 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 18px;
+  gap: 14px;
 }
 
 .panel-heading h2 {
   margin: 4px 0 0;
   color: #3c3543;
-  font-size: 1.38rem;
+  font-size: 1.12rem;
   font-weight: 900;
 }
 
@@ -1190,80 +1272,151 @@ onBeforeUnmount(() => {
 .locked-state span {
   margin: 0;
   color: #746f7a;
-  line-height: 1.7;
+  font-size: 0.9rem;
+  line-height: 1.62;
 }
 
 .step-list {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  gap: 0;
+  padding: 10px 4px 8px;
 }
 
 .step-item {
+  position: relative;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  min-height: 42px;
-  border: 1px solid #e6e2eb;
-  border-radius: 10px;
-  background: #fbf9fc;
+  gap: 6px;
+  min-height: 64px;
   color: #8a8792;
+  font-size: 0.82rem;
   font-weight: 900;
+  text-align: center;
+}
+
+.step-item::before {
+  content: "";
+  position: absolute;
+  top: 19px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #e7e2f1;
+  transform: translateY(-50%);
+}
+
+.step-item:first-child::before {
+  left: 50%;
+}
+
+.step-item:last-child::before {
+  right: 50%;
+}
+
+.step-item svg {
+  position: relative;
+  z-index: 1;
+  width: 28px;
+  height: 28px;
+  padding: 5px;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #a09ba8;
+  box-shadow: inset 0 0 0 1px #e7e2f1;
 }
 
 .step-item.done {
-  border-color: #d4cdef;
-  background: #f4f1ff;
   color: #746dc3;
+}
+
+.step-item.done::before {
+  background: #8b7de0;
+}
+
+.step-item.done svg {
+  background: #746dc3;
+  color: #ffffff;
+  box-shadow: 0 8px 18px rgba(116, 109, 195, 0.2);
 }
 
 .record-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 10px;
 }
 
 .record-grid div {
   display: grid;
-  gap: 5px;
-  padding: 12px;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 3px 10px;
+  padding: 10px 12px;
   border: 1px solid #eeeaf2;
-  border-radius: 10px;
+  border-radius: 8px;
   background: #fcfbfd;
 }
 
 .record-grid dt {
   color: #8a8792;
-  font-size: 0.88rem;
+  font-size: 0.78rem;
 }
 
 .record-grid dd {
   margin: 0;
   color: #3c3543;
+  font-size: 0.92rem;
   font-weight: 900;
 }
 
-.rule-list {
+.benefit-list {
   display: grid;
-  gap: 14px;
+  gap: 0;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.rule-list li {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
+.benefit-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  padding: 13px 0;
+  border-bottom: 1px solid #eeeaf2;
   color: #746f7a;
-  line-height: 1.6;
 }
 
-.rule-list svg {
-  flex: 0 0 auto;
-  margin-top: 4px;
+.benefit-item:last-child {
+  border-bottom: 0;
+}
+
+.benefit-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #f0edff;
   color: #746dc3;
+}
+
+.benefit-item span:last-child {
+  display: grid;
+  gap: 4px;
+}
+
+.benefit-item strong {
+  color: #3c3543;
+  font-size: 0.98rem;
+}
+
+.benefit-item small {
+  color: #8a8792;
+  font-size: 0.82rem;
+  line-height: 1.45;
 }
 
 .verification-form {
@@ -1284,18 +1437,20 @@ onBeforeUnmount(() => {
 
 .field span {
   color: #3c3543;
+  font-size: 0.86rem;
   font-weight: 900;
 }
 
 .field input,
 .field select {
   width: 100%;
-  height: 48px;
+  height: 42px;
   border: 1px solid #ddd9e8;
-  border-radius: 10px;
+  border-radius: 8px;
   background: #ffffff;
   color: #393545;
-  padding: 0 13px;
+  padding: 0 12px;
+  font-size: 0.9rem;
   outline: 0;
 }
 
@@ -1311,8 +1466,9 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 46px;
-  border-radius: 10px;
+  min-height: 42px;
+  border-radius: 8px;
+  font-size: 0.92rem;
   font-weight: 900;
 }
 
@@ -1336,21 +1492,44 @@ onBeforeUnmount(() => {
   color: #746dc3;
 }
 
+.primary-action--compact,
+.ghost-action--compact {
+  min-width: 150px;
+}
+
 .locked-state {
   display: grid;
   place-items: center;
-  gap: 12px;
-  min-height: 300px;
-  border: 1px dashed #ddd8ec;
-  border-radius: 12px;
+  gap: 14px;
+  min-height: 266px;
+  border: 1px dashed #d8d1ee;
+  border-radius: 8px;
   background: #fcfbff;
   color: #746dc3;
   text-align: center;
 }
 
+.locked-state-visual {
+  display: grid;
+  place-items: center;
+  width: 86px;
+  height: 86px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #8e7ee8, #5d49cb);
+  color: #ffffff !important;
+  box-shadow: 0 18px 30px rgba(116, 109, 195, 0.22);
+}
+
 .locked-state strong {
   color: #3c3543;
-  font-size: 1.16rem;
+  font-size: 1.05rem;
+}
+
+.locked-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
 }
 
 .reject-box {
@@ -1358,7 +1537,7 @@ onBeforeUnmount(() => {
   gap: 6px;
   padding: 12px;
   border: 1px solid #fecaca;
-  border-radius: 10px;
+  border-radius: 8px;
   background: #fef2f2;
   color: #991b1b;
 }
