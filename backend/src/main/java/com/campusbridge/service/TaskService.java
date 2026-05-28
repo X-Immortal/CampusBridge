@@ -25,4 +25,12 @@ public interface TaskService {
             Integer size);
 
     Task getTaskDetail(Long taskId);
+
+    Task updateTask(Long operatorId, Long taskId, RequestDtos.UpdateTaskRequest request);
+
+    Task cancelTask(Long operatorId, Long taskId, String reason);
+
+    Task saveDraft(Long requesterId, RequestDtos.CreateTaskRequest request);
+
+    Task resendTask(Long operatorId, Long taskId);
 }

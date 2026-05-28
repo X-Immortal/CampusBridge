@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -44,6 +45,15 @@ public class TaskController {
         return Result.success(taskService.createTask(currentUserId, request));
     }
 
+    @PostMapping("/drafts")
+    @ResponseStatus(HttpStatus.CREATED)
+    public Result saveDraft(
+            HttpServletRequest servletRequest,
+            @RequestBody RequestDtos.CreateTaskRequest request) {
+        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        return Result.success(taskService.saveDraft(currentUserId, request));
+    }
+
     @GetMapping
     public Result listTasks(
             @RequestParam(required = false) String keyword,
@@ -68,17 +78,31 @@ public class TaskController {
         return Result.success(taskService.getTaskDetail(taskId));
     }
 
-    @PatchMapping("/{taskId}")
+    @PutMapping("/{taskId}")
     public Result updateTask(
+            HttpServletRequest servletRequest,
             @PathVariable Long taskId,
             @RequestBody RequestDtos.UpdateTaskRequest request) {
-        return Result.success();
+        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        return Result.success(taskService.updateTask(currentUserId, taskId, request));
     }
 
     @DeleteMapping("/{taskId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public Result cancelTask(@PathVariable Long taskId) {
-        return Result.success();
+    public Result cancelTask(
+            HttpServletRequest servletRequest,
+            @PathVariable Long taskId,
+            @RequestParam(required = false) String reason) {
+        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        return Result.success(taskService.cancelTask(currentUserId, taskId, reason));
+    }
+
+    @PostMapping("/{taskId}/resend")
+    public Result resendTask(
+            HttpServletRequest servletRequest,
+            @PathVariable Long taskId) {
+        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        return Result.success(taskService.resendTask(currentUserId, taskId));
     }
 
     @PostMapping("/{taskId}/status-transitions")

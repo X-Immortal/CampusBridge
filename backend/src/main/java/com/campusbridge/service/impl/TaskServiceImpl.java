@@ -33,9 +33,14 @@ public class TaskServiceImpl implements TaskService {
     private static final int MAX_TRANSITION_REASON_LENGTH = 300;
 
     private static final String STATUS_OPEN = "OPEN";
+    private static final String STATUS_DRAFT = "DRAFT";
     private static final String STATUS_PENDING_REVIEW = "PENDING_REVIEW";
     private static final String VERIFICATION_STATUS_VERIFIED = "VERIFIED";
     private static final String HISTORY_NOTE_CREATED = "TASK_CREATED";
+    private static final String HISTORY_NOTE_UPDATED = "TASK_UPDATED";
+    private static final String HISTORY_NOTE_CANCELLED = "TASK_CANCELLED";
+    private static final String HISTORY_NOTE_DRAFT_SAVED = "DRAFT_SAVED";
+    private static final String HISTORY_NOTE_RESENT = "TASK_RESENT";
 
     private final TaskMapper taskMapper;
     private final CampusVerificationMapper campusVerificationMapper;
@@ -130,6 +135,165 @@ public class TaskServiceImpl implements TaskService {
         if (task == null) {
             throw new BusinessException(ErrorCode.TASK_001_NOT_FOUND);
         }
+        return task;
+    }
+
+    @Override
+    public Task updateTask(Long operatorId, Long taskId, RequestDtos.UpdateTaskRequest request) {
+        requireOperatorId(operatorId);
+        if (taskId == null) {
+            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "taskId must not be null");
+        }
+        if (request == null) {
+            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "Request body must not be null");
+        }
+
+        Task existingTask = taskMapper.selectById(taskId);
+        if (existingTask == null) {
+            throw new BusinessException(ErrorCode.TASK_001_NOT_FOUND);
+        }
+
+        if (!operatorId.equals(existingTask.getRequesterId())) {
+            throw new BusinessException(ErrorCode.TASK_003_PERMISSION_DENIED);
+        }
+
+        if (!STATUS_DRAFT.equals(existingTask.getStatus()) && !STATUS_OPEN.equals(existingTask.getStatus())) {
+            throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
+        }
+
+        validateUpdateTaskRequest(request);
+
+        applyUpdateToTask(existingTask, request);
+        LocalDateTime now = LocalDateTime.now();
+        existingTask.setUpdatedAt(now);
+
+        int affectedRows = taskMapper.updateById(existingTask);
+        if (affectedRows != 1) {
+            throw new BusinessException(ErrorCode.COMMON_999_INTERNAL_ERROR, "Failed to update task");
+        }
+
+        taskHistoryService.recordHistory(
+                taskId,
+                existingTask.getStatus(),
+                existingTask.getStatus(),
+                operatorId,
+                HISTORY_NOTE_UPDATED);
+
+        return existingTask;
+    }
+
+    @Override
+    public Task cancelTask(Long operatorId, Long taskId, String reason) {
+        requireOperatorId(operatorId);
+        if (taskId == null) {
+            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "taskId must not be null");
+        }
+
+        Task task = taskMapper.selectById(taskId);
+        if (task == null) {
+            throw new BusinessException(ErrorCode.TASK_001_NOT_FOUND);
+        }
+
+        if (!operatorId.equals(task.getRequesterId())) {
+            throw new BusinessException(ErrorCode.TASK_003_PERMISSION_DENIED);
+        }
+
+        String fromStatus = task.getStatus();
+        if (!STATUS_OPEN.equals(fromStatus)
+                && !STATUS_ACCEPTED.equals(fromStatus)
+                && !STATUS_IN_PROGRESS.equals(fromStatus)) {
+            throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
+        }
+
+        if (reason == null || reason.isBlank()) {
+            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "reason is required for cancellation");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        int affectedRows = taskMapper.updateStatusById(taskId, fromStatus, STATUS_CANCELLED, now);
+        if (affectedRows != 1) {
+            throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
+        }
+
+        taskHistoryService.recordHistory(
+                taskId,
+                fromStatus,
+                STATUS_CANCELLED,
+                operatorId,
+                "ACTION=CANCEL; REASON=" + reason);
+
+        task.setStatus(STATUS_CANCELLED);
+        task.setUpdatedAt(now);
+        return task;
+    }
+
+    @Override
+    public Task saveDraft(Long requesterId, RequestDtos.CreateTaskRequest request) {
+        requireRequesterId(requesterId);
+        requireVerifiedUser(requesterId);
+
+        if (request == null) {
+            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "Request body must not be null");
+        }
+
+        validateDraftRequest(request);
+
+        Task task = buildDraftTask(requesterId, request);
+        int affectedRows = taskMapper.insert(task);
+        if (affectedRows != 1) {
+            throw new BusinessException(ErrorCode.COMMON_999_INTERNAL_ERROR, "Failed to save draft");
+        }
+
+        taskHistoryService.recordHistory(
+                task.getId(),
+                null,
+                task.getStatus(),
+                requesterId,
+                HISTORY_NOTE_DRAFT_SAVED);
+
+        return task;
+    }
+
+    @Override
+    public Task resendTask(Long operatorId, Long taskId) {
+        requireOperatorId(operatorId);
+        if (taskId == null) {
+            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "taskId must not be null");
+        }
+
+        Task task = taskMapper.selectById(taskId);
+        if (task == null) {
+            throw new BusinessException(ErrorCode.TASK_001_NOT_FOUND);
+        }
+
+        if (!operatorId.equals(task.getRequesterId())) {
+            throw new BusinessException(ErrorCode.TASK_003_PERMISSION_DENIED);
+        }
+
+        if (!STATUS_CANCELLED.equals(task.getStatus()) && !STATUS_DRAFT.equals(task.getStatus())) {
+            throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
+        }
+
+        contentModerationService.assertTaskPublishAllowed(operatorId, buildResendRequest(task));
+
+        String fromStatus = task.getStatus();
+        String toStatus = resolveInitialStatusForResend(task);
+        LocalDateTime now = LocalDateTime.now();
+
+        int affectedRows = taskMapper.updateStatusById(taskId, fromStatus, toStatus, now);
+        if (affectedRows != 1) {
+            throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
+        }
+
+        taskHistoryService.recordHistory(
+                taskId,
+                fromStatus,
+                toStatus,
+                operatorId,
+                HISTORY_NOTE_RESENT);
+
+        task.setStatus(toStatus);
+        task.setUpdatedAt(now);
         return task;
     }
 
@@ -433,5 +597,126 @@ public class TaskServiceImpl implements TaskService {
             return "ACTION=" + request.getAction().name();
         }
         return "ACTION=" + request.getAction().name() + "; REASON=" + request.getReason();
+    }
+
+    private void requireOperatorId(Long operatorId) {
+        if (operatorId == null) {
+            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "operatorId must not be null");
+        }
+    }
+
+    private void validateUpdateTaskRequest(RequestDtos.UpdateTaskRequest request) {
+        if (request.getTitle() != null) {
+            validateLength(request.getTitle(), MAX_TITLE_LENGTH, "title is too long");
+        }
+        if (request.getDescription() != null) {
+            validateLength(request.getDescription(), MAX_DESCRIPTION_LENGTH, "description is too long");
+        }
+        if (request.getRewardDescription() != null) {
+            validateLength(request.getRewardDescription(), MAX_REWARD_DESCRIPTION_LENGTH, "rewardDescription is too long");
+        }
+        if (request.getCompletionStandard() != null) {
+            validateLength(request.getCompletionStandard(), MAX_COMPLETION_STANDARD_LENGTH, "completionStandard is too long");
+        }
+        if (request.getDeadline() != null && !request.getDeadline().isAfter(LocalDateTime.now())) {
+            throwValidation("deadline must be in the future");
+        }
+    }
+
+    private void applyUpdateToTask(Task task, RequestDtos.UpdateTaskRequest request) {
+        if (request.getTitle() != null) {
+            task.setTitle(request.getTitle());
+        }
+        if (request.getDescription() != null) {
+            task.setDescription(request.getDescription());
+        }
+        if (request.getDeadline() != null) {
+            task.setDeadline(request.getDeadline());
+        }
+        if (request.getRewardType() != null) {
+            task.setRewardType(request.getRewardType().name());
+        }
+        if (request.getRewardDescription() != null) {
+            task.setRewardDescription(request.getRewardDescription());
+        }
+        if (request.getCompletionStandard() != null) {
+            task.setCompletionStandard(request.getCompletionStandard());
+        }
+        if (request.getRequiresProof() != null) {
+            task.setRequiresProof(toInt(request.getRequiresProof()));
+        }
+        if (request.getOnlyInAppContact() != null) {
+            task.setOnlyInAppContact(toInt(request.getOnlyInAppContact()));
+        }
+        if (request.getAllowOfflineContact() != null) {
+            task.setAllowOfflineContact(toInt(request.getAllowOfflineContact()));
+        }
+    }
+
+    private void validateDraftRequest(RequestDtos.CreateTaskRequest request) {
+        if (request == null) {
+            throwValidation("Request body must not be null");
+        }
+        if (request.getTitle() != null) {
+            validateLength(request.getTitle(), MAX_TITLE_LENGTH, "title is too long");
+        }
+        if (request.getDescription() != null) {
+            validateLength(request.getDescription(), MAX_DESCRIPTION_LENGTH, "description is too long");
+        }
+    }
+
+    private Task buildDraftTask(Long requesterId, RequestDtos.CreateTaskRequest request) {
+        LocalDateTime now = LocalDateTime.now();
+        Task task = new Task();
+        task.setRequesterId(requesterId);
+        task.setProviderId(null);
+        task.setCategory(request.getCategory() != null ? request.getCategory().name() : null);
+        task.setTitle(request.getTitle());
+        task.setDescription(request.getDescription());
+        task.setCampus(request.getCampus());
+        task.setLocation(request.getLocation());
+        task.setDeadline(request.getDeadline());
+        task.setRewardType(request.getRewardType() != null ? request.getRewardType().name() : null);
+        task.setRewardDescription(request.getRewardDescription());
+        task.setCompletionStandard(request.getCompletionStandard());
+        task.setRequiresProof(request.getRequiresProof() != null ? toInt(request.getRequiresProof()) : 0);
+        task.setOnlyInAppContact(toInt(defaultBoolean(request.getOnlyInAppContact(), true)));
+        task.setAllowOfflineContact(toInt(defaultBoolean(request.getAllowOfflineContact(), false)));
+        task.setIsInstantTask(toInt(defaultBoolean(request.getIsInstantTask(), false)));
+        task.setRouteHint(request.getRouteHint());
+        task.setRiskDisclosureConfirmed(toInt(defaultBoolean(request.getRiskDisclosureConfirmed(), false)));
+        task.setSensitiveReason(request.getSensitiveReason());
+        task.setStatus(STATUS_DRAFT);
+        task.setCreatedAt(now);
+        task.setUpdatedAt(now);
+        return task;
+    }
+
+    private RequestDtos.CreateTaskRequest buildResendRequest(Task task) {
+        RequestDtos.CreateTaskRequest request = new RequestDtos.CreateTaskRequest();
+        request.setCategory(ApiEnums.TaskCategory.valueOf(task.getCategory()));
+        request.setTitle(task.getTitle());
+        request.setDescription(task.getDescription());
+        request.setCampus(task.getCampus());
+        request.setLocation(task.getLocation());
+        request.setDeadline(task.getDeadline());
+        request.setRewardType(ApiEnums.RewardType.valueOf(task.getRewardType()));
+        request.setRewardDescription(task.getRewardDescription());
+        request.setCompletionStandard(task.getCompletionStandard());
+        request.setRequiresProof(task.getRequiresProof() == 1);
+        request.setOnlyInAppContact(task.getOnlyInAppContact() == 1);
+        request.setAllowOfflineContact(task.getAllowOfflineContact() == 1);
+        request.setIsInstantTask(task.getIsInstantTask() == 1);
+        request.setRouteHint(task.getRouteHint());
+        request.setRiskDisclosureConfirmed(task.getRiskDisclosureConfirmed() == 1);
+        request.setSensitiveReason(task.getSensitiveReason());
+        return request;
+    }
+
+    private String resolveInitialStatusForResend(Task task) {
+        if (ApiEnums.TaskCategory.ATTENDANCE_ASSIST.name().equals(task.getCategory())) {
+            return STATUS_PENDING_REVIEW;
+        }
+        return STATUS_OPEN;
     }
 }
