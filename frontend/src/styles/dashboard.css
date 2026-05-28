@@ -54,13 +54,24 @@
 
 #app .dashboard-shell.is-collapsed .brand {
   justify-content: center;
-  min-height: 46px;
+  min-height: 50px;
   padding-inline: 0;
 }
 
+#app .dashboard-shell.is-collapsed .brand-mark {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border: 1px solid #e2def0;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(116, 109, 195, 0.08);
+}
+
 #app .dashboard-shell.is-collapsed .brand-mark svg {
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
 }
 
 #app .dashboard-shell.is-collapsed .sidebar-nav {
