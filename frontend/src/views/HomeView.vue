@@ -27,6 +27,7 @@ import {
   UserRound
 } from '@lucide/vue'
 import StatusBadge from '../components/StatusBadge.vue'
+import { useDashboardSidebar } from '../composables/useDashboardSidebar'
 import { optionLabel, STATUS_OPTIONS, VERIFICATION_METHODS } from '../constants'
 import { useAuth } from '../stores/auth'
 
@@ -40,7 +41,7 @@ const {
 } = useAuth()
 
 const router = useRouter()
-const sidebarCollapsed = ref(false)
+const { sidebarCollapsed, toggleSidebarCollapsed } = useDashboardSidebar()
 const accountMenuOpen = ref(false)
 const accountMenuRef = ref(null)
 const loading = ref(false)
@@ -229,7 +230,7 @@ onBeforeUnmount(() => {
         class="collapse-button"
         type="button"
         :aria-label="sidebarCollapsed ? '展开导航栏' : '折叠导航栏'"
-        @click="sidebarCollapsed = !sidebarCollapsed"
+        @click="toggleSidebarCollapsed"
       >
         <ChevronsRight
           v-if="sidebarCollapsed"

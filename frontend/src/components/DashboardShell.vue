@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   UserRound
 } from '@lucide/vue'
+import { useDashboardSidebar } from '../composables/useDashboardSidebar'
 import { useAuth } from '../stores/auth'
 
 defineProps({
@@ -29,7 +30,7 @@ defineProps({
 
 const router = useRouter()
 const { state, isAuthenticated, logout } = useAuth()
-const sidebarCollapsed = ref(false)
+const { sidebarCollapsed, toggleSidebarCollapsed } = useDashboardSidebar()
 const accountMenuOpen = ref(false)
 const accountMenuRef = ref(null)
 
@@ -94,7 +95,7 @@ onBeforeUnmount(() => {
         class="collapse-button"
         type="button"
         :aria-label="sidebarCollapsed ? '展开导航栏' : '折叠导航栏'"
-        @click="sidebarCollapsed = !sidebarCollapsed"
+        @click="toggleSidebarCollapsed"
       >
         <ChevronsRight
           v-if="sidebarCollapsed"
