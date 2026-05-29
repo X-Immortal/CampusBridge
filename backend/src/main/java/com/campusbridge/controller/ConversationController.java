@@ -1,7 +1,10 @@
 package com.campusbridge.controller;
 
+import com.campusbridge.common.CurrentUserResolver;
 import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.pojo.Result;
+import com.campusbridge.service.ConversationService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -15,33 +18,53 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 @RestController
 @RequestMapping("/api/v1/conversations")
 public class ConversationController {
+    private final CurrentUserResolver currentUserResolver;
+    private final ConversationService conversationService;
+
+    public ConversationController(
+            CurrentUserResolver currentUserResolver,
+            ConversationService conversationService) {
+        this.currentUserResolver = currentUserResolver;
+        this.conversationService = conversationService;
+    }
 
     @GetMapping
     public Result listConversations(
+            HttpServletRequest servletRequest,
             @RequestParam(required = false, defaultValue = "1") Integer page,
             @RequestParam(required = false, defaultValue = "20") Integer size) {
-        return Result.success();
+        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        return Result.success(conversationService.listConversations(currentUserId, page, size));
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Result createConversation(@RequestBody RequestDtos.CreateConversationRequest request) {
-        return Result.success();
+    public Result createConversation(
+            HttpServletRequest servletRequest,
+            @RequestBody RequestDtos.CreateConversationRequest request) {
+        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        return Result.success(conversationService.createConversation(currentUserId, request));
     }
 
     @GetMapping("/{conversationId}/messages")
     public Result listMessages(
+            HttpServletRequest servletRequest,
             @PathVariable Long conversationId,
             @RequestParam(required = false, defaultValue = "1") Integer page,
             @RequestParam(required = false, defaultValue = "20") Integer size) {
-        return Result.success();
+        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        return Result.success(
+                conversationService.listMessages(currentUserId, conversationId, page, size));
     }
 
     @PostMapping("/{conversationId}/messages")
     @ResponseStatus(HttpStatus.CREATED)
     public Result sendMessage(
+            HttpServletRequest servletRequest,
             @PathVariable Long conversationId,
             @RequestBody RequestDtos.SendMessageRequest request) {
-        return Result.success();
+        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        return Result.success(
+                conversationService.sendMessage(currentUserId, conversationId, request));
     }
 }

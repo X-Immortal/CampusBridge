@@ -9,6 +9,7 @@ import com.campusbridge.mapper.TaskMapper;
 import com.campusbridge.pojo.CampusVerification;
 import com.campusbridge.pojo.Task;
 import com.campusbridge.service.ContentModerationService;
+import com.campusbridge.service.NotificationService;
 import com.campusbridge.service.TaskHistoryService;
 import com.campusbridge.service.TaskService;
 import org.springframework.stereotype.Service;
@@ -39,6 +40,7 @@ public class TaskServiceImpl implements TaskService {
     private final CampusVerificationMapper campusVerificationMapper;
     private final TaskHistoryService taskHistoryService;
     private final ContentModerationService contentModerationService;
+    private final NotificationService notificationService;
 
     private static final String STATUS_ACCEPTED = "ACCEPTED";
     private static final String STATUS_IN_PROGRESS = "IN_PROGRESS";
@@ -51,11 +53,13 @@ public class TaskServiceImpl implements TaskService {
             TaskMapper taskMapper,
             CampusVerificationMapper campusVerificationMapper,
             TaskHistoryService taskHistoryService,
-            ContentModerationService contentModerationService) {
+            ContentModerationService contentModerationService,
+            NotificationService notificationService) {
         this.taskMapper = taskMapper;
         this.campusVerificationMapper = campusVerificationMapper;
         this.taskHistoryService = taskHistoryService;
         this.contentModerationService = contentModerationService;
+        this.notificationService = notificationService;
     }
 
     @Override
@@ -119,6 +123,12 @@ public class TaskServiceImpl implements TaskService {
                 toStatus,
                 operatorId,
                 buildTransitionHistoryNote(request));
+        notificationService.notifyTaskStatusChanged(
+                task,
+                fromStatus,
+                toStatus,
+                operatorId,
+                request.getReason());
 
         task.setStatus(toStatus);
         task.setUpdatedAt(updatedAt);
