@@ -7,8 +7,10 @@ import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.dto.response.ResponseDtos;
 import com.campusbridge.mapper.ConversationMapper;
 import com.campusbridge.mapper.MessageMapper;
+import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.pojo.Conversation;
 import com.campusbridge.pojo.Message;
+import com.campusbridge.pojo.User;
 import com.campusbridge.service.ConversationService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,12 +36,15 @@ public class ConversationServiceImpl implements ConversationService {
 
     private final ConversationMapper conversationMapper;
     private final MessageMapper messageMapper;
+    private final UserMapper userMapper;
 
     public ConversationServiceImpl(
             ConversationMapper conversationMapper,
-            MessageMapper messageMapper) {
+            MessageMapper messageMapper,
+            UserMapper userMapper) {
         this.conversationMapper = conversationMapper;
         this.messageMapper = messageMapper;
+        this.userMapper = userMapper;
     }
 
     @Override
@@ -68,32 +73,41 @@ public class ConversationServiceImpl implements ConversationService {
 
         LocalDateTime now = LocalDateTime.now();
         String relatedType = normalizeRelatedType(request.getRelatedType());
-        Conversation conversation = new Conversation();
-        conversation.setType(resolveConversationType(relatedType));
-        conversation.setTitle(buildConversationTitle(relatedType, request.getRelatedId()));
-        conversation.setOwnerId(ownerId);
-        conversation.setPeerUserId(request.getPeerUserId());
-        conversation.setRelatedType(relatedType);
-        conversation.setRelatedId(request.getRelatedId());
-        conversation.setReplyable(1);
-        conversation.setLastMessageAt(now);
-        conversation.setCreatedAt(now);
+        String conversationType = resolveConversationType(relatedType);
+        Conversation conversation = ensureConversation(
+                ownerId,
+                request.getPeerUserId(),
+                conversationType,
+                relatedType,
+                request.getRelatedId(),
+                now);
+        Conversation peerConversation = ensureConversation(
+                request.getPeerUserId(),
+                ownerId,
+                conversationType,
+                relatedType,
+                request.getRelatedId(),
+                now);
 
-        int affectedRows = conversationMapper.insert(conversation);
-        if (affectedRows != 1) {
-            throw new BusinessException(
-                    ErrorCode.COMMON_999_INTERNAL_ERROR,
-                    "Failed to create conversation");
-        }
-
-        if (!isBlank(request.getInitialMessage())) {
-            Message message = buildMessage(
+        if (shouldInsertInitialMessage(conversation, request.getInitialMessage())) {
+            Message ownerMessage = buildMessage(
                     conversation.getId(),
                     ownerId,
                     ApiEnums.MessageType.TEXT.name(),
                     request.getInitialMessage(),
+                    now,
                     now);
-            insertMessage(message);
+            Message peerMessage = buildMessage(
+                    peerConversation.getId(),
+                    ownerId,
+                    ApiEnums.MessageType.TEXT.name(),
+                    request.getInitialMessage(),
+                    null,
+                    now);
+            insertMessage(ownerMessage);
+            insertMessage(peerMessage);
+            touchConversation(conversation, request.getPeerUserId(), now);
+            touchConversation(peerConversation, ownerId, now);
         }
         return conversation;
     }
@@ -139,9 +153,28 @@ public class ConversationServiceImpl implements ConversationService {
                 senderId,
                 request.getType().name(),
                 request.getContent(),
+                now,
                 now);
         insertMessage(message);
-        conversationMapper.updateLastMessageAt(conversation.getId(), senderId, now);
+
+        Conversation peerConversation = ensureConversation(
+                conversation.getPeerUserId(),
+                senderId,
+                conversation.getType(),
+                conversation.getRelatedType(),
+                conversation.getRelatedId(),
+                now);
+        Message peerMessage = buildMessage(
+                peerConversation.getId(),
+                senderId,
+                request.getType().name(),
+                request.getContent(),
+                null,
+                now);
+        insertMessage(peerMessage);
+
+        touchConversation(conversation, conversation.getPeerUserId(), now);
+        touchConversation(peerConversation, senderId, now);
         return message;
     }
 
@@ -154,6 +187,7 @@ public class ConversationServiceImpl implements ConversationService {
         if (request.getPeerUserId() == null) {
             throwValidation("peerUserId is required");
         }
+        requireExistingEnabledUser(request.getPeerUserId());
         if (ownerId.equals(request.getPeerUserId())) {
             throwValidation("peerUserId must not be current user");
         }
@@ -208,13 +242,14 @@ public class ConversationServiceImpl implements ConversationService {
             Long senderId,
             String type,
             String content,
+            LocalDateTime readAt,
             LocalDateTime createdAt) {
         Message message = new Message();
         message.setConversationId(conversationId);
         message.setSenderId(senderId);
         message.setType(type);
         message.setContent(content);
-        message.setReadAt(null);
+        message.setReadAt(readAt);
         message.setCreatedAt(createdAt);
         return message;
     }
@@ -247,6 +282,67 @@ public class ConversationServiceImpl implements ConversationService {
         return relatedType + " conversation #" + relatedId;
     }
 
+    private Conversation ensureConversation(
+            Long ownerId,
+            Long peerUserId,
+            String type,
+            String relatedType,
+            Long relatedId,
+            LocalDateTime now) {
+        Conversation conversation = conversationMapper.selectByOwnerPeerAndRelated(
+                ownerId,
+                peerUserId,
+                type,
+                relatedType,
+                relatedId);
+        if (conversation != null) {
+            return conversation;
+        }
+
+        Conversation created = new Conversation();
+        created.setType(type);
+        created.setTitle(buildConversationTitle(relatedType, relatedId));
+        created.setOwnerId(ownerId);
+        created.setPeerUserId(peerUserId);
+        created.setRelatedType(relatedType);
+        created.setRelatedId(relatedId);
+        created.setReplyable(1);
+        created.setLastMessageAt(now);
+        created.setCreatedAt(now);
+
+        int affectedRows = conversationMapper.insert(created);
+        if (affectedRows != 1) {
+            throw new BusinessException(
+                    ErrorCode.COMMON_999_INTERNAL_ERROR,
+                    "Failed to create conversation");
+        }
+        return created;
+    }
+
+    private boolean shouldInsertInitialMessage(
+            Conversation conversation,
+            String initialMessage) {
+        if (conversation == null || isBlank(initialMessage)) {
+            return false;
+        }
+        return messageMapper.countByConversationTypeAndContent(
+                conversation.getId(),
+                ApiEnums.MessageType.TEXT.name(),
+                initialMessage) == 0;
+    }
+
+    private void touchConversation(
+            Conversation conversation,
+            Long peerUserId,
+            LocalDateTime lastMessageAt) {
+        conversationMapper.updateLastMessageAt(
+                conversation.getId(),
+                peerUserId,
+                lastMessageAt);
+        conversation.setPeerUserId(peerUserId);
+        conversation.setLastMessageAt(lastMessageAt);
+    }
+
     private PageWindow toPageWindow(Integer page, Integer size) {
         int normalizedPage = page == null || page < 1 ? DEFAULT_PAGE : page;
         int normalizedSize = size == null || size < 1 ? DEFAULT_SIZE : Math.min(size, MAX_SIZE);
@@ -262,6 +358,16 @@ public class ConversationServiceImpl implements ConversationService {
 
     private void throwValidation(String message) {
         throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, message);
+    }
+
+    private void requireExistingEnabledUser(Long userId) {
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException(ErrorCode.USER_001_NOT_FOUND);
+        }
+        if (Integer.valueOf(0).equals(user.getEnabled())) {
+            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "peer user disabled");
+        }
     }
 
     private boolean isBlank(String value) {

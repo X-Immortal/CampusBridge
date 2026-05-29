@@ -44,6 +44,17 @@
     LIMIT 1
   </select>
 
+  <select id="selectByOwnerPeerAndRelated" resultType="com.campusbridge.pojo.Conversation">
+    SELECT * FROM conversations
+    WHERE owner_id = #{ownerId}
+      AND peer_user_id = #{peerUserId}
+      AND type = #{type}
+      AND related_type = #{relatedType}
+      AND related_id = #{relatedId}
+    ORDER BY id ASC
+    LIMIT 1
+  </select>
+
   <update id="updateById" parameterType="com.campusbridge.pojo.Conversation">
     UPDATE conversations
     SET type = #{type},
