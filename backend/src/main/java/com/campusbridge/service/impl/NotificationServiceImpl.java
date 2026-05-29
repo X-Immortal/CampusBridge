@@ -4,10 +4,12 @@ import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
 import com.campusbridge.mapper.ConversationMapper;
 import com.campusbridge.mapper.MessageMapper;
+import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.pojo.Conversation;
 import com.campusbridge.pojo.Message;
 import com.campusbridge.pojo.Task;
 import com.campusbridge.pojo.TaskApplication;
+import com.campusbridge.pojo.User;
 import com.campusbridge.service.NotificationService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,17 +24,20 @@ public class NotificationServiceImpl implements NotificationService {
     private static final String CONVERSATION_TYPE_SYSTEM = "SYSTEM";
     private static final String RELATED_TYPE_TASK = "TASK";
     private static final String MESSAGE_TYPE_SYSTEM_NOTIFICATION = "SYSTEM_NOTIFICATION";
-    private static final String TITLE_TASK_NOTIFICATION = "Task notifications";
+    private static final String TITLE_TASK_NOTIFICATION = "任务通知";
     private static final String STATUS_DISPUTED = "DISPUTED";
 
     private final ConversationMapper conversationMapper;
     private final MessageMapper messageMapper;
+    private final UserMapper userMapper;
 
     public NotificationServiceImpl(
             ConversationMapper conversationMapper,
-            MessageMapper messageMapper) {
+            MessageMapper messageMapper,
+            UserMapper userMapper) {
         this.conversationMapper = conversationMapper;
         this.messageMapper = messageMapper;
+        this.userMapper = userMapper;
     }
 
     @Override
@@ -44,9 +49,9 @@ public class NotificationServiceImpl implements NotificationService {
             return;
         }
         String content = taskLabel(task)
-                + " received a new application from user #"
-                + application.getApplicantId()
-                + ".";
+                + "收到来自"
+                + userLabel(application.getApplicantId())
+                + "的接单申请。";
         sendTaskNotification(task.getRequesterId(), operatorId, task, content);
     }
 
@@ -58,9 +63,9 @@ public class NotificationServiceImpl implements NotificationService {
         if (task == null || application == null) {
             return;
         }
-        String content = "Your application for "
+        String content = "你对"
                 + taskLabel(task)
-                + " was accepted.";
+                + "的接单申请已被接受。";
         sendTaskNotification(application.getApplicantId(), operatorId, task, content);
     }
 
@@ -158,27 +163,71 @@ public class NotificationServiceImpl implements NotificationService {
             String reason) {
         String prefix;
         if (STATUS_DISPUTED.equals(toStatus)) {
-            prefix = taskLabel(task) + " entered dispute.";
+            prefix = taskLabel(task) + "已进入争议。";
         } else {
             prefix = taskLabel(task)
-                    + " status changed from "
-                    + fromStatus
-                    + " to "
-                    + toStatus
-                    + ".";
+                    + "状态已从“"
+                    + statusLabel(fromStatus)
+                    + "”变更为“"
+                    + statusLabel(toStatus)
+                    + "”。";
         }
         if (isBlank(reason)) {
             return prefix;
         }
-        return prefix + " Reason: " + reason.trim();
+        return prefix + "原因：" + reason.trim();
     }
 
     private String taskLabel(Task task) {
-        String label = "task #" + task.getId();
+        String label = "任务 #" + task.getId();
         if (isBlank(task.getTitle())) {
             return label;
         }
-        return label + " \"" + abbreviate(task.getTitle().trim()) + "\"";
+        return label + "“" + abbreviate(task.getTitle().trim()) + "”";
+    }
+
+    private String userLabel(Long userId) {
+        String label = "用户 #" + userId;
+        if (userId == null) {
+            return label;
+        }
+        User user = userMapper.selectById(userId);
+        if (user == null || isBlank(user.getUsername())) {
+            return label;
+        }
+        return label + "“" + abbreviate(user.getUsername().trim()) + "”";
+    }
+
+    private String statusLabel(String status) {
+        if (status == null) {
+            return "";
+        }
+        switch (status) {
+            case "DRAFT":
+                return "草稿";
+            case "OPEN":
+                return "待接单";
+            case "PENDING_REVIEW":
+                return "待审核";
+            case "ACCEPTED":
+                return "已接单";
+            case "IN_PROGRESS":
+                return "进行中";
+            case "PENDING_CONFIRMATION":
+                return "待确认";
+            case "COMPLETED":
+                return "已完成";
+            case "REVIEWED":
+                return "已评价";
+            case "CANCELLED":
+                return "已取消";
+            case "DISPUTED":
+                return "争议中";
+            case "REJECTED":
+                return "已拒绝";
+            default:
+                return status;
+        }
     }
 
     private String abbreviate(String value) {
