@@ -20,4 +20,10 @@ public interface NotificationService {
             String toStatus,
             Long operatorId,
             String reason);
+
+    void notifyTaskTimeoutReminder(
+            Task task,
+            Long recipientId,
+            Long operatorId,
+            String reminderType);
 }

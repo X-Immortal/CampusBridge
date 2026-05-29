@@ -26,6 +26,9 @@ public class NotificationServiceImpl implements NotificationService {
     private static final String MESSAGE_TYPE_SYSTEM_NOTIFICATION = "SYSTEM_NOTIFICATION";
     private static final String TITLE_TASK_NOTIFICATION = "任务通知";
     private static final String STATUS_DISPUTED = "DISPUTED";
+    private static final String REMINDER_OPEN_TIMEOUT = "TIMEOUT_REMINDER_OPEN";
+    private static final String REMINDER_PENDING_CONFIRMATION =
+            "TIMEOUT_REMINDER_PENDING_CONFIRMATION";
 
     private final ConversationMapper conversationMapper;
     private final MessageMapper messageMapper;
@@ -82,6 +85,19 @@ public class NotificationServiceImpl implements NotificationService {
         String content = buildStatusContent(task, fromStatus, toStatus, reason);
         sendTaskNotification(task.getRequesterId(), operatorId, task, content);
         sendTaskNotification(task.getProviderId(), operatorId, task, content);
+    }
+
+    @Override
+    public void notifyTaskTimeoutReminder(
+            Task task,
+            Long recipientId,
+            Long operatorId,
+            String reminderType) {
+        if (task == null || task.getId() == null || recipientId == null) {
+            return;
+        }
+        String content = buildTimeoutReminderContent(task, reminderType);
+        sendTaskNotification(recipientId, operatorId, task, content);
     }
 
     private void sendTaskNotification(
@@ -176,6 +192,23 @@ public class NotificationServiceImpl implements NotificationService {
             return prefix;
         }
         return prefix + "原因：" + reason.trim();
+    }
+
+    private String buildTimeoutReminderContent(Task task, String reminderType) {
+        if (REMINDER_OPEN_TIMEOUT.equals(reminderType)) {
+            return taskLabel(task)
+                    + "已超过截止时间且还没有被接单。"
+                    + "系统将在宽限期后自动取消该任务。"
+                    + "在此之前，你可以编辑、重发或手动取消。";
+        }
+        if (REMINDER_PENDING_CONFIRMATION.equals(reminderType)) {
+            return taskLabel(task)
+                    + "正在等待你的完成确认。"
+                    + "如果你没有确认、驳回或发起争议，"
+                    + "系统将在宽限期后自动确认完成。";
+        }
+        return taskLabel(task)
+                + "触发了超时规则，请及时处理。";
     }
 
     private String taskLabel(Task task) {

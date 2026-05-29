@@ -33,4 +33,16 @@ public interface TaskMapper {
             @Param("updatedAt") LocalDateTime updatedAt);
 
     List<Task> selectWithFilters(Map<String, Object> params);
+
+    List<Task> selectTasksNeedingTimeoutReminder(
+            @Param("status") String status,
+            @Param("referenceTime") LocalDateTime referenceTime,
+            @Param("reminderNote") String reminderNote,
+            @Param("limit") Integer limit);
+
+    List<Task> selectTasksReadyForTimeoutTransition(
+            @Param("status") String status,
+            @Param("reminderNote") String reminderNote,
+            @Param("reminderCreatedBefore") LocalDateTime reminderCreatedBefore,
+            @Param("limit") Integer limit);
 }
