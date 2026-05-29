@@ -114,6 +114,9 @@ export default {
     request(`/tasks/${taskId}/status-transitions`, { method: 'POST', body }),
   submitTaskCompletion: (taskId, body) =>
     request(`/tasks/${taskId}/completion`, { method: 'POST', body }),
+  getTaskReviews: (taskId) => request(`/tasks/${taskId}/reviews`),
+  createTaskReview: (taskId, body) =>
+    request(`/tasks/${taskId}/reviews`, { method: 'POST', body }),
   getTasks: (params) => request(`/tasks${buildQuery(params)}`),
   getTaskDetail: (taskId) => request(`/tasks/${taskId}`),
   createTaskApplication: (taskId, body) =>

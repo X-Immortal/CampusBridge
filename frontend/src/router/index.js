@@ -4,6 +4,7 @@ import AuthView from '../views/AuthView.vue'
 import TaskPublishView from '../views/TaskPublishView.vue'
 import TaskListView from '../views/TaskListView.vue'
 import ConversationView from '../views/ConversationView.vue'
+import ReviewNotificationView from '../views/ReviewNotificationView.vue'
 import { useAuth } from '../stores/auth'
 
 function redirectByAuth() {
@@ -69,6 +70,16 @@ const router = createRouter({
       path: '/conversations/:conversationId',
       name: 'conversation-detail',
       component: ConversationView
+    },
+    {
+      path: '/reviews',
+      name: 'reviews',
+      component: ReviewNotificationView
+    },
+    {
+      path: '/notifications',
+      name: 'notifications',
+      component: ReviewNotificationView
     }
   ]
 })

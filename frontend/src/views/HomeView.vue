@@ -24,6 +24,7 @@ import {
   School,
   Search,
   ShieldCheck,
+  Star,
   UserRound
 } from '@lucide/vue'
 import StatusBadge from '../components/StatusBadge.vue'
@@ -55,6 +56,7 @@ const navItems = [
   { label: '发布任务', icon: PlusCircle, to: '/tasks/new' },
   { label: '我的任务', icon: ClipboardList, to: '/tasks/mine' },
   { label: '站内沟通', icon: MessageCircle, to: '/conversations' },
+  { label: '评价中心', icon: Star, to: '/reviews' },
   { label: '消息中心', icon: Bell, to: '/notifications' }
 ]
 
@@ -294,9 +296,9 @@ onBeforeUnmount(() => {
       </label>
 
       <div class="topbar-account">
-        <button
+        <RouterLink
           class="notice-button"
-          type="button"
+          to="/notifications"
           aria-label="消息通知"
         >
           <Bell
@@ -304,7 +306,7 @@ onBeforeUnmount(() => {
             aria-hidden="true"
           />
           <span>3</span>
-        </button>
+        </RouterLink>
         <div class="topbar-divider" />
         <div
           ref="accountMenuRef"
