@@ -9,6 +9,7 @@ import com.campusbridge.mapper.TaskMapper;
 import com.campusbridge.pojo.CampusVerification;
 import com.campusbridge.pojo.Task;
 import com.campusbridge.service.ContentModerationService;
+import com.campusbridge.service.NotificationService;
 import com.campusbridge.service.TaskHistoryService;
 import com.campusbridge.service.impl.TaskServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,6 +45,9 @@ class BE04BE08TaskServiceImplTest {
     @Mock
     private ContentModerationService contentModerationService;
 
+    @Mock
+    private NotificationService notificationService;
+
     private TaskServiceImpl taskService;
 
     @BeforeEach
@@ -52,7 +56,8 @@ class BE04BE08TaskServiceImplTest {
                 taskMapper,
                 campusVerificationMapper,
                 taskHistoryService,
-                contentModerationService);
+                contentModerationService,
+                notificationService);
     }
 
     @Test

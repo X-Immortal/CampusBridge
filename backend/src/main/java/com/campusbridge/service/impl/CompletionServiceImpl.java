@@ -38,7 +38,10 @@ public class CompletionServiceImpl implements CompletionService {
     }
 
     @Override
-    public CompletionProof submitCompletionProof(Long submitterId, Long taskId, RequestDtos.SubmitCompletionRequest request) {
+    public CompletionProof submitCompletionProof(
+            Long submitterId,
+            Long taskId,
+            RequestDtos.SubmitCompletionRequest request) {
         validateSubmitterId(submitterId);
         validateTaskId(taskId);
         validateSubmitCompletionRequest(request);
@@ -229,7 +232,9 @@ public class CompletionServiceImpl implements CompletionService {
             throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "description is required");
         }
         if (request.getDescription().length() > MAX_DESCRIPTION_LENGTH) {
-            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "description is too long (max " + MAX_DESCRIPTION_LENGTH + " characters)");
+            throw new BusinessException(
+                    ErrorCode.COMMON_001_VALIDATION_ERROR,
+                    "description is too long (max " + MAX_DESCRIPTION_LENGTH + " characters)");
         }
     }
 
@@ -238,7 +243,9 @@ public class CompletionServiceImpl implements CompletionService {
             throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "reason is required");
         }
         if (reason != null && reason.length() > MAX_REASON_LENGTH) {
-            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "reason is too long (max " + MAX_REASON_LENGTH + " characters)");
+            throw new BusinessException(
+                    ErrorCode.COMMON_001_VALIDATION_ERROR,
+                    "reason is too long (max " + MAX_REASON_LENGTH + " characters)");
         }
     }
 }
