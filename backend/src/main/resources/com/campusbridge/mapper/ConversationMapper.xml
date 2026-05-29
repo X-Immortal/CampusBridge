@@ -16,6 +16,45 @@
     SELECT * FROM conversations
   </select>
 
+  <select id="selectByOwnerId" resultType="com.campusbridge.pojo.Conversation">
+    SELECT * FROM conversations
+    WHERE owner_id = #{ownerId}
+    ORDER BY last_message_at DESC, id DESC
+    LIMIT #{size} OFFSET #{offset}
+  </select>
+
+  <select id="countByOwnerId" resultType="long">
+    SELECT COUNT(*) FROM conversations
+    WHERE owner_id = #{ownerId}
+  </select>
+
+  <select id="selectOwnedById" resultType="com.campusbridge.pojo.Conversation">
+    SELECT * FROM conversations
+    WHERE id = #{id}
+      AND owner_id = #{ownerId}
+  </select>
+
+  <select id="selectByOwnerAndRelated" resultType="com.campusbridge.pojo.Conversation">
+    SELECT * FROM conversations
+    WHERE owner_id = #{ownerId}
+      AND type = #{type}
+      AND related_type = #{relatedType}
+      AND related_id = #{relatedId}
+    ORDER BY id ASC
+    LIMIT 1
+  </select>
+
+  <select id="selectByOwnerPeerAndRelated" resultType="com.campusbridge.pojo.Conversation">
+    SELECT * FROM conversations
+    WHERE owner_id = #{ownerId}
+      AND peer_user_id = #{peerUserId}
+      AND type = #{type}
+      AND related_type = #{relatedType}
+      AND related_id = #{relatedId}
+    ORDER BY id ASC
+    LIMIT 1
+  </select>
+
   <update id="updateById" parameterType="com.campusbridge.pojo.Conversation">
     UPDATE conversations
     SET type = #{type},
@@ -27,6 +66,13 @@
       replyable = #{replyable},
       last_message_at = #{lastMessageAt},
       created_at = #{createdAt}
+    WHERE id = #{id}
+  </update>
+
+  <update id="updateLastMessageAt">
+    UPDATE conversations
+    SET peer_user_id = #{peerUserId},
+        last_message_at = #{lastMessageAt}
     WHERE id = #{id}
   </update>
 
