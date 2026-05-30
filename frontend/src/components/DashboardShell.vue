@@ -217,6 +217,7 @@ onBeforeUnmount(() => {
                 v-if="profileAvatarSrc"
                 :src="profileAvatarSrc"
                 :alt="`${userName}的头像`"
+                referrerpolicy="no-referrer"
                 @error="handleAvatarError"
               >
               <span v-else>{{ profileInitial }}</span>
@@ -246,6 +247,7 @@ onBeforeUnmount(() => {
                   v-if="profileAvatarSrc"
                   :src="profileAvatarSrc"
                   :alt="`${userName}的头像`"
+                  referrerpolicy="no-referrer"
                   @error="handleAvatarError"
                 >
                 <span v-else>{{ profileInitial }}</span>
