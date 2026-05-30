@@ -78,7 +78,7 @@ async function request(path, { method = 'GET', body, headers = {} } = {}) {
   }
 
   if (payload && typeof payload === 'object' && 'code' in payload) {
-    if (payload.code !== 'SUCCESS') {
+    if (!['SUCCESS', 200, '200'].includes(payload.code)) {
       throw new ApiError(payload.message || '业务校验失败', response.status, payload.code, payload.data)
     }
     return payload.data
@@ -105,6 +105,7 @@ export default {
   getCurrentUser: () => request('/users/me'),
   getMyProfile: () => request('/users/me/profile'),
   updateMyProfile: (body) => request('/users/me/profile', { method: 'PUT', body }),
+  getUserProfile: (userId) => request(`/users/${userId}/profile`),
   submitVerification: (body) => request('/verifications', { method: 'POST', body }),
   getVerification: () => request('/verifications'),
   createTask: (body) => request('/tasks', { method: 'POST', body }),
