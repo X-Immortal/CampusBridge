@@ -30,7 +30,6 @@ const router = useRouter()
 const { currentUserId } = useAuth()
 
 const READ_STORAGE_KEY = 'campusbridge.notifications.read'
-const DEMO_USER_ID = 231098080
 
 const reviewLabels = {
   1: '体验很差',
@@ -57,133 +56,9 @@ const notificationFilters = [
   { value: 'CREDIT', label: '信用' }
 ]
 
-const demoReviewTasks = [
-  {
-    id: 2024051801,
-    requesterId: DEMO_USER_ID,
-    providerId: 20240018,
-    providerName: '林同学',
-    requesterName: '我',
-    category: 'ERRAND',
-    title: '代取快递并送到南苑门口',
-    campus: '仙林校区',
-    location: '菜鸟驿站',
-    status: 'COMPLETED',
-    rewardType: 'CASH',
-    rewardDescription: '8 元现金',
-    completionStandard: '快递外包装完整，送达后拍照确认。',
-    completedAt: '2026-05-28T18:36:00',
-    createdAt: '2026-05-28T15:10:00',
-    reviews: []
-  },
-  {
-    id: 2024051708,
-    requesterId: 20240027,
-    providerId: DEMO_USER_ID,
-    requesterName: '周同学',
-    providerName: '我',
-    category: 'AGENCY',
-    title: '提交学院纸质材料',
-    campus: '鼓楼校区',
-    location: '软件学院办公室',
-    status: 'COMPLETED',
-    rewardType: 'POINTS',
-    rewardDescription: '60 积分',
-    completionStandard: '材料交给窗口老师，并保留窗口回执照片。',
-    completedAt: '2026-05-27T16:24:00',
-    createdAt: '2026-05-27T13:20:00',
-    reviews: []
-  },
-  {
-    id: 2024051603,
-    requesterId: DEMO_USER_ID,
-    providerId: 20240032,
-    requesterName: '我',
-    providerName: '陈同学',
-    category: 'ATTENDANCE_ASSIST',
-    title: '活动现场物资搬运协助',
-    campus: '仙林校区',
-    location: '大学生活动中心',
-    status: 'REVIEWED',
-    rewardType: 'NEGOTIABLE',
-    rewardDescription: '双方协商',
-    completionStandard: '展板和签到物料安全搬到指定教室门口。',
-    completedAt: '2026-05-26T20:12:00',
-    createdAt: '2026-05-26T17:00:00',
-    reviews: [
-      {
-        id: 7001,
-        taskId: 2024051603,
-        reviewerId: DEMO_USER_ID,
-        revieweeId: 20240032,
-        rating: 5,
-        comment: '到场很准时，搬运过程也会主动确认路线，后续还愿意再合作。',
-        createdAt: '2026-05-26T21:02:00'
-      },
-      {
-        id: 7002,
-        taskId: 2024051603,
-        reviewerId: 20240032,
-        revieweeId: DEMO_USER_ID,
-        rating: 5,
-        comment: '任务说明很清楚，现场交接也顺利。',
-        createdAt: '2026-05-26T21:10:00'
-      }
-    ]
-  }
-]
-
-const demoNotifications = [
-  {
-    id: 'demo-application-2024051801',
-    type: 'TASK',
-    tone: 'info',
-    title: '有新的接单申请',
-    content: '林同学申请接取「代取快递并送到南苑门口」，并备注自己正在驿站附近。',
-    source: '任务协作',
-    taskId: 2024051801,
-    conversationId: 1002,
-    createdAt: '2026-05-28T17:48:00'
-  },
-  {
-    id: 'demo-completion-2024051801',
-    type: 'TASK',
-    tone: 'warning',
-    title: '完成凭证待确认',
-    content: '帮助者已上传送达照片，请在确认无误后完成任务闭环。',
-    source: '完成确认',
-    taskId: 2024051801,
-    conversationId: 1002,
-    createdAt: '2026-05-28T18:36:00'
-  },
-  {
-    id: 'demo-review-2024051708',
-    type: 'REVIEW',
-    tone: 'accent',
-    title: '别忘了评价本次协作',
-    content: '你完成的「提交学院纸质材料」已进入互评阶段，评价会帮助后续同学判断可信度。',
-    source: '评价提醒',
-    taskId: 2024051708,
-    conversationId: 1003,
-    createdAt: '2026-05-27T18:05:00'
-  },
-  {
-    id: 'demo-credit-2024051603',
-    type: 'CREDIT',
-    tone: 'success',
-    title: '信用记录已更新',
-    content: '活动现场物资搬运协助获得 5 星评价，信用记录已同步累计。',
-    source: '信用体系',
-    taskId: 2024051603,
-    conversationId: 1004,
-    createdAt: '2026-05-26T21:12:00',
-    readAt: '2026-05-26T21:20:00'
-  }
-]
-
 const activeSection = computed(() => (route.name === 'notifications' ? 'notifications' : 'reviews'))
 const activeLabel = computed(() => (activeSection.value === 'notifications' ? '消息中心' : '评价中心'))
-const currentUser = computed(() => currentUserId.value || DEMO_USER_ID)
+const currentUser = computed(() => currentUserId.value)
 
 const tasks = ref([])
 const notifications = ref([])
@@ -191,8 +66,6 @@ const selectedTaskId = ref('')
 const selectedNotificationId = ref('')
 const loadingReviews = ref(false)
 const loadingNotifications = ref(false)
-const usingReviewFallback = ref(false)
-const usingNotificationFallback = ref(false)
 const reviewFeedback = ref('')
 const reviewFeedbackType = ref('success')
 const notificationFeedback = ref('')
@@ -297,7 +170,7 @@ const notificationMetrics = computed(() => [
 function readStoredNotificationIds() {
   try {
     const payload = JSON.parse(localStorage.getItem(READ_STORAGE_KEY) || '{}')
-    const userKey = String(currentUserId.value || DEMO_USER_ID)
+    const userKey = String(currentUserId.value || 'anonymous')
     return Array.isArray(payload[userKey]) ? payload[userKey].map(String) : []
   } catch {
     return []
@@ -315,16 +188,9 @@ function persistReadIds() {
   localStorage.setItem(READ_STORAGE_KEY, JSON.stringify(payload))
 }
 
-function demoDate(hourOffset) {
-  const date = new Date()
-  date.setMinutes(0, 0, 0)
-  date.setTime(date.getTime() + hourOffset * 60 * 60 * 1000)
-  return date.toISOString()
-}
-
 function normalizePagedItems(result) {
   if (Array.isArray(result)) return result
-  return result?.items || result?.records || result?.content || result?.list || []
+  return result?.tasks || result?.items || result?.records || result?.content || result?.list || []
 }
 
 function normalizeTask(task = {}) {
@@ -337,7 +203,7 @@ function normalizeTask(task = {}) {
     requesterName: task.requesterName || task.ownerName || '求助同学',
     providerName: task.providerName || task.helperName || '帮助同学',
     status: task.status || 'COMPLETED',
-    completedAt: task.completedAt || task.updatedAt || task.deadline || task.createdAt || demoDate(-24),
+    completedAt: task.completedAt || task.updatedAt || task.deadline || task.createdAt || '',
     reviews: Array.isArray(task.reviews) ? task.reviews : []
   }
 }
@@ -447,7 +313,6 @@ function toggleReviewTag(tag) {
 
 async function loadReviews() {
   loadingReviews.value = true
-  usingReviewFallback.value = false
   reviewFeedback.value = ''
   try {
     const [completedResult, reviewedResult] = await Promise.allSettled([
@@ -462,21 +327,15 @@ async function loadReviews() {
       .filter((task) => task.id || task.taskId)
       .map(normalizeTask)
 
-    if (!uniqueTasks.length) {
-      tasks.value = demoReviewTasks.map(normalizeTask)
-      usingReviewFallback.value = true
-    } else {
-      tasks.value = uniqueTasks
-      await hydrateTaskReviews()
-    }
+    tasks.value = uniqueTasks
+    if (uniqueTasks.length) await hydrateTaskReviews()
 
     if (!selectedTaskId.value || !tasks.value.some((task) => String(task.id) === String(selectedTaskId.value))) {
       selectedTaskId.value = String(pendingReviewTasks.value[0]?.id || tasks.value[0]?.id || '')
     }
   } catch {
-    tasks.value = demoReviewTasks.map(normalizeTask)
-    selectedTaskId.value = String(pendingReviewTasks.value[0]?.id || tasks.value[0]?.id || '')
-    usingReviewFallback.value = true
+    tasks.value = []
+    selectedTaskId.value = ''
   } finally {
     loadingReviews.value = false
   }
@@ -499,7 +358,9 @@ async function hydrateTaskReviews() {
       const detailTask =
         detailResult.status === 'fulfilled' && detailResult.value?.task
           ? normalizeTask(detailResult.value.task)
-          : {}
+          : detailResult.status === 'fulfilled' && detailResult.value?.id
+            ? normalizeTask(detailResult.value)
+            : {}
 
       return {
         ...task,
@@ -541,11 +402,7 @@ async function submitReview() {
     setReviewFeedback('评价已提交，后续会参与信用记录计算。')
     resetReviewForm()
   } catch (error) {
-    const review = normalizeReview(payload, selectedTask.value.id)
-    appendReviewToTask(selectedTask.value.id, review)
-    usingReviewFallback.value = true
-    setReviewFeedback(error.message || '后端暂未返回评价结果，已在本页保留本次评价。')
-    resetReviewForm()
+    setReviewFeedback(error.message || '评价提交失败，请稍后重试。', 'danger')
   } finally {
     loadingReviews.value = false
   }
@@ -645,18 +502,11 @@ async function loadNotifications() {
       ...messageResults.flatMap((resultItem) => (resultItem.status === 'fulfilled' ? resultItem.value : []))
     ]
 
-    if (!items.length) {
-      notifications.value = demoNotifications
-      usingNotificationFallback.value = true
-    } else {
-      notifications.value = items
-      usingNotificationFallback.value = false
-    }
+    notifications.value = items
     selectDefaultNotification()
   } catch {
     if (requestId !== notificationRequestId) return
-    notifications.value = demoNotifications
-    usingNotificationFallback.value = true
+    notifications.value = []
     selectDefaultNotification()
   } finally {
     if (requestId === notificationRequestId) loadingNotifications.value = false
@@ -781,18 +631,6 @@ onMounted(async () => {
           <span>未读通知</span>
           <strong>{{ unreadNotifications.length }}</strong>
         </article>
-      </section>
-
-      <section
-        v-if="usingReviewFallback || usingNotificationFallback"
-        class="page-feedback"
-        role="status"
-      >
-        <Info
-          :size="18"
-          aria-hidden="true"
-        />
-        <span>当前页面会优先请求 openapi.yaml 已约定接口；接口暂无数据时展示可联调的校园任务情境数据。</span>
       </section>
 
       <section

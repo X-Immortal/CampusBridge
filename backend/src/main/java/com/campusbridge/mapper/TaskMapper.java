@@ -6,6 +6,7 @@ import org.apache.ibatis.annotations.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Mapper
 public interface TaskMapper {
@@ -30,4 +31,6 @@ public interface TaskMapper {
             @Param("requesterId") Long requesterId,
             @Param("providerId") Long providerId,
             @Param("updatedAt") LocalDateTime updatedAt);
+
+    List<Task> selectWithFilters(Map<String, Object> params);
 }

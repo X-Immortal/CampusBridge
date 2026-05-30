@@ -16,6 +16,7 @@ import com.campusbridge.pojo.TaskApplication;
 import com.campusbridge.pojo.User;
 import com.campusbridge.pojo.UserCredit;
 import com.campusbridge.pojo.UserProfile;
+import com.campusbridge.service.NotificationService;
 import com.campusbridge.service.TaskApplicationService;
 import com.campusbridge.service.TaskHistoryService;
 import org.springframework.dao.DuplicateKeyException;
@@ -43,6 +44,7 @@ public class TaskApplicationServiceImpl implements TaskApplicationService {
     private final UserCreditMapper userCreditMapper;
     private final CampusVerificationMapper campusVerificationMapper;
     private final TaskHistoryService taskHistoryService;
+    private final NotificationService notificationService;
 
     public TaskApplicationServiceImpl(
             TaskApplicationMapper taskApplicationMapper,
@@ -51,7 +53,8 @@ public class TaskApplicationServiceImpl implements TaskApplicationService {
             UserProfileMapper userProfileMapper,
             UserCreditMapper userCreditMapper,
             CampusVerificationMapper campusVerificationMapper,
-            TaskHistoryService taskHistoryService) {
+            TaskHistoryService taskHistoryService,
+            NotificationService notificationService) {
         this.taskApplicationMapper = taskApplicationMapper;
         this.taskMapper = taskMapper;
         this.userMapper = userMapper;
@@ -59,6 +62,7 @@ public class TaskApplicationServiceImpl implements TaskApplicationService {
         this.userCreditMapper = userCreditMapper;
         this.campusVerificationMapper = campusVerificationMapper;
         this.taskHistoryService = taskHistoryService;
+        this.notificationService = notificationService;
     }
 
     @Override
@@ -99,6 +103,7 @@ public class TaskApplicationServiceImpl implements TaskApplicationService {
         } catch (DuplicateKeyException ex) {
             throw new BusinessException(ErrorCode.TASK_007_ALREADY_APPLIED);
         }
+        notificationService.notifyTaskApplicationCreated(task, application, applicantId);
         return application;
     }
 
@@ -168,6 +173,7 @@ public class TaskApplicationServiceImpl implements TaskApplicationService {
 
         application.setStatus(STATUS_ACCEPTED);
         application.setHandledAt(now);
+        notificationService.notifyTaskApplicationAccepted(task, application, requesterId);
         return application;
     }
 

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   Bell,
@@ -38,6 +38,7 @@ const { state, isAuthenticated, logout } = useAuth()
 const { sidebarCollapsed, toggleSidebarCollapsed } = useDashboardSidebar()
 const accountMenuOpen = ref(false)
 const accountMenuRef = ref(null)
+const avatarLoadFailed = ref(false)
 
 const navItems = [
   { label: '个人主页', icon: Home, to: '/home' },
@@ -52,6 +53,16 @@ const navItems = [
 const userName = computed(() =>
   isAuthenticated.value ? state.profile?.nickname || state.user?.username || '张同学' : '未登录'
 )
+const profileAvatarUrl = computed(() => String(state.profile?.avatarUrl || '').trim())
+const profileAvatarSrc = computed(() => {
+  if (!profileAvatarUrl.value || avatarLoadFailed.value) return ''
+  if (/^https?:\/\/example\.com\//i.test(profileAvatarUrl.value)) return ''
+  return profileAvatarUrl.value
+})
+const profileInitial = computed(() => {
+  const name = String(userName.value || '').trim()
+  return name ? name.slice(0, 1) : '同'
+})
 const accountMeta = computed(() => {
   if (!isAuthenticated.value) return '登录后同步认证和任务记录'
   return state.profile?.campus || state.profile?.college || state.user?.role || '校园互助账号'
@@ -79,6 +90,14 @@ async function handleLogout() {
   closeAccountMenu()
   await router.push('/auth')
 }
+
+function handleAvatarError() {
+  avatarLoadFailed.value = true
+}
+
+watch(profileAvatarUrl, () => {
+  avatarLoadFailed.value = false
+})
 
 onMounted(() => {
   document.addEventListener('pointerdown', handleDocumentPointerDown)
@@ -194,7 +213,16 @@ onBeforeUnmount(() => {
             @click.stop="toggleAccountMenu"
           >
             <span class="avatar">
+              <img
+                v-if="profileAvatarSrc"
+                :src="profileAvatarSrc"
+                :alt="`${userName}的头像`"
+                referrerpolicy="no-referrer"
+                @error="handleAvatarError"
+              >
+              <span v-else>{{ profileInitial }}</span>
               <UserRound
+                v-if="!profileAvatarSrc && !profileInitial"
                 :size="24"
                 aria-hidden="true"
               />
@@ -215,7 +243,16 @@ onBeforeUnmount(() => {
           >
             <div class="account-dropdown-head">
               <span class="avatar avatar--compact">
+                <img
+                  v-if="profileAvatarSrc"
+                  :src="profileAvatarSrc"
+                  :alt="`${userName}的头像`"
+                  referrerpolicy="no-referrer"
+                  @error="handleAvatarError"
+                >
+                <span v-else>{{ profileInitial }}</span>
                 <UserRound
+                  v-if="!profileAvatarSrc && !profileInitial"
                   :size="20"
                   aria-hidden="true"
                 />
@@ -598,11 +635,19 @@ onBeforeUnmount(() => {
   border-radius: 50%;
   background: linear-gradient(135deg, #e0e7ff, #f5f3ff);
   color: #4f46e5;
+  font-weight: 900;
+  overflow: hidden;
 }
 
 .avatar--compact {
   width: 38px;
   height: 38px;
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .account-dropdown {

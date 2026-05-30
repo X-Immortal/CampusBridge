@@ -66,4 +66,43 @@
     WHERE id = #{id}
   </delete>
 
+  <select id="selectWithFilters" resultType="com.campusbridge.pojo.Task">
+    SELECT * FROM tasks
+    <where>
+      <if test="keyword != null and keyword != ''">
+        AND (title LIKE CONCAT('%', #{keyword}, '%') OR description LIKE CONCAT('%', #{keyword}, '%'))
+      </if>
+      <if test="category != null and category != ''">
+        AND category = #{category}
+      </if>
+      <if test="campus != null and campus != ''">
+        AND campus = #{campus}
+      </if>
+      <if test="status != null and status != ''">
+        AND status = #{status}
+      </if>
+      <if test="rewardType != null and rewardType != ''">
+        AND reward_type = #{rewardType}
+      </if>
+      <if test="requiresProof != null">
+        AND requires_proof = #{requiresProof}
+      </if>
+    </where>
+    <choose>
+      <when test="sortBy == 'DEADLINE_ASC'">
+        ORDER BY deadline ASC
+      </when>
+      <when test="sortBy == 'DEADLINE_DESC'">
+        ORDER BY deadline DESC
+      </when>
+      <when test="sortBy == 'CREATED_AT_DESC'">
+        ORDER BY created_at DESC
+      </when>
+      <otherwise>
+        ORDER BY created_at DESC
+      </otherwise>
+    </choose>
+    LIMIT #{limit} OFFSET #{offset}
+  </select>
+
 </mapper>
