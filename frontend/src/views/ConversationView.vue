@@ -68,6 +68,10 @@ const messagesLoading = ref(false)
 const sending = ref(false)
 const conversationSearch = ref('')
 const threadRef = ref(null)
+const feedback = reactive({
+  message: '',
+  type: 'success'
+})
 
 const conversationPage = reactive({
   page: 1,
@@ -91,12 +95,20 @@ let messagesRequestId = 0
 const selectedConversationId = computed(() =>
   route.params.conversationId ? String(route.params.conversationId) : ''
 )
+const routeRelatedType = computed(() => normalizeRelatedType(firstQueryValue(route.query.relatedType)))
+const routeRelatedId = computed(() => normalizePositiveId(firstQueryValue(route.query.relatedId)))
+const routePeerUserId = computed(() => normalizePositiveId(firstQueryValue(route.query.peerUserId)))
 
 const activeConversation = computed(
-  () =>
-    conversations.value.find((conversation) => String(conversation.id) === selectedConversationId.value) ||
-    conversations.value[0] ||
-    null
+  () => {
+    if (selectedConversationId.value) {
+      return (
+        conversations.value.find((conversation) => String(conversation.id) === selectedConversationId.value) ||
+        null
+      )
+    }
+    return conversations.value[0] || null
+  }
 )
 
 const currentUser = computed(() => currentUserId.value)
@@ -139,6 +151,29 @@ function getCategoryMeta(category) {
   return categoryMeta[category] || categoryMeta.ERRAND
 }
 
+function firstQueryValue(value) {
+  return Array.isArray(value) ? value[0] : value
+}
+
+function normalizeRelatedType(value) {
+  const normalized = String(value || '').trim().toUpperCase()
+  return ['POST', 'TASK'].includes(normalized) ? normalized : ''
+}
+
+function normalizePositiveId(value) {
+  const number = Number(value)
+  return Number.isInteger(number) && number > 0 ? String(number) : ''
+}
+
+function hasRouteConversationHint() {
+  return Boolean(routeRelatedType.value && routeRelatedId.value)
+}
+
+function setFeedback(message, type = 'success') {
+  feedback.message = message
+  feedback.type = type
+}
+
 function normalizePagedResult(result, fallbackSize) {
   if (Array.isArray(result)) {
     return {
@@ -176,28 +211,37 @@ function normalizeConversation(conversation = {}) {
   const id = conversation.id ?? conversation.conversationId
   const relatedId = conversation.relatedId
   const type = conversation.type || 'TASK'
+  const relatedType = conversation.relatedType || (type === 'TASK' ? 'TASK' : type === 'SYSTEM' ? 'SYSTEM' : 'POST')
+  const lastMessageAt = conversation.lastMessageAt || conversation.updatedAt || conversation.createdAt || ''
+  const lastMessagePreview =
+    conversation.lastMessagePreview ||
+    conversation.lastMessageContent ||
+    conversation.lastMessage ||
+    conversation.preview ||
+    ''
 
   return {
     id,
     type,
-    title: conversation.title || (relatedId ? `任务 #${relatedId} 沟通` : '站内会话'),
+    title: conversation.title || formatConversationTitle(relatedType, relatedId, type),
     ownerId: conversation.ownerId,
     peerUserId: conversation.peerUserId,
-    relatedType: conversation.relatedType || (type === 'TASK' ? 'TASK' : type),
+    relatedType,
     relatedId,
     replyable: normalizeBoolean(conversation.replyable, true),
-    lastMessageAt: conversation.lastMessageAt || conversation.updatedAt || conversation.createdAt || '',
+    lastMessageAt,
     createdAt: conversation.createdAt || conversation.lastMessageAt || '',
-    lastMessagePreview:
-      conversation.lastMessagePreview ||
-      conversation.lastMessageContent ||
-      conversation.lastMessage ||
-      conversation.preview ||
-      '',
+    lastMessagePreview,
     category: conversation.category || 'ERRAND',
     unreadCount: Number(conversation.unreadCount || 0),
-    timeLabel: conversation.timeLabel || formatConversationTime(conversation.lastMessageAt)
+    timeLabel: conversation.timeLabel || formatConversationTime(lastMessageAt)
   }
+}
+
+function formatConversationTitle(relatedType, relatedId, type) {
+  if (type === 'SYSTEM' || relatedType === 'SYSTEM') return '系统通知'
+  if (relatedType === 'POST') return relatedId ? `帖子 #${relatedId} 私聊` : '帖子私聊'
+  return relatedId ? `任务 #${relatedId} 沟通` : '站内会话'
 }
 
 function normalizeMessage(message = {}) {
@@ -219,6 +263,10 @@ function selectInitialConversation() {
       (conversation) => String(conversation.id) === selectedConversationId.value
     )
   }
+  if (hasRouteConversationHint()) {
+    const target = findConversationByRouteHint()
+    if (target) return target
+  }
   return conversations.value[0]
 }
 
@@ -234,28 +282,95 @@ async function loadConversations() {
     if (requestId !== listRequestId) return
 
     const paged = normalizePagedResult(result, conversationPage.size)
-    applyConversationPage(paged)
-  } catch {
+    await applyConversationPage(paged)
+  } catch (error) {
     if (requestId !== listRequestId) return
-    applyConversationPage({ items: [], page: 1, size: conversationPage.size, total: 0 })
+    setFeedback(error.message || '会话列表加载失败，请稍后重试。', 'danger')
+    await applyConversationPage({ items: [], page: 1, size: conversationPage.size, total: 0 })
   } finally {
     if (requestId === listRequestId) listLoading.value = false
   }
 }
 
-function applyConversationPage(paged) {
+async function applyConversationPage(paged) {
   conversations.value = paged.items.map(normalizeConversation).filter((conversation) => conversation.id)
   conversationPage.page = paged.page || 1
   conversationPage.size = paged.size || conversationPage.size
   conversationPage.total = paged.total || conversations.value.length
 
-  const target = selectInitialConversation()
+  let target = selectInitialConversation()
+  if (!target && hasRouteConversationHint()) {
+    target = await ensureConversationFromRoute()
+  }
   if (!selectedConversationId.value && target?.id) {
     router.replace({
       name: 'conversation-detail',
       params: { conversationId: target.id },
       query: route.query
     })
+  }
+}
+
+function findConversationByRouteHint() {
+  if (!hasRouteConversationHint()) return null
+  return conversations.value.find(
+    (conversation) =>
+      conversation.relatedType === routeRelatedType.value &&
+      String(conversation.relatedId) === routeRelatedId.value &&
+      (!routePeerUserId.value || String(conversation.peerUserId) === routePeerUserId.value)
+  )
+}
+
+function resolvePeerUserIdFromTask(task) {
+  if (routePeerUserId.value) return routePeerUserId.value
+  if (!task || !currentUser.value) return ''
+
+  const requesterId = task.requesterId ?? task.ownerId
+  const providerId = task.providerId ?? task.helperId ?? task.acceptedApplicantId
+
+  if (requesterId !== undefined && requesterId !== null && String(requesterId) === String(currentUser.value)) {
+    return normalizePositiveId(providerId)
+  }
+  if (providerId !== undefined && providerId !== null && String(providerId) === String(currentUser.value)) {
+    return normalizePositiveId(requesterId)
+  }
+  return ''
+}
+
+async function ensureConversationFromRoute() {
+  if (!hasRouteConversationHint() || selectedConversationId.value) return null
+
+  let peerUserId = routePeerUserId.value
+  if (!peerUserId && routeRelatedType.value === 'TASK') {
+    try {
+      const result = await api.getTaskDetail(routeRelatedId.value)
+      peerUserId = resolvePeerUserIdFromTask(result?.task || result)
+    } catch {
+      peerUserId = ''
+    }
+  }
+
+  if (!peerUserId) {
+    setFeedback('未能确定对话对象，请从任务详情页进入站内沟通。', 'danger')
+    return null
+  }
+
+  try {
+    const conversation = normalizeConversation(
+      await api.createConversation({
+        relatedType: routeRelatedType.value,
+        relatedId: Number(routeRelatedId.value),
+        peerUserId: Number(peerUserId)
+      })
+    )
+    if (!conversation.id) return null
+
+    conversations.value = [conversation, ...conversations.value]
+    conversationPage.total = Math.max(conversationPage.total, conversations.value.length)
+    return conversation
+  } catch (error) {
+    setFeedback(error.message || '创建会话失败，请稍后重试。', 'danger')
+    return null
   }
 }
 

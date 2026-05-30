@@ -363,11 +363,29 @@ const canOpenConversation = computed(() => {
       ['ACCEPTED', 'IN_PROGRESS', 'PENDING_CONFIRMATION', 'COMPLETED', 'REVIEWED', 'DISPUTED'].includes(status)
   )
 })
+const detailConversationPeerUserId = computed(() => {
+  const task = detailTask.value
+  if (!task || currentUserId.value === null || currentUserId.value === undefined) return ''
+
+  const requesterId = task.requesterId ?? task.ownerId
+  const providerId = task.providerId ?? task.helperId ?? task.acceptedApplicantId ?? acceptedCandidate.value?.applicantId
+
+  if (requesterId !== undefined && requesterId !== null && String(currentUserId.value) === String(requesterId)) {
+    return providerId || ''
+  }
+
+  if (providerId !== undefined && providerId !== null && String(currentUserId.value) === String(providerId)) {
+    return requesterId || ''
+  }
+
+  return ''
+})
 const detailConversationRoute = computed(() => ({
   name: 'conversation-list',
   query: {
     relatedType: 'TASK',
-    relatedId: detailTask.value?.id
+    relatedId: detailTask.value?.id,
+    peerUserId: detailConversationPeerUserId.value || undefined
   }
 }))
 const completionStageItems = computed(() => buildCompletionStageItems(detailTask.value?.status))
@@ -1571,6 +1589,7 @@ const retainedTaskWorkflowBindings = [
   shouldShowCompletionPanel,
   canDisputeCompletion,
   canOpenConversation,
+  detailConversationPeerUserId,
   completionStageItems,
   completionPanelCopy,
   resolutionMeta,
