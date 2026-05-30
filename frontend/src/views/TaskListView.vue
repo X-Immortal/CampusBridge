@@ -51,17 +51,39 @@ const route = useRoute()
 const router = useRouter()
 const { isAuthenticated, currentUserId, verificationStatus } = useAuth()
 const isMineView = computed(() => route.name === 'my-tasks')
+const MINE_TASK_FETCH_SIZE = 100
 
-const defaultFilters = {
-  keyword: '',
-  category: '',
-  campus: '',
-  status: route.name === 'my-tasks' ? '' : 'OPEN',
-  rewardType: '',
-  requiresProof: '',
-  sortBy: 'CREATED_AT_DESC',
-  page: 1,
-  size: 8
+function createDefaultFilters(routeName = route.name) {
+  return {
+    keyword: '',
+    category: '',
+    campus: '',
+    status: routeName === 'my-tasks' ? '' : 'OPEN',
+    rewardType: '',
+    requiresProof: '',
+    sortBy: 'CREATED_AT_DESC',
+    page: 1,
+    size: 8
+  }
+}
+
+function currentDefaultFilters() {
+  return createDefaultFilters(route.name)
+}
+
+function readFiltersFromRoute(routeName = route.name) {
+  const defaults = createDefaultFilters(routeName)
+  return {
+    keyword: readQuery('keyword', defaults.keyword),
+    category: readQuery('category', defaults.category),
+    campus: readQuery('campus', defaults.campus),
+    status: readQuery('status', defaults.status),
+    rewardType: readQuery('rewardType', defaults.rewardType),
+    requiresProof: readQuery('requiresProof', defaults.requiresProof),
+    sortBy: readQuery('sortBy', defaults.sortBy),
+    page: readNumberQuery('page', defaults.page),
+    size: readNumberQuery('size', defaults.size)
+  }
 }
 
 const proofOptions = [
@@ -100,17 +122,7 @@ const TASK_TYPE_META = {
   }
 }
 
-const filters = reactive({
-  keyword: readQuery('keyword', defaultFilters.keyword),
-  category: readQuery('category', defaultFilters.category),
-  campus: readQuery('campus', defaultFilters.campus),
-  status: readQuery('status', defaultFilters.status),
-  rewardType: readQuery('rewardType', defaultFilters.rewardType),
-  requiresProof: readQuery('requiresProof', defaultFilters.requiresProof),
-  sortBy: readQuery('sortBy', defaultFilters.sortBy),
-  page: readNumberQuery('page', defaultFilters.page),
-  size: readNumberQuery('size', defaultFilters.size)
-})
+const filters = reactive(readFiltersFromRoute(route.name))
 
 const tasks = ref([])
 const taskDetail = ref(null)
@@ -169,14 +181,15 @@ const resultRange = computed(() => {
   return `${start}-${end}`
 })
 const activeFilterCount = computed(() => {
+  const defaults = currentDefaultFilters()
   return [
     filters.keyword.trim(),
     filters.category,
     filters.campus.trim(),
-    filters.status !== defaultFilters.status ? filters.status : '',
+    filters.status !== defaults.status ? filters.status : '',
     filters.rewardType,
     filters.requiresProof,
-    filters.sortBy !== defaultFilters.sortBy ? filters.sortBy : ''
+    filters.sortBy !== defaults.sortBy ? filters.sortBy : ''
   ].filter(Boolean).length
 })
 const openTaskCount = computed(() => tasks.value.filter((task) => task.status === 'OPEN').length)
@@ -607,10 +620,44 @@ function taskSafetyCopy(task = {}) {
   return task.allowOfflineContact ? '公开地点交接' : '不建议线下接触'
 }
 
+function isRequesterTask(task = {}) {
+  if (currentUserId.value === null || currentUserId.value === undefined) return false
+  const requesterId = task.requesterId ?? task.ownerId
+  return requesterId !== undefined && requesterId !== null && String(requesterId) === String(currentUserId.value)
+}
+
+function paginateTasks(items, page, size) {
+  const normalizedSize = Number(size) > 0 ? Number(size) : currentDefaultFilters().size
+  const totalPagesForItems = Math.max(1, Math.ceil(items.length / normalizedSize))
+  const normalizedPage = Math.min(Math.max(Number(page) || 1, 1), totalPagesForItems)
+  const start = (normalizedPage - 1) * normalizedSize
+
+  return {
+    page: normalizedPage,
+    size: normalizedSize,
+    total: items.length,
+    items: items.slice(start, start + normalizedSize)
+  }
+}
+
 function applyTaskResult(result) {
   const items = normalizePagedTasks(result).map(normalizeTask)
+
+  if (isMineView.value) {
+    const mineItems = items.filter(isRequesterTask)
+    const pageState = paginateTasks(mineItems, filters.page, filters.size)
+
+    tasks.value = pageState.items
+    pagination.page = pageState.page
+    pagination.size = pageState.size
+    pagination.total = pageState.total
+    filters.page = pagination.page
+    filters.size = pagination.size
+    return
+  }
+
   const page = Number(result?.page || filters.page || 1)
-  const size = Number(result?.size || filters.size || defaultFilters.size)
+  const size = Number(result?.size || filters.size || currentDefaultFilters().size)
   const explicitTotal = Number(result?.total ?? result?.totalElements ?? result?.totalCount ?? result?.count)
   const inferredTotal = (page - 1) * size + items.length + (items.length >= size ? 1 : 0)
 
@@ -750,7 +797,7 @@ function buildCompletionStageItems(status) {
 }
 
 function buildTaskQuery() {
-  return {
+  const query = {
     keyword: filters.keyword.trim(),
     category: filters.category,
     campus: filters.campus.trim(),
@@ -761,19 +808,27 @@ function buildTaskQuery() {
     page: filters.page,
     size: filters.size
   }
+
+  if (isMineView.value) {
+    query.page = 1
+    query.size = MINE_TASK_FETCH_SIZE
+  }
+
+  return query
 }
 
 function buildRouteQuery() {
+  const defaults = currentDefaultFilters()
   const query = {
     keyword: filters.keyword.trim() || undefined,
     category: filters.category || undefined,
     campus: filters.campus.trim() || undefined,
-    status: filters.status !== defaultFilters.status ? filters.status || undefined : undefined,
+    status: filters.status !== defaults.status ? filters.status || undefined : undefined,
     rewardType: filters.rewardType || undefined,
     requiresProof: filters.requiresProof || undefined,
-    sortBy: filters.sortBy !== defaultFilters.sortBy ? filters.sortBy || undefined : undefined,
-    page: filters.page !== defaultFilters.page ? String(filters.page) : undefined,
-    size: filters.size !== defaultFilters.size ? String(filters.size) : undefined
+    sortBy: filters.sortBy !== defaults.sortBy ? filters.sortBy || undefined : undefined,
+    page: filters.page !== defaults.page ? String(filters.page) : undefined,
+    size: filters.size !== defaults.size ? String(filters.size) : undefined
   }
 
   Object.keys(query).forEach((key) => {
@@ -890,7 +945,7 @@ function queueFilterRefresh() {
 
 async function resetFilters() {
   window.clearTimeout(filterTimer)
-  Object.assign(filters, { ...defaultFilters })
+  Object.assign(filters, currentDefaultFilters())
   selectedTaskId.value = ''
   taskDetail.value = null
   candidateApplications.value = []
@@ -1350,8 +1405,14 @@ const retainedTaskWorkflowBindings = [
 void retainedTaskWorkflowBindings
 
 watch(
-  () => route.params.taskId,
-  (taskId) => {
+  () => [route.name, route.params.taskId],
+  ([routeName, taskId], [previousRouteName] = []) => {
+    const isListRoute = routeName === 'task-list' || routeName === 'my-tasks'
+    if (isListRoute && routeName !== previousRouteName) {
+      Object.assign(filters, readFiltersFromRoute(routeName))
+      loadTasks()
+    }
+
     selectedTaskId.value = taskId ? String(taskId) : ''
     operationFeedback.value = ''
     applicationMessage.value = ''

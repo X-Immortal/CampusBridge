@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { URL, URLSearchParams } from 'node:url'
 import {
   optionLabel,
   REWARD_TYPE_OPTIONS,
