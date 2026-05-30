@@ -277,7 +277,7 @@ function discardSavedDraft() {
   setFeedback('本机草稿已清除。')
 }
 
-function handleSaveDraft() {
+async function handleSaveDraft() {
   feedback.value = ''
 
   if (!hasDraftContent()) {
@@ -294,7 +294,22 @@ function handleSaveDraft() {
 
   localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft))
   savedDraft.value = draft
-  setFeedback('草稿已保存在本机，可在下次进入发布页时恢复。')
+
+  if (!canPublish.value) {
+    setFeedback('草稿已保存在本机，可在完成登录和认证后继续发布。')
+    return
+  }
+
+  submitting.value = true
+  try {
+    const serverDraft = await api.saveTaskDraft(buildDraftPayload())
+    lastCreatedTask.value = normalizeTaskResult(serverDraft)
+    setFeedback('草稿已保存到任务系统，本机也保留了一份便于继续编辑。')
+  } catch (error) {
+    setFeedback(error.message || '本机草稿已保存，但同步到任务系统失败。', 'danger')
+  } finally {
+    submitting.value = false
+  }
 }
 
 function handlePreviewTask() {
@@ -311,6 +326,30 @@ function normalizeDeadline(value) {
 function optionalText(value) {
   const text = value.trim()
   return text || undefined
+}
+
+function booleanFlag(value, fallback = false) {
+  if (value === undefined || value === null || value === '') return fallback
+  if (typeof value === 'boolean') return value
+  if (typeof value === 'number') return value === 1
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase()
+    if (['true', '1', 'yes'].includes(normalized)) return true
+    if (['false', '0', 'no'].includes(normalized)) return false
+  }
+  return Boolean(value)
+}
+
+function normalizeTaskResult(result) {
+  const task = result?.task || result || {}
+  return {
+    ...task,
+    requiresProof: booleanFlag(task.requiresProof, true),
+    onlyInAppContact: booleanFlag(task.onlyInAppContact, true),
+    allowOfflineContact: booleanFlag(task.allowOfflineContact),
+    isInstantTask: booleanFlag(task.isInstantTask),
+    riskDisclosureConfirmed: booleanFlag(task.riskDisclosureConfirmed)
+  }
 }
 
 function setFeedback(message, type = 'success') {
@@ -401,12 +440,12 @@ function applyTaskToForm(task) {
     rewardType: task.rewardType || 'FREE',
     rewardDescription: task.rewardDescription || '',
     completionStandard: task.completionStandard || '',
-    requiresProof: task.requiresProof ?? true,
-    onlyInAppContact: task.onlyInAppContact ?? true,
-    allowOfflineContact: task.allowOfflineContact ?? false,
-    isInstantTask: task.isInstantTask ?? false,
+    requiresProof: booleanFlag(task.requiresProof, true),
+    onlyInAppContact: booleanFlag(task.onlyInAppContact, true),
+    allowOfflineContact: booleanFlag(task.allowOfflineContact),
+    isInstantTask: booleanFlag(task.isInstantTask),
     routeHint: task.routeHint || '',
-    riskDisclosureConfirmed: false,
+    riskDisclosureConfirmed: booleanFlag(task.riskDisclosureConfirmed),
     sensitiveReason: task.sensitiveReason || ''
   })
 }
@@ -421,7 +460,7 @@ async function loadSourceTask() {
   feedback.value = ''
   try {
     const result = await api.getTaskDetail(sourceTaskId.value)
-    const task = result?.task || result
+    const task = normalizeTaskResult(result)
     sourceTask.value = task
     applyTaskToForm(task)
     clearErrors()
@@ -457,7 +496,7 @@ function validateForm() {
   validateTextLength('location', taskForm.location, 120, '地点最多 120 个字。')
   validateTextLength('rewardDescription', taskForm.rewardDescription, 200, '奖励说明最多 200 个字。')
   validateTextLength('completionStandard', taskForm.completionStandard, 500, '完成标准最多 500 个字。')
-  validateTextLength('routeHint', taskForm.routeHint, 200, '顺路信息最多 200 个字。')
+  validateTextLength('routeHint', taskForm.routeHint, 300, '顺路信息最多 300 个字。')
 
   if (taskForm.deadline) {
     const deadline = new Date(taskForm.deadline)
@@ -480,6 +519,8 @@ async function focusFirstInvalidField() {
 }
 
 function buildPayload() {
+  const isSensitiveTask = taskForm.category === 'ATTENDANCE_ASSIST'
+
   return {
     category: taskForm.category,
     title: taskForm.title.trim(),
@@ -495,8 +536,37 @@ function buildPayload() {
     allowOfflineContact: taskForm.allowOfflineContact,
     isInstantTask: taskForm.isInstantTask,
     routeHint: taskForm.isInstantTask ? optionalText(taskForm.routeHint) : undefined,
-    riskDisclosureConfirmed: false,
-    sensitiveReason: undefined
+    riskDisclosureConfirmed: isSensitiveTask,
+    sensitiveReason: isSensitiveTask
+      ? optionalText(taskForm.sensitiveReason) || '出勤协助任务，发布者已确认风险告知'
+      : undefined,
+    attachmentIds: []
+  }
+}
+
+function buildDraftPayload() {
+  const isSensitiveTask = taskForm.category === 'ATTENDANCE_ASSIST'
+
+  return {
+    category: taskForm.category || undefined,
+    title: optionalText(taskForm.title),
+    description: optionalText(taskForm.description),
+    campus: optionalText(taskForm.campus),
+    location: optionalText(taskForm.location),
+    deadline: taskForm.deadline ? normalizeDeadline(taskForm.deadline) : undefined,
+    rewardType: taskForm.rewardType || undefined,
+    rewardDescription: optionalText(taskForm.rewardDescription),
+    completionStandard: optionalText(taskForm.completionStandard),
+    requiresProof: taskForm.requiresProof,
+    onlyInAppContact: taskForm.onlyInAppContact,
+    allowOfflineContact: taskForm.allowOfflineContact,
+    isInstantTask: taskForm.isInstantTask,
+    routeHint: optionalText(taskForm.routeHint),
+    riskDisclosureConfirmed: isSensitiveTask ? true : taskForm.riskDisclosureConfirmed,
+    sensitiveReason: isSensitiveTask
+      ? optionalText(taskForm.sensitiveReason) || '出勤协助任务，发布者已确认风险告知'
+      : undefined,
+    attachmentIds: []
   }
 }
 
@@ -561,20 +631,24 @@ async function handleSubmitTask() {
   try {
     if (isEditMode.value) {
       const updatedTask = await api.updateTask(sourceTaskId.value, buildUpdatePayload())
-      lastCreatedTask.value = updatedTask
+      lastCreatedTask.value = normalizeTaskResult(updatedTask)
       clearSavedDraft()
       setFeedback('任务修改已保存，返回详情后可以继续处理候选和状态。')
       return
     }
 
+    if (isRepostMode.value) {
+      const resentTask = await api.resendTask(sourceTaskId.value)
+      lastCreatedTask.value = normalizeTaskResult(resentTask)
+      clearSavedDraft()
+      setFeedback('任务已重新发布，新的接单流程已经开始。')
+      return
+    }
+
     const createdTask = await api.createTask(buildPayload())
-    lastCreatedTask.value = createdTask
+    lastCreatedTask.value = normalizeTaskResult(createdTask)
     clearSavedDraft()
-    setFeedback(
-      isRepostMode.value
-        ? '任务已重新发布，新的接单流程已经开始。'
-        : '任务已发布，等待合适的同学申请接单。'
-    )
+    setFeedback('任务已发布，等待合适的同学申请接单。')
   } catch (error) {
     setFeedback(error.message || '任务保存失败，请稍后再试。', 'danger')
   } finally {

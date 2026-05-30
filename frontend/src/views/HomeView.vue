@@ -1,10 +1,12 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
+  AtSign,
   BadgeCheck,
   Bell,
   Briefcase,
+  Building2,
   CalendarClock,
   ChartLine,
   ChevronDown,
@@ -14,18 +16,25 @@ import {
   ClipboardList,
   Grid2X2,
   Home,
+  Eye,
+  IdCard,
   Info,
   LoaderCircle,
   LogIn,
   LogOut,
+  MapPin,
   MessageCircle,
   PlusCircle,
   RefreshCw,
+  Save,
   School,
   Search,
   ShieldCheck,
   Star,
-  UserRound
+  Tag,
+  UserPen,
+  UserRound,
+  X
 } from '@lucide/vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import { useDashboardSidebar } from '../composables/useDashboardSidebar'
@@ -38,7 +47,8 @@ const {
   verificationStatus,
   logout,
   refreshSession,
-  submitVerification
+  submitVerification,
+  updateMyProfile
 } = useAuth()
 
 const router = useRouter()
@@ -49,6 +59,7 @@ const loading = ref(false)
 const submitting = ref(false)
 const feedback = ref('')
 const feedbackType = ref('success')
+const avatarLoadFailed = ref(false)
 
 const navItems = [
   { label: '个人主页', icon: Home, active: true, to: '/home' },
@@ -69,6 +80,32 @@ const verificationForm = reactive({
   evidenceUrl: ''
 })
 
+const profileEditing = ref(false)
+const profileSubmitting = ref(false)
+const profileErrors = reactive({})
+const profileForm = reactive({
+  nickname: '',
+  bio: '',
+  campus: '',
+  college: '',
+  avatarUrl: '',
+  contactInfo: '',
+  interestTagsText: '',
+  skillTagsText: ''
+})
+
+const publicProfileItems = [
+  '昵称、头像、个人简介',
+  '校区、学院、兴趣和技能标签',
+  '校园认证状态、信用等级和积分'
+]
+
+const privateProfileItems = [
+  '真实姓名、学号和认证材料',
+  '联系方式仅在自己的档案页展示',
+  '账号启停状态和注册时间'
+]
+
 const userName = computed(() =>
   isAuthenticated.value ? state.profile?.nickname || state.user?.username || '张同学' : '未登录'
 )
@@ -76,6 +113,83 @@ const accountMeta = computed(() => {
   if (!isAuthenticated.value) return '登录后同步认证和任务记录'
   return state.profile?.campus || state.profile?.college || state.user?.role || '校园互助账号'
 })
+const myProfile = computed(() => state.profile || {})
+const interestTags = computed(() => normalizeTags(myProfile.value.interestTags))
+const skillTags = computed(() => normalizeTags(myProfile.value.skillTags))
+const profileUserId = computed(() => myProfile.value.userId || state.user?.id || state.user?.userId || '待同步')
+const profileAvatarUrl = computed(() => String(myProfile.value.avatarUrl || '').trim())
+const avatarPreviewUrl = computed(() => String(profileEditing.value ? profileForm.avatarUrl : profileAvatarUrl.value).trim())
+const profileAvatarSrc = computed(() => {
+  if (!avatarPreviewUrl.value || avatarLoadFailed.value) return ''
+  if (/^https?:\/\/example\.com\//i.test(avatarPreviewUrl.value)) return ''
+  return avatarPreviewUrl.value
+})
+const profileInitial = computed(() => {
+  const name = String(userName.value || '').trim()
+  return name ? name.slice(0, 1) : '同'
+})
+const roleLabel = computed(() => {
+  const role = state.user?.role
+  if (role === 'ADMIN') return '管理员'
+  if (role === 'USER') return '普通用户'
+  return role || '普通用户'
+})
+const accountStatusLabel = computed(() => (state.user?.enabled === false ? '已停用' : '正常启用'))
+const contactDisplay = computed(() => myProfile.value.contactInfo || '尚未填写，仅自己可见')
+const profileCompletion = computed(() => {
+  const profile = myProfile.value
+  const filledCount = [
+    profile.nickname,
+    profile.bio,
+    profile.campus,
+    profile.college,
+    profile.avatarUrl,
+    profile.contactInfo,
+    interestTags.value.length,
+    skillTags.value.length
+  ].filter(Boolean).length
+
+  return Math.round((filledCount / 8) * 100)
+})
+const profileMetaCards = computed(() => [
+  {
+    label: '用户 ID',
+    value: profileUserId.value,
+    icon: IdCard
+  },
+  {
+    label: '账号角色',
+    value: roleLabel.value,
+    icon: ShieldCheck
+  },
+  {
+    label: '账号状态',
+    value: accountStatusLabel.value,
+    icon: BadgeCheck
+  },
+  {
+    label: '注册时间',
+    value: formatDate(state.user?.createdAt),
+    icon: CalendarClock
+  }
+])
+const publicIdentityRows = computed(() => [
+  {
+    label: '校区',
+    value: myProfile.value.campus || '未填写',
+    icon: MapPin
+  },
+  {
+    label: '学院',
+    value: myProfile.value.college || '未填写',
+    icon: Building2
+  },
+  {
+    label: '联系方式',
+    value: contactDisplay.value,
+    icon: AtSign
+  }
+])
 const verification = computed(() => state.verification || null)
 const canSubmitVerification = computed(() => {
   if (!isAuthenticated.value) return false
@@ -169,13 +283,148 @@ function formatDate(value) {
   })
 }
 
+function normalizeTags(value) {
+  if (Array.isArray(value)) {
+    return [...new Set(value.map((item) => String(item).trim()).filter(Boolean))]
+  }
+
+  if (typeof value === 'string') {
+    return [
+      ...new Set(
+        value
+          .split(/[,，、;\n]+/)
+          .map((item) => item.trim())
+          .filter(Boolean)
+      )
+    ]
+  }
+
+  return []
+}
+
+function hydrateProfileForm(profile = {}) {
+  profileForm.nickname = profile.nickname || ''
+  profileForm.bio = profile.bio || ''
+  profileForm.campus = profile.campus || ''
+  profileForm.college = profile.college || ''
+  profileForm.avatarUrl = profile.avatarUrl || ''
+  profileForm.contactInfo = profile.contactInfo || ''
+  profileForm.interestTagsText = normalizeTags(profile.interestTags).join('，')
+  profileForm.skillTagsText = normalizeTags(profile.skillTags).join('，')
+}
+
+function clearProfileErrors() {
+  Object.keys(profileErrors).forEach((key) => {
+    delete profileErrors[key]
+  })
+}
+
+function setProfileError(key, message) {
+  profileErrors[key] = message
+}
+
+function validateTextLength(key, label, maxLength) {
+  if (profileForm[key].trim().length > maxLength) {
+    setProfileError(key, `${label}不能超过 ${maxLength} 个字符。`)
+  }
+}
+
+function validateTags(key, label) {
+  const tags = normalizeTags(profileForm[key])
+
+  if (tags.length > 20) {
+    setProfileError(key, `${label}最多填写 20 个。`)
+  }
+
+  if (tags.some((tag) => tag.length > 30)) {
+    setProfileError(key, `${label}中单个标签不能超过 30 个字符。`)
+  }
+
+  return tags
+}
+
+function validateProfileForm() {
+  clearProfileErrors()
+  validateTextLength('nickname', '昵称', 50)
+  validateTextLength('bio', '个人简介', 500)
+  validateTextLength('campus', '校区', 100)
+  validateTextLength('college', '学院', 100)
+  validateTextLength('contactInfo', '联系方式', 255)
+  validateTextLength('avatarUrl', '头像链接', 500)
+
+  const interestTagsPayload = validateTags('interestTagsText', '兴趣标签')
+  const skillTagsPayload = validateTags('skillTagsText', '技能标签')
+
+  return {
+    valid: Object.keys(profileErrors).length === 0,
+    payload: {
+      nickname: profileForm.nickname.trim(),
+      bio: profileForm.bio.trim(),
+      campus: profileForm.campus.trim(),
+      college: profileForm.college.trim(),
+      contactInfo: profileForm.contactInfo.trim(),
+      avatarUrl: profileForm.avatarUrl.trim(),
+      interestTags: interestTagsPayload,
+      skillTags: skillTagsPayload
+    }
+  }
+}
+
+function handleEditProfile() {
+  if (!isAuthenticated.value) {
+    setFeedback('请先登录后再编辑个人档案。', 'danger')
+    return
+  }
+
+  hydrateProfileForm(myProfile.value)
+  clearProfileErrors()
+  feedback.value = ''
+  profileEditing.value = true
+}
+
+function handleCancelProfileEdit() {
+  hydrateProfileForm(myProfile.value)
+  clearProfileErrors()
+  profileEditing.value = false
+}
+
+function handleAvatarError() {
+  avatarLoadFailed.value = true
+}
+
+async function handleSubmitProfile() {
+  if (!isAuthenticated.value) {
+    setFeedback('请先登录后再保存个人档案。', 'danger')
+    return
+  }
+
+  const { valid, payload } = validateProfileForm()
+  if (!valid) {
+    setFeedback('请检查档案表单中标出的内容。', 'danger')
+    return
+  }
+
+  profileSubmitting.value = true
+  feedback.value = ''
+  try {
+    const savedProfile = await updateMyProfile(payload)
+    hydrateProfileForm(savedProfile || {})
+    profileEditing.value = false
+    setFeedback('个人档案已保存，公开主页信息会同步更新。')
+  } catch (error) {
+    setFeedback(error.message, 'danger')
+  } finally {
+    profileSubmitting.value = false
+  }
+}
+
 async function handleRefresh() {
   if (!isAuthenticated.value) return
   loading.value = true
   feedback.value = ''
   try {
     await refreshSession()
-    setFeedback('认证状态已刷新。')
+    setFeedback('个人档案与认证状态已刷新。')
   } catch (error) {
     setFeedback(error.message, 'danger')
   } finally {
@@ -203,6 +452,18 @@ async function handleSubmitVerification() {
     submitting.value = false
   }
 }
+
+watch(
+  () => state.profile,
+  (profile) => {
+    if (!profileEditing.value) hydrateProfileForm(profile || {})
+  },
+  { immediate: true, deep: true }
+)
+
+watch(avatarPreviewUrl, () => {
+  avatarLoadFailed.value = false
+})
 
 onMounted(async () => {
   document.addEventListener('pointerdown', handleDocumentPointerDown)
@@ -322,7 +583,16 @@ onBeforeUnmount(() => {
             @click.stop="toggleAccountMenu"
           >
             <span class="avatar">
+              <img
+                v-if="profileAvatarSrc"
+                :src="profileAvatarSrc"
+                :alt="`${userName}的头像`"
+                referrerpolicy="no-referrer"
+                @error="handleAvatarError"
+              >
+              <span v-else>{{ profileInitial }}</span>
               <UserRound
+                v-if="!profileAvatarSrc && !profileInitial"
                 :size="24"
                 aria-hidden="true"
               />
@@ -343,7 +613,16 @@ onBeforeUnmount(() => {
           >
             <div class="account-dropdown-head">
               <span class="avatar avatar--compact">
+                <img
+                  v-if="profileAvatarSrc"
+                  :src="profileAvatarSrc"
+                  :alt="`${userName}的头像`"
+                  referrerpolicy="no-referrer"
+                  @error="handleAvatarError"
+                >
+                <span v-else>{{ profileInitial }}</span>
                 <UserRound
+                  v-if="!profileAvatarSrc && !profileInitial"
                   :size="20"
                   aria-hidden="true"
                 />
@@ -414,15 +693,15 @@ onBeforeUnmount(() => {
     <main class="dashboard-main">
       <section class="page-title-card">
         <div class="title-icon">
-          <ShieldCheck
+          <IdCard
             :size="32"
             aria-hidden="true"
           />
         </div>
         <div class="title-copy">
-          <p>校内认证</p>
-          <h1>校园身份认证中心</h1>
-          <span>提交真实身份信息，建立可信的校园互助环境。</span>
+          <p>个人主页</p>
+          <h1>我的身份档案与校园认证</h1>
+          <span>完善公开档案、身份标签和认证资料，让每次校园互助都更可信。</span>
         </div>
         <StatusBadge :status="verificationStatus" />
       </section>
@@ -441,6 +720,379 @@ onBeforeUnmount(() => {
       </div>
 
       <section class="content-grid">
+        <article class="panel-card identity-profile-card">
+          <div class="profile-hero">
+            <span class="profile-avatar-large">
+              <img
+                v-if="profileAvatarSrc"
+                :src="profileAvatarSrc"
+                :alt="`${userName}的头像`"
+                referrerpolicy="no-referrer"
+                @error="handleAvatarError"
+              >
+              <span v-else>{{ profileInitial }}</span>
+            </span>
+
+            <div class="profile-main-copy">
+              <p class="section-kicker">
+                身份档案
+              </p>
+              <h2>{{ userName }}</h2>
+              <span>{{ myProfile.bio || '还没有填写个人简介。' }}</span>
+              <div class="profile-chip-row">
+                <span>
+                  <MapPin
+                    :size="15"
+                    aria-hidden="true"
+                  />
+                  {{ myProfile.campus || '未填写校区' }}
+                </span>
+                <span>
+                  <Building2
+                    :size="15"
+                    aria-hidden="true"
+                  />
+                  {{ myProfile.college || '未填写学院' }}
+                </span>
+                <span>
+                  <ShieldCheck
+                    :size="15"
+                    aria-hidden="true"
+                  />
+                  {{ optionLabel(STATUS_OPTIONS, verificationStatus) }}
+                </span>
+              </div>
+            </div>
+
+            <button
+              class="ghost-action profile-edit-shortcut"
+              type="button"
+              :disabled="profileSubmitting || profileEditing"
+              @click="handleEditProfile"
+            >
+              <UserPen
+                :size="17"
+                aria-hidden="true"
+              />
+              {{ profileEditing ? '正在编辑' : '编辑档案' }}
+            </button>
+          </div>
+
+          <div class="profile-progress-block">
+            <div>
+              <span>档案完整度</span>
+              <strong>{{ profileCompletion }}%</strong>
+            </div>
+            <span class="profile-progress-track">
+              <span :style="{ width: `${profileCompletion}%` }" />
+            </span>
+          </div>
+
+          <dl class="profile-meta-grid">
+            <div
+              v-for="item in profileMetaCards"
+              :key="item.label"
+            >
+              <dt>
+                <component
+                  :is="item.icon"
+                  :size="16"
+                  aria-hidden="true"
+                />
+                {{ item.label }}
+              </dt>
+              <dd>{{ item.value }}</dd>
+            </div>
+          </dl>
+        </article>
+
+        <article class="panel-card profile-editor-card">
+          <div class="panel-heading">
+            <div>
+              <p class="section-kicker">
+                档案编辑
+              </p>
+              <h2>用户身份信息</h2>
+            </div>
+            <button
+              class="ghost-action"
+              type="button"
+              :disabled="loading || profileSubmitting"
+              @click="handleRefresh"
+            >
+              <RefreshCw
+                :class="{ spinning: loading }"
+                :size="17"
+                aria-hidden="true"
+              />
+              刷新
+            </button>
+          </div>
+
+          <form
+            class="profile-form"
+            @submit.prevent="handleSubmitProfile"
+          >
+            <label class="field">
+              <span>昵称</span>
+              <input
+                v-model.trim="profileForm.nickname"
+                maxlength="50"
+                placeholder="例如：林沐妍"
+                :disabled="!profileEditing || profileSubmitting"
+                :aria-invalid="Boolean(profileErrors.nickname)"
+              >
+              <small
+                v-if="profileErrors.nickname"
+                class="field-error"
+              >{{ profileErrors.nickname }}</small>
+            </label>
+
+            <label class="field">
+              <span>头像链接</span>
+              <input
+                v-model.trim="profileForm.avatarUrl"
+                maxlength="500"
+                placeholder="https://example.com/avatar.png"
+                :disabled="!profileEditing || profileSubmitting"
+                :aria-invalid="Boolean(profileErrors.avatarUrl)"
+              >
+              <small
+                v-if="profileErrors.avatarUrl"
+                class="field-error"
+              >{{ profileErrors.avatarUrl }}</small>
+            </label>
+
+            <label class="field">
+              <span>校区</span>
+              <input
+                v-model.trim="profileForm.campus"
+                maxlength="100"
+                placeholder="例如：主校区"
+                :disabled="!profileEditing || profileSubmitting"
+                :aria-invalid="Boolean(profileErrors.campus)"
+              >
+              <small
+                v-if="profileErrors.campus"
+                class="field-error"
+              >{{ profileErrors.campus }}</small>
+            </label>
+
+            <label class="field">
+              <span>学院</span>
+              <input
+                v-model.trim="profileForm.college"
+                maxlength="100"
+                placeholder="例如：计算机学院"
+                :disabled="!profileEditing || profileSubmitting"
+                :aria-invalid="Boolean(profileErrors.college)"
+              >
+              <small
+                v-if="profileErrors.college"
+                class="field-error"
+              >{{ profileErrors.college }}</small>
+            </label>
+
+            <label class="field field-wide">
+              <span>个人简介</span>
+              <textarea
+                v-model.trim="profileForm.bio"
+                maxlength="500"
+                rows="4"
+                placeholder="写下专业、常活动地点或擅长帮助的事情"
+                :disabled="!profileEditing || profileSubmitting"
+                :aria-invalid="Boolean(profileErrors.bio)"
+              />
+              <small
+                v-if="profileErrors.bio"
+                class="field-error"
+              >{{ profileErrors.bio }}</small>
+            </label>
+
+            <label class="field field-wide">
+              <span>联系方式</span>
+              <input
+                v-model.trim="profileForm.contactInfo"
+                maxlength="255"
+                placeholder="例如：站内消息优先"
+                :disabled="!profileEditing || profileSubmitting"
+                :aria-invalid="Boolean(profileErrors.contactInfo)"
+              >
+              <small
+                v-if="profileErrors.contactInfo"
+                class="field-error"
+              >{{ profileErrors.contactInfo }}</small>
+            </label>
+
+            <label class="field">
+              <span>兴趣标签</span>
+              <input
+                v-model.trim="profileForm.interestTagsText"
+                placeholder="跑腿互助，二手教材，摄影"
+                :disabled="!profileEditing || profileSubmitting"
+                :aria-invalid="Boolean(profileErrors.interestTagsText)"
+              >
+              <small
+                v-if="profileErrors.interestTagsText"
+                class="field-error"
+              >{{ profileErrors.interestTagsText }}</small>
+            </label>
+
+            <label class="field">
+              <span>技能标签</span>
+              <input
+                v-model.trim="profileForm.skillTagsText"
+                placeholder="Java，PPT排版，文档整理"
+                :disabled="!profileEditing || profileSubmitting"
+                :aria-invalid="Boolean(profileErrors.skillTagsText)"
+              >
+              <small
+                v-if="profileErrors.skillTagsText"
+                class="field-error"
+              >{{ profileErrors.skillTagsText }}</small>
+            </label>
+
+            <div class="profile-form-actions">
+              <template v-if="profileEditing">
+                <button
+                  class="primary-action"
+                  type="submit"
+                  :disabled="profileSubmitting"
+                >
+                  <LoaderCircle
+                    v-if="profileSubmitting"
+                    class="spinning"
+                    :size="18"
+                    aria-hidden="true"
+                  />
+                  <Save
+                    v-else
+                    :size="18"
+                    aria-hidden="true"
+                  />
+                  保存档案
+                </button>
+                <button
+                  class="ghost-action"
+                  type="button"
+                  :disabled="profileSubmitting"
+                  @click="handleCancelProfileEdit"
+                >
+                  <X
+                    :size="17"
+                    aria-hidden="true"
+                  />
+                  取消
+                </button>
+              </template>
+              <button
+                v-else
+                class="primary-action"
+                type="button"
+                @click="handleEditProfile"
+              >
+                <UserPen
+                  :size="18"
+                  aria-hidden="true"
+                />
+                编辑用户档案
+              </button>
+            </div>
+          </form>
+        </article>
+
+        <article class="panel-card identity-visibility-card">
+          <div class="panel-heading">
+            <div>
+              <p class="section-kicker">
+                主页可见性
+              </p>
+              <h2>公开身份预览</h2>
+            </div>
+            <Eye
+              :size="22"
+              aria-hidden="true"
+            />
+          </div>
+
+          <dl class="identity-row-list">
+            <div
+              v-for="item in publicIdentityRows"
+              :key="item.label"
+            >
+              <dt>
+                <component
+                  :is="item.icon"
+                  :size="16"
+                  aria-hidden="true"
+                />
+                {{ item.label }}
+              </dt>
+              <dd>{{ item.value }}</dd>
+            </div>
+          </dl>
+
+          <div class="identity-tag-block">
+            <div>
+              <span>
+                <Tag
+                  :size="15"
+                  aria-hidden="true"
+                />
+                兴趣标签
+              </span>
+              <div class="tag-list">
+                <span
+                  v-for="tag in interestTags"
+                  :key="`interest-${tag}`"
+                  class="soft-tag"
+                >{{ tag }}</span>
+                <span
+                  v-if="!interestTags.length"
+                  class="soft-tag soft-tag--muted"
+                >未填写</span>
+              </div>
+            </div>
+            <div>
+              <span>
+                <Tag
+                  :size="15"
+                  aria-hidden="true"
+                />
+                技能标签
+              </span>
+              <div class="tag-list">
+                <span
+                  v-for="tag in skillTags"
+                  :key="`skill-${tag}`"
+                  class="soft-tag soft-tag--blue"
+                >{{ tag }}</span>
+                <span
+                  v-if="!skillTags.length"
+                  class="soft-tag soft-tag--muted"
+                >未填写</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="visibility-split">
+            <div>
+              <strong>公开展示</strong>
+              <span
+                v-for="item in publicProfileItems"
+                :key="item"
+              >{{ item }}</span>
+            </div>
+            <div>
+              <strong>仅自己可见</strong>
+              <span
+                v-for="item in privateProfileItems"
+                :key="item"
+              >{{ item }}</span>
+            </div>
+          </div>
+        </article>
+
         <article class="panel-card verification-overview">
           <div class="panel-heading">
             <div>
@@ -1043,11 +1695,19 @@ onBeforeUnmount(() => {
     radial-gradient(circle at 32% 28%, #f5f2ff 0 23%, transparent 24%),
     linear-gradient(135deg, #d9d3ff, #f1efff);
   color: #746dc3;
+  font-weight: 900;
+  overflow: hidden;
 }
 
 .avatar--compact {
   width: 38px;
   height: 38px;
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .account-dropdown {
@@ -1226,6 +1886,8 @@ onBeforeUnmount(() => {
   display: grid;
   grid-template-columns: minmax(0, 1.08fr) minmax(340px, 0.82fr);
   grid-template-areas:
+    "profile profile"
+    "profileForm visibility"
     "overview safety"
     "form privacy";
   gap: 18px;
@@ -1238,6 +1900,18 @@ onBeforeUnmount(() => {
   gap: 12px;
   min-height: 172px;
   padding: 22px;
+}
+
+.identity-profile-card {
+  grid-area: profile;
+}
+
+.profile-editor-card {
+  grid-area: profileForm;
+}
+
+.identity-visibility-card {
+  grid-area: visibility;
 }
 
 .verification-overview {
@@ -1268,6 +1942,241 @@ onBeforeUnmount(() => {
   color: #3c3543;
   font-size: 1.12rem;
   font-weight: 900;
+}
+
+.profile-hero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+}
+
+.profile-avatar-large {
+  display: grid;
+  place-items: center;
+  width: 82px;
+  height: 82px;
+  border: 1px solid #ddd6fe;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #e7e4ff, #f8f6ff);
+  color: #5d49cb;
+  font-size: 2rem;
+  font-weight: 900;
+  overflow: hidden;
+}
+
+.profile-avatar-large img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.profile-main-copy {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.profile-main-copy h2 {
+  margin: 0;
+  color: #2f2940;
+  font-size: 1.42rem;
+  font-weight: 900;
+  line-height: 1.18;
+  overflow-wrap: anywhere;
+}
+
+.profile-main-copy > span {
+  color: #746f7a;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.profile-chip-row,
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.profile-chip-row span,
+.soft-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  max-width: 100%;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #f3f0ff;
+  color: #5d49cb;
+  font-size: 0.84rem;
+  font-weight: 900;
+}
+
+.profile-edit-shortcut {
+  align-self: start;
+  white-space: nowrap;
+}
+
+.profile-progress-block {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid #eeeaf2;
+  border-radius: 8px;
+  background: #fcfbff;
+}
+
+.profile-progress-block div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #746f7a;
+  font-weight: 900;
+}
+
+.profile-progress-block strong {
+  color: #5d49cb;
+}
+
+.profile-progress-track {
+  display: block;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e7e2f1;
+}
+
+.profile-progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #746dc3, #0f766e);
+  transition: width 220ms ease;
+}
+
+.profile-meta-grid,
+.identity-row-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.profile-meta-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.profile-meta-grid div,
+.identity-row-list div {
+  display: grid;
+  gap: 5px;
+  padding: 12px;
+  border: 1px solid #eeeaf2;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.profile-meta-grid dt,
+.identity-row-list dt {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #8a8792;
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.profile-meta-grid dt svg,
+.identity-row-list dt svg {
+  color: #746dc3;
+}
+
+.profile-meta-grid dd,
+.identity-row-list dd {
+  margin: 0;
+  color: #3c3543;
+  font-weight: 900;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.profile-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 15px;
+}
+
+.profile-form-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.identity-row-list {
+  grid-template-columns: 1fr;
+}
+
+.identity-tag-block {
+  display: grid;
+  gap: 14px;
+}
+
+.identity-tag-block > div {
+  display: grid;
+  gap: 8px;
+}
+
+.identity-tag-block > div > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #3c3543;
+  font-weight: 900;
+}
+
+.soft-tag {
+  background: #f0fdfa;
+  color: #0f766e;
+}
+
+.soft-tag--blue {
+  background: #eef2ff;
+  color: #4338ca;
+}
+
+.soft-tag--muted {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.visibility-split {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.visibility-split div {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  padding: 12px;
+  border: 1px solid #e6e2eb;
+  border-radius: 8px;
+  background: #fbf9fc;
+}
+
+.visibility-split strong {
+  color: #3c3543;
+}
+
+.visibility-split span {
+  color: #746f7a;
+  font-size: 0.86rem;
+  line-height: 1.45;
 }
 
 .panel-copy,
@@ -1445,22 +2354,54 @@ onBeforeUnmount(() => {
 }
 
 .field input,
-.field select {
+.field select,
+.field textarea {
   width: 100%;
-  height: 42px;
   border: 1px solid #ddd9e8;
   border-radius: 8px;
   background: #ffffff;
   color: #393545;
-  padding: 0 12px;
   font-size: 0.9rem;
   outline: 0;
 }
 
+.field input,
+.field select {
+  height: 42px;
+  padding: 0 12px;
+}
+
+.field textarea {
+  min-height: 108px;
+  padding: 11px 12px;
+  line-height: 1.55;
+  resize: vertical;
+}
+
 .field input:focus,
-.field select:focus {
+.field select:focus,
+.field textarea:focus {
   border-color: #9a93dc;
   box-shadow: 0 0 0 4px rgba(116, 109, 195, 0.12);
+}
+
+.field input[aria-invalid="true"],
+.field textarea[aria-invalid="true"] {
+  border-color: #ef4444;
+}
+
+.field input:disabled,
+.field select:disabled,
+.field textarea:disabled {
+  background: #f8f7fb;
+  color: #5f5968;
+}
+
+.field-error {
+  color: #b91c1c;
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1.4;
 }
 
 .primary-action,
@@ -1473,6 +2414,7 @@ onBeforeUnmount(() => {
   border-radius: 8px;
   font-size: 0.92rem;
   font-weight: 900;
+  cursor: pointer;
 }
 
 .primary-action {
@@ -1480,6 +2422,11 @@ onBeforeUnmount(() => {
   background: #746dc3;
   color: #ffffff;
   box-shadow: 0 14px 26px rgba(116, 109, 195, 0.16);
+}
+
+.primary-action:not(:disabled):hover {
+  border-color: #5d49cb;
+  background: #5d49cb;
 }
 
 .primary-action:disabled,
@@ -1493,6 +2440,11 @@ onBeforeUnmount(() => {
   border: 1px solid #e0ddec;
   background: #ffffff;
   color: #746dc3;
+}
+
+.ghost-action:not(:disabled):hover {
+  border-color: #c9c2ee;
+  background: #f7f4ff;
 }
 
 .primary-action--compact,
@@ -1591,10 +2543,18 @@ onBeforeUnmount(() => {
   .content-grid {
     grid-template-columns: 1fr;
     grid-template-areas:
+      "profile"
+      "profileForm"
+      "visibility"
       "overview"
       "safety"
       "form"
       "privacy";
+  }
+
+  .profile-meta-grid,
+  .visibility-split {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -1650,10 +2610,25 @@ onBeforeUnmount(() => {
   }
 
   .page-title-card,
+  .profile-hero,
   .verification-form,
+  .profile-form,
+  .profile-meta-grid,
+  .visibility-split,
   .record-grid,
   .step-list {
     grid-template-columns: 1fr;
+  }
+
+  .profile-edit-shortcut,
+  .profile-form-actions,
+  .profile-form-actions .primary-action,
+  .profile-form-actions .ghost-action {
+    width: 100%;
+  }
+
+  .profile-form-actions {
+    display: grid;
   }
 }
 </style>

@@ -47,6 +47,11 @@ const router = createRouter({
       component: TaskListView
     },
     {
+      path: '/tasks/mine/:taskId',
+      name: 'my-task-detail',
+      component: TaskListView
+    },
+    {
       path: '/tasks/:taskId/edit',
       name: 'task-edit',
       component: TaskPublishView

@@ -7,6 +7,11 @@
     "dev": "vite",
     "lint": "eslint .",
     "build": "vite build",
+    "test:tasks": "node verification/task-plaza-filter.test.mjs",
+    "test:task-applications": "node verification/task-applications.test.mjs",
+    "test:task-completion": "node verification/task-completion.test.mjs",
+    "test:task-publish": "node verification/task-publish.test.mjs",
+    "test:my-tasks": "node verification/my-tasks.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

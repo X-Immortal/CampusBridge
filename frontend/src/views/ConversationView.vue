@@ -7,7 +7,6 @@ import {
   ChevronRight,
   ClipboardCheck,
   Image,
-  Info,
   LoaderCircle,
   MessageCircle,
   MoreVertical,
@@ -25,242 +24,6 @@ import { useAuth } from '../stores/auth'
 const route = useRoute()
 const router = useRouter()
 const { currentUserId } = useAuth()
-
-const DEMO_USER_ID = 231098080
-const fallbackImage = '/auth-left.png'
-
-const mockConversations = [
-  {
-    id: 1001,
-    type: 'TASK',
-    title: '图书馆取书任务沟通',
-    ownerId: DEMO_USER_ID,
-    peerUserId: 20240001,
-    relatedType: 'TASK',
-    relatedId: 301,
-    replyable: true,
-    lastMessageAt: '2026-05-28T20:20:00',
-    createdAt: '2026-05-28T19:30:00',
-    lastMessagePreview: '好的，我大概 20 分钟后到',
-    category: 'ERRAND',
-    unreadCount: 1,
-    timeLabel: '20:20'
-  },
-  {
-    id: 1002,
-    type: 'TASK',
-    title: '快递代取沟通',
-    ownerId: DEMO_USER_ID,
-    peerUserId: 20240002,
-    relatedType: 'TASK',
-    relatedId: 287,
-    replyable: true,
-    lastMessageAt: '2026-05-28T18:42:00',
-    createdAt: '2026-05-28T18:10:00',
-    lastMessagePreview: '已经到驿站了，稍等我拍照给你',
-    category: 'AGENCY',
-    unreadCount: 1,
-    timeLabel: '18:42'
-  },
-  {
-    id: 1003,
-    type: 'TASK',
-    title: '打印资料送达确认',
-    ownerId: DEMO_USER_ID,
-    peerUserId: 20240003,
-    relatedType: 'TASK',
-    relatedId: 265,
-    replyable: true,
-    lastMessageAt: '2026-05-27T21:10:00',
-    createdAt: '2026-05-27T20:40:00',
-    lastMessagePreview: '图片已放在宿舍楼下自提柜',
-    category: 'ATTENDANCE_ASSIST',
-    unreadCount: 0,
-    timeLabel: '昨天'
-  },
-  {
-    id: 1004,
-    type: 'TASK',
-    title: '实验器材借还沟通',
-    ownerId: DEMO_USER_ID,
-    peerUserId: 20240004,
-    relatedType: 'TASK',
-    relatedId: 244,
-    replyable: true,
-    lastMessageAt: '2026-05-27T16:25:00',
-    createdAt: '2026-05-27T15:30:00',
-    lastMessagePreview: '明天下午 3 点在教学楼门口可以吗？',
-    category: 'ERRAND',
-    unreadCount: 0,
-    timeLabel: '昨天'
-  }
-]
-
-const mockMessagesByConversation = {
-  1001: [
-    {
-      id: 5001,
-      conversationId: 1001,
-      senderId: 20240001,
-      type: 'TEXT',
-      content: '你好，这个任务现在还能接吗？',
-      readAt: '2026-05-28T20:12:00',
-      createdAt: '2026-05-28T20:10:00'
-    },
-    {
-      id: 5002,
-      conversationId: 1001,
-      senderId: DEMO_USER_ID,
-      type: 'TEXT',
-      content: '可以的，我现在还在图书馆这边。',
-      readAt: '2026-05-28T20:13:00',
-      createdAt: '2026-05-28T20:12:00'
-    },
-    {
-      id: 5003,
-      conversationId: 1001,
-      senderId: 20240001,
-      type: 'IMAGE',
-      content: fallbackImage,
-      readAt: '2026-05-28T20:16:00',
-      createdAt: '2026-05-28T20:15:00'
-    },
-    {
-      id: 5004,
-      conversationId: 1001,
-      senderId: 20240001,
-      type: 'TEXT',
-      content: '书已经找到，拍给你确认一下',
-      readAt: '2026-05-28T20:16:00',
-      createdAt: '2026-05-28T20:15:10'
-    },
-    {
-      id: 5005,
-      conversationId: 1001,
-      senderId: DEMO_USER_ID,
-      type: 'TEXT',
-      content: '好的，我大概 20 分钟后到',
-      readAt: null,
-      createdAt: '2026-05-28T20:20:00'
-    },
-    {
-      id: 5006,
-      conversationId: 1001,
-      senderId: 20240001,
-      type: 'TEXT',
-      content: '没问题，我在图书馆北门等你。',
-      readAt: null,
-      createdAt: '2026-05-28T20:22:00'
-    }
-  ],
-  1002: [
-    {
-      id: 5101,
-      conversationId: 1002,
-      senderId: 20240002,
-      type: 'TEXT',
-      content: '快递取件码是 3921，麻烦到站后拍一下外包装。',
-      readAt: null,
-      createdAt: '2026-05-28T18:36:00'
-    },
-    {
-      id: 5102,
-      conversationId: 1002,
-      senderId: DEMO_USER_ID,
-      type: 'TEXT',
-      content: '收到，我 10 分钟左右到驿站。',
-      readAt: null,
-      createdAt: '2026-05-28T18:38:00'
-    },
-    {
-      id: 5103,
-      conversationId: 1002,
-      senderId: DEMO_USER_ID,
-      type: 'TEXT',
-      content: '已经到驿站了，稍等我拍照给你',
-      readAt: null,
-      createdAt: '2026-05-28T18:42:00'
-    }
-  ],
-  1003: [
-    {
-      id: 5201,
-      conversationId: 1003,
-      senderId: 20240003,
-      type: 'TEXT',
-      content: '资料打印好了，放在宿舍楼下自提柜 06 格。',
-      readAt: null,
-      createdAt: '2026-05-27T21:06:00'
-    },
-    {
-      id: 5202,
-      conversationId: 1003,
-      senderId: DEMO_USER_ID,
-      type: 'TEXT',
-      content: '收到，晚点我去取。',
-      readAt: null,
-      createdAt: '2026-05-27T21:10:00'
-    }
-  ],
-  1004: [
-    {
-      id: 5301,
-      conversationId: 1004,
-      senderId: DEMO_USER_ID,
-      type: 'TEXT',
-      content: '明天下午 3 点在教学楼门口可以吗？',
-      readAt: null,
-      createdAt: '2026-05-27T16:25:00'
-    }
-  ]
-}
-
-const mockTasks = {
-  301: {
-    id: 301,
-    title: '图书馆取书任务',
-    category: 'ERRAND',
-    campus: '仙林校区',
-    location: '图书馆北门',
-    rewardType: 'POINTS',
-    completionStandard: '拍照确认书籍封面，并在约定地点交接。',
-    onlyInAppContact: true,
-    status: 'IN_PROGRESS'
-  },
-  287: {
-    id: 287,
-    title: '快递代取',
-    category: 'AGENCY',
-    campus: '仙林校区',
-    location: '菜鸟驿站',
-    rewardType: 'CASH',
-    completionStandard: '取件后拍照确认，送到宿舍楼下。',
-    onlyInAppContact: true,
-    status: 'ACCEPTED'
-  },
-  265: {
-    id: 265,
-    title: '打印资料送达',
-    category: 'ATTENDANCE_ASSIST',
-    campus: '鼓楼校区',
-    location: '宿舍楼自提柜',
-    rewardType: 'FREE',
-    completionStandard: '资料完整送达并留存图片。',
-    onlyInAppContact: true,
-    status: 'PENDING_CONFIRMATION'
-  },
-  244: {
-    id: 244,
-    title: '实验器材借还',
-    category: 'ERRAND',
-    campus: '仙林校区',
-    location: '教学楼门口',
-    rewardType: 'NEGOTIABLE',
-    completionStandard: '按约定时间交接器材。',
-    onlyInAppContact: false,
-    status: 'OPEN'
-  }
-}
 
 const categoryMeta = {
   ERRAND: {
@@ -303,10 +66,12 @@ const relatedTask = ref(null)
 const listLoading = ref(false)
 const messagesLoading = ref(false)
 const sending = ref(false)
-const usingMockData = ref(false)
-const pageFeedback = ref('')
 const conversationSearch = ref('')
 const threadRef = ref(null)
+const feedback = reactive({
+  message: '',
+  type: 'success'
+})
 
 const conversationPage = reactive({
   page: 1,
@@ -330,15 +95,23 @@ let messagesRequestId = 0
 const selectedConversationId = computed(() =>
   route.params.conversationId ? String(route.params.conversationId) : ''
 )
+const routeRelatedType = computed(() => normalizeRelatedType(firstQueryValue(route.query.relatedType)))
+const routeRelatedId = computed(() => normalizePositiveId(firstQueryValue(route.query.relatedId)))
+const routePeerUserId = computed(() => normalizePositiveId(firstQueryValue(route.query.peerUserId)))
 
 const activeConversation = computed(
-  () =>
-    conversations.value.find((conversation) => String(conversation.id) === selectedConversationId.value) ||
-    conversations.value[0] ||
-    null
+  () => {
+    if (selectedConversationId.value) {
+      return (
+        conversations.value.find((conversation) => String(conversation.id) === selectedConversationId.value) ||
+        null
+      )
+    }
+    return conversations.value[0] || null
+  }
 )
 
-const currentUser = computed(() => (usingMockData.value ? DEMO_USER_ID : currentUserId.value || DEMO_USER_ID))
+const currentUser = computed(() => currentUserId.value)
 const conversationReplyable = computed(() => activeConversation.value?.replyable ?? true)
 const onlyInAppActive = computed(() => Boolean(relatedTask.value?.onlyInAppContact))
 const totalConversationPages = computed(() =>
@@ -378,6 +151,29 @@ function getCategoryMeta(category) {
   return categoryMeta[category] || categoryMeta.ERRAND
 }
 
+function firstQueryValue(value) {
+  return Array.isArray(value) ? value[0] : value
+}
+
+function normalizeRelatedType(value) {
+  const normalized = String(value || '').trim().toUpperCase()
+  return ['POST', 'TASK'].includes(normalized) ? normalized : ''
+}
+
+function normalizePositiveId(value) {
+  const number = Number(value)
+  return Number.isInteger(number) && number > 0 ? String(number) : ''
+}
+
+function hasRouteConversationHint() {
+  return Boolean(routeRelatedType.value && routeRelatedId.value)
+}
+
+function setFeedback(message, type = 'success') {
+  feedback.message = message
+  feedback.type = type
+}
+
 function normalizePagedResult(result, fallbackSize) {
   if (Array.isArray(result)) {
     return {
@@ -414,30 +210,38 @@ function normalizeBoolean(value, fallback = false) {
 function normalizeConversation(conversation = {}) {
   const id = conversation.id ?? conversation.conversationId
   const relatedId = conversation.relatedId
-  const task = mockTasks[relatedId] || {}
   const type = conversation.type || 'TASK'
+  const relatedType = conversation.relatedType || (type === 'TASK' ? 'TASK' : type === 'SYSTEM' ? 'SYSTEM' : 'POST')
+  const lastMessageAt = conversation.lastMessageAt || conversation.updatedAt || conversation.createdAt || ''
+  const lastMessagePreview =
+    conversation.lastMessagePreview ||
+    conversation.lastMessageContent ||
+    conversation.lastMessage ||
+    conversation.preview ||
+    ''
 
   return {
     id,
     type,
-    title: conversation.title || (relatedId ? `任务 #${relatedId} 沟通` : '站内会话'),
+    title: conversation.title || formatConversationTitle(relatedType, relatedId, type),
     ownerId: conversation.ownerId,
     peerUserId: conversation.peerUserId,
-    relatedType: conversation.relatedType || (type === 'TASK' ? 'TASK' : type),
+    relatedType,
     relatedId,
     replyable: normalizeBoolean(conversation.replyable, true),
-    lastMessageAt: conversation.lastMessageAt || conversation.updatedAt || conversation.createdAt || '',
+    lastMessageAt,
     createdAt: conversation.createdAt || conversation.lastMessageAt || '',
-    lastMessagePreview:
-      conversation.lastMessagePreview ||
-      conversation.lastMessageContent ||
-      conversation.lastMessage ||
-      conversation.preview ||
-      '',
-    category: conversation.category || task.category || 'ERRAND',
+    lastMessagePreview,
+    category: conversation.category || 'ERRAND',
     unreadCount: Number(conversation.unreadCount || 0),
-    timeLabel: conversation.timeLabel || formatConversationTime(conversation.lastMessageAt)
+    timeLabel: conversation.timeLabel || formatConversationTime(lastMessageAt)
   }
+}
+
+function formatConversationTitle(relatedType, relatedId, type) {
+  if (type === 'SYSTEM' || relatedType === 'SYSTEM') return '系统通知'
+  if (relatedType === 'POST') return relatedId ? `帖子 #${relatedId} 私聊` : '帖子私聊'
+  return relatedId ? `任务 #${relatedId} 沟通` : '站内会话'
 }
 
 function normalizeMessage(message = {}) {
@@ -452,31 +256,16 @@ function normalizeMessage(message = {}) {
   }
 }
 
-function mockPagedConversations() {
-  return {
-    items: mockConversations,
-    page: 1,
-    size: conversationPage.size,
-    total: mockConversations.length
-  }
-}
-
-function mockPagedMessages(conversationId) {
-  const items = mockMessagesByConversation[conversationId] || []
-  return {
-    items,
-    page: 1,
-    size: messagePage.size,
-    total: items.length
-  }
-}
-
 function selectInitialConversation() {
   if (!conversations.value.length) return null
   if (selectedConversationId.value) {
     return conversations.value.find(
       (conversation) => String(conversation.id) === selectedConversationId.value
     )
+  }
+  if (hasRouteConversationHint()) {
+    const target = findConversationByRouteHint()
+    if (target) return target
   }
   return conversations.value[0]
 }
@@ -493,32 +282,95 @@ async function loadConversations() {
     if (requestId !== listRequestId) return
 
     const paged = normalizePagedResult(result, conversationPage.size)
-    const source = paged.items.length ? paged : mockPagedConversations()
-    usingMockData.value = !paged.items.length
-
-    applyConversationPage(source)
-  } catch {
+    await applyConversationPage(paged)
+  } catch (error) {
     if (requestId !== listRequestId) return
-    usingMockData.value = true
-    applyConversationPage(mockPagedConversations())
+    setFeedback(error.message || '会话列表加载失败，请稍后重试。', 'danger')
+    await applyConversationPage({ items: [], page: 1, size: conversationPage.size, total: 0 })
   } finally {
     if (requestId === listRequestId) listLoading.value = false
   }
 }
 
-function applyConversationPage(paged) {
+async function applyConversationPage(paged) {
   conversations.value = paged.items.map(normalizeConversation).filter((conversation) => conversation.id)
   conversationPage.page = paged.page || 1
   conversationPage.size = paged.size || conversationPage.size
   conversationPage.total = paged.total || conversations.value.length
 
-  const target = selectInitialConversation()
+  let target = selectInitialConversation()
+  if (!target && hasRouteConversationHint()) {
+    target = await ensureConversationFromRoute()
+  }
   if (!selectedConversationId.value && target?.id) {
     router.replace({
       name: 'conversation-detail',
       params: { conversationId: target.id },
       query: route.query
     })
+  }
+}
+
+function findConversationByRouteHint() {
+  if (!hasRouteConversationHint()) return null
+  return conversations.value.find(
+    (conversation) =>
+      conversation.relatedType === routeRelatedType.value &&
+      String(conversation.relatedId) === routeRelatedId.value &&
+      (!routePeerUserId.value || String(conversation.peerUserId) === routePeerUserId.value)
+  )
+}
+
+function resolvePeerUserIdFromTask(task) {
+  if (routePeerUserId.value) return routePeerUserId.value
+  if (!task || !currentUser.value) return ''
+
+  const requesterId = task.requesterId ?? task.ownerId
+  const providerId = task.providerId ?? task.helperId ?? task.acceptedApplicantId
+
+  if (requesterId !== undefined && requesterId !== null && String(requesterId) === String(currentUser.value)) {
+    return normalizePositiveId(providerId)
+  }
+  if (providerId !== undefined && providerId !== null && String(providerId) === String(currentUser.value)) {
+    return normalizePositiveId(requesterId)
+  }
+  return ''
+}
+
+async function ensureConversationFromRoute() {
+  if (!hasRouteConversationHint() || selectedConversationId.value) return null
+
+  let peerUserId = routePeerUserId.value
+  if (!peerUserId && routeRelatedType.value === 'TASK') {
+    try {
+      const result = await api.getTaskDetail(routeRelatedId.value)
+      peerUserId = resolvePeerUserIdFromTask(result?.task || result)
+    } catch {
+      peerUserId = ''
+    }
+  }
+
+  if (!peerUserId) {
+    setFeedback('未能确定对话对象，请从任务详情页进入站内沟通。', 'danger')
+    return null
+  }
+
+  try {
+    const conversation = normalizeConversation(
+      await api.createConversation({
+        relatedType: routeRelatedType.value,
+        relatedId: Number(routeRelatedId.value),
+        peerUserId: Number(peerUserId)
+      })
+    )
+    if (!conversation.id) return null
+
+    conversations.value = [conversation, ...conversations.value]
+    conversationPage.total = Math.max(conversationPage.total, conversations.value.length)
+    return conversation
+  } catch (error) {
+    setFeedback(error.message || '创建会话失败，请稍后重试。', 'danger')
+    return null
   }
 }
 
@@ -538,14 +390,10 @@ async function loadMessages() {
     if (requestId !== messagesRequestId) return
 
     const paged = normalizePagedResult(result, messagePage.size)
-    const source = paged.items.length ? paged : mockPagedMessages(conversationId)
-    usingMockData.value = usingMockData.value || !paged.items.length
-
-    applyMessagePage(source)
+    applyMessagePage(paged)
   } catch {
     if (requestId !== messagesRequestId) return
-    usingMockData.value = true
-    applyMessagePage(mockPagedMessages(conversationId))
+    applyMessagePage({ items: [], page: 1, size: messagePage.size, total: 0 })
   } finally {
     if (requestId === messagesRequestId) messagesLoading.value = false
   }
@@ -561,13 +409,22 @@ function applyMessagePage(paged) {
   scrollMessagesToBottom()
 }
 
-function loadRelatedTask() {
+async function loadRelatedTask() {
   const relatedId = activeConversation.value?.relatedId
-  relatedTask.value = relatedId ? mockTasks[relatedId] || null : null
+  if (!relatedId) {
+    relatedTask.value = null
+    return
+  }
+
+  try {
+    const result = await api.getTaskDetail(relatedId)
+    relatedTask.value = result?.task || result || null
+  } catch {
+    relatedTask.value = null
+  }
 }
 
-async function reloadDemo() {
-  pageFeedback.value = ''
+async function reloadConversations() {
   await loadConversations()
   await loadMessages()
 }
@@ -617,31 +474,20 @@ async function sendMessage() {
   if (!activeConversation.value?.id || sending.value || !conversationReplyable.value || !content) return
 
   sending.value = true
-  pageFeedback.value = ''
   const payload = {
     type: 'TEXT',
     content
   }
 
   try {
-    let result = null
-    if (!usingMockData.value) {
-      result = await api.sendConversationMessage(activeConversation.value.id, payload)
-    }
-
+    const result = await api.sendConversationMessage(activeConversation.value.id, payload)
     const message = result ? normalizeMessage(result) : buildOptimisticMessage(payload)
     messages.value = [...messages.value, message]
     syncConversationAfterSend(message, payload)
     composer.text = ''
     await scrollMessagesToBottom()
-  } catch {
-    const message = buildOptimisticMessage(payload)
-    messages.value = [...messages.value, message]
-    syncConversationAfterSend(message, payload)
-    composer.text = ''
-    usingMockData.value = true
-    pageFeedback.value = '当前以后端接口格式模拟发送，接入服务后会自动使用真实返回。'
-    await scrollMessagesToBottom()
+  } catch (error) {
+    console.error(error)
   } finally {
     sending.value = false
   }
@@ -747,18 +593,6 @@ onMounted(async () => {
         />
       </section>
 
-      <section
-        v-if="usingMockData || pageFeedback"
-        class="page-feedback"
-        role="status"
-      >
-        <Info
-          :size="18"
-          aria-hidden="true"
-        />
-        <span>{{ pageFeedback || '当前展示数据按 openapi.yaml 的会话和消息接口格式模拟生成。' }}</span>
-      </section>
-
       <section class="conversation-workspace">
         <aside class="conversation-list-panel">
           <div class="panel-heading">
@@ -771,7 +605,7 @@ onMounted(async () => {
               type="button"
               aria-label="刷新会话"
               :disabled="listLoading"
-              @click="reloadDemo"
+              @click="reloadConversations"
             >
               <RefreshCw
                 :class="{ spinning: listLoading }"

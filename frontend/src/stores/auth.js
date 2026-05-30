@@ -111,6 +111,13 @@ async function submitVerification(payload) {
   return result
 }
 
+async function updateMyProfile(payload) {
+  const result = await api.updateMyProfile(payload)
+  authState.profile = result
+  persistAuth()
+  return result
+}
+
 function logout() {
   authState.token = ''
   authState.refreshToken = ''
@@ -131,6 +138,7 @@ export function useAuth() {
     register,
     logout,
     refreshSession,
-    submitVerification
+    submitVerification,
+    updateMyProfile
   }
 }

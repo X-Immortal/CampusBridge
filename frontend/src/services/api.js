@@ -30,14 +30,18 @@ async function parseResponse(response) {
   }
 }
 
-async function request(path, { method = 'GET', body, headers = {} } = {}) {
+async function request(path, { method = 'GET', body, headers = {}, timeoutMs = 3500 } = {}) {
   const auth = readAuthSnapshot()
   const controller = new AbortController()
-  const timeout = window.setTimeout(() => controller.abort(), 3500)
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs)
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData
   const requestHeaders = {
     Accept: 'application/json',
-    'Content-Type': 'application/json',
     ...headers
+  }
+
+  if (!isFormData) {
+    requestHeaders['Content-Type'] = 'application/json'
   }
 
   if (auth.token) {
@@ -55,7 +59,7 @@ async function request(path, { method = 'GET', body, headers = {} } = {}) {
     response = await fetch(`${API_BASE_URL}${path}`, {
       method,
       headers: requestHeaders,
-      body: body ? JSON.stringify(body) : undefined,
+      body: body ? (isFormData ? body : JSON.stringify(body)) : undefined,
       signal: controller.signal
     })
     payload = await parseResponse(response)
@@ -78,7 +82,7 @@ async function request(path, { method = 'GET', body, headers = {} } = {}) {
   }
 
   if (payload && typeof payload === 'object' && 'code' in payload) {
-    if (payload.code !== 'SUCCESS') {
+    if (!['SUCCESS', 200, '200'].includes(payload.code)) {
       throw new ApiError(payload.message || '业务校验失败', response.status, payload.code, payload.data)
     }
     return payload.data
@@ -105,15 +109,25 @@ export default {
   getCurrentUser: () => request('/users/me'),
   getMyProfile: () => request('/users/me/profile'),
   updateMyProfile: (body) => request('/users/me/profile', { method: 'PUT', body }),
+  getUserProfile: (userId) => request(`/users/${userId}/profile`),
   submitVerification: (body) => request('/verifications', { method: 'POST', body }),
   getVerification: () => request('/verifications'),
   createTask: (body) => request('/tasks', { method: 'POST', body }),
-  updateTask: (taskId, body) => request(`/tasks/${taskId}`, { method: 'PATCH', body }),
-  cancelTask: (taskId) => request(`/tasks/${taskId}`, { method: 'DELETE' }),
+  saveTaskDraft: (body) => request('/tasks/drafts', { method: 'POST', body }),
+  updateTask: (taskId, body) => request(`/tasks/${taskId}`, { method: 'PUT', body }),
+  cancelTask: (taskId, reason) =>
+    request(`/tasks/${taskId}${buildQuery({ reason })}`, { method: 'DELETE' }),
+  resendTask: (taskId) => request(`/tasks/${taskId}/resend`, { method: 'POST' }),
   transitionTaskStatus: (taskId, body) =>
     request(`/tasks/${taskId}/status-transitions`, { method: 'POST', body }),
   submitTaskCompletion: (taskId, body) =>
     request(`/tasks/${taskId}/completion`, { method: 'POST', body }),
+  confirmTaskCompletion: (taskId) =>
+    request(`/tasks/${taskId}/completion/confirm`, { method: 'POST' }),
+  rejectTaskCompletion: (taskId, body) =>
+    request(`/tasks/${taskId}/completion/reject`, { method: 'POST', body }),
+  disputeTaskCompletion: (taskId, body) =>
+    request(`/tasks/${taskId}/completion/dispute`, { method: 'POST', body }),
   getTaskReviews: (taskId) => request(`/tasks/${taskId}/reviews`),
   createTaskReview: (taskId, body) =>
     request(`/tasks/${taskId}/reviews`, { method: 'POST', body }),
@@ -125,10 +139,18 @@ export default {
   acceptTaskApplication: (taskId, applicationId) =>
     request(`/tasks/${taskId}/applications/${applicationId}/accept`, { method: 'POST' }),
   getConversations: (params) => request(`/conversations${buildQuery(params)}`),
+  createConversation: (body) => request('/conversations', { method: 'POST', body }),
   getConversationMessages: (conversationId, params) =>
     request(`/conversations/${conversationId}/messages${buildQuery(params)}`),
   sendConversationMessage: (conversationId, body) =>
-    request(`/conversations/${conversationId}/messages`, { method: 'POST', body })
+    request(`/conversations/${conversationId}/messages`, { method: 'POST', body }),
+  uploadAttachment: ({ file, expectedOwnerType, type } = {}) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    if (expectedOwnerType) formData.append('expectedOwnerType', expectedOwnerType)
+    if (type) formData.append('type', type)
+    return request('/attachments', { method: 'POST', body: formData, timeoutMs: 15000 })
+  }
 }
 
 export { API_BASE_URL, AUTH_STORAGE_KEY }
