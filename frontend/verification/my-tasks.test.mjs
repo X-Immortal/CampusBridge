@@ -314,6 +314,19 @@ test('源码中的我的任务查询限制值和测试保持一致', async () =>
   assert.match(source, /query\.size = MINE_TASK_FETCH_SIZE/)
 })
 
+test('my task cards keep detail modal in mine route context', async () => {
+  const viewSource = await readFile(new URL('../src/views/TaskListView.vue', import.meta.url), 'utf8')
+  const routerSource = await readFile(new URL('../src/router/index.js', import.meta.url), 'utf8')
+
+  assert.match(routerSource, /path:\s*'\/tasks\/mine\/:taskId'[\s\S]*?name:\s*'my-task-detail'/)
+  assert.match(viewSource, /routeName === 'my-tasks' \|\| routeName === 'my-task-detail'/)
+  assert.match(
+    viewSource,
+    /const detailRouteName = computed\(\(\) => \(isMineView\.value \? 'my-task-detail' : 'task-detail'\)\)/
+  )
+  assert.match(viewSource, /name:\s*detailRouteName\.value/)
+})
+
 test('我的任务只展示当前用户发布的任务，不展示仅作为接单者参与的任务', () => {
   const filters = createDefaultFilters('my-tasks')
   const response = mockListTasks(buildTaskQuery(filters, { isMineView: true }))

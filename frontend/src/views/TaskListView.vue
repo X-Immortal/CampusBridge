@@ -50,15 +50,20 @@ import { useAuth } from '../stores/auth'
 const route = useRoute()
 const router = useRouter()
 const { isAuthenticated, currentUserId, verificationStatus } = useAuth()
-const isMineView = computed(() => route.name === 'my-tasks')
 const MINE_TASK_FETCH_SIZE = 100
+
+function isMineRoute(routeName = route.name) {
+  return routeName === 'my-tasks' || routeName === 'my-task-detail'
+}
+
+const isMineView = computed(() => isMineRoute(route.name))
 
 function createDefaultFilters(routeName = route.name) {
   return {
     keyword: '',
     category: '',
     campus: '',
-    status: routeName === 'my-tasks' ? '' : 'OPEN',
+    status: isMineRoute(routeName) ? '' : 'OPEN',
     rewardType: '',
     requiresProof: '',
     sortBy: 'CREATED_AT_DESC',
@@ -263,6 +268,7 @@ const pageSubtitle = computed(() =>
     : '按校区、奖励、凭证和任务状态快速筛选，再查看完整细节后申请。'
 )
 const listRouteName = computed(() => (isMineView.value ? 'my-tasks' : 'task-list'))
+const detailRouteName = computed(() => (isMineView.value ? 'my-task-detail' : 'task-detail'))
 const editableStatuses = new Set(['DRAFT', 'OPEN'])
 const cancelableStatuses = new Set(['OPEN', 'ACCEPTED', 'IN_PROGRESS'])
 const repostableStatuses = new Set(['CANCELLED', 'DRAFT'])
@@ -842,7 +848,7 @@ async function syncRoute() {
   const query = buildRouteQuery()
   if (selectedTaskId.value) {
     await router.replace({
-      name: 'task-detail',
+      name: detailRouteName.value,
       params: { taskId: selectedTaskId.value },
       query
     })
@@ -981,7 +987,7 @@ async function selectTask(task) {
   selectedTaskId.value = nextTaskId
 
   await router.push({
-    name: 'task-detail',
+    name: detailRouteName.value,
     params: { taskId: nextTaskId },
     query: buildRouteQuery()
   })
