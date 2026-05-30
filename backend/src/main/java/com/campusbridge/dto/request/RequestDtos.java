@@ -194,6 +194,17 @@ public final class RequestDtos {
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
+    public static class ResolveReportRequest {
+        public ApiEnums.ModerationStatus status;
+        public String decision;
+        public Long punishedUserId;
+        public Integer creditChange;
+        public Boolean markTaskDisputed;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class TaskStatusTransitionRequest {
         public ApiEnums.TaskStatusTransitionAction action;
         public String reason;

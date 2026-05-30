@@ -3,7 +3,8 @@ package com.campusbridge.controller;
 import com.campusbridge.common.CurrentUserResolver;
 import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.pojo.Result;
-import com.campusbridge.service.ContentModerationService;
+import com.campusbridge.service.PostService;
+import com.campusbridge.service.ReplyService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -21,13 +22,16 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 @RequestMapping("/api/v1/posts")
 public class PostController {
     private final CurrentUserResolver currentUserResolver;
-    private final ContentModerationService contentModerationService;
+    private final PostService postService;
+    private final ReplyService replyService;
 
     public PostController(
             CurrentUserResolver currentUserResolver,
-            ContentModerationService contentModerationService) {
+            PostService postService,
+            ReplyService replyService) {
         this.currentUserResolver = currentUserResolver;
-        this.contentModerationService = contentModerationService;
+        this.postService = postService;
+        this.replyService = replyService;
     }
 
     @PostMapping
@@ -36,8 +40,7 @@ public class PostController {
             HttpServletRequest servletRequest,
             @RequestBody RequestDtos.CreatePostRequest request) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
-        contentModerationService.assertPostPublishAllowed(currentUserId, request);
-        return Result.success();
+        return Result.success(postService.createPost(currentUserId, request));
     }
 
     @GetMapping
@@ -47,32 +50,40 @@ public class PostController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false, defaultValue = "1") Integer page,
             @RequestParam(required = false, defaultValue = "20") Integer size) {
-        return Result.success();
+        return Result.success(postService.listPosts(keyword, category, status, page, size));
     }
 
     @GetMapping("/{postId}")
     public Result getPostDetail(@PathVariable Long postId) {
-        return Result.success();
+        return Result.success(postService.getPostDetail(postId));
     }
 
     @PatchMapping("/{postId}")
     public Result updatePost(
+            HttpServletRequest servletRequest,
             @PathVariable Long postId,
             @RequestBody RequestDtos.UpdatePostRequest request) {
-        return Result.success();
+        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        return Result.success(postService.updatePost(currentUserId, postId, request));
     }
 
     @DeleteMapping("/{postId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public Result deletePost(@PathVariable Long postId) {
+    public Result deletePost(
+            HttpServletRequest servletRequest,
+            @PathVariable Long postId) {
+        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        postService.deletePost(currentUserId, postId);
         return Result.success();
     }
 
     @PostMapping("/{postId}/replies")
     @ResponseStatus(HttpStatus.CREATED)
     public Result createReply(
+            HttpServletRequest servletRequest,
             @PathVariable Long postId,
             @RequestBody RequestDtos.CreateReplyRequest request) {
-        return Result.success();
+        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        return Result.success(replyService.createReply(currentUserId, postId, request));
     }
 }

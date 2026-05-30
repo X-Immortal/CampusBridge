@@ -2,6 +2,7 @@ package com.campusbridge.mapper;
 
 import com.campusbridge.pojo.Reply;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
@@ -12,6 +13,13 @@ public interface ReplyMapper {
     Reply selectById(Long id);
 
     List<Reply> selectAll();
+
+    List<Reply> selectByPostId(
+            @Param("postId") Long postId,
+            @Param("offset") Integer offset,
+            @Param("size") Integer size);
+
+    long countByPostId(@Param("postId") Long postId);
 
     int updateById(Reply entity);
 

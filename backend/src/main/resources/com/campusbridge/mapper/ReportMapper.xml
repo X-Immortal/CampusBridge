@@ -16,6 +16,30 @@
     SELECT * FROM reports
   </select>
 
+  <select id="selectByReporterId" resultType="com.campusbridge.pojo.Report">
+    SELECT * FROM reports
+    WHERE reporter_id = #{reporterId}
+    <if test="status != null and status != ''">
+      AND status = #{status}
+    </if>
+    ORDER BY created_at DESC, id DESC
+    LIMIT #{size} OFFSET #{offset}
+  </select>
+
+  <select id="countByReporterId" resultType="long">
+    SELECT COUNT(*) FROM reports
+    WHERE reporter_id = #{reporterId}
+    <if test="status != null and status != ''">
+      AND status = #{status}
+    </if>
+  </select>
+
+  <update id="updateStatusById">
+    UPDATE reports
+    SET status = #{status}
+    WHERE id = #{id}
+  </update>
+
   <update id="updateById" parameterType="com.campusbridge.pojo.Report">
     UPDATE reports
     SET reporter_id = #{reporterId},

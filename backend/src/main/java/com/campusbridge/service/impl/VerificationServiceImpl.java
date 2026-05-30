@@ -5,6 +5,7 @@ import com.campusbridge.dto.enums.ApiEnums;
 import com.campusbridge.mapper.CampusVerificationMapper;
 import com.campusbridge.pojo.CampusVerification;
 import com.campusbridge.service.VerificationService;
+import com.github.pagehelper.PageHelper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -12,6 +13,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -72,6 +74,49 @@ public class VerificationServiceImpl implements VerificationService {
             return null;
         }
         return campusVerificationMapper.selectLatestByUserId(userId);
+    }
+
+    @Override
+    public List<CampusVerification> listPending(int page, int size) {
+        PageHelper.startPage(page, size);
+        return campusVerificationMapper.selectByStatus("PENDING");
+    }
+
+    @Override
+    public Object review(Long adminUserId, Long verificationId, boolean approved, String rejectReason) {
+        if (adminUserId == null || verificationId == null) {
+            return null;
+        }
+
+        CampusVerification entity = campusVerificationMapper.selectById(verificationId);
+        if (entity == null) {
+            return -1L;
+        }
+        if (!"PENDING".equals(entity.getStatus())) {
+            return -2L;
+        }
+
+        entity.setReviewerId(adminUserId);
+        entity.setReviewedAt(LocalDateTime.now());
+        if (approved) {
+            entity.setStatus("VERIFIED");
+            entity.setRejectReason(null);
+        } else {
+            entity.setStatus("REJECTED");
+            entity.setRejectReason(isBlank(rejectReason) ? "管理员拒绝" : rejectReason);
+        }
+
+        int affected = campusVerificationMapper.updateById(entity);
+        if (affected <= 0) {
+            return -3L;
+        }
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("id", entity.getId());
+        payload.put("status", entity.getStatus());
+        payload.put("reviewerId", entity.getReviewerId());
+        payload.put("reviewedAt", entity.getReviewedAt());
+        return payload;
     }
 
     private boolean isBlank(String value) {
