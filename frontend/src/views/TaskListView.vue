@@ -100,171 +100,6 @@ const TASK_TYPE_META = {
   }
 }
 
-const DEMO_TASKS = [
-  {
-    id: 2024051701,
-    requesterId: 10023,
-    providerId: null,
-    category: 'ERRAND',
-    typeKey: 'ERRAND',
-    typeLabel: '生活服务',
-    title: '代取快递（菜鸟驿站）',
-    description: '帮忙在菜鸟驿站代取一个快递，取件码已私聊发你，取完拍照回传，谢谢！',
-    campus: '仙林校区',
-    location: '菜鸟驿站（文苑路 8 号）',
-    deadline: demoDate(2),
-    rewardType: 'CASH',
-    rewardAmount: 8,
-    rewardDescription: '8 元现金',
-    completionStandard: '成功取件并拍摄快递单面照片清晰可见。',
-    requiresProof: true,
-    onlyInAppContact: true,
-    allowOfflineContact: false,
-    isInstantTask: true,
-    routeHint: '靠近西门，顺路可接。',
-    riskDisclosureConfirmed: true,
-    sensitiveReason: '',
-    status: 'OPEN',
-    createdAt: demoDate(-0.17),
-    updatedAt: demoDate(-0.17)
-  },
-  {
-    id: 2024051702,
-    requesterId: 10056,
-    providerId: null,
-    category: 'AGENCY',
-    typeKey: 'DINING',
-    typeLabel: '生活服务',
-    title: '食堂带饭（桃园食堂）',
-    description: '帮忙在桃园食堂买一份酸辣土豆丝和米饭，送到南苑 12 栋，谢谢！',
-    campus: '仙林校区',
-    location: '桃园食堂',
-    deadline: demoDate(3.5),
-    rewardType: 'CASH',
-    rewardAmount: 15,
-    rewardDescription: '15 元现金',
-    completionStandard: '按备注买到指定餐品并送达宿舍楼下，餐品包装完整。',
-    requiresProof: false,
-    onlyInAppContact: true,
-    allowOfflineContact: true,
-    isInstantTask: true,
-    routeHint: '南苑方向优先。',
-    riskDisclosureConfirmed: true,
-    sensitiveReason: '',
-    status: 'OPEN',
-    createdAt: demoDate(-0.42),
-    updatedAt: demoDate(-0.42)
-  },
-  {
-    id: 2024051703,
-    requesterId: 10078,
-    providerId: null,
-    category: 'AGENCY',
-    typeKey: 'STUDY',
-    typeLabel: '学习互助',
-    title: '图书馆占座（南京大学图书馆）',
-    description: '帮忙占一个南京大学图书馆自习座位，靠窗优先，占好后拍照确认。',
-    campus: '鼓楼校区',
-    location: '南京大学图书馆',
-    deadline: demoDate(18),
-    rewardType: 'CASH',
-    rewardAmount: 20,
-    rewardDescription: '20 元现金',
-    completionStandard: '座位确认可用，拍摄座位号或附近标识后回传。',
-    requiresProof: true,
-    onlyInAppContact: true,
-    allowOfflineContact: false,
-    isInstantTask: false,
-    routeHint: '',
-    riskDisclosureConfirmed: true,
-    sensitiveReason: '',
-    status: 'OPEN',
-    createdAt: demoDate(-1),
-    updatedAt: demoDate(-1)
-  },
-  {
-    id: 2024051704,
-    requesterId: 10102,
-    providerId: null,
-    category: 'AGENCY',
-    typeKey: 'AGENCY',
-    typeLabel: '委托代办',
-    title: '帮忙提交学院材料',
-    description: '把打印好的申请材料交到学院办公室，窗口老师收下后帮忙拍一张回执照片即可。',
-    campus: '仙林校区',
-    location: '计算机学院办公室',
-    deadline: demoDate(26),
-    rewardType: 'FREE',
-    rewardAmount: '',
-    rewardDescription: '无偿互助',
-    completionStandard: '材料成功交到办公室，并拍摄窗口或回执作为确认。',
-    requiresProof: true,
-    onlyInAppContact: true,
-    allowOfflineContact: false,
-    isInstantTask: false,
-    routeHint: '教学楼附近顺路优先。',
-    riskDisclosureConfirmed: true,
-    sensitiveReason: '',
-    status: 'OPEN',
-    createdAt: demoDate(-2.5),
-    updatedAt: demoDate(-2.5)
-  },
-  {
-    id: 2024051705,
-    requesterId: 10118,
-    providerId: null,
-    category: 'AGENCY',
-    typeKey: 'STUDY',
-    typeLabel: '学习互助',
-    title: '高数错题讲解 30 分钟',
-    description: '想找同学讲一下极限和导数相关错题，线上或图书馆都可以，重点是把思路讲清楚。',
-    campus: '鼓楼校区',
-    location: '逸夫馆自习区',
-    deadline: demoDate(30),
-    rewardType: 'POINTS',
-    rewardAmount: 60,
-    rewardDescription: '60 积分',
-    completionStandard: '讲完 4 道错题并整理关键步骤，双方确认理解。',
-    requiresProof: false,
-    onlyInAppContact: true,
-    allowOfflineContact: true,
-    isInstantTask: false,
-    routeHint: '',
-    riskDisclosureConfirmed: true,
-    sensitiveReason: '',
-    status: 'OPEN',
-    createdAt: demoDate(-4),
-    updatedAt: demoDate(-4)
-  },
-  {
-    id: 2024051706,
-    requesterId: 10136,
-    providerId: null,
-    category: 'ERRAND',
-    typeKey: 'ERRAND',
-    typeLabel: '跑腿代取',
-    title: '活动展板搬运协助',
-    description: '需要把两块轻量展板从活动中心搬到教学楼一楼，距离不远，时间可商量。',
-    campus: '仙林校区',
-    location: '大学生活动中心',
-    deadline: demoDate(8),
-    rewardType: 'NEGOTIABLE',
-    rewardAmount: '',
-    rewardDescription: '双方协商',
-    completionStandard: '展板安全搬到指定教室门口，避免弯折和磕碰。',
-    requiresProof: false,
-    onlyInAppContact: true,
-    allowOfflineContact: true,
-    isInstantTask: true,
-    routeHint: '两人一起更快，可沟通具体时间。',
-    riskDisclosureConfirmed: true,
-    sensitiveReason: '',
-    status: 'OPEN',
-    createdAt: demoDate(-0.75),
-    updatedAt: demoDate(-0.75)
-  }
-]
-
 const filters = reactive({
   keyword: readQuery('keyword', defaultFilters.keyword),
   category: readQuery('category', defaultFilters.category),
@@ -580,13 +415,6 @@ const applicationGate = computed(() => {
   return null
 })
 
-function demoDate(hourOffset) {
-  const date = new Date()
-  date.setMinutes(0, 0, 0)
-  date.setTime(date.getTime() + hourOffset * 60 * 60 * 1000)
-  return date.toISOString()
-}
-
 function firstValue(value) {
   return Array.isArray(value) ? value[0] : value
 }
@@ -720,63 +548,6 @@ function taskContactCopy(task = {}) {
 
 function taskSafetyCopy(task = {}) {
   return task.allowOfflineContact ? '公开地点交接' : '不建议线下接触'
-}
-
-function isDemoTaskId(taskId) {
-  return DEMO_TASKS.some((task) => String(task.id) === String(taskId))
-}
-
-function demoTaskDetail(taskId) {
-  const task = DEMO_TASKS.find((item) => String(item.id) === String(taskId))
-  return task ? { task, applications: [], history: [], reviews: [] } : null
-}
-
-function buildDemoTaskResult() {
-  const keyword = filters.keyword.trim().toLowerCase()
-  const proofFilter = filters.requiresProof === '' ? null : filters.requiresProof === 'true'
-  let items = DEMO_TASKS.filter((task) => {
-    const searchableText = [
-      task.title,
-      task.description,
-      task.campus,
-      task.location,
-      taskCategoryLabel(task)
-    ]
-      .filter(Boolean)
-      .join(' ')
-      .toLowerCase()
-
-    return (
-      (!keyword || searchableText.includes(keyword)) &&
-      (!filters.category || task.category === filters.category) &&
-      (!filters.campus.trim() || task.campus?.includes(filters.campus.trim())) &&
-      (!filters.status || task.status === filters.status) &&
-      (!filters.rewardType || task.rewardType === filters.rewardType) &&
-      (proofFilter === null || Boolean(task.requiresProof) === proofFilter)
-    )
-  })
-
-  items = [...items].sort((current, next) => {
-    if (filters.sortBy === 'DEADLINE') {
-      return new Date(current.deadline).getTime() - new Date(next.deadline).getTime()
-    }
-    if (filters.sortBy === 'CREDIT') {
-      return Number(next.requesterId || 0) - Number(current.requesterId || 0)
-    }
-    return new Date(next.createdAt).getTime() - new Date(current.createdAt).getTime()
-  })
-
-  const total = items.length
-  const page = Math.max(1, filters.page)
-  const size = Math.max(1, filters.size || defaultFilters.size)
-  const start = (page - 1) * size
-
-  return {
-    items: items.slice(start, start + size),
-    page,
-    size,
-    total
-  }
 }
 
 function applyTaskResult(result) {
@@ -973,14 +744,9 @@ async function loadTasks() {
     const result = await api.getTasks(buildTaskQuery())
     if (requestId !== listRequestId) return
 
-    const items = Array.isArray(result) ? result : result?.items || []
-    applyTaskResult(!items.length && !isMineView.value ? buildDemoTaskResult() : result)
+    applyTaskResult(result)
   } catch (error) {
     if (requestId !== listRequestId) return
-    if (!isMineView.value) {
-      applyTaskResult(buildDemoTaskResult())
-      return
-    }
     tasks.value = []
     pagination.page = filters.page
     pagination.size = filters.size
@@ -1003,15 +769,6 @@ async function loadTaskDetail(taskId) {
   detailLoading.value = true
   detailError.value = ''
   const requestId = ++detailRequestId
-
-  if (!isMineView.value && isDemoTaskId(taskId)) {
-    taskDetail.value = demoTaskDetail(taskId)
-    candidateApplications.value = []
-    candidatesError.value = ''
-    candidatesLoading.value = false
-    detailLoading.value = false
-    return
-  }
 
   try {
     const result = await api.getTaskDetail(taskId)
@@ -2337,13 +2094,13 @@ onMounted(async () => {
             <button
               class="primary-action detail-primary-action"
               type="button"
-              @click="setOperationFeedback('演示模式：后端完成后这里会提交接单申请。')"
+              @click="submitTaskApplication"
             >
               <Award
                 :size="17"
                 aria-hidden="true"
               />
-              立即接取
+              提交申请
             </button>
             <RouterLink
               class="ghost-action detail-secondary-action"
