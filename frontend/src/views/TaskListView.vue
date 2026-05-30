@@ -142,7 +142,11 @@ const operationLoading = ref('')
 const cancelPanelOpen = ref(false)
 const cancelReason = ref('')
 const cancelReasonError = ref('')
+const applicationPanelOpen = ref(false)
+const candidatePanelOpen = ref(false)
 const candidateApplications = ref([])
+const candidatesLoaded = ref(false)
+const submittedApplication = ref(null)
 const candidatesLoading = ref(false)
 const candidatesError = ref('')
 const applicationMessage = ref('')
@@ -151,6 +155,7 @@ const applicationSubmitting = ref(false)
 const completionDescription = ref('')
 const completionAttachmentInput = ref('')
 const completionAttachments = ref([])
+const completionUploading = ref(false)
 const completionErrors = reactive({})
 const completionSubmitting = ref(false)
 const resolutionAction = ref('')
@@ -172,7 +177,7 @@ const selectedTask = computed(() => tasks.value.find((task) => String(task.id) =
 const detailTask = computed(() => taskDetail.value?.task || selectedTask.value || null)
 const detailApplications = computed(() => taskDetail.value?.applications || [])
 const candidateSource = computed(() =>
-  candidateApplications.value.length ? candidateApplications.value : detailApplications.value
+  candidatesLoaded.value ? candidateApplications.value : detailApplications.value
 )
 const candidates = computed(() => candidateSource.value.map(normalizeCandidate))
 const sortedCandidates = computed(() =>
@@ -257,8 +262,22 @@ const candidateStats = computed(() => {
 const acceptedCandidate = computed(
   () => candidates.value.find((candidate) => candidate.status === 'ACCEPTED') || null
 )
+const submittedApplicationForTask = computed(() => {
+  if (!submittedApplication.value?.taskId || !detailTask.value?.id) return null
+  return String(submittedApplication.value.taskId) === String(detailTask.value.id)
+    ? submittedApplication.value
+    : null
+})
 const completionProof = computed(() => taskDetail.value?.completionProof || detailTask.value?.completionProof || null)
-const proofAttachmentItems = computed(() => normalizeProofAttachments(completionProof.value?.attachmentUrls))
+const proofAttachmentItems = computed(() =>
+  normalizeProofAttachments(
+    completionProof.value?.attachments ||
+      completionProof.value?.attachmentUrls ||
+      completionProof.value?.fileUrls ||
+      completionProof.value?.attachmentIds ||
+      []
+  )
+)
 const pageTitle = computed(() =>
   isMineView.value ? '管理自己发布的任务' : '找到值得接、能准时完成的校园互助'
 )
@@ -320,6 +339,13 @@ const canSubmitCompletion = computed(
 const canReviewCompletion = computed(
   () => isDetailOwner.value && detailTask.value?.status === 'PENDING_CONFIRMATION'
 )
+const canDisputeCompletion = computed(() => {
+  const status = detailTask.value?.status
+  return Boolean(
+    (isDetailOwner.value || isDetailProvider.value) &&
+      ['IN_PROGRESS', 'PENDING_CONFIRMATION'].includes(status)
+  )
+})
 const shouldShowCompletionPanel = computed(() => {
   const status = detailTask.value?.status
   return Boolean(
@@ -379,7 +405,14 @@ const resolutionMeta = computed(() => {
 
   return meta[resolutionAction.value] || null
 })
+const proofDescription = computed(
+  () => completionProof.value?.description || completionProof.value?.proofDescription || ''
+)
+const proofSubmittedAt = computed(
+  () => completionProof.value?.submittedAt || completionProof.value?.createdAt || completionProof.value?.updatedAt || ''
+)
 const hasCurrentUserApplied = computed(() =>
+  Boolean(submittedApplicationForTask.value) ||
   candidates.value.some(
     (candidate) =>
       candidate.applicantId !== undefined &&
@@ -417,11 +450,11 @@ const applicationGate = computed(() => {
       to: '/home'
     }
   }
-  if (detailTask.value.status !== 'OPEN') {
+  if (isDetailProvider.value) {
     return {
-      tone: 'muted',
-      title: '当前任务暂不开放申请',
-      copy: '任务进入审核、进行中、已完成或已取消后，不能再提交新的接单申请。'
+      tone: 'success',
+      title: '你已被选为帮助者',
+      copy: '可以在任务状态进入执行阶段后提交完成说明和凭证，并通过任务会话继续沟通。'
     }
   }
   if (hasCurrentUserApplied.value) {
@@ -429,6 +462,13 @@ const applicationGate = computed(() => {
       tone: 'success',
       title: '你已提交接单申请',
       copy: '求助者会在候选列表中看到你的说明，后续请留意站内消息和任务状态变化。'
+    }
+  }
+  if (detailTask.value.status !== 'OPEN') {
+    return {
+      tone: 'muted',
+      title: '当前任务暂不开放申请',
+      copy: '任务进入审核、进行中、已完成或已取消后，不能再提交新的接单申请。'
     }
   }
   return null
@@ -555,9 +595,33 @@ function normalizeCandidate(application = {}) {
       application.historyCompletedCount
     ),
     message: application.message || '',
-    status: application.status || 'PENDING',
+    status: String(application.status || 'PENDING').toUpperCase(),
     createdAt: application.createdAt || application.appliedAt || ''
   }
+}
+
+function candidateInitial(candidate = {}) {
+  const source = candidate.name || candidate.username || candidate.applicantId || '候'
+  return String(source).trim().slice(0, 1).toUpperCase()
+}
+
+function candidateAccountCopy(candidate = {}) {
+  if (candidate.username) return `@${candidate.username}`
+  if (candidate.applicantId) return `用户 ID ${candidate.applicantId}`
+  return '账号信息待同步'
+}
+
+function candidateProfileCopy(candidate = {}) {
+  const parts = [candidate.campus, candidate.college].filter(Boolean)
+  return parts.length ? parts.join(' · ') : '档案信息待补充'
+}
+
+function candidateSubmittedCopy(candidate = {}) {
+  return candidate.createdAt ? `申请于 ${formatDateTime(candidate.createdAt)}` : '申请时间待同步'
+}
+
+function candidateCardClass(candidate = {}) {
+  return `candidate-card--${String(candidate.status || 'PENDING').toLowerCase()}`
 }
 
 function taskTypeKey(task = {}) {
@@ -760,14 +824,42 @@ function attachmentNameFromUri(uri, index) {
   }
 }
 
+function normalizeAttachmentItem(item, index = 0) {
+  if (!item) return null
+
+  if (typeof item === 'string') {
+    return {
+      id: null,
+      url: item,
+      name: attachmentNameFromUri(item, index)
+    }
+  }
+
+  const url = item.url || item.fileUrl || item.uri || item.previewUrl || ''
+  const id = item.id ?? item.attachmentId ?? null
+
+  return {
+    id,
+    url,
+    previewUrl: item.previewUrl || url,
+    name: item.name || item.fileName || (url ? attachmentNameFromUri(url, index) : `附件 ${id || index + 1}`),
+    type: item.type || item.contentType || '',
+    status: item.status || '',
+    size: item.size || 0
+  }
+}
+
 function normalizeProofAttachments(value = []) {
   if (!Array.isArray(value)) return []
   return value
     .filter(Boolean)
-    .map((url, index) => ({
-      url: String(url),
-      name: attachmentNameFromUri(String(url), index)
-    }))
+    .map((item, index) => {
+      if (typeof item === 'number') {
+        return normalizeAttachmentItem({ id: item, name: `附件 #${item}` }, index)
+      }
+      return normalizeAttachmentItem(item, index)
+    })
+    .filter(Boolean)
 }
 
 function isSupportedAttachmentUri(value) {
@@ -777,6 +869,16 @@ function isSupportedAttachmentUri(value) {
   } catch {
     return false
   }
+}
+
+function inferAttachmentType(file = {}) {
+  return String(file.type || '').toLowerCase().startsWith('image/') ? 'IMAGE' : 'FILE'
+}
+
+function completionAttachmentIds() {
+  return completionAttachments.value
+    .map((item) => Number(item.id ?? item.attachmentId))
+    .filter((id) => Number.isInteger(id) && id > 0)
 }
 
 function buildCompletionStageItems(status) {
@@ -884,9 +986,17 @@ async function loadTaskDetail(taskId) {
   if (!taskId) {
     taskDetail.value = null
     detailError.value = ''
+    applicationPanelOpen.value = false
+    candidatePanelOpen.value = false
     candidateApplications.value = []
+    candidatesLoaded.value = false
     candidatesError.value = ''
+    submittedApplication.value = null
     return
+  }
+
+  if (String(submittedApplication.value?.taskId || '') !== String(taskId)) {
+    submittedApplication.value = null
   }
 
   detailLoading.value = true
@@ -902,6 +1012,8 @@ async function loadTaskDetail(taskId) {
     if (requestId !== detailRequestId) return
     taskDetail.value = null
     candidateApplications.value = []
+    candidatesLoaded.value = false
+    candidatesError.value = ''
     detailError.value = error.message || '任务详情加载失败，请稍后重试。'
   } finally {
     if (requestId === detailRequestId) detailLoading.value = false
@@ -911,6 +1023,7 @@ async function loadTaskDetail(taskId) {
 async function loadCandidates(taskId) {
   if (!taskId || !isAuthenticated.value || !isDetailOwner.value) {
     candidateApplications.value = []
+    candidatesLoaded.value = false
     candidatesError.value = ''
     candidatesLoading.value = false
     return
@@ -926,9 +1039,11 @@ async function loadCandidates(taskId) {
     candidateApplications.value = Array.isArray(result)
       ? result
       : result?.applications || result?.items || result?.records || result?.content || result?.list || []
+    candidatesLoaded.value = true
   } catch (error) {
     if (requestId !== candidatesRequestId) return
     candidateApplications.value = []
+    candidatesLoaded.value = true
     candidatesError.value = error.message || '候选申请加载失败，请稍后重试。'
   } finally {
     if (requestId === candidatesRequestId) candidatesLoading.value = false
@@ -954,8 +1069,12 @@ async function resetFilters() {
   Object.assign(filters, currentDefaultFilters())
   selectedTaskId.value = ''
   taskDetail.value = null
+  applicationPanelOpen.value = false
+  candidatePanelOpen.value = false
   candidateApplications.value = []
+  candidatesLoaded.value = false
   candidatesError.value = ''
+  submittedApplication.value = null
   applicationMessage.value = ''
   applicationMessageError.value = ''
   await syncRoute()
@@ -997,8 +1116,12 @@ async function clearSelectedTask() {
   selectedTaskId.value = ''
   taskDetail.value = null
   detailError.value = ''
+  applicationPanelOpen.value = false
+  candidatePanelOpen.value = false
   candidateApplications.value = []
+  candidatesLoaded.value = false
   candidatesError.value = ''
+  submittedApplication.value = null
   operationFeedback.value = ''
   applicationMessage.value = ''
   applicationMessageError.value = ''
@@ -1029,6 +1152,29 @@ function closeCancelPanel() {
   cancelPanelOpen.value = false
   cancelReason.value = ''
   cancelReasonError.value = ''
+}
+
+function openApplicationPanel() {
+  if (!detailTask.value || isDetailOwner.value) return
+  applicationPanelOpen.value = true
+  applicationMessageError.value = ''
+}
+
+function closeApplicationPanel() {
+  applicationPanelOpen.value = false
+  applicationMessageError.value = ''
+}
+
+async function openCandidatePanel() {
+  if (!detailTask.value?.id || !isDetailOwner.value) return
+  candidatePanelOpen.value = true
+  if (!candidatesLoaded.value && !candidatesLoading.value) {
+    await loadCandidates(detailTask.value.id)
+  }
+}
+
+function closeCandidatePanel() {
+  candidatePanelOpen.value = false
 }
 
 async function submitCancelTask() {
@@ -1072,6 +1218,7 @@ function resetCompletionState() {
   completionDescription.value = ''
   completionAttachmentInput.value = ''
   completionAttachments.value = []
+  completionUploading.value = false
   completionSubmitting.value = false
   resolutionAction.value = ''
   resolutionReason.value = ''
@@ -1104,6 +1251,7 @@ function addCompletionAttachmentUrl() {
 
     if (nextAttachments.some((item) => item.url === value)) continue
     nextAttachments.push({
+      id: null,
       url: value,
       name: attachmentNameFromUri(value, nextAttachments.length)
     })
@@ -1142,30 +1290,40 @@ async function handleCompletionFiles(event) {
   }
 
   const nextAttachments = [...completionAttachments.value]
-  for (const file of selectedFiles) {
-    if (!file.type.startsWith('image/')) {
-      setCompletionError('attachments', '目前只支持选择图片作为本地凭证。')
-      continue
+  completionUploading.value = true
+  try {
+    for (const file of selectedFiles) {
+      if (file.size > 4 * 1024 * 1024) {
+        setCompletionError('attachments', '单张图片请控制在 4MB 以内，避免提交失败。')
+        continue
+      }
+
+      try {
+        const previewUrl = file.type.startsWith('image/') ? await readFileAsDataUri(file) : ''
+        const uploaded = await api.uploadAttachment({
+          file,
+          expectedOwnerType: 'COMPLETION_PROOF',
+          type: inferAttachmentType(file)
+        })
+        const normalized = normalizeAttachmentItem(
+          {
+            ...uploaded,
+            previewUrl,
+            name: uploaded?.fileName || file.name
+          },
+          nextAttachments.length
+        )
+        if (normalized) nextAttachments.push(normalized)
+      } catch (error) {
+        setCompletionError('attachments', error.message || `${file.name || '附件'} 上传失败，请稍后重试。`)
+      }
     }
 
-    if (file.size > 4 * 1024 * 1024) {
-      setCompletionError('attachments', '单张图片请控制在 4MB 以内，避免提交失败。')
-      continue
-    }
-
-    try {
-      const url = await readFileAsDataUri(file)
-      nextAttachments.push({
-        url,
-        name: file.name || attachmentNameFromUri(url, nextAttachments.length)
-      })
-    } catch (error) {
-      setCompletionError('attachments', error.message)
-    }
+    completionAttachments.value = nextAttachments
+  } finally {
+    completionUploading.value = false
+    event.target.value = ''
   }
-
-  completionAttachments.value = nextAttachments
-  event.target.value = ''
 }
 
 function validateCompletionForm() {
@@ -1182,6 +1340,10 @@ function validateCompletionForm() {
 
   if (completionAttachments.value.length > 9) {
     setCompletionError('attachments', '完成凭证最多提交 9 个附件。')
+  }
+
+  if (completionAttachments.value.length && completionAttachmentIds().length !== completionAttachments.value.length) {
+    setCompletionError('attachments', '只有上传成功并生成附件 ID 的凭证才能提交。')
   }
 
   return !Object.keys(completionErrors).length
@@ -1213,11 +1375,10 @@ async function submitCompletionProof() {
   completionSubmitting.value = true
   operationFeedback.value = ''
   try {
+    const attachmentIds = completionAttachmentIds()
     await api.submitTaskCompletion(detailTask.value.id, {
       description: completionDescription.value.trim(),
-      attachmentIds: completionAttachments.value
-        .map((item) => Number(item.id ?? item.url))
-        .filter((id) => Number.isInteger(id) && id > 0)
+      attachmentIds
     })
     setOperationFeedback('完成凭证已提交，任务进入待确认状态。')
     resetCompletionState()
@@ -1230,7 +1391,7 @@ async function submitCompletionProof() {
 }
 
 function openCompletionResolution(action) {
-  if (!canReviewCompletion.value) return
+  if (action === 'DISPUTE' ? !canDisputeCompletion.value : !canReviewCompletion.value) return
   resolutionAction.value = action
   resolutionReason.value = ''
   resolutionReasonError.value = ''
@@ -1243,7 +1404,9 @@ function closeCompletionResolution() {
 }
 
 async function submitCompletionResolution() {
-  if (!detailTask.value?.id || !canReviewCompletion.value || !resolutionAction.value) return
+  const canSubmitResolution =
+    resolutionAction.value === 'DISPUTE' ? canDisputeCompletion.value : canReviewCompletion.value
+  if (!detailTask.value?.id || !canSubmitResolution || !resolutionAction.value) return
 
   const reason = resolutionReason.value.trim()
   if (resolutionAction.value !== 'CONFIRM_COMPLETION' && !reason) {
@@ -1251,10 +1414,17 @@ async function submitCompletionResolution() {
     return
   }
 
+  if (resolutionAction.value !== 'CONFIRM_COMPLETION' && reason.length < 4) {
+    resolutionReasonError.value = '处理原因至少 4 个字。'
+    return
+  }
+
   if (reason.length > 300) {
     resolutionReasonError.value = '处理说明最多 300 个字。'
     return
   }
+
+  resolutionReasonError.value = ''
 
   operationLoading.value = resolutionAction.value
   operationFeedback.value = ''
@@ -1307,11 +1477,21 @@ async function submitTaskApplication() {
   applicationSubmitting.value = true
   operationFeedback.value = ''
   try {
-    await api.createTaskApplication(detailTask.value.id, {
-      message: applicationMessage.value.trim()
-    })
+    const message = applicationMessage.value.trim()
+    const result = await api.createTaskApplication(detailTask.value.id, { message })
+    submittedApplication.value = {
+      ...normalizeCandidate({
+        applicantId: currentUserId.value,
+        message,
+        status: 'PENDING',
+        createdAt: new Date().toISOString(),
+        ...result
+      }),
+      taskId: detailTask.value.id
+    }
     applicationMessage.value = ''
     setOperationFeedback('接单申请已提交，求助者会在候选列表中看到你的说明。')
+    closeApplicationPanel()
     await refreshTasks()
   } catch (error) {
     setOperationFeedback(error.message || '接单申请提交失败，请稍后重试。', 'danger')
@@ -1385,8 +1565,11 @@ const retainedTaskWorkflowBindings = [
   candidateStats,
   acceptedCandidate,
   proofAttachmentItems,
+  proofDescription,
+  proofSubmittedAt,
   hasDetailActions,
   shouldShowCompletionPanel,
+  canDisputeCompletion,
   canOpenConversation,
   completionStageItems,
   completionPanelCopy,
@@ -1394,6 +1577,10 @@ const retainedTaskWorkflowBindings = [
   applicationGate,
   applicationStatusLabel,
   applicationStatusTone,
+  openApplicationPanel,
+  closeApplicationPanel,
+  openCandidatePanel,
+  closeCandidatePanel,
   openEditTask,
   openRepostTask,
   openCancelPanel,
@@ -1424,8 +1611,11 @@ watch(
     applicationMessage.value = ''
     applicationMessageError.value = ''
     candidateApplications.value = []
+    candidatesLoaded.value = false
     candidatesError.value = ''
     cancelPanelOpen.value = false
+    applicationPanelOpen.value = false
+    candidatePanelOpen.value = false
     resetCompletionState()
     loadTaskDetail(selectedTaskId.value)
   }
@@ -2224,30 +2414,837 @@ onMounted(async () => {
             </section>
           </article>
 
-          <footer class="detail-action-row">
-            <button
-              class="primary-action detail-primary-action"
-              type="button"
-              @click="submitTaskApplication"
+          <section
+            v-if="shouldShowCompletionPanel"
+            class="completion-panel"
+            aria-labelledby="task-completion-title"
+          >
+            <header class="completion-heading">
+              <div>
+                <p class="section-kicker">
+                  完成确认
+                </p>
+                <h3 id="task-completion-title">
+                  凭证与结果处理
+                </h3>
+                <p>{{ completionPanelCopy }}</p>
+              </div>
+              <StatusBadge
+                :label="taskStatusLabel(detailTask.status)"
+                :tone="taskStatusTone(detailTask.status)"
+              />
+            </header>
+
+            <div
+              class="completion-steps"
+              aria-label="任务完成流程"
             >
+              <span
+                v-for="stage in completionStageItems"
+                :key="stage.label"
+                :class="{ done: stage.done, active: stage.active }"
+              >
+                <CheckCircle2
+                  v-if="stage.done"
+                  :size="15"
+                  aria-hidden="true"
+                />
+                <Clock3
+                  v-else
+                  :size="15"
+                  aria-hidden="true"
+                />
+                {{ stage.label }}
+              </span>
+            </div>
+
+            <section
+              v-if="completionProof"
+              class="proof-card"
+              aria-labelledby="completion-proof-title"
+            >
+              <header class="proof-card-heading">
+                <div>
+                  <strong id="completion-proof-title">已提交的完成凭证</strong>
+                  <span>{{ proofSubmittedAt ? formatDateTime(proofSubmittedAt) : '提交时间待同步' }}</span>
+                </div>
+                <FileCheck2
+                  :size="20"
+                  aria-hidden="true"
+                />
+              </header>
+              <p>{{ proofDescription || '帮助者暂未填写完成说明。' }}</p>
+              <div
+                v-if="proofAttachmentItems.length"
+                class="proof-attachment-list"
+              >
+                <a
+                  v-for="attachment in proofAttachmentItems"
+                  :key="attachment.id || attachment.url || attachment.name"
+                  :href="attachment.url || undefined"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <FileCheck2
+                    :size="14"
+                    aria-hidden="true"
+                  />
+                  {{ attachment.name }}
+                </a>
+              </div>
+              <span
+                v-else
+                class="proof-empty"
+              >
+                暂无附件，仅提交了文字说明。
+              </span>
+            </section>
+
+            <section
+              v-if="canStartDetailTask"
+              class="completion-action-box"
+            >
+              <div>
+                <strong>开始执行任务</strong>
+                <span>开始后状态会从已选人进入进行中，完成后即可提交凭证。</span>
+              </div>
+              <button
+                class="primary-action"
+                type="button"
+                :disabled="operationLoading === 'start'"
+                @click="startDetailTask"
+              >
+                <LoaderCircle
+                  v-if="operationLoading === 'start'"
+                  class="spinning"
+                  :size="16"
+                  aria-hidden="true"
+                />
+                <CheckCircle2
+                  v-else
+                  :size="16"
+                  aria-hidden="true"
+                />
+                开始执行
+              </button>
+            </section>
+
+            <form
+              v-if="canSubmitCompletion"
+              class="completion-form"
+              @submit.prevent="submitCompletionProof"
+            >
+              <label
+                class="completion-field"
+                for="completion-description"
+              >
+                <span>完成说明</span>
+                <textarea
+                  id="completion-description"
+                  v-model="completionDescription"
+                  maxlength="1000"
+                  placeholder="说明完成结果、交付位置、时间或对方可核验的信息。"
+                  :aria-invalid="Boolean(completionErrors.description)"
+                  :disabled="completionSubmitting || completionUploading"
+                />
+                <small>{{ completionDescription.length }}/1000 · 必填，提交后任务进入待确认。</small>
+                <p
+                  v-if="completionErrors.description"
+                  class="field-error"
+                >
+                  {{ completionErrors.description }}
+                </p>
+              </label>
+
+              <div class="completion-upload-grid">
+                <label
+                  class="completion-field"
+                  for="completion-attachment-url"
+                >
+                  <span>附件链接</span>
+                  <span class="attachment-input-row">
+                    <input
+                      id="completion-attachment-url"
+                      v-model.trim="completionAttachmentInput"
+                      type="text"
+                      placeholder="粘贴已上传材料链接，可用空格或逗号分隔"
+                      :aria-invalid="Boolean(completionErrors.attachmentUrl)"
+                      :disabled="completionSubmitting || completionUploading"
+                    >
+                    <button
+                      class="ghost-action"
+                      type="button"
+                      :disabled="completionSubmitting || completionUploading"
+                      @click="addCompletionAttachmentUrl"
+                    >
+                      添加
+                    </button>
+                  </span>
+                  <small>链接可用于备注预览；提交给后端的凭证以附件 ID 为准。</small>
+                  <p
+                    v-if="completionErrors.attachmentUrl"
+                    class="field-error"
+                  >
+                    {{ completionErrors.attachmentUrl }}
+                  </p>
+                </label>
+
+                <label class="file-pick-control">
+                  <FileCheck2
+                    :size="22"
+                    aria-hidden="true"
+                  />
+                  <span>
+                    <strong>{{ completionUploading ? '正在上传...' : '上传凭证附件' }}</strong>
+                    <small>图片或文件，单个不超过 4MB，最多 9 个。</small>
+                  </span>
+                  <input
+                    type="file"
+                    multiple
+                    :disabled="completionSubmitting || completionUploading"
+                    @change="handleCompletionFiles"
+                  >
+                </label>
+              </div>
+
+              <div
+                v-if="completionAttachments.length"
+                class="attachment-preview-list"
+              >
+                <span
+                  v-for="(attachment, index) in completionAttachments"
+                  :key="attachment.id || attachment.url || attachment.name"
+                  :class="{ 'attachment-preview-list__item--pending': !attachment.id }"
+                >
+                  <FileCheck2
+                    :size="14"
+                    aria-hidden="true"
+                  />
+                  {{ attachment.name }}
+                  <small v-if="attachment.id">#{{ attachment.id }}</small>
+                  <small v-else>未上传</small>
+                  <button
+                    type="button"
+                    :aria-label="`移除 ${attachment.name}`"
+                    :disabled="completionSubmitting || completionUploading"
+                    @click="removeCompletionAttachment(index)"
+                  >
+                    <X
+                      :size="13"
+                      aria-hidden="true"
+                    />
+                  </button>
+                </span>
+              </div>
+
+              <p
+                v-if="completionErrors.attachments"
+                class="field-error"
+              >
+                {{ completionErrors.attachments }}
+              </p>
+
+              <button
+                class="primary-action completion-submit"
+                type="submit"
+                :disabled="completionSubmitting || completionUploading"
+              >
+                <LoaderCircle
+                  v-if="completionSubmitting"
+                  class="spinning"
+                  :size="17"
+                  aria-hidden="true"
+                />
+                <FileCheck2
+                  v-else
+                  :size="17"
+                  aria-hidden="true"
+                />
+                提交完成凭证
+              </button>
+            </form>
+
+            <section
+              v-if="canReviewCompletion"
+              class="completion-action-box"
+            >
+              <div>
+                <strong>处理完成结果</strong>
+                <span>确认会完成任务；驳回会退回进行中，帮助者可重新提交凭证。</span>
+              </div>
+              <div class="review-actions">
+                <button
+                  class="primary-action"
+                  type="button"
+                  :disabled="Boolean(operationLoading)"
+                  @click="openCompletionResolution('CONFIRM_COMPLETION')"
+                >
+                  确认完成
+                </button>
+                <button
+                  class="ghost-action"
+                  type="button"
+                  :disabled="Boolean(operationLoading)"
+                  @click="openCompletionResolution('REJECT_COMPLETION')"
+                >
+                  驳回
+                </button>
+                <button
+                  class="danger-action"
+                  type="button"
+                  :disabled="Boolean(operationLoading)"
+                  @click="openCompletionResolution('DISPUTE')"
+                >
+                  发起争议
+                </button>
+              </div>
+            </section>
+
+            <section
+              v-else-if="canDisputeCompletion"
+              class="completion-action-box"
+            >
+              <div>
+                <strong>异常处理</strong>
+                <span>任务执行或凭证核验出现分歧时，可以发起争议并填写原因。</span>
+              </div>
+              <button
+                class="danger-action"
+                type="button"
+                :disabled="Boolean(operationLoading)"
+                @click="openCompletionResolution('DISPUTE')"
+              >
+                发起争议
+              </button>
+            </section>
+
+            <section
+              v-if="resolutionMeta"
+              class="resolution-panel"
+              :class="`resolution-panel--${resolutionMeta.tone}`"
+              aria-labelledby="completion-resolution-title"
+            >
+              <h3 id="completion-resolution-title">
+                {{ resolutionMeta.title }}
+              </h3>
+              <p>{{ resolutionMeta.copy }}</p>
+              <label
+                v-if="resolutionAction !== 'CONFIRM_COMPLETION'"
+                class="completion-field"
+                for="completion-resolution-reason"
+              >
+                <span>处理原因</span>
+                <textarea
+                  id="completion-resolution-reason"
+                  v-model="resolutionReason"
+                  maxlength="300"
+                  placeholder="请写清楚不符合完成标准或产生争议的具体原因。"
+                  :aria-invalid="Boolean(resolutionReasonError)"
+                  :disabled="Boolean(operationLoading)"
+                />
+                <small>{{ resolutionReason.length }}/300 · 驳回和争议必须填写原因。</small>
+                <p
+                  v-if="resolutionReasonError"
+                  class="field-error"
+                >
+                  {{ resolutionReasonError }}
+                </p>
+              </label>
+              <div class="resolution-actions">
+                <button
+                  class="ghost-action"
+                  type="button"
+                  :disabled="Boolean(operationLoading)"
+                  @click="closeCompletionResolution"
+                >
+                  取消
+                </button>
+                <button
+                  class="primary-action"
+                  type="button"
+                  :disabled="Boolean(operationLoading)"
+                  @click="submitCompletionResolution"
+                >
+                  <LoaderCircle
+                    v-if="operationLoading === resolutionAction"
+                    class="spinning"
+                    :size="16"
+                    aria-hidden="true"
+                  />
+                  {{ resolutionMeta.button }}
+                </button>
+              </div>
+            </section>
+          </section>
+
+          <section
+            v-if="!isDetailOwner"
+            class="workflow-entry workflow-entry--application"
+            :class="{ 'workflow-entry--locked': applicationGate }"
+            aria-labelledby="task-application-entry-title"
+          >
+            <span class="workflow-entry__icon">
               <Award
-                :size="17"
+                :size="20"
                 aria-hidden="true"
               />
-              提交申请
-            </button>
+            </span>
+            <div class="workflow-entry__body">
+              <p class="section-kicker">
+                接单申请
+              </p>
+              <h3 id="task-application-entry-title">
+                申请成为帮助者
+              </h3>
+              <p>
+                {{ applicationGate?.copy || '填写可完成时间、路线或相关经验，提交后等待求助者选择。' }}
+              </p>
+            </div>
+            <div class="workflow-entry__actions">
+              <StatusBadge
+                v-if="applicationGate"
+                :label="applicationGate.title"
+                :tone="applicationGate.tone"
+              />
+              <button
+                class="primary-action workflow-entry__button"
+                type="button"
+                :disabled="applicationSubmitting"
+                @click="openApplicationPanel"
+              >
+                <LoaderCircle
+                  v-if="applicationSubmitting"
+                  class="spinning"
+                  :size="17"
+                  aria-hidden="true"
+                />
+                <Award
+                  v-else
+                  :size="17"
+                  aria-hidden="true"
+                />
+                {{ canApplyDetailTask ? '填写申请' : '查看状态' }}
+              </button>
+            </div>
+          </section>
+
+          <section
+            v-if="isDetailOwner"
+            class="workflow-entry workflow-entry--candidates"
+            aria-labelledby="task-candidates-entry-title"
+          >
+            <span class="workflow-entry__icon">
+              <ClipboardCheck
+                :size="20"
+                aria-hidden="true"
+              />
+            </span>
+            <div class="workflow-entry__body">
+              <p class="section-kicker">
+                候选管理
+              </p>
+              <h3 id="task-candidates-entry-title">
+                接单候选
+              </h3>
+              <p>
+                {{ candidateStats.total }} 位候选，{{ candidateStats.pendingCount }} 位待选择，{{
+                  candidateStats.verifiedCount
+                }} 位已认证。
+              </p>
+            </div>
+            <div class="workflow-entry__actions">
+              <StatusBadge
+                v-if="acceptedCandidate"
+                :label="`已选择 ${acceptedCandidate.name}`"
+                tone="success"
+              />
+              <button
+                class="primary-action workflow-entry__button"
+                type="button"
+                :disabled="!detailTask?.id"
+                @click="openCandidatePanel"
+              >
+                <ClipboardCheck
+                  :size="16"
+                  aria-hidden="true"
+                />
+                管理候选
+              </button>
+            </div>
+          </section>
+
+          <footer
+            v-if="canOpenConversation"
+            class="detail-action-row"
+          >
             <RouterLink
-              class="ghost-action detail-secondary-action"
+              class="primary-action detail-primary-action"
               :to="detailConversationRoute"
             >
               <MessageCircle
                 :size="17"
                 aria-hidden="true"
               />
-              联系发布者
+              打开任务会话
             </RouterLink>
           </footer>
         </template>
+      </section>
+    </div>
+
+    <div
+      v-if="applicationPanelOpen && detailTask"
+      class="workflow-modal-layer"
+      @click.self="closeApplicationPanel"
+    >
+      <section
+        class="panel-card workflow-modal application-panel"
+        :class="{ 'application-panel--locked': applicationGate }"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="task-application-title"
+      >
+        <header class="workflow-modal__header application-heading">
+          <div>
+            <p class="section-kicker">
+              接单申请
+            </p>
+            <h3 id="task-application-title">
+              申请成为帮助者
+            </h3>
+          </div>
+          <div class="workflow-modal__actions">
+            <StatusBadge
+              v-if="applicationGate"
+              :label="applicationGate.title"
+              :tone="applicationGate.tone"
+            />
+            <button
+              class="icon-action"
+              type="button"
+              aria-label="关闭接单申请"
+              @click="closeApplicationPanel"
+            >
+              <X
+                :size="18"
+                aria-hidden="true"
+              />
+            </button>
+          </div>
+        </header>
+
+        <form
+          v-if="canApplyDetailTask"
+          class="application-form"
+          @submit.prevent="submitTaskApplication"
+        >
+          <label
+            class="application-field"
+            for="application-message"
+          >
+            <span>接单说明</span>
+            <textarea
+              id="application-message"
+              v-model="applicationMessage"
+              maxlength="300"
+              placeholder="例如：我下午会经过南门，可以顺路取到图书馆服务台。"
+              :aria-invalid="Boolean(applicationMessageError)"
+              :disabled="applicationSubmitting"
+            />
+            <small>{{ applicationMessage.length }}/300 · 建议说明可完成时间、路线或相关经验。</small>
+            <p
+              v-if="applicationMessageError"
+              class="field-error"
+            >
+              {{ applicationMessageError }}
+            </p>
+          </label>
+          <div class="workflow-modal__footer">
+            <button
+              class="ghost-action"
+              type="button"
+              :disabled="applicationSubmitting"
+              @click="closeApplicationPanel"
+            >
+              取消
+            </button>
+            <button
+              class="primary-action application-submit"
+              type="submit"
+              :disabled="applicationSubmitting"
+            >
+              <LoaderCircle
+                v-if="applicationSubmitting"
+                class="spinning"
+                :size="17"
+                aria-hidden="true"
+              />
+              <Award
+                v-else
+                :size="17"
+                aria-hidden="true"
+              />
+              提交申请
+            </button>
+          </div>
+        </form>
+
+        <div
+          v-else-if="applicationGate"
+          class="application-gate"
+        >
+          <p class="application-copy">
+            {{ applicationGate.copy }}
+          </p>
+          <RouterLink
+            v-if="applicationGate.to"
+            class="ghost-action application-gate-action"
+            :to="applicationGate.to"
+          >
+            {{ applicationGate.action }}
+          </RouterLink>
+        </div>
+      </section>
+    </div>
+
+    <div
+      v-if="candidatePanelOpen && detailTask && isDetailOwner"
+      class="workflow-modal-layer"
+      @click.self="closeCandidatePanel"
+    >
+      <section
+        class="panel-card workflow-modal workflow-modal--wide candidates-section"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="task-candidates-title"
+      >
+        <header class="workflow-modal__header candidate-heading">
+          <div>
+            <p class="section-kicker">
+              候选管理
+            </p>
+            <h3 id="task-candidates-title">
+              接单候选
+            </h3>
+            <p>查看申请者档案、信用信息和留言，选中后任务会进入已选人状态。</p>
+          </div>
+          <div class="workflow-modal__actions">
+            <button
+              class="ghost-action"
+              type="button"
+              :disabled="candidatesLoading || !detailTask?.id"
+              @click="loadCandidates(detailTask.id)"
+            >
+              <RefreshCw
+                :class="{ spinning: candidatesLoading }"
+                :size="16"
+                aria-hidden="true"
+              />
+              刷新
+            </button>
+            <button
+              class="icon-action"
+              type="button"
+              aria-label="关闭候选管理"
+              @click="closeCandidatePanel"
+            >
+              <X
+                :size="18"
+                aria-hidden="true"
+              />
+            </button>
+          </div>
+        </header>
+
+        <div class="candidate-summary">
+          <div>
+            <ClipboardCheck
+              :size="16"
+              aria-hidden="true"
+            />
+            {{ candidateStats.total }} 位候选
+          </div>
+          <div>
+            <Clock3
+              :size="16"
+              aria-hidden="true"
+            />
+            {{ candidateStats.pendingCount }} 位待选择
+          </div>
+          <div>
+            <ShieldCheck
+              :size="16"
+              aria-hidden="true"
+            />
+            {{ candidateStats.verifiedCount }} 位已认证
+          </div>
+        </div>
+
+        <div
+          v-if="acceptedCandidate"
+          class="accepted-candidate"
+        >
+          <CheckCircle2
+            :size="18"
+            aria-hidden="true"
+          />
+          已选择 {{ acceptedCandidate.name }} 接单，其他待处理申请会自动婉拒。
+        </div>
+
+        <div
+          v-if="candidatesLoading"
+          class="loading-state compact-loading"
+          role="status"
+        >
+          <LoaderCircle
+            class="spinning"
+            :size="22"
+            aria-hidden="true"
+          />
+          <span>正在加载候选申请...</span>
+        </div>
+
+        <div
+          v-else-if="candidatesError"
+          class="detail-error"
+          role="status"
+        >
+          <Info
+            :size="18"
+            aria-hidden="true"
+          />
+          <span>{{ candidatesError }}</span>
+          <button
+            class="ghost-action"
+            type="button"
+            @click="loadCandidates(detailTask.id)"
+          >
+            重试
+          </button>
+        </div>
+
+        <div
+          v-else-if="!sortedCandidates.length"
+          class="candidate-empty"
+        >
+          <Inbox
+            :size="32"
+            aria-hidden="true"
+          />
+          <strong>还没有同学申请接单</strong>
+          <span>新的申请会显示在这里，包含留言、档案和信用信息。</span>
+        </div>
+
+        <div
+          v-else
+          class="candidate-list"
+        >
+          <article
+            v-for="candidate in sortedCandidates"
+            :key="candidate.applicationId || candidate.applicantId"
+            class="candidate-card"
+            :class="candidateCardClass(candidate)"
+          >
+            <header class="candidate-top">
+              <span class="candidate-avatar">
+                <img
+                  v-if="candidate.avatarUrl"
+                  :src="candidate.avatarUrl"
+                  alt=""
+                >
+                <span v-else>{{ candidateInitial(candidate) }}</span>
+              </span>
+              <span class="candidate-identity">
+                <strong>{{ candidate.name }}</strong>
+                <span>{{ candidateAccountCopy(candidate) }} · {{ candidateProfileCopy(candidate) }}</span>
+              </span>
+              <StatusBadge
+                :label="applicationStatusLabel(candidate.status)"
+                :tone="applicationStatusTone(candidate.status)"
+              />
+            </header>
+
+            <dl class="candidate-metrics">
+              <div>
+                <dt>信用等级</dt>
+                <dd>Lv.{{ candidate.creditLevel }}</dd>
+              </div>
+              <div>
+                <dt>信用分</dt>
+                <dd>{{ candidate.points || 0 }}</dd>
+              </div>
+              <div>
+                <dt>完成任务</dt>
+                <dd>{{ candidate.completedCount || 0 }}</dd>
+              </div>
+            </dl>
+
+            <div class="candidate-tags">
+              <span
+                v-if="candidate.verified"
+                class="candidate-tag candidate-tag--verified"
+              >
+                校园认证
+              </span>
+              <span
+                v-if="candidate.campus"
+                class="candidate-tag"
+              >
+                {{ candidate.campus }}
+              </span>
+              <span
+                v-if="candidate.college"
+                class="candidate-tag"
+              >
+                {{ candidate.college }}
+              </span>
+              <span
+                v-for="tag in candidate.tags"
+                :key="tag"
+                class="candidate-tag"
+              >
+                {{ tag }}
+              </span>
+              <span
+                v-if="!candidate.verified && !candidate.campus && !candidate.college && !candidate.tags.length"
+                class="candidate-tag candidate-tag--muted"
+              >
+                档案待补充
+              </span>
+            </div>
+
+            <p class="candidate-message">
+              {{ candidate.message || '申请者暂未填写补充说明。' }}
+            </p>
+
+            <footer class="candidate-actions">
+              <span>{{ candidateSubmittedCopy(candidate) }}</span>
+              <button
+                v-if="candidate.status === 'PENDING' && detailTask.status === 'OPEN'"
+                class="primary-action"
+                type="button"
+                :disabled="operationLoading === `accept-${candidate.applicationId}`"
+                @click="acceptCandidate(candidate)"
+              >
+                <LoaderCircle
+                  v-if="operationLoading === `accept-${candidate.applicationId}`"
+                  class="spinning"
+                  :size="16"
+                  aria-hidden="true"
+                />
+                <CheckCircle2
+                  v-else
+                  :size="16"
+                  aria-hidden="true"
+                />
+                选择 TA
+              </button>
+              <span v-else>
+                {{ candidate.status === 'ACCEPTED' ? '当前接单者' : '申请已处理' }}
+              </span>
+            </footer>
+          </article>
+        </div>
       </section>
     </div>
   </Teleport>
@@ -3243,6 +4240,16 @@ onMounted(async () => {
   background: transparent;
 }
 
+.workflow-modal-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(31, 41, 55, 0.24);
+}
+
 .task-detail-modal {
   grid-template-rows: auto minmax(0, 1fr) auto;
   align-content: stretch;
@@ -3254,6 +4261,44 @@ onMounted(async () => {
   padding: clamp(24px, 3vw, 34px);
   font-family: KaiTi, "楷体", STKaiti, "Microsoft YaHei", serif;
   box-shadow: 0 24px 64px rgba(42, 38, 61, 0.18);
+}
+
+.workflow-modal {
+  width: min(520px, calc(100vw - 48px));
+  max-height: min(80vh, 680px);
+  gap: 14px;
+  overflow: auto;
+  padding: 20px;
+  font-family: KaiTi, "楷体", STKaiti, "Microsoft YaHei", serif;
+  box-shadow: 0 24px 64px rgba(42, 38, 61, 0.2);
+}
+
+.workflow-modal--wide {
+  width: min(680px, calc(100vw - 48px));
+}
+
+.workflow-modal__header,
+.workflow-modal__actions,
+.workflow-modal__footer {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.workflow-modal__header h3 {
+  margin: 4px 0 0;
+  color: #3c3543;
+  font-size: 1.04rem;
+}
+
+.workflow-modal__actions {
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.workflow-modal__footer {
+  justify-content: flex-end;
 }
 
 .task-detail-showcase {
@@ -3487,6 +4532,69 @@ onMounted(async () => {
   color: #991b1b;
 }
 
+.workflow-entry {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
+  padding: 13px 14px;
+  border: 1px solid #dbeafe;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.workflow-entry--locked {
+  border-color: #e6e2eb;
+  background: #fbf9fc;
+}
+
+.workflow-entry__icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.workflow-entry__body {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.workflow-entry__body h3,
+.workflow-entry__body p {
+  margin: 0;
+}
+
+.workflow-entry__body h3 {
+  color: #3c3543;
+  font-size: 1rem;
+}
+
+.workflow-entry__body p:last-child {
+  color: #746f7a;
+  line-height: 1.5;
+}
+
+.workflow-entry__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.workflow-entry__button {
+  min-width: 112px;
+  padding-inline: 14px;
+  white-space: nowrap;
+}
+
 .application-panel,
 .candidates-section {
   display: grid;
@@ -3495,6 +4603,20 @@ onMounted(async () => {
   border: 1px solid #dbeafe;
   border-radius: 8px;
   background: #f8fbff;
+}
+
+.application-panel {
+  width: min(100%, 640px);
+  justify-self: start;
+}
+
+.workflow-modal.application-panel {
+  width: min(520px, calc(100vw - 48px));
+  justify-self: center;
+}
+
+.application-panel .application-field textarea {
+  min-height: 96px;
 }
 
 .application-panel--locked {
@@ -3747,6 +4869,18 @@ onMounted(async () => {
   color: #0f766e;
 }
 
+.attachment-preview-list small {
+  color: inherit;
+  font-size: 0.78rem;
+  opacity: 0.82;
+}
+
+.attachment-preview-list__item--pending {
+  background: #fff7ed !important;
+  border-color: #fed7aa !important;
+  color: #9a3412 !important;
+}
+
 .attachment-preview-list button {
   display: inline-flex;
   align-items: center;
@@ -3808,6 +4942,11 @@ onMounted(async () => {
   line-height: 1.6;
 }
 
+.application-gate {
+  display: grid;
+  gap: 12px;
+}
+
 .application-form {
   display: grid;
   gap: 12px;
@@ -3850,6 +4989,10 @@ onMounted(async () => {
 
 .application-field small {
   color: #8a8792;
+}
+
+.application-submit {
+  width: fit-content;
 }
 
 .application-gate-action {
@@ -4271,6 +5414,7 @@ onMounted(async () => {
   .task-card-heading,
   .detail-card-header,
   .detail-action-row,
+  .workflow-entry,
   .application-heading,
   .completion-heading,
   .completion-action-box,
@@ -4284,7 +5428,8 @@ onMounted(async () => {
   }
 
   .toolbar-actions,
-  .filter-actions {
+  .filter-actions,
+  .workflow-entry__actions {
     justify-content: flex-start;
   }
 
@@ -4294,10 +5439,20 @@ onMounted(async () => {
 }
 
 @media (max-width: 640px) {
+  .workflow-modal-layer {
+    padding: 12px;
+  }
+
   .task-detail-modal {
     width: calc(100vw - 24px);
     height: calc(100vh - 24px);
     max-width: calc(100vw - 24px);
+    max-height: calc(100vh - 24px);
+  }
+
+  .workflow-modal,
+  .workflow-modal.application-panel {
+    width: calc(100vw - 24px);
     max-height: calc(100vh - 24px);
   }
 
@@ -4316,7 +5471,8 @@ onMounted(async () => {
   .ghost-action,
   .danger-action,
   .page-button,
-  .completion-submit {
+  .completion-submit,
+  .workflow-entry__button {
     width: 100%;
   }
 

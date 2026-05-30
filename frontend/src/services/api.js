@@ -30,14 +30,18 @@ async function parseResponse(response) {
   }
 }
 
-async function request(path, { method = 'GET', body, headers = {} } = {}) {
+async function request(path, { method = 'GET', body, headers = {}, timeoutMs = 3500 } = {}) {
   const auth = readAuthSnapshot()
   const controller = new AbortController()
-  const timeout = window.setTimeout(() => controller.abort(), 3500)
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs)
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData
   const requestHeaders = {
     Accept: 'application/json',
-    'Content-Type': 'application/json',
     ...headers
+  }
+
+  if (!isFormData) {
+    requestHeaders['Content-Type'] = 'application/json'
   }
 
   if (auth.token) {
@@ -55,7 +59,7 @@ async function request(path, { method = 'GET', body, headers = {} } = {}) {
     response = await fetch(`${API_BASE_URL}${path}`, {
       method,
       headers: requestHeaders,
-      body: body ? JSON.stringify(body) : undefined,
+      body: body ? (isFormData ? body : JSON.stringify(body)) : undefined,
       signal: controller.signal
     })
     payload = await parseResponse(response)
@@ -138,7 +142,14 @@ export default {
   getConversationMessages: (conversationId, params) =>
     request(`/conversations/${conversationId}/messages${buildQuery(params)}`),
   sendConversationMessage: (conversationId, body) =>
-    request(`/conversations/${conversationId}/messages`, { method: 'POST', body })
+    request(`/conversations/${conversationId}/messages`, { method: 'POST', body }),
+  uploadAttachment: ({ file, expectedOwnerType, type } = {}) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    if (expectedOwnerType) formData.append('expectedOwnerType', expectedOwnerType)
+    if (type) formData.append('type', type)
+    return request('/attachments', { method: 'POST', body: formData, timeoutMs: 15000 })
+  }
 }
 
 export { API_BASE_URL, AUTH_STORAGE_KEY }
