@@ -109,12 +109,21 @@ export default {
   submitVerification: (body) => request('/verifications', { method: 'POST', body }),
   getVerification: () => request('/verifications'),
   createTask: (body) => request('/tasks', { method: 'POST', body }),
-  updateTask: (taskId, body) => request(`/tasks/${taskId}`, { method: 'PATCH', body }),
-  cancelTask: (taskId) => request(`/tasks/${taskId}`, { method: 'DELETE' }),
+  saveTaskDraft: (body) => request('/tasks/drafts', { method: 'POST', body }),
+  updateTask: (taskId, body) => request(`/tasks/${taskId}`, { method: 'PUT', body }),
+  cancelTask: (taskId, reason) =>
+    request(`/tasks/${taskId}${buildQuery({ reason })}`, { method: 'DELETE' }),
+  resendTask: (taskId) => request(`/tasks/${taskId}/resend`, { method: 'POST' }),
   transitionTaskStatus: (taskId, body) =>
     request(`/tasks/${taskId}/status-transitions`, { method: 'POST', body }),
   submitTaskCompletion: (taskId, body) =>
     request(`/tasks/${taskId}/completion`, { method: 'POST', body }),
+  confirmTaskCompletion: (taskId) =>
+    request(`/tasks/${taskId}/completion/confirm`, { method: 'POST' }),
+  rejectTaskCompletion: (taskId, body) =>
+    request(`/tasks/${taskId}/completion/reject`, { method: 'POST', body }),
+  disputeTaskCompletion: (taskId, body) =>
+    request(`/tasks/${taskId}/completion/dispute`, { method: 'POST', body }),
   getTaskReviews: (taskId) => request(`/tasks/${taskId}/reviews`),
   createTaskReview: (taskId, body) =>
     request(`/tasks/${taskId}/reviews`, { method: 'POST', body }),

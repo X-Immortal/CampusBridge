@@ -190,7 +190,7 @@ function persistReadIds() {
 
 function normalizePagedItems(result) {
   if (Array.isArray(result)) return result
-  return result?.items || result?.records || result?.content || result?.list || []
+  return result?.tasks || result?.items || result?.records || result?.content || result?.list || []
 }
 
 function normalizeTask(task = {}) {
@@ -358,7 +358,9 @@ async function hydrateTaskReviews() {
       const detailTask =
         detailResult.status === 'fulfilled' && detailResult.value?.task
           ? normalizeTask(detailResult.value.task)
-          : {}
+          : detailResult.status === 'fulfilled' && detailResult.value?.id
+            ? normalizeTask(detailResult.value)
+            : {}
 
       return {
         ...task,

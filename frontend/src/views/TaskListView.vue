@@ -59,7 +59,7 @@ const defaultFilters = {
   status: route.name === 'my-tasks' ? '' : 'OPEN',
   rewardType: '',
   requiresProof: '',
-  sortBy: 'CREATED_AT',
+  sortBy: 'CREATED_AT_DESC',
   page: 1,
   size: 8
 }
@@ -252,7 +252,7 @@ const pageSubtitle = computed(() =>
 const listRouteName = computed(() => (isMineView.value ? 'my-tasks' : 'task-list'))
 const editableStatuses = new Set(['DRAFT', 'OPEN'])
 const cancelableStatuses = new Set(['OPEN', 'ACCEPTED', 'IN_PROGRESS'])
-const repostableStatuses = new Set(['CANCELLED', 'REJECTED'])
+const repostableStatuses = new Set(['CANCELLED', 'DRAFT'])
 const isDetailOwner = computed(() => {
   const requesterId = detailTask.value?.requesterId
   return Boolean(
@@ -287,7 +287,7 @@ const canCancelDetailTask = computed(
 )
 const canRepostDetailTask = computed(() => {
   if (!isDetailOwner.value || !detailTask.value) return false
-  return repostableStatuses.has(detailTask.value.status) || deadlineHours(detailTask.value.deadline) <= 0
+  return repostableStatuses.has(detailTask.value.status)
 })
 const hasDetailActions = computed(
   () => canEditDetailTask.value || canCancelDetailTask.value || canRepostDetailTask.value
@@ -299,7 +299,7 @@ const canSubmitCompletion = computed(
   () => isDetailProvider.value && detailTask.value?.status === 'IN_PROGRESS'
 )
 const canReviewCompletion = computed(
-  () => isDetailOwner.value && detailTask.value?.status === 'PENDING_CONFIRMATION' && Boolean(completionProof.value)
+  () => isDetailOwner.value && detailTask.value?.status === 'PENDING_CONFIRMATION'
 )
 const shouldShowCompletionPanel = computed(() => {
   const status = detailTask.value?.status
@@ -447,6 +447,63 @@ function numericValue(...values) {
   return Number.isFinite(number) ? number : 0
 }
 
+function booleanFlag(value, fallback = false) {
+  if (value === undefined || value === null || value === '') return fallback
+  if (typeof value === 'boolean') return value
+  if (typeof value === 'number') return value === 1
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase()
+    if (['true', '1', 'yes'].includes(normalized)) return true
+    if (['false', '0', 'no'].includes(normalized)) return false
+  }
+  return Boolean(value)
+}
+
+function normalizeTask(task = {}) {
+  const id = task.id ?? task.taskId
+  return {
+    ...task,
+    id,
+    requesterId: task.requesterId ?? task.ownerId,
+    providerId: task.providerId ?? task.helperId ?? task.acceptedApplicantId,
+    category: task.category || task.taskCategory || task.typeKey || 'AGENCY',
+    rewardType: task.rewardType || 'FREE',
+    status: task.status || 'OPEN',
+    requiresProof: booleanFlag(task.requiresProof),
+    onlyInAppContact: booleanFlag(task.onlyInAppContact, true),
+    allowOfflineContact: booleanFlag(task.allowOfflineContact),
+    isInstantTask: booleanFlag(task.isInstantTask),
+    riskDisclosureConfirmed: booleanFlag(task.riskDisclosureConfirmed)
+  }
+}
+
+function normalizePagedTasks(result) {
+  if (Array.isArray(result)) return result
+  return result?.tasks || result?.items || result?.records || result?.content || result?.list || []
+}
+
+function normalizeTaskDetail(result) {
+  if (!result) return null
+
+  if (result.task) {
+    return {
+      ...result,
+      task: normalizeTask(result.task),
+      applications: Array.isArray(result.applications) ? result.applications : [],
+      history: Array.isArray(result.history) ? result.history : [],
+      reviews: Array.isArray(result.reviews) ? result.reviews : []
+    }
+  }
+
+  return {
+    task: normalizeTask(result),
+    applications: [],
+    completionProof: result.completionProof || null,
+    history: [],
+    reviews: []
+  }
+}
+
 function normalizeCandidate(application = {}) {
   const applicantId = application.applicantId ?? application.userId ?? application.applicant?.id
   const fallbackName = applicantId ? `同学 ${applicantId}` : '候选同学'
@@ -551,11 +608,16 @@ function taskSafetyCopy(task = {}) {
 }
 
 function applyTaskResult(result) {
-  const items = Array.isArray(result) ? result : result?.items || []
+  const items = normalizePagedTasks(result).map(normalizeTask)
+  const page = Number(result?.page || filters.page || 1)
+  const size = Number(result?.size || filters.size || defaultFilters.size)
+  const explicitTotal = Number(result?.total ?? result?.totalElements ?? result?.totalCount ?? result?.count)
+  const inferredTotal = (page - 1) * size + items.length + (items.length >= size ? 1 : 0)
+
   tasks.value = items
-  pagination.page = Number(result?.page || filters.page || 1)
-  pagination.size = Number(result?.size || filters.size || defaultFilters.size)
-  pagination.total = Number(result?.total ?? items.length)
+  pagination.page = page
+  pagination.size = size
+  pagination.total = Number.isFinite(explicitTotal) ? explicitTotal : inferredTotal
   filters.page = pagination.page
   filters.size = pagination.size
 }
@@ -773,7 +835,7 @@ async function loadTaskDetail(taskId) {
   try {
     const result = await api.getTaskDetail(taskId)
     if (requestId !== detailRequestId) return
-    taskDetail.value = result
+    taskDetail.value = normalizeTaskDetail(result)
     await loadCandidates(taskId)
   } catch (error) {
     if (requestId !== detailRequestId) return
@@ -800,7 +862,9 @@ async function loadCandidates(taskId) {
   try {
     const result = await api.getTaskApplications(taskId)
     if (requestId !== candidatesRequestId) return
-    candidateApplications.value = Array.isArray(result) ? result : result?.items || result?.applications || []
+    candidateApplications.value = Array.isArray(result)
+      ? result
+      : result?.applications || result?.items || result?.records || result?.content || result?.list || []
   } catch (error) {
     if (requestId !== candidatesRequestId) return
     candidateApplications.value = []
@@ -918,10 +982,7 @@ async function submitCancelTask() {
   operationLoading.value = 'cancel'
   cancelReasonError.value = ''
   try {
-    await api.transitionTaskStatus(detailTask.value.id, {
-      action: 'CANCEL',
-      reason
-    })
+    await api.cancelTask(detailTask.value.id, reason)
     setOperationFeedback('任务已取消，状态记录会保留在任务历史中。')
     closeCancelPanel()
     await refreshTasks()
@@ -1093,7 +1154,9 @@ async function submitCompletionProof() {
   try {
     await api.submitTaskCompletion(detailTask.value.id, {
       description: completionDescription.value.trim(),
-      attachmentUrls: completionAttachments.value.map((item) => item.url)
+      attachmentIds: completionAttachments.value
+        .map((item) => Number(item.id ?? item.url))
+        .filter((id) => Number.isInteger(id) && id > 0)
     })
     setOperationFeedback('完成凭证已提交，任务进入待确认状态。')
     resetCompletionState()
@@ -1135,9 +1198,13 @@ async function submitCompletionResolution() {
   operationLoading.value = resolutionAction.value
   operationFeedback.value = ''
   try {
-    const payload = { action: resolutionAction.value }
-    if (reason) payload.reason = reason
-    await api.transitionTaskStatus(detailTask.value.id, payload)
+    if (resolutionAction.value === 'CONFIRM_COMPLETION') {
+      await api.confirmTaskCompletion(detailTask.value.id)
+    } else if (resolutionAction.value === 'REJECT_COMPLETION') {
+      await api.rejectTaskCompletion(detailTask.value.id, { reason })
+    } else {
+      await api.disputeTaskCompletion(detailTask.value.id, { reason })
+    }
     setOperationFeedback(
       resolutionAction.value === 'CONFIRM_COMPLETION'
         ? '已确认任务完成，完成记录会保留在任务历史中。'

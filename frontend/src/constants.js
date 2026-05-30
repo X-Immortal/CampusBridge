@@ -74,10 +74,9 @@ export const MESSAGE_TYPE_OPTIONS = [
 ]
 
 export const TASK_SORT_OPTIONS = [
-  { value: 'CREATED_AT', label: '最新发布' },
-  { value: 'DEADLINE', label: '截止时间近' },
-  { value: 'DISTANCE', label: '距离优先' },
-  { value: 'CREDIT', label: '信用优先' }
+  { value: 'CREATED_AT_DESC', label: '最新发布' },
+  { value: 'DEADLINE_ASC', label: '截止时间近' },
+  { value: 'DEADLINE_DESC', label: '截止时间远' }
 ]
 
 export function optionLabel(options, value) {
