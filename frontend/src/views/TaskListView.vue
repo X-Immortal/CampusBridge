@@ -15,6 +15,7 @@ import {
   ClipboardCheck,
   Clock3,
   FileCheck2,
+  FileWarning,
   Filter,
   Gift,
   Inbox,
@@ -37,7 +38,9 @@ import DashboardShell from '../components/DashboardShell.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import {
   APPLICATION_STATUS_OPTIONS,
+  MODERATION_STATUS_OPTIONS,
   optionLabel,
+  REPORT_TARGET_TYPE_OPTIONS,
   REWARD_TYPE_OPTIONS,
   TASK_CATEGORY_OPTIONS,
   TASK_SORT_OPTIONS,
@@ -144,6 +147,7 @@ const cancelReason = ref('')
 const cancelReasonError = ref('')
 const applicationPanelOpen = ref(false)
 const candidatePanelOpen = ref(false)
+const reportPanelOpen = ref(false)
 const candidateApplications = ref([])
 const candidatesLoaded = ref(false)
 const submittedApplication = ref(null)
@@ -161,6 +165,19 @@ const completionSubmitting = ref(false)
 const resolutionAction = ref('')
 const resolutionReason = ref('')
 const resolutionReasonError = ref('')
+const reportForm = reactive({
+  targetType: 'TASK',
+  targetId: '',
+  reason: '',
+  description: ''
+})
+const reportErrors = reactive({})
+const reportSubmitting = ref(false)
+const myReports = ref([])
+const reportsLoading = ref(false)
+const reportsLoaded = ref(false)
+const reportsError = ref('')
+const reportsFilter = ref('')
 const pagination = reactive({
   page: filters.page,
   size: filters.size,
@@ -363,6 +380,10 @@ const canOpenConversation = computed(() => {
       ['ACCEPTED', 'IN_PROGRESS', 'PENDING_CONFIRMATION', 'COMPLETED', 'REVIEWED', 'DISPUTED'].includes(status)
   )
 })
+const detailTaskReports = computed(() =>
+  myReports.value.filter((report) => report.targetType === 'TASK' && String(report.targetId) === String(detailTask.value?.id))
+)
+const selectedDetailReport = computed(() => detailTaskReports.value[0] || null)
 const detailConversationPeerUserId = computed(() => {
   const task = detailTask.value
   if (!task || currentUserId.value === null || currentUserId.value === undefined) return ''
@@ -778,6 +799,31 @@ function applicationStatusTone(status) {
   return statusTone(status)
 }
 
+function reportTargetLabel(type) {
+  return optionLabel(REPORT_TARGET_TYPE_OPTIONS, type)
+}
+
+function reportStatusLabel(status) {
+  return optionLabel(MODERATION_STATUS_OPTIONS, status)
+}
+
+function reportStatusTone(status) {
+  return statusTone(status)
+}
+
+function normalizeReport(report = {}) {
+  return {
+    ...report,
+    id: report.id ?? report.reportId,
+    status: report.status || 'PENDING'
+  }
+}
+
+function normalizePagedReports(result) {
+  if (Array.isArray(result)) return result
+  return result?.items || result?.reports || result?.records || result?.content || result?.list || []
+}
+
 function formatDateTime(value) {
   if (!value) return '未设置'
   const date = new Date(value)
@@ -1038,6 +1084,34 @@ async function loadTaskDetail(taskId) {
   }
 }
 
+async function loadMyReports() {
+  if (!isAuthenticated.value) {
+    myReports.value = []
+    reportsLoaded.value = false
+    reportsError.value = ''
+    reportsLoading.value = false
+    return
+  }
+
+  reportsLoading.value = true
+  reportsError.value = ''
+  try {
+    const result = await api.getReports({
+      status: reportsFilter.value,
+      page: 1,
+      size: 100
+    })
+    myReports.value = normalizePagedReports(result).map(normalizeReport)
+    reportsLoaded.value = true
+  } catch (error) {
+    myReports.value = []
+    reportsLoaded.value = true
+    reportsError.value = error.message || '举报记录加载失败，请稍后重试。'
+  } finally {
+    reportsLoading.value = false
+  }
+}
+
 async function loadCandidates(taskId) {
   if (!taskId || !isAuthenticated.value || !isDetailOwner.value) {
     candidateApplications.value = []
@@ -1089,12 +1163,14 @@ async function resetFilters() {
   taskDetail.value = null
   applicationPanelOpen.value = false
   candidatePanelOpen.value = false
+  reportPanelOpen.value = false
   candidateApplications.value = []
   candidatesLoaded.value = false
   candidatesError.value = ''
   submittedApplication.value = null
   applicationMessage.value = ''
   applicationMessageError.value = ''
+  clearReportErrors()
   await syncRoute()
   await loadTasks()
 }
@@ -1136,6 +1212,7 @@ async function clearSelectedTask() {
   detailError.value = ''
   applicationPanelOpen.value = false
   candidatePanelOpen.value = false
+  reportPanelOpen.value = false
   candidateApplications.value = []
   candidatesLoaded.value = false
   candidatesError.value = ''
@@ -1145,6 +1222,7 @@ async function clearSelectedTask() {
   applicationMessageError.value = ''
   cancelPanelOpen.value = false
   resetCompletionState()
+  clearReportErrors()
   await router.push({ name: listRouteName.value, query: buildRouteQuery() })
 }
 
@@ -1193,6 +1271,84 @@ async function openCandidatePanel() {
 
 function closeCandidatePanel() {
   candidatePanelOpen.value = false
+}
+
+async function openReportPanel() {
+  if (!detailTask.value?.id) return
+  reportPanelOpen.value = true
+  hydrateReportForm()
+  if (!reportsLoaded.value && !reportsLoading.value) {
+    await loadMyReports()
+  }
+}
+
+function closeReportPanel() {
+  reportPanelOpen.value = false
+  clearReportErrors()
+}
+
+function hydrateReportForm() {
+  reportForm.targetType = 'TASK'
+  reportForm.targetId = detailTask.value?.id ? String(detailTask.value.id) : ''
+  reportForm.reason = ''
+  reportForm.description = ''
+  clearReportErrors()
+}
+
+function clearReportErrors() {
+  Object.keys(reportErrors).forEach((field) => {
+    delete reportErrors[field]
+  })
+}
+
+function setReportError(field, message) {
+  reportErrors[field] = message
+}
+
+function validateReportForm() {
+  clearReportErrors()
+
+  if (!reportForm.targetType) {
+    setReportError('targetType', '请选择举报目标类型。')
+  }
+  if (!String(reportForm.targetId).trim()) {
+    setReportError('targetId', '请填写举报目标 ID。')
+  }
+  if (!String(reportForm.reason).trim()) {
+    setReportError('reason', '请填写举报原因。')
+  }
+  if (reportForm.reason.trim().length > 100) {
+    setReportError('reason', '举报原因不能超过 100 个字符。')
+  }
+  if (reportForm.description.trim().length > 1000) {
+    setReportError('description', '详细描述不能超过 1000 个字符。')
+  }
+
+  return Object.keys(reportErrors).length === 0
+}
+
+async function submitReport() {
+  if (!validateReportForm()) return
+
+  reportSubmitting.value = true
+  operationFeedback.value = ''
+  try {
+    const result = await api.createReport({
+      targetType: reportForm.targetType,
+      targetId: Number(reportForm.targetId),
+      reason: reportForm.reason.trim(),
+      description: reportForm.description.trim()
+    })
+    const normalized = normalizeReport(result)
+    myReports.value = [normalized, ...myReports.value.filter((report) => String(report.id) !== String(normalized.id))]
+    reportsLoaded.value = true
+    setOperationFeedback(`举报 #${normalized.id || reportForm.targetId} 已提交，管理员会根据站内记录处理。`)
+    closeReportPanel()
+  } catch (error) {
+    setOperationFeedback(error.message || '举报提交失败，请稍后重试。', 'danger')
+  } finally {
+    reportSubmitting.value = false
+  }
 }
 
 async function submitCancelTask() {
@@ -1612,7 +1768,11 @@ const retainedTaskWorkflowBindings = [
   openCompletionResolution,
   submitCompletionResolution,
   submitTaskApplication,
-  acceptCandidate
+  acceptCandidate,
+  openReportPanel,
+  closeReportPanel,
+  loadMyReports,
+  submitReport
 ]
 void retainedTaskWorkflowBindings
 
@@ -1633,15 +1793,17 @@ watch(
     candidatesLoaded.value = false
     candidatesError.value = ''
     cancelPanelOpen.value = false
-    applicationPanelOpen.value = false
-    candidatePanelOpen.value = false
-    resetCompletionState()
-    loadTaskDetail(selectedTaskId.value)
+  applicationPanelOpen.value = false
+  candidatePanelOpen.value = false
+  reportPanelOpen.value = false
+  resetCompletionState()
+  clearReportErrors()
+  loadTaskDetail(selectedTaskId.value)
   }
 )
 
 onMounted(async () => {
-  await loadTasks()
+  await Promise.allSettled([loadTasks(), loadMyReports()])
   if (selectedTaskId.value) await loadTaskDetail(selectedTaskId.value)
 })
 </script>
@@ -2848,6 +3010,52 @@ onMounted(async () => {
           </section>
 
           <section
+            class="workflow-entry workflow-entry--report"
+            aria-labelledby="task-report-entry-title"
+          >
+            <span class="workflow-entry__icon">
+              <FileWarning
+                :size="20"
+                aria-hidden="true"
+              />
+            </span>
+            <div class="workflow-entry__body">
+              <p class="section-kicker">
+                举报与争议
+              </p>
+              <h3 id="task-report-entry-title">
+                提交任务举报
+              </h3>
+              <p>
+                {{
+                  selectedDetailReport
+                    ? `你已提交举报 #${selectedDetailReport.id}，当前状态为 ${reportStatusLabel(selectedDetailReport.status)}。`
+                    : '发现违规内容、站外交易或任务纠纷时，可以提交举报给管理员处理。'
+                }}
+              </p>
+            </div>
+            <div class="workflow-entry__actions">
+              <StatusBadge
+                v-if="selectedDetailReport"
+                :label="reportStatusLabel(selectedDetailReport.status)"
+                :tone="reportStatusTone(selectedDetailReport.status)"
+              />
+              <button
+                class="ghost-action workflow-entry__button"
+                type="button"
+                :disabled="!isAuthenticated || reportSubmitting"
+                @click="openReportPanel"
+              >
+                <FileWarning
+                  :size="17"
+                  aria-hidden="true"
+                />
+                {{ selectedDetailReport ? '查看/再举报' : '提交举报' }}
+              </button>
+            </div>
+          </section>
+
+          <section
             v-if="isDetailOwner"
             class="workflow-entry workflow-entry--candidates"
             aria-labelledby="task-candidates-entry-title"
@@ -3264,6 +3472,252 @@ onMounted(async () => {
             </footer>
           </article>
         </div>
+      </section>
+    </div>
+
+    <div
+      v-if="reportPanelOpen && detailTask"
+      class="workflow-modal-layer"
+      @click.self="closeReportPanel"
+    >
+      <section
+        class="panel-card workflow-modal workflow-modal--wide report-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="task-report-title"
+      >
+        <header class="workflow-modal__header report-heading">
+          <div>
+            <p class="section-kicker">
+              举报任务
+            </p>
+            <h3 id="task-report-title">
+              向管理员提交举报
+            </h3>
+            <p>举报会记录目标类型、目标 ID、原因和详细描述，管理员可在后台裁决并标记任务争议。</p>
+          </div>
+          <div class="workflow-modal__actions">
+            <button
+              class="ghost-action"
+              type="button"
+              :disabled="reportsLoading"
+              @click="loadMyReports"
+            >
+              <RefreshCw
+                :class="{ spinning: reportsLoading }"
+                :size="16"
+                aria-hidden="true"
+              />
+              刷新记录
+            </button>
+            <button
+              class="icon-action"
+              type="button"
+              aria-label="关闭举报窗口"
+              @click="closeReportPanel"
+            >
+              <X
+                :size="18"
+                aria-hidden="true"
+              />
+            </button>
+          </div>
+        </header>
+
+        <div class="report-context">
+          <span>
+            <strong>{{ detailTask.title || '当前任务' }}</strong>
+            <small>任务 #{{ detailTask.id }} · {{ taskCategoryLabel(detailTask) }}</small>
+          </span>
+          <StatusBadge
+            :label="taskStatusLabel(detailTask.status)"
+            :tone="taskStatusTone(detailTask.status)"
+          />
+        </div>
+
+        <form
+          class="report-form"
+          @submit.prevent="submitReport"
+        >
+          <label
+            class="report-field"
+            for="report-target-type"
+          >
+            <span>目标类型</span>
+            <select
+              id="report-target-type"
+              v-model="reportForm.targetType"
+              :aria-invalid="Boolean(reportErrors.targetType)"
+            >
+              <option
+                v-for="target in REPORT_TARGET_TYPE_OPTIONS"
+                :key="target.value"
+                :value="target.value"
+              >
+                {{ target.label }}
+              </option>
+            </select>
+            <p
+              v-if="reportErrors.targetType"
+              class="field-error"
+            >
+              {{ reportErrors.targetType }}
+            </p>
+          </label>
+
+          <label
+            class="report-field"
+            for="report-target-id"
+          >
+            <span>目标 ID</span>
+            <input
+              id="report-target-id"
+              v-model.trim="reportForm.targetId"
+              type="number"
+              min="1"
+              :aria-invalid="Boolean(reportErrors.targetId)"
+              placeholder="例如：当前任务 ID"
+            >
+            <p
+              v-if="reportErrors.targetId"
+              class="field-error"
+            >
+              {{ reportErrors.targetId }}
+            </p>
+          </label>
+
+          <label
+            class="report-field report-field--wide"
+            for="report-reason"
+          >
+            <span>举报原因</span>
+            <input
+              id="report-reason"
+              v-model.trim="reportForm.reason"
+              maxlength="100"
+              :aria-invalid="Boolean(reportErrors.reason)"
+              placeholder="例如：违规代考、站外交易、骚扰信息"
+            >
+            <small>{{ reportForm.reason.length }}/100 · 必填，尽量简短清楚。</small>
+            <p
+              v-if="reportErrors.reason"
+              class="field-error"
+            >
+              {{ reportErrors.reason }}
+            </p>
+          </label>
+
+          <label
+            class="report-field report-field--wide"
+            for="report-description"
+          >
+            <span>详细描述</span>
+            <textarea
+              id="report-description"
+              v-model.trim="reportForm.description"
+              maxlength="1000"
+              :aria-invalid="Boolean(reportErrors.description)"
+              placeholder="补充发生时间、关键沟通记录、涉及用户或管理员需要核查的信息。"
+            />
+            <small>{{ reportForm.description.length }}/1000 · 可选。</small>
+            <p
+              v-if="reportErrors.description"
+              class="field-error"
+            >
+              {{ reportErrors.description }}
+            </p>
+          </label>
+
+          <div class="workflow-modal__footer report-field--wide">
+            <button
+              class="ghost-action"
+              type="button"
+              :disabled="reportSubmitting"
+              @click="closeReportPanel"
+            >
+              取消
+            </button>
+            <button
+              class="primary-action"
+              type="submit"
+              :disabled="reportSubmitting"
+            >
+              <LoaderCircle
+                v-if="reportSubmitting"
+                class="spinning"
+                :size="17"
+                aria-hidden="true"
+              />
+              <FileWarning
+                v-else
+                :size="17"
+                aria-hidden="true"
+              />
+              提交举报
+            </button>
+          </div>
+        </form>
+
+        <section class="report-history-block">
+          <header>
+            <strong>我的举报记录</strong>
+            <span>{{ detailTaskReports.length }} 条与当前任务相关</span>
+          </header>
+
+          <div
+            v-if="reportsLoading"
+            class="loading-state compact-loading"
+            role="status"
+          >
+            <LoaderCircle
+              class="spinning"
+              :size="22"
+              aria-hidden="true"
+            />
+            <span>正在加载举报记录...</span>
+          </div>
+
+          <div
+            v-else-if="reportsError"
+            class="detail-error"
+            role="status"
+          >
+            <Info
+              :size="18"
+              aria-hidden="true"
+            />
+            <span>{{ reportsError }}</span>
+          </div>
+
+          <div
+            v-else-if="!detailTaskReports.length"
+            class="candidate-empty"
+          >
+            <FileWarning
+              :size="30"
+              aria-hidden="true"
+            />
+            <strong>暂无当前任务举报</strong>
+            <span>提交后可以在这里看到处理状态。</span>
+          </div>
+
+          <article
+            v-for="report in detailTaskReports"
+            v-else
+            :key="report.id"
+            class="report-history-card"
+          >
+            <span>
+              <strong>#{{ report.id }} · {{ reportTargetLabel(report.targetType) }}</strong>
+              <small>{{ formatDateTime(report.createdAt) }}</small>
+            </span>
+            <StatusBadge
+              :label="reportStatusLabel(report.status)"
+              :tone="reportStatusTone(report.status)"
+            />
+            <p>{{ report.reason || '未填写原因。' }}</p>
+          </article>
+        </section>
       </section>
     </div>
   </Teleport>
@@ -5141,6 +5595,158 @@ onMounted(async () => {
   background: #f8fcff;
 }
 
+.report-panel {
+  border-color: #fed7aa;
+  background: #fffaf5;
+}
+
+.report-heading > div:first-child {
+  display: grid;
+  gap: 5px;
+}
+
+.report-heading p:last-child {
+  margin: 0;
+  color: #746f7a;
+  line-height: 1.55;
+}
+
+.report-context {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #fed7aa;
+  border-radius: 8px;
+  background: #fff7ed;
+}
+
+.report-context span {
+  display: grid;
+  gap: 4px;
+}
+
+.report-context strong {
+  color: #3c3543;
+}
+
+.report-context small {
+  color: #7c2d12;
+}
+
+.report-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.report-field {
+  display: grid;
+  gap: 8px;
+}
+
+.report-field--wide {
+  grid-column: 1 / -1;
+}
+
+.report-field span {
+  color: #3c3543;
+  font-weight: 900;
+}
+
+.report-field input,
+.report-field select,
+.report-field textarea {
+  width: 100%;
+  border: 1px solid #fdba74;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #3c3543;
+  outline: 0;
+}
+
+.report-field input,
+.report-field select {
+  height: 42px;
+  padding: 0 12px;
+}
+
+.report-field textarea {
+  min-height: 112px;
+  padding: 11px 12px;
+  line-height: 1.55;
+  resize: vertical;
+}
+
+.report-field input:focus,
+.report-field select:focus,
+.report-field textarea:focus {
+  border-color: #f97316;
+  box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.12);
+}
+
+.report-field input[aria-invalid="true"],
+.report-field select[aria-invalid="true"],
+.report-field textarea[aria-invalid="true"] {
+  border-color: #ef4444;
+}
+
+.report-field small {
+  color: #8a8792;
+}
+
+.report-history-block {
+  display: grid;
+  gap: 12px;
+  padding-top: 2px;
+}
+
+.report-history-block > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.report-history-block > header strong {
+  color: #3c3543;
+}
+
+.report-history-block > header span {
+  color: #8a8792;
+}
+
+.report-history-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 12px;
+  padding: 12px;
+  border: 1px solid #fed7aa;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.report-history-card > span {
+  display: grid;
+  gap: 4px;
+}
+
+.report-history-card strong {
+  color: #3c3543;
+}
+
+.report-history-card small {
+  color: #8a8792;
+}
+
+.report-history-card p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #4a4650;
+  line-height: 1.55;
+}
+
 .compact-loading {
   min-height: 116px;
 }
@@ -5417,6 +6023,7 @@ onMounted(async () => {
   .detail-facts,
   .candidate-summary,
   .candidate-metrics,
+  .report-form,
   .completion-steps,
   .completion-upload-grid {
     grid-template-columns: 1fr;
@@ -5439,6 +6046,8 @@ onMounted(async () => {
   .completion-action-box,
   .conversation-entry,
   .candidate-heading,
+  .report-heading,
+  .report-context,
   .candidate-top,
   .candidate-actions,
   .proof-card-heading,
@@ -5473,6 +6082,10 @@ onMounted(async () => {
   .workflow-modal.application-panel {
     width: calc(100vw - 24px);
     max-height: calc(100vh - 24px);
+  }
+
+  .report-history-card {
+    grid-template-columns: 1fr;
   }
 
   .search-field {

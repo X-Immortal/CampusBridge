@@ -131,6 +131,21 @@ export default {
   getTaskReviews: (taskId) => request(`/tasks/${taskId}/reviews`),
   createTaskReview: (taskId, body) =>
     request(`/tasks/${taskId}/reviews`, { method: 'POST', body }),
+  createReport: (body) => request('/reports', { method: 'POST', body }),
+  getReports: (params) => request(`/reports${buildQuery(params)}`),
+  getPendingVerifications: (params) =>
+    request(`/admin/verifications/pending${buildQuery(params)}`),
+  approveVerification: (id) =>
+    request(`/admin/verifications/${id}/approve`, { method: 'POST' }),
+  rejectVerification: (id, body) =>
+    request(`/admin/verifications/${id}/reject`, { method: 'POST', body }),
+  resolveReport: (reportId, body) =>
+    request(`/admin/reports/${reportId}/resolve`, { method: 'POST', body }),
+  getPendingModerationTasks: () => request('/admin/moderation/tasks/pending'),
+  approveModerationTask: (taskId, body = {}) =>
+    request(`/admin/moderation/tasks/${taskId}/approve`, { method: 'POST', body }),
+  rejectModerationTask: (taskId, body = {}) =>
+    request(`/admin/moderation/tasks/${taskId}/reject`, { method: 'POST', body }),
   getTasks: (params) => request(`/tasks${buildQuery(params)}`),
   getTaskDetail: (taskId) => request(`/tasks/${taskId}`),
   createTaskApplication: (taskId, body) =>

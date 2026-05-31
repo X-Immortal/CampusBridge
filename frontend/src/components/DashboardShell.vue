@@ -11,6 +11,7 @@ import {
   Home,
   LogIn,
   LogOut,
+  Shield,
   MessageCircle,
   PlusCircle,
   School,
@@ -40,15 +41,18 @@ const accountMenuOpen = ref(false)
 const accountMenuRef = ref(null)
 const avatarLoadFailed = ref(false)
 
-const navItems = [
+const isAdmin = computed(() => String(state.user?.role || '').toUpperCase() === 'ADMIN')
+
+const navItems = computed(() => [
   { label: '个人主页', icon: Home, to: '/home' },
   { label: '任务广场', icon: Grid2X2, to: '/tasks' },
   { label: '发布任务', icon: PlusCircle, to: '/tasks/new' },
   { label: '我的任务', icon: ClipboardList, to: '/tasks/mine' },
   { label: '站内沟通', icon: MessageCircle, to: '/conversations' },
   { label: '评价中心', icon: Star, to: '/reviews' },
-  { label: '消息中心', icon: Bell, to: '/notifications' }
-]
+  { label: '消息中心', icon: Bell, to: '/notifications' },
+  ...(isAdmin.value ? [{ label: '管理后台', icon: Shield, to: '/admin' }] : [])
+])
 
 const userName = computed(() =>
   isAuthenticated.value ? state.profile?.nickname || state.user?.username || '张同学' : '未登录'

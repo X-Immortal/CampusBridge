@@ -12,6 +12,7 @@
     "test:task-completion": "node verification/task-completion.test.mjs",
     "test:task-publish": "node verification/task-publish.test.mjs",
     "test:my-tasks": "node verification/my-tasks.test.mjs",
+    "test:admin": "node verification/admin-workflows.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
