@@ -15,6 +15,27 @@ export const STATUS_OPTIONS = [
   { value: 'GUEST', label: '游客模式', tone: 'warning' }
 ]
 
+export const REPORT_TARGET_TYPE_OPTIONS = [
+  { value: 'POST', label: '帖子' },
+  { value: 'REPLY', label: '回复' },
+  { value: 'TASK', label: '任务' },
+  { value: 'USER', label: '用户' },
+  { value: 'MESSAGE', label: '消息' }
+]
+
+export const MODERATION_STATUS_OPTIONS = [
+  { value: 'PENDING', label: '待处理', tone: 'warning' },
+  { value: 'PROCESSING', label: '处理中', tone: 'info' },
+  { value: 'APPROVED', label: '举报成立', tone: 'success' },
+  { value: 'REJECTED', label: '举报驳回', tone: 'muted' },
+  { value: 'RESOLVED', label: '已处理', tone: 'success' },
+  { value: 'PUNISHED', label: '已处罚', tone: 'danger' }
+]
+
+export const MODERATION_DECISION_OPTIONS = MODERATION_STATUS_OPTIONS.filter(
+  (option) => !['PENDING', 'PROCESSING'].includes(option.value)
+)
+
 export const TASK_CATEGORY_OPTIONS = [
   {
     value: 'ERRAND',
@@ -87,6 +108,7 @@ export function optionLabel(options, value) {
 export function statusTone(status) {
   return [
     ...STATUS_OPTIONS,
+    ...MODERATION_STATUS_OPTIONS,
     ...TASK_STATUS_OPTIONS,
     ...APPLICATION_STATUS_OPTIONS,
     ...CONVERSATION_TYPE_OPTIONS
