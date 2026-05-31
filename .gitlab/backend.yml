@@ -1,6 +1,7 @@
 stages:
   - lint
   - build
+  - deploy
 
 backend-lint:
   stage: lint
@@ -26,4 +27,21 @@ backend-build:
     MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
   script:
     - cd backend
-    - mvn clean test
+    - mvn clean package -DskipTests
+  artifacts:
+    paths:
+      - backend/target/backend-*.jar
+    expire_in: 1 day
+
+backend-deploy:
+  stage: deploy
+  tags:
+    - campusbridge-runner
+  needs:
+    - backend-build
+  script:
+    - sudo systemctl stop campusbridge
+    - cp backend/target/backend-*.jar /opt/campusbridge/backend.jar
+    - sudo systemctl start campusbridge
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
