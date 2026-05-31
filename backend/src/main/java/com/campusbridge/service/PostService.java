@@ -8,7 +8,8 @@ import com.campusbridge.pojo.Post;
 public interface PostService {
     Post createPost(Long userId, RequestDtos.CreatePostRequest request);
 
-    ResponseDtos.PagedResult<Post> listPosts(String keyword, String category, String status, Integer page, Integer size);
+    ResponseDtos.PagedResult<Post> listPosts(
+            String keyword, String category, String status, Integer page, Integer size);
 
     ViewDtos.PostDetailView getPostDetail(Long postId);
 

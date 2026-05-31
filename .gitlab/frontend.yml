@@ -1,3 +1,4 @@
+# Frontend CI/CD: lint → build → auto-deploy on main
 stages:
   - lint
   - build
