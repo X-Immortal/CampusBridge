@@ -3,8 +3,8 @@
 <mapper namespace="com.campusbridge.mapper.UserCreditMapper">
 
   <insert id="insert" parameterType="com.campusbridge.pojo.UserCredit" useGeneratedKeys="true" keyProperty="id">
-    INSERT INTO user_credits (user_id, points, level, updated_at)
-    VALUES (#{userId}, #{points}, #{level}, #{updatedAt})
+    INSERT INTO user_credits (user_id, points, level, credit_score, updated_at)
+    VALUES (#{userId}, #{points}, #{level}, #{creditScore}, #{updatedAt})
   </insert>
 
   <select id="selectById" resultType="com.campusbridge.pojo.UserCredit">
@@ -26,6 +26,7 @@
     SET user_id = #{userId},
       points = #{points},
       level = #{level},
+      credit_score = #{creditScore},
       updated_at = #{updatedAt}
     WHERE id = #{id}
   </update>
@@ -34,5 +35,12 @@
     DELETE FROM user_credits
     WHERE id = #{id}
   </delete>
+
+  <update id="updateCreditScore">
+    UPDATE user_credits
+    SET credit_score = #{creditScore},
+        updated_at = #{updatedAt}
+    WHERE user_id = #{userId}
+  </update>
 
 </mapper>
