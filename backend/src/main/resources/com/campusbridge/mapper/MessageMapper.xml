@@ -16,6 +16,32 @@
     SELECT * FROM messages
   </select>
 
+  <select id="selectByConversationId" resultType="com.campusbridge.pojo.Message">
+    SELECT * FROM messages
+    WHERE conversation_id = #{conversationId}
+    ORDER BY created_at DESC, id DESC
+    LIMIT #{size} OFFSET #{offset}
+  </select>
+
+  <select id="countByConversationId" resultType="long">
+    SELECT COUNT(*) FROM messages
+    WHERE conversation_id = #{conversationId}
+  </select>
+
+  <select id="countByConversationTypeAndContent" resultType="int">
+    SELECT COUNT(*) FROM messages
+    WHERE conversation_id = #{conversationId}
+      AND type = #{type}
+      AND content = #{content}
+  </select>
+
+  <update id="markUnreadAsRead">
+    UPDATE messages
+    SET read_at = #{readAt}
+    WHERE conversation_id = #{conversationId}
+      AND read_at IS NULL
+  </update>
+
   <update id="updateById" parameterType="com.campusbridge.pojo.Message">
     UPDATE messages
     SET conversation_id = #{conversationId},

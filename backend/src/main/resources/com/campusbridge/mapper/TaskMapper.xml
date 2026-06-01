@@ -117,4 +117,33 @@
     WHERE status = #{status}
   </select>
 
+  <select id="selectTasksNeedingTimeoutReminder" resultType="com.campusbridge.pojo.Task">
+    SELECT * FROM tasks t
+    WHERE t.status = #{status}
+      AND (
+        (#{status} = 'OPEN' AND t.deadline &lt;= #{referenceTime})
+        OR (#{status} = 'PENDING_CONFIRMATION' AND t.updated_at &lt;= #{referenceTime})
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM task_histories h
+        WHERE h.task_id = t.id
+          AND h.note = #{reminderNote}
+      )
+    ORDER BY t.updated_at ASC, t.id ASC
+    LIMIT #{limit}
+  </select>
+
+  <select id="selectTasksReadyForTimeoutTransition" resultType="com.campusbridge.pojo.Task">
+    SELECT * FROM tasks t
+    WHERE t.status = #{status}
+      AND EXISTS (
+        SELECT 1 FROM task_histories h
+        WHERE h.task_id = t.id
+          AND h.note = #{reminderNote}
+          AND h.created_at &lt;= #{reminderCreatedBefore}
+      )
+    ORDER BY t.updated_at ASC, t.id ASC
+    LIMIT #{limit}
+  </select>
+
 </mapper>

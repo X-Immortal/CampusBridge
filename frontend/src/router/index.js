@@ -1,15 +1,112 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
+import AuthView from '../views/AuthView.vue'
+import TaskPublishView from '../views/TaskPublishView.vue'
+import TaskListView from '../views/TaskListView.vue'
+import ConversationView from '../views/ConversationView.vue'
+import ReviewNotificationView from '../views/ReviewNotificationView.vue'
+import { useAuth } from '../stores/auth'
+
+function redirectByAuth() {
+  const { isAuthenticated } = useAuth()
+  return isAuthenticated.value ? { name: 'home' } : { name: 'auth' }
+}
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
     {
       path: '/',
+      name: 'root',
+      redirect: redirectByAuth
+    },
+    {
+      path: '/home',
       name: 'home',
       component: HomeView
+    },
+    {
+      path: '/auth',
+      name: 'auth',
+      component: AuthView
+    },
+    {
+      path: '/tasks',
+      name: 'task-list',
+      component: TaskListView
+    },
+    {
+      path: '/tasks/new',
+      alias: '/tasks/create',
+      name: 'task-publish',
+      component: TaskPublishView
+    },
+    {
+      path: '/tasks/mine',
+      name: 'my-tasks',
+      component: TaskListView
+    },
+    {
+      path: '/tasks/mine/:taskId',
+      name: 'my-task-detail',
+      component: TaskListView
+    },
+    {
+      path: '/tasks/:taskId/edit',
+      name: 'task-edit',
+      component: TaskPublishView
+    },
+    {
+      path: '/tasks/:taskId/repost',
+      name: 'task-repost',
+      component: TaskPublishView
+    },
+    {
+      path: '/tasks/:taskId',
+      name: 'task-detail',
+      component: TaskListView
+    },
+    {
+      path: '/conversations',
+      name: 'conversation-list',
+      component: ConversationView
+    },
+    {
+      path: '/conversations/:conversationId',
+      name: 'conversation-detail',
+      component: ConversationView
+    },
+    {
+      path: '/reviews',
+      name: 'reviews',
+      component: ReviewNotificationView
+    },
+    {
+      path: '/notifications',
+      name: 'notifications',
+      component: ReviewNotificationView
     }
   ]
+})
+
+router.beforeEach((to) => {
+  const { isAuthenticated } = useAuth()
+  const publicRouteNames = new Set(['root', 'auth'])
+
+  if (to.name === 'auth' && isAuthenticated.value) {
+    return { name: 'home' }
+  }
+
+  if (!publicRouteNames.has(to.name) && !isAuthenticated.value) {
+    return {
+      name: 'auth',
+      query: {
+        redirect: to.fullPath
+      }
+    }
+  }
+
+  return true
 })
 
 export default router

@@ -34,16 +34,22 @@ public interface TaskMapper {
 
     List<Task> selectWithFilters(Map<String, Object> params);
 
-    /**
-     * 根据状态查询任务列表（分页）
-     */
     List<Task> selectTasksByStatus(
             @Param("status") String status,
             @Param("offset") Integer offset,
             @Param("limit") Integer limit);
 
-    /**
-     * 统计指定状态的任务数量
-     */
     int countTasksByStatus(@Param("status") String status);
+
+    List<Task> selectTasksNeedingTimeoutReminder(
+            @Param("status") String status,
+            @Param("referenceTime") LocalDateTime referenceTime,
+            @Param("reminderNote") String reminderNote,
+            @Param("limit") Integer limit);
+
+    List<Task> selectTasksReadyForTimeoutTransition(
+            @Param("status") String status,
+            @Param("reminderNote") String reminderNote,
+            @Param("reminderCreatedBefore") LocalDateTime reminderCreatedBefore,
+            @Param("limit") Integer limit);
 }

@@ -13,14 +13,17 @@ import com.campusbridge.pojo.User;
 import com.campusbridge.pojo.UserCredit;
 import com.campusbridge.pojo.UserProfile;
 import com.campusbridge.service.UserProfileService;
+import com.campusbridge.utils.AliOSSUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class UserProfileServiceImpl implements UserProfileService {
@@ -32,24 +35,30 @@ public class UserProfileServiceImpl implements UserProfileService {
     private static final int MAX_AVATAR_URL_LENGTH = 500;
     private static final int MAX_TAG_COUNT = 20;
     private static final int MAX_TAG_LENGTH = 30;
+    private static final long MAX_AVATAR_SIZE = 5 * 1024 * 1024; // 5MB
+    private static final Set<String> ALLOWED_AVATAR_TYPES =
+            Set.of("image/png", "image/jpeg", "image/webp");
 
     private final UserMapper userMapper;
     private final UserProfileMapper userProfileMapper;
     private final ObjectMapper objectMapper;
     private final UserCreditMapper userCreditMapper;
     private final CampusVerificationMapper campusVerificationMapper;
+    private final AliOSSUtils aliOSSUtils;
 
     public UserProfileServiceImpl(
             UserMapper userMapper,
             UserProfileMapper userProfileMapper,
             ObjectMapper objectMapper,
             UserCreditMapper userCreditMapper,
-            CampusVerificationMapper campusVerificationMapper) {
+            CampusVerificationMapper campusVerificationMapper,
+            AliOSSUtils aliOSSUtils) {
         this.userMapper = userMapper;
         this.userProfileMapper = userProfileMapper;
         this.objectMapper = objectMapper;
         this.userCreditMapper = userCreditMapper;
         this.campusVerificationMapper = campusVerificationMapper;
+        this.aliOSSUtils = aliOSSUtils;
     }
 
     @Override
@@ -122,6 +131,52 @@ public class UserProfileServiceImpl implements UserProfileService {
                 points,
                 parseTags(profile.getInterestTags()),
                 parseTags(profile.getSkillTags()));
+    }
+
+    @Override
+    public String updateAvatar(Long currentUserId, MultipartFile file) {
+        requireUser(currentUserId);
+
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException(
+                    ErrorCode.COMMON_001_VALIDATION_ERROR,
+                    "file must not be empty");
+        }
+
+        String contentType = file.getContentType();
+        if (contentType == null || !ALLOWED_AVATAR_TYPES.contains(contentType.toLowerCase())) {
+            throw new BusinessException(
+                    ErrorCode.FILE_002_UNSUPPORTED_TYPE,
+                    "avatar must be PNG, JPEG or WebP");
+        }
+
+        if (file.getSize() > MAX_AVATAR_SIZE) {
+            throw new BusinessException(
+                    ErrorCode.FILE_001_TOO_LARGE,
+                    "avatar must not exceed 5MB");
+        }
+
+        String avatarUrl;
+        try {
+            avatarUrl = aliOSSUtils.upload(file);
+        } catch (Exception ex) {
+            throw new BusinessException(
+                    ErrorCode.COMMON_999_INTERNAL_ERROR,
+                    "Failed to upload avatar to OSS");
+        }
+
+        UserProfile profile = getOrCreateProfile(currentUserId);
+        profile.setAvatarUrl(avatarUrl);
+        profile.setUpdatedAt(LocalDateTime.now());
+
+        int affectedRows = userProfileMapper.updateById(profile);
+        if (affectedRows != 1) {
+            throw new BusinessException(
+                    ErrorCode.COMMON_999_INTERNAL_ERROR,
+                    "Failed to update avatar URL in profile");
+        }
+
+        return avatarUrl;
     }
 
     private User requireUser(Long userId) {

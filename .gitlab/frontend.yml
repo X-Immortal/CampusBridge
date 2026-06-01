@@ -1,6 +1,8 @@
+# Frontend CI/CD: lint → build → auto-deploy on main
 stages:
   - lint
   - build
+  - deploy
 
 frontend-lint:
   stage: lint
@@ -25,3 +27,19 @@ frontend-build:
     - cd frontend
     - npm install
     - npm run build
+  artifacts:
+    paths:
+      - frontend/dist/
+    expire_in: 1 day
+
+frontend-deploy:
+  stage: deploy
+  tags:
+    - campusbridge-runner
+  needs:
+    - frontend-build
+  script:
+    - rm -rf /opt/campusbridge/static/*
+    - cp -r frontend/dist/* /opt/campusbridge/static/
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"

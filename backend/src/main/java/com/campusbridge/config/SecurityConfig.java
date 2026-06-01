@@ -39,8 +39,22 @@ public class SecurityConfig {
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(unauthorizedEntryPoint()))
                 .authorizeHttpRequests(auth -> {
-                    auth.requestMatchers("/api/v1/auth/**", "/error").permitAll();
+                    auth.requestMatchers(
+                            "/api/v1/auth/**",
+                            "/error",
+                            "/",
+                            "/index.html",
+                            "/favicon.ico",
+                            "/assets/**",
+                            "/src/**",
+                            "/*.js",
+                            "/*.css",
+                            "/*.png",
+                            "/*.svg",
+                            "/*.jpg"
+                    ).permitAll();
                     if (jwtRequired) {
+                        auth.requestMatchers("/api/v1/admin/**").hasRole("ADMIN");
                         auth.anyRequest().authenticated();
                     } else {
                         auth.anyRequest().permitAll();

@@ -16,6 +16,18 @@
     SELECT * FROM replies
   </select>
 
+  <select id="selectByPostId" resultType="com.campusbridge.pojo.Reply">
+    SELECT * FROM replies
+    WHERE post_id = #{postId}
+    ORDER BY created_at ASC, id ASC
+    LIMIT #{size} OFFSET #{offset}
+  </select>
+
+  <select id="countByPostId" resultType="long">
+    SELECT COUNT(*) FROM replies
+    WHERE post_id = #{postId}
+  </select>
+
   <update id="updateById" parameterType="com.campusbridge.pojo.Reply">
     UPDATE replies
     SET post_id = #{postId},

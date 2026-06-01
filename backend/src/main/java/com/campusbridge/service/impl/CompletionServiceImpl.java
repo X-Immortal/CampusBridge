@@ -129,11 +129,9 @@ public class CompletionServiceImpl implements CompletionService {
                 requesterId,
                 "COMPLETION_CONFIRMED");
 
-        // 自动结算奖励（POINTS 或 NEGOTIABLE 类型）
         try {
             rewardSettlementService.settleTaskReward(taskId, requesterId, task.getProviderId());
         } catch (Exception e) {
-            // 结算失败不影响任务完成，但记录日志
             // TODO: 添加日志记录
         }
     }
@@ -149,24 +147,20 @@ public class CompletionServiceImpl implements CompletionService {
             throw new BusinessException(ErrorCode.TASK_001_NOT_FOUND);
         }
 
-        // 验证操作者必须是requester
         if (!requesterId.equals(task.getRequesterId())) {
             throw new BusinessException(ErrorCode.TASK_003_PERMISSION_DENIED);
         }
 
-        // 验证任务状态必须是 PENDING_CONFIRMATION
         if (!STATUS_PENDING_CONFIRMATION.equals(task.getStatus())) {
             throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
         }
 
-        // 更新任务状态回到 IN_PROGRESS（可以重新提交）
         LocalDateTime now = LocalDateTime.now();
         int affectedRows = taskMapper.updateStatusById(taskId, STATUS_PENDING_CONFIRMATION, STATUS_IN_PROGRESS, now);
         if (affectedRows != 1) {
             throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
         }
 
-        // 记录历史（包含驳回原因）
         taskHistoryService.recordHistory(
                 taskId,
                 STATUS_PENDING_CONFIRMATION,
@@ -186,7 +180,6 @@ public class CompletionServiceImpl implements CompletionService {
             throw new BusinessException(ErrorCode.TASK_001_NOT_FOUND);
         }
 
-        // 验证操作者必须是任务参与者（requester或provider）
         boolean isRequester = participantId.equals(task.getRequesterId());
         boolean isProvider = task.getProviderId() != null && participantId.equals(task.getProviderId());
 
@@ -194,20 +187,17 @@ public class CompletionServiceImpl implements CompletionService {
             throw new BusinessException(ErrorCode.TASK_003_PERMISSION_DENIED);
         }
 
-        // 验证任务状态：只能在 IN_PROGRESS 或 PENDING_CONFIRMATION 时发起争议
         String fromStatus = task.getStatus();
         if (!STATUS_IN_PROGRESS.equals(fromStatus) && !STATUS_PENDING_CONFIRMATION.equals(fromStatus)) {
             throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
         }
 
-        // 更新任务状态为 DISPUTED
         LocalDateTime now = LocalDateTime.now();
         int affectedRows = taskMapper.updateStatusById(taskId, fromStatus, STATUS_DISPUTED, now);
         if (affectedRows != 1) {
             throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
         }
 
-        // 记录历史（包含争议原因）
         taskHistoryService.recordHistory(
                 taskId,
                 fromStatus,
