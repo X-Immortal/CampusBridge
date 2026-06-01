@@ -10,7 +10,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -69,7 +68,8 @@ public class TaskController {
             @RequestParam(required = false, defaultValue = "CREATED_AT_DESC") String sortBy,
             @RequestParam(required = false, defaultValue = "1") Integer page,
             @RequestParam(required = false, defaultValue = "20") Integer size) {
-        List<Task> tasks = taskService.listTasks(keyword, category, campus, status, rewardType, requiresProof, sortBy, page, size);
+        List<Task> tasks = taskService.listTasks(keyword, category, campus,
+                status, rewardType, requiresProof, sortBy, page, size);
         Map<String, Object> response = new HashMap<>();
         response.put("tasks", tasks);
         response.put("page", page);
