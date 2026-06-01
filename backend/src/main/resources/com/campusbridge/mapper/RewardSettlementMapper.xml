@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campusbridge.mapper.RewardSettlementMapper">
+
+  <insert id="insert" parameterType="com.campusbridge.pojo.RewardSettlement" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO reward_settlements (
+      task_id, requester_id, provider_id, reward_type,
+      points_amount, negotiated_amount, settlement_status, settled_at, created_at
+    )
+    VALUES (
+      #{taskId}, #{requesterId}, #{providerId}, #{rewardType},
+      #{pointsAmount}, #{negotiatedAmount}, #{settlementStatus}, #{settledAt}, #{createdAt}
+    )
+  </insert>
+
+  <select id="selectByTaskId" resultType="com.campusbridge.pojo.RewardSettlement">
+    SELECT * FROM reward_settlements
+    WHERE task_id = #{taskId}
+  </select>
+
+  <select id="selectByUserId" resultType="com.campusbridge.pojo.RewardSettlement">
+    SELECT * FROM reward_settlements
+    WHERE requester_id = #{userId} OR provider_id = #{userId}
+    ORDER BY settled_at DESC
+    LIMIT #{limit} OFFSET #{offset}
+  </select>
+
+  <select id="countByUserId" resultType="int">
+    SELECT COUNT(*) FROM reward_settlements
+    WHERE requester_id = #{userId} OR provider_id = #{userId}
+  </select>
+
+</mapper>

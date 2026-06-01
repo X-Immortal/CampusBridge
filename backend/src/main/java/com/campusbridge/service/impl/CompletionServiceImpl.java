@@ -8,6 +8,7 @@ import com.campusbridge.mapper.TaskMapper;
 import com.campusbridge.pojo.CompletionProof;
 import com.campusbridge.pojo.Task;
 import com.campusbridge.service.CompletionService;
+import com.campusbridge.service.RewardSettlementService;
 import com.campusbridge.service.TaskHistoryService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,14 +28,17 @@ public class CompletionServiceImpl implements CompletionService {
     private final CompletionProofMapper completionProofMapper;
     private final TaskMapper taskMapper;
     private final TaskHistoryService taskHistoryService;
+    private final RewardSettlementService rewardSettlementService;
 
     public CompletionServiceImpl(
             CompletionProofMapper completionProofMapper,
             TaskMapper taskMapper,
-            TaskHistoryService taskHistoryService) {
+            TaskHistoryService taskHistoryService,
+            RewardSettlementService rewardSettlementService) {
         this.completionProofMapper = completionProofMapper;
         this.taskMapper = taskMapper;
         this.taskHistoryService = taskHistoryService;
+        this.rewardSettlementService = rewardSettlementService;
     }
 
     @Override
@@ -124,6 +128,14 @@ public class CompletionServiceImpl implements CompletionService {
                 STATUS_COMPLETED,
                 requesterId,
                 "COMPLETION_CONFIRMED");
+
+        // 自动结算奖励（POINTS 或 NEGOTIABLE 类型）
+        try {
+            rewardSettlementService.settleTaskReward(taskId, requesterId, task.getProviderId());
+        } catch (Exception e) {
+            // 结算失败不影响任务完成，但记录日志
+            // TODO: 添加日志记录
+        }
     }
 
     @Override
