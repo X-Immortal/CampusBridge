@@ -18,6 +18,7 @@ import {
   Home,
   Eye,
   IdCard,
+  ImagePlus,
   Info,
   LoaderCircle,
   LogIn,
@@ -40,6 +41,7 @@ import StatusBadge from '../components/StatusBadge.vue'
 import { useDashboardSidebar } from '../composables/useDashboardSidebar'
 import { useNotificationCenter } from '../composables/useNotificationCenter'
 import { optionLabel, STATUS_OPTIONS, VERIFICATION_METHODS } from '../constants'
+import api from '../services/api'
 import { useAuth } from '../stores/auth'
 
 const {
@@ -86,6 +88,16 @@ const verificationForm = reactive({
 const profileEditing = ref(false)
 const profileSubmitting = ref(false)
 const profileErrors = reactive({})
+const avatarUploading = ref(false)
+const avatarFileInput = ref(null)
+const searchKeyword = ref('')
+
+function handleSearch() {
+  const keyword = searchKeyword.value.trim()
+  if (!keyword) return
+  router.push({ name: 'task-list', query: { keyword } })
+  searchKeyword.value = ''
+}
 const profileForm = reactive({
   nickname: '',
   bio: '',
@@ -135,12 +147,6 @@ const profileInitial = computed(() => {
   const name = String(userName.value || '').trim()
   return name ? name.slice(0, 1) : '同'
 })
-const roleLabel = computed(() => {
-  const role = state.user?.role
-  if (role === 'ADMIN') return '管理员'
-  if (role === 'USER') return '普通用户'
-  return role || '普通用户'
-})
 const accountStatusLabel = computed(() => (state.user?.enabled === false ? '已停用' : '正常启用'))
 const contactDisplay = computed(() => myProfile.value.contactInfo || '尚未填写，仅自己可见')
 const profileCompletion = computed(() => {
@@ -165,8 +171,8 @@ const profileMetaCards = computed(() => [
     icon: IdCard
   },
   {
-    label: '账号角色',
-    value: roleLabel.value,
+    label: '用户名',
+    value: state.user?.username || '未登录',
     icon: ShieldCheck
   },
   {
@@ -357,7 +363,6 @@ function validateProfileForm() {
   validateTextLength('campus', '校区', 100)
   validateTextLength('college', '学院', 100)
   validateTextLength('contactInfo', '联系方式', 255)
-  validateTextLength('avatarUrl', '头像链接', 500)
 
   const interestTagsPayload = validateTags('interestTagsText', '兴趣标签')
   const skillTagsPayload = validateTags('skillTagsText', '技能标签')
@@ -397,6 +402,37 @@ function handleCancelProfileEdit() {
 
 function handleAvatarError() {
   avatarLoadFailed.value = true
+}
+
+function triggerAvatarUpload() {
+  avatarFileInput.value?.click()
+}
+
+async function handleAvatarFileChange(event) {
+  const file = event.target.files?.[0]
+  if (!file) return
+
+  avatarUploading.value = true
+  feedback.value = ''
+  try {
+    const result = await api.uploadAvatar(file)
+    const url = typeof result === 'string' ? result : result?.avatarUrl
+    if (url) {
+      profileForm.avatarUrl = url
+      avatarLoadFailed.value = false
+      if (state.profile) {
+        state.profile.avatarUrl = url
+      }
+      setFeedback('头像已上传并更新。')
+    }
+  } catch (error) {
+    setFeedback(error.message || '头像上传失败，请稍后重试。', 'danger')
+  } finally {
+    avatarUploading.value = false
+    if (avatarFileInput.value) {
+      avatarFileInput.value.value = ''
+    }
+  }
 }
 
 async function handleSubmitProfile() {
@@ -559,17 +595,21 @@ onBeforeUnmount(() => {
     </aside>
 
     <header class="dashboard-topbar">
-      <label class="search-box">
+      <form
+        class="search-box"
+        @submit.prevent="handleSearch"
+      >
         <Search
           :size="22"
           aria-hidden="true"
         />
         <input
+          v-model.trim="searchKeyword"
           type="search"
           placeholder="搜索任务、技能、地点或关键词"
           aria-label="搜索任务、技能、地点或关键词"
         >
-      </label>
+      </form>
 
       <div class="topbar-account">
         <RouterLink
@@ -737,7 +777,13 @@ onBeforeUnmount(() => {
       <section class="content-grid">
         <article class="panel-card identity-profile-card">
           <div class="profile-hero">
-            <span class="profile-avatar-large">
+            <button
+              class="profile-avatar-large"
+              type="button"
+              :aria-label="profileAvatarSrc ? '更换头像' : '上传头像'"
+              :disabled="avatarUploading"
+              @click="triggerAvatarUpload"
+            >
               <img
                 v-if="profileAvatarSrc"
                 :src="profileAvatarSrc"
@@ -746,7 +792,27 @@ onBeforeUnmount(() => {
                 @error="handleAvatarError"
               >
               <span v-else>{{ profileInitial }}</span>
-            </span>
+              <span class="avatar-upload-overlay">
+                <LoaderCircle
+                  v-if="avatarUploading"
+                  class="spinning"
+                  :size="22"
+                  aria-hidden="true"
+                />
+                <ImagePlus
+                  v-else
+                  :size="22"
+                  aria-hidden="true"
+                />
+              </span>
+            </button>
+            <input
+              ref="avatarFileInput"
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              hidden
+              @change="handleAvatarFileChange"
+            >
 
             <div class="profile-main-copy">
               <p class="section-kicker">
@@ -864,21 +930,6 @@ onBeforeUnmount(() => {
             </label>
 
             <label class="field">
-              <span>头像链接</span>
-              <input
-                v-model.trim="profileForm.avatarUrl"
-                maxlength="500"
-                placeholder="https://example.com/avatar.png"
-                :disabled="!profileEditing || profileSubmitting"
-                :aria-invalid="Boolean(profileErrors.avatarUrl)"
-              >
-              <small
-                v-if="profileErrors.avatarUrl"
-                class="field-error"
-              >{{ profileErrors.avatarUrl }}</small>
-            </label>
-
-            <label class="field">
               <span>校区</span>
               <input
                 v-model.trim="profileForm.campus"
@@ -893,7 +944,7 @@ onBeforeUnmount(() => {
               >{{ profileErrors.campus }}</small>
             </label>
 
-            <label class="field">
+            <label class="field field-wide">
               <span>学院</span>
               <input
                 v-model.trim="profileForm.college"
@@ -1108,7 +1159,10 @@ onBeforeUnmount(() => {
           </div>
         </article>
 
-        <article class="panel-card verification-overview">
+        <article
+          v-if="verification && verificationStatus !== 'UNVERIFIED' && verificationStatus !== 'REJECTED'"
+          class="panel-card verification-overview"
+        >
           <div class="panel-heading">
             <div>
               <p class="section-kicker">
@@ -1191,7 +1245,10 @@ onBeforeUnmount(() => {
           </ul>
         </article>
 
-        <article class="panel-card verification-form-card">
+        <article
+          v-if="canSubmitVerification"
+          class="panel-card verification-form-card"
+        >
           <div class="panel-heading">
             <div>
               <p class="section-kicker">
@@ -1336,33 +1393,13 @@ onBeforeUnmount(() => {
           </div>
         </article>
 
-        <article class="panel-card privacy-card">
-          <div class="panel-heading">
-            <div>
-              <p class="section-kicker">
-                安全说明
-              </p>
-              <h2>你的资料如何使用</h2>
-            </div>
-            <CalendarClock
-              :size="24"
-              aria-hidden="true"
-            />
-          </div>
-          <p>
-            认证信息仅用于平台核验校园身份。其他用户不会在公开页面看到你的真实姓名、学号或材料链接。
-          </p>
-          <p>
-            审核完成后，页面只展示认证状态和必要的学校信息，帮助大家判断账号是否可信。
-          </p>
-          <div
-            v-if="verification?.rejectReason"
-            class="reject-box"
-          >
-            <strong>驳回原因</strong>
-            <span>{{ verification.rejectReason }}</span>
-          </div>
-        </article>
+        <div
+          v-if="verification?.rejectReason"
+          class="panel-card reject-box"
+        >
+          <strong>驳回原因</strong>
+          <span>{{ verification.rejectReason }}</span>
+        </div>
       </section>
     </main>
   </section>
@@ -1904,8 +1941,7 @@ onBeforeUnmount(() => {
   grid-template-areas:
     "profile profile"
     "profileForm visibility"
-    "overview safety"
-    "form privacy";
+    "overview safety";
   gap: 18px;
   margin-top: 18px;
 }
@@ -1939,11 +1975,7 @@ onBeforeUnmount(() => {
 }
 
 .verification-form-card {
-  grid-area: form;
-}
-
-.privacy-card {
-  grid-area: privacy;
+  grid-area: overview;
 }
 
 .panel-heading {
@@ -1968,10 +2000,12 @@ onBeforeUnmount(() => {
 }
 
 .profile-avatar-large {
+  position: relative;
   display: grid;
   place-items: center;
   width: 82px;
   height: 82px;
+  padding: 0;
   border: 1px solid #ddd6fe;
   border-radius: 50%;
   background: linear-gradient(135deg, #e7e4ff, #f8f6ff);
@@ -1979,12 +2013,41 @@ onBeforeUnmount(() => {
   font-size: 2rem;
   font-weight: 900;
   overflow: hidden;
+  cursor: pointer;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.profile-avatar-large:hover:not(:disabled) {
+  border-color: #a78bfa;
+  box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.14);
+}
+
+.profile-avatar-large:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
 }
 
 .profile-avatar-large img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.avatar-upload-overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.32);
+  color: #ffffff;
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+.profile-avatar-large:hover .avatar-upload-overlay,
+.profile-avatar-large:focus-visible .avatar-upload-overlay {
+  opacity: 1;
 }
 
 .profile-main-copy {
@@ -2196,7 +2259,6 @@ onBeforeUnmount(() => {
 }
 
 .panel-copy,
-.privacy-card p,
 .locked-state span {
   margin: 0;
   color: #746f7a;
@@ -2563,9 +2625,7 @@ onBeforeUnmount(() => {
       "profileForm"
       "visibility"
       "overview"
-      "safety"
-      "form"
-      "privacy";
+      "safety";
   }
 
   .profile-meta-grid,

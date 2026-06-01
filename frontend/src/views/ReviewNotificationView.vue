@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   ClipboardCheck,
   FileCheck2,
+  Inbox,
   Info,
   LoaderCircle,
   MessageCircle,
@@ -306,9 +307,11 @@ async function loadReviews() {
       ...(completedResult.status === 'fulfilled' ? normalizePagedItems(completedResult.value) : []),
       ...(reviewedResult.status === 'fulfilled' ? normalizePagedItems(reviewedResult.value) : [])
     ]
+    const myId = currentUserId.value
     const uniqueTasks = [...new Map(rawTasks.map((task) => [String(task.id ?? task.taskId), task])).values()]
       .filter((task) => task.id || task.taskId)
       .map(normalizeTask)
+      .filter((task) => String(task.requesterId) === String(myId))
 
     tasks.value = uniqueTasks
     if (uniqueTasks.length) await hydrateTaskReviews()
@@ -552,7 +555,7 @@ onMounted(async () => {
       <section class="page-title-card fe08-title-card">
         <div class="title-icon">
           <component
-            :is="activeSection === 'notifications' ? BellDot : StarHalf"
+            :is="activeSection === 'notifications' ? BellDot : Star"
             :size="34"
             aria-hidden="true"
           />
@@ -658,12 +661,12 @@ onMounted(async () => {
             v-else-if="!tasks.length"
             class="empty-state"
           >
-            <Star
-              :size="34"
+            <Inbox
+              :size="30"
               aria-hidden="true"
             />
-            <h3>暂无可评价任务</h3>
-            <p>任务完成后，互评入口会出现在这里。</p>
+            <h3>暂无已完成任务</h3>
+            <p>你发布的任务完成后会出现在这里。</p>
           </div>
 
           <div
@@ -712,9 +715,17 @@ onMounted(async () => {
             />
           </div>
 
-          <p class="panel-copy">
-            {{ reviewStatusCopy }}
-          </p>
+          <div
+            v-if="!selectedTask"
+            class="empty-state"
+          >
+            <Star
+              :size="30"
+              aria-hidden="true"
+            />
+            <h3>选择任务后填写评价</h3>
+            <p>从左侧互评任务列表中选择一次已完成协作。</p>
+          </div>
 
           <div
             v-if="selectedTask"
@@ -1257,8 +1268,7 @@ onMounted(async () => {
 }
 
 .section-switch button,
-.filter-tabs button,
-.tag-chip {
+.filter-tabs button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1278,11 +1288,42 @@ onMounted(async () => {
 }
 
 .section-switch button.active,
-.filter-tabs button.active,
-.tag-chip.active {
+.filter-tabs button.active {
   border-color: #bfdbfe;
   background: #eff6ff;
   color: #0369a1;
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid #e2e0ea;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #334155;
+  font-size: 0.9rem;
+  font-weight: 800;
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.tag-chip:hover {
+  border-color: #c7c1e0;
+  background: #f9f7ff;
+}
+
+.tag-chip.active {
+  border-color: #a78bfa;
+  background: #f5f3ff;
+  color: #5d49cb;
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.12);
 }
 
 .metric-strip {
@@ -1588,10 +1629,12 @@ onMounted(async () => {
 .rating-field,
 .tag-field {
   display: grid;
-  gap: 10px;
+  gap: 12px;
   margin: 0;
-  padding: 0;
-  border: 0;
+  padding: 16px;
+  border: 1px solid #e4e1ea;
+  border-radius: 8px;
+  background: #fcfbff;
 }
 
 .rating-field legend,

@@ -12,6 +12,7 @@ import {
   Building2,
   CalendarClock,
   CheckCircle2,
+  ChevronDown,
   ClipboardCheck,
   Clock3,
   FileCheck2,
@@ -98,6 +99,9 @@ const proofOptions = [
 ]
 
 const pageSizeOptions = [8, 12, 20]
+const filterExpanded = ref(false)
+
+const campusOptions = ['仙林校区', '鼓楼校区', '浦口校区']
 
 const TASK_TYPE_META = {
   ERRAND: {
@@ -210,30 +214,36 @@ const verifiedOnlyTaskCount = computed(() =>
     Boolean(task.requiresVerification || task.requiresRealName || task.requiresVerifiedApplicant)
   ).length
 )
+const inProgressCount = computed(() =>
+  tasks.value.filter((task) => ['ACCEPTED', 'IN_PROGRESS'].includes(task.status)).length
+)
+const pendingConfirmCount = computed(() =>
+  tasks.value.filter((task) => task.status === 'PENDING_CONFIRMATION').length
+)
 const completedTaskCount = computed(() =>
   tasks.value.filter((task) => ['COMPLETED', 'REVIEWED'].includes(task.status)).length
 )
 const mineMetricTiles = computed(() => [
   {
     key: 'open',
-    label: '本页可接',
+    label: '待接单',
     value: openTaskCount.value,
     icon: ClipboardCheck,
     tone: 'purple'
   },
   {
-    key: 'urgent',
-    label: '6 小时内截止',
-    value: urgentTaskCount.value,
+    key: 'in-progress',
+    label: '进行中',
+    value: inProgressCount.value,
     icon: Clock3,
-    tone: 'orange'
+    tone: 'blue'
   },
   {
-    key: 'verified',
-    label: '需实名认证',
-    value: verifiedOnlyTaskCount.value,
+    key: 'pending-confirm',
+    label: '待确认',
+    value: pendingConfirmCount.value,
     icon: ShieldCheck,
-    tone: 'teal'
+    tone: 'orange'
   },
   {
     key: 'completed',
@@ -1688,9 +1698,11 @@ onMounted(async () => {
             novalidate
             @submit.prevent="applyFilters"
           >
-            <div
-              v-if="!isMineView"
-              class="filter-heading"
+            <button
+              type="button"
+              class="filter-heading filter-toggle"
+              :aria-expanded="filterExpanded"
+              @click="filterExpanded = !filterExpanded"
             >
               <div>
                 <p class="section-kicker">
@@ -1698,12 +1710,21 @@ onMounted(async () => {
                 </p>
                 <h2>把不合适的任务先筛掉</h2>
               </div>
-              <StatusBadge
-                :label="`${activeFilterCount} 个条件`"
-                :tone="activeFilterCount ? 'info' : 'muted'"
-              />
-            </div>
+              <span class="filter-toggle-right">
+                <StatusBadge
+                  :label="`${activeFilterCount} 个条件`"
+                  :tone="activeFilterCount ? 'info' : 'muted'"
+                />
+                <ChevronDown
+                  class="filter-chevron"
+                  :class="{ 'filter-chevron--open': filterExpanded }"
+                  :size="18"
+                  aria-hidden="true"
+                />
+              </span>
+            </button>
 
+            <div v-show="filterExpanded">
             <label
               class="search-field"
               for="task-keyword"
@@ -1735,27 +1756,31 @@ onMounted(async () => {
               >
                 <span>校区</span>
                 <span
-                  v-if="isMineView"
                   class="select-shell"
+                  :class="{ 'select-shell--plain': !isMineView }"
                 >
                   <Building2
+                    v-if="isMineView"
                     :size="18"
                     aria-hidden="true"
                   />
-                  <input
+                  <select
                     id="task-campus"
-                    v-model.trim="filters.campus"
-                    placeholder="全部校区"
-                    @input="queueFilterRefresh"
+                    v-model="filters.campus"
+                    @change="applyFilters"
                   >
+                    <option value="">
+                      全部校区
+                    </option>
+                    <option
+                      v-for="campus in campusOptions"
+                      :key="campus"
+                      :value="campus"
+                    >
+                      {{ campus }}
+                    </option>
+                  </select>
                 </span>
-                <input
-                  v-else
-                  id="task-campus"
-                  v-model.trim="filters.campus"
-                  placeholder="例如：仙林校区"
-                  @input="queueFilterRefresh"
-                >
               </label>
 
               <label
@@ -1954,6 +1979,7 @@ onMounted(async () => {
                 />
                 {{ isMineView ? '更新列表' : '更新列表' }}
               </button>
+            </div>
             </div>
           </form>
 
@@ -2431,7 +2457,6 @@ onMounted(async () => {
               />
               <span>{{ operationFeedback }}</span>
             </section>
-          </article>
 
           <section
             v-if="shouldShowCompletionPanel"
@@ -2795,6 +2820,7 @@ onMounted(async () => {
               </div>
             </section>
           </section>
+          </article>
 
           <section
             v-if="!isDetailOwner"
@@ -3495,6 +3521,39 @@ onMounted(async () => {
   gap: 5px;
 }
 
+.filter-heading div {
+  justify-items: start;
+}
+
+.filter-toggle {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+}
+
+.filter-toggle:hover .section-kicker {
+  color: #5d49cb;
+}
+
+.filter-toggle-right {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.filter-chevron {
+  color: #8a8792;
+  transition: transform 220ms ease;
+}
+
+.filter-chevron--open {
+  transform: rotate(180deg);
+}
+
 .search-field {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -4014,6 +4073,7 @@ onMounted(async () => {
 
 .task-list {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 

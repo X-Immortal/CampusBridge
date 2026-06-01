@@ -88,6 +88,7 @@ const messagePage = reactive({
 const composer = reactive({
   text: ''
 })
+const composerInputRef = ref(null)
 
 let listRequestId = 0
 let messagesRequestId = 0
@@ -113,6 +114,7 @@ const activeConversation = computed(
 
 const currentUser = computed(() => currentUserId.value)
 const conversationReplyable = computed(() => activeConversation.value?.replyable ?? true)
+const isSystemConversation = computed(() => activeConversation.value?.type === 'SYSTEM')
 const onlyInAppActive = computed(() => Boolean(relatedTask.value?.onlyInAppContact))
 const totalConversationPages = computed(() =>
   Math.max(1, Math.ceil(conversationPage.total / conversationPage.size))
@@ -486,8 +488,9 @@ async function sendMessage() {
     syncConversationAfterSend(message, payload)
     composer.text = ''
     await scrollMessagesToBottom()
+    composerInputRef.value?.focus()
   } catch (error) {
-    console.error(error)
+    setFeedback(error.message || '消息发送失败，请稍后重试。', 'danger')
   } finally {
     sending.value = false
   }
@@ -591,6 +594,15 @@ onMounted(async () => {
           label="仅站内优先"
           tone="success"
         />
+      </section>
+
+      <section
+        v-if="feedback.message"
+        class="page-feedback"
+        :class="feedback.type === 'danger' ? 'page-feedback--danger' : 'page-feedback--success'"
+        role="status"
+      >
+        <span>{{ feedback.message }}</span>
       </section>
 
       <section class="conversation-workspace">
@@ -814,16 +826,19 @@ onMounted(async () => {
             @submit.prevent="sendMessage"
           >
             <input
+              ref="composerInputRef"
               v-model="composer.text"
               type="text"
-              placeholder="输入消息..."
+              :placeholder="isSystemConversation ? '系统消息无需回复' : '输入消息...'"
               aria-label="输入消息"
-              :disabled="sending || !conversationReplyable"
+              :disabled="sending || !conversationReplyable || isSystemConversation"
+              :class="{ 'composer-input--system': isSystemConversation }"
             >
             <button
               class="image-button"
               type="button"
               aria-label="发送图片"
+              :disabled="isSystemConversation"
             >
               <Image
                 :size="24"
@@ -834,7 +849,7 @@ onMounted(async () => {
               class="send-button"
               type="submit"
               aria-label="发送消息"
-              :disabled="sending || !composer.text.trim() || !conversationReplyable"
+              :disabled="sending || !composer.text.trim() || !conversationReplyable || isSystemConversation"
             >
               <Send
                 :size="25"
@@ -1104,6 +1119,10 @@ onMounted(async () => {
   color: #697386;
 }
 
+.composer-input--system::placeholder {
+  color: #111827;
+}
+
 .conversation-list {
   display: grid;
   gap: 11px;
@@ -1299,13 +1318,13 @@ onMounted(async () => {
   font-size: 0.88rem;
 }
 
-.message-row--mine time {
+.message-row--mine .message-bubble {
   order: 1;
+  justify-self: end;
 }
 
-.message-row--mine .message-bubble {
+.message-row--mine time {
   order: 2;
-  justify-self: end;
 }
 
 .message-row--mine .message-avatar {

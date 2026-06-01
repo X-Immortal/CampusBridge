@@ -41,6 +41,14 @@ const { unreadCount: notificationUnreadCount, refreshNotificationSummary } = use
 const accountMenuOpen = ref(false)
 const accountMenuRef = ref(null)
 const avatarLoadFailed = ref(false)
+const searchKeyword = ref('')
+
+function handleSearch() {
+  const keyword = searchKeyword.value.trim()
+  if (!keyword) return
+  router.push({ name: 'task-list', query: { keyword } })
+  searchKeyword.value = ''
+}
 
 const navItems = [
   { label: '个人主页', icon: Home, to: '/home' },
@@ -188,17 +196,21 @@ onBeforeUnmount(() => {
     </aside>
 
     <header class="dashboard-topbar">
-      <label class="search-box">
+      <form
+        class="search-box"
+        @submit.prevent="handleSearch"
+      >
         <Search
           :size="22"
           aria-hidden="true"
         />
         <input
+          v-model.trim="searchKeyword"
           type="search"
           placeholder="搜索任务、技能、地点或关键词"
           aria-label="搜索任务、技能、地点或关键词"
         >
-      </label>
+      </form>
 
       <div class="topbar-account">
         <RouterLink
