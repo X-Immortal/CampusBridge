@@ -33,4 +33,17 @@ public interface TaskMapper {
             @Param("updatedAt") LocalDateTime updatedAt);
 
     List<Task> selectWithFilters(Map<String, Object> params);
+
+    /**
+     * 根据状态查询任务列表（分页）
+     */
+    List<Task> selectTasksByStatus(
+            @Param("status") String status,
+            @Param("offset") Integer offset,
+            @Param("limit") Integer limit);
+
+    /**
+     * 统计指定状态的任务数量
+     */
+    int countTasksByStatus(@Param("status") String status);
 }
