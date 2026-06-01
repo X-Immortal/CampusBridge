@@ -399,7 +399,7 @@ async function handleRegister() {
   overflow: hidden;
   background: #f5f0f5;
   color: #241a28;
-  font-family: KaiTi, STKaiti, "楷体", "华文楷体", serif;
+  font-family: "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", "Noto Sans SC", sans-serif;
 }
 
 .visual-panel {

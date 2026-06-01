@@ -4278,7 +4278,7 @@ onMounted(async () => {
   max-height: calc(100vh - 48px);
   overflow: hidden;
   padding: clamp(24px, 3vw, 34px);
-  font-family: KaiTi, "楷体", STKaiti, "Microsoft YaHei", serif;
+  font-family: "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", "Noto Sans SC", sans-serif;
   box-shadow: 0 24px 64px rgba(42, 38, 61, 0.18);
 }
 
@@ -4288,7 +4288,7 @@ onMounted(async () => {
   gap: 14px;
   overflow: auto;
   padding: 20px;
-  font-family: KaiTi, "楷体", STKaiti, "Microsoft YaHei", serif;
+  font-family: "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", "Noto Sans SC", sans-serif;
   box-shadow: 0 24px 64px rgba(42, 38, 61, 0.2);
 }
 

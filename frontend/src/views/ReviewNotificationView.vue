@@ -21,6 +21,7 @@ import {
 } from '@lucide/vue'
 import DashboardShell from '../components/DashboardShell.vue'
 import StatusBadge from '../components/StatusBadge.vue'
+import { useNotificationCenter } from '../composables/useNotificationCenter'
 import { optionLabel, TASK_CATEGORY_OPTIONS, TASK_STATUS_OPTIONS, statusTone } from '../constants'
 import api from '../services/api'
 import { useAuth } from '../stores/auth'
@@ -28,8 +29,12 @@ import { useAuth } from '../stores/auth'
 const route = useRoute()
 const router = useRouter()
 const { currentUserId } = useAuth()
-
-const READ_STORAGE_KEY = 'campusbridge.notifications.read'
+const {
+  readIds,
+  markNotificationIdsRead,
+  replaceNotificationSummary,
+  syncReadIdsFromStorage
+} = useNotificationCenter()
 
 const reviewLabels = {
   1: '体验很差',
@@ -71,7 +76,6 @@ const reviewFeedbackType = ref('success')
 const notificationFeedback = ref('')
 const notificationSearch = ref('')
 const notificationFilter = ref('ALL')
-const readIds = ref(readStoredNotificationIds())
 
 const reviewForm = reactive({
   rating: 5,
@@ -166,27 +170,6 @@ const notificationMetrics = computed(() => [
   { label: '待评价', value: pendingReviewTasks.value.length, tone: 'accent' },
   { label: '已完成评价', value: reviewedTasks.value.length, tone: 'success' }
 ])
-
-function readStoredNotificationIds() {
-  try {
-    const payload = JSON.parse(localStorage.getItem(READ_STORAGE_KEY) || '{}')
-    const userKey = String(currentUserId.value || 'anonymous')
-    return Array.isArray(payload[userKey]) ? payload[userKey].map(String) : []
-  } catch {
-    return []
-  }
-}
-
-function persistReadIds() {
-  let payload = {}
-  try {
-    payload = JSON.parse(localStorage.getItem(READ_STORAGE_KEY) || '{}')
-  } catch {
-    payload = {}
-  }
-  payload[String(currentUser.value)] = [...new Set(readIds.value.map(String))]
-  localStorage.setItem(READ_STORAGE_KEY, JSON.stringify(payload))
-}
 
 function normalizePagedItems(result) {
   if (Array.isArray(result)) return result
@@ -486,6 +469,7 @@ async function loadNotifications() {
     const result = await api.getConversations({ page: 1, size: 20 })
     if (requestId !== notificationRequestId) return
     const conversations = normalizePagedItems(result)
+    replaceNotificationSummary(conversations)
     let items = conversations.map(normalizeNotificationFromConversation)
 
     const messageResults = await Promise.allSettled(
@@ -506,6 +490,7 @@ async function loadNotifications() {
     selectDefaultNotification()
   } catch {
     if (requestId !== notificationRequestId) return
+    replaceNotificationSummary([])
     notifications.value = []
     selectDefaultNotification()
   } finally {
@@ -529,16 +514,12 @@ function selectNotification(notification) {
 
 function markNotificationRead(notification) {
   if (!notification?.id || notification.read) return
-  readIds.value = [...new Set([...readIds.value, String(notification.id)])]
-  persistReadIds()
+  markNotificationIdsRead([notification.id])
   notificationFeedback.value = '已标记为已读。'
 }
 
 function markAllNotificationsRead() {
-  readIds.value = [
-    ...new Set([...readIds.value, ...decoratedNotifications.value.map((notification) => String(notification.id))])
-  ]
-  persistReadIds()
+  markNotificationIdsRead(decoratedNotifications.value.map((notification) => notification.id))
   notificationFeedback.value = '全部通知已标记为已读。'
 }
 
@@ -557,7 +538,7 @@ function notificationToneClass(notification) {
 }
 
 watch(currentUser, () => {
-  readIds.value = readStoredNotificationIds()
+  syncReadIdsFromStorage()
 })
 
 onMounted(async () => {

@@ -628,6 +628,34 @@ onMounted(async () => {
             >
           </label>
 
+          <div class="pagination-bar">
+            <button
+              class="pager-button"
+              type="button"
+              :disabled="conversationPage.page <= 1"
+              @click="changeConversationPage(conversationPage.page - 1)"
+            >
+              <ChevronLeft
+                :size="16"
+                aria-hidden="true"
+              />
+              上一页
+            </button>
+            <span>{{ conversationPage.page }} / {{ totalConversationPages }}</span>
+            <button
+              class="pager-button"
+              type="button"
+              :disabled="conversationPage.page >= totalConversationPages"
+              @click="changeConversationPage(conversationPage.page + 1)"
+            >
+              下一页
+              <ChevronRight
+                :size="16"
+                aria-hidden="true"
+              />
+            </button>
+          </div>
+
           <div
             v-if="listLoading && !conversations.length"
             class="loading-state"
@@ -675,34 +703,6 @@ onMounted(async () => {
                 v-if="conversation.unreadCount"
                 class="unread-dot"
                 aria-label="有未读消息"
-              />
-            </button>
-          </div>
-
-          <div class="pagination-bar">
-            <button
-              class="pager-button"
-              type="button"
-              :disabled="conversationPage.page <= 1"
-              @click="changeConversationPage(conversationPage.page - 1)"
-            >
-              <ChevronLeft
-                :size="16"
-                aria-hidden="true"
-              />
-              上一页
-            </button>
-            <span>{{ conversationPage.page }} / {{ totalConversationPages }}</span>
-            <button
-              class="pager-button"
-              type="button"
-              :disabled="conversationPage.page >= totalConversationPages"
-              @click="changeConversationPage(conversationPage.page + 1)"
-            >
-              下一页
-              <ChevronRight
-                :size="16"
-                aria-hidden="true"
               />
             </button>
           </div>
@@ -1203,7 +1203,6 @@ onMounted(async () => {
 }
 
 .pagination-bar {
-  margin-top: auto;
   color: var(--chat-text);
   font-weight: 800;
 }

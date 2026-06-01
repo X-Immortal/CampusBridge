@@ -490,7 +490,7 @@ function validateForm() {
   if (!taskForm.rewardType) setError('rewardType', '请选择奖励方式。')
   if (!taskForm.completionStandard.trim()) setError('completionStandard', '请填写完成标准。')
 
-  validateTextLength('title', taskForm.title, 100, '标题最多 100 个字。')
+  validateTextLength('title', taskForm.title, 50, '标题最多 50 个字。')
   validateTextLength('description', taskForm.description, 2000, '任务说明最多 2000 个字。')
   validateTextLength('campus', taskForm.campus, 50, '校区最多 50 个字。')
   validateTextLength('location', taskForm.location, 120, '地点最多 120 个字。')
@@ -841,14 +841,14 @@ watch(
                 <input
                   id="task-title"
                   v-model.trim="taskForm.title"
-                  maxlength="100"
+                  maxlength="50"
                   placeholder="例如：代取菜鸟驿站的快递"
                   required
                   :aria-invalid="Boolean(errors.title)"
                   :aria-describedby="describedBy('title', 'title-hint')"
                   @input="clearError('title')"
                 >
-                <small id="title-hint">用一句话说明任务，帮助者浏览时会优先看到它。</small>
+                <small id="title-hint">{{ taskForm.title.length }}/50</small>
                 <small
                   v-if="errors.title"
                   id="title-error"
@@ -2343,9 +2343,6 @@ watch(
   line-height: 1.32;
 }
 
-#title-hint {
-  display: none;
-}
 
 .field-error {
   font-size: 0.8rem;

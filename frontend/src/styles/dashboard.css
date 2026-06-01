@@ -1,5 +1,5 @@
 #app .dashboard-shell {
-  --sidebar-width: 260px;
+  --sidebar-width: 293px;
   --topbar-height: 76px;
   font-size: 15px;
 }
@@ -19,8 +19,9 @@
 }
 
 #app .brand-text {
-  max-width: 148px;
+  max-width: 190px;
   font-size: 1.08rem;
+  white-space: nowrap;
 }
 
 #app .sidebar-nav {
@@ -172,7 +173,7 @@
 
 @media (max-width: 1100px) {
   #app .dashboard-shell {
-    --sidebar-width: 224px;
+    --sidebar-width: 252px;
   }
 
   #app .dashboard-shell.is-collapsed {
