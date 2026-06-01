@@ -17,7 +17,6 @@ import {
   Search,
   Sparkles,
   Star,
-  StarHalf,
   UserRound
 } from '@lucide/vue'
 import DashboardShell from '../components/DashboardShell.vue'
@@ -133,11 +132,6 @@ const averageGivenRating = computed(() => {
   return average.toFixed(1)
 })
 const selectedTaskReviews = computed(() => selectedTask.value?.reviews || [])
-const reviewStatusCopy = computed(() => {
-  if (!selectedTask.value) return '暂无可评价任务'
-  if (existingReview.value) return '你已经完成本次互评，评价记录会作为信用判断的一部分。'
-  return '完成后请从准时、沟通、凭证和完成标准四个维度给出真实评价。'
-})
 
 const decoratedNotifications = computed(() =>
   notifications.value

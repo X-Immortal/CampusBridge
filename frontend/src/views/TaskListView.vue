@@ -209,11 +209,6 @@ const activeFilterCount = computed(() => {
 const openTaskCount = computed(() => tasks.value.filter((task) => task.status === 'OPEN').length)
 const proofTaskCount = computed(() => tasks.value.filter((task) => task.requiresProof).length)
 const urgentTaskCount = computed(() => tasks.value.filter((task) => deadlineHours(task.deadline) <= 6).length)
-const verifiedOnlyTaskCount = computed(() =>
-  tasks.value.filter((task) =>
-    Boolean(task.requiresVerification || task.requiresRealName || task.requiresVerifiedApplicant)
-  ).length
-)
 const inProgressCount = computed(() =>
   tasks.value.filter((task) => ['ACCEPTED', 'IN_PROGRESS'].includes(task.status)).length
 )
@@ -1725,261 +1720,261 @@ onMounted(async () => {
             </button>
 
             <div v-show="filterExpanded">
-            <label
-              class="search-field"
-              for="task-keyword"
-            >
-              <Search
-                :size="20"
-                aria-hidden="true"
-              />
-              <input
-                id="task-keyword"
-                v-model.trim="filters.keyword"
-                type="search"
-                placeholder="搜索任务标题、地点或说明"
-                @input="queueFilterRefresh"
-              >
-              <button
-                v-if="!isMineView"
-                class="search-submit"
-                type="submit"
-              >
-                搜索
-              </button>
-            </label>
-
-            <div class="filter-grid">
               <label
-                class="filter-field"
-                for="task-campus"
+                class="search-field"
+                for="task-keyword"
               >
-                <span>校区</span>
-                <span
-                  class="select-shell"
-                  :class="{ 'select-shell--plain': !isMineView }"
-                >
-                  <Building2
-                    v-if="isMineView"
-                    :size="18"
-                    aria-hidden="true"
-                  />
-                  <select
-                    id="task-campus"
-                    v-model="filters.campus"
-                    @change="applyFilters"
-                  >
-                    <option value="">
-                      全部校区
-                    </option>
-                    <option
-                      v-for="campus in campusOptions"
-                      :key="campus"
-                      :value="campus"
-                    >
-                      {{ campus }}
-                    </option>
-                  </select>
-                </span>
-              </label>
-
-              <label
-                class="filter-field"
-                for="task-category"
-              >
-                <span>分类</span>
-                <span
-                  class="select-shell"
-                  :class="{ 'select-shell--plain': !isMineView }"
-                >
-                  <Tag
-                    v-if="isMineView"
-                    :size="18"
-                    aria-hidden="true"
-                  />
-                  <select
-                    id="task-category"
-                    v-model="filters.category"
-                    @change="applyFilters"
-                  >
-                    <option value="">
-                      全部分类
-                    </option>
-                    <option
-                      v-for="category in TASK_CATEGORY_OPTIONS"
-                      :key="category.value"
-                      :value="category.value"
-                    >
-                      {{ category.label }}
-                    </option>
-                  </select>
-                </span>
-              </label>
-
-              <label
-                class="filter-field"
-                for="task-status"
-              >
-                <span>状态</span>
-                <span
-                  class="select-shell"
-                  :class="{ 'select-shell--plain': !isMineView }"
-                >
-                  <Clock3
-                    v-if="isMineView"
-                    :size="18"
-                    aria-hidden="true"
-                  />
-                  <select
-                    id="task-status"
-                    v-model="filters.status"
-                    @change="applyFilters"
-                  >
-                    <option value="">
-                      全部状态
-                    </option>
-                    <option
-                      v-for="status in TASK_STATUS_OPTIONS"
-                      :key="status.value"
-                      :value="status.value"
-                    >
-                      {{ status.label }}
-                    </option>
-                  </select>
-                </span>
-              </label>
-
-              <label
-                class="filter-field"
-                for="task-reward"
-              >
-                <span>奖励方式</span>
-                <span
-                  class="select-shell"
-                  :class="{ 'select-shell--plain': !isMineView }"
-                >
-                  <Gift
-                    v-if="isMineView"
-                    :size="18"
-                    aria-hidden="true"
-                  />
-                  <select
-                    id="task-reward"
-                    v-model="filters.rewardType"
-                    @change="applyFilters"
-                  >
-                    <option value="">
-                      全部奖励
-                    </option>
-                    <option
-                      v-for="reward in REWARD_TYPE_OPTIONS"
-                      :key="reward.value"
-                      :value="reward.value"
-                    >
-                      {{ reward.label }}
-                    </option>
-                  </select>
-                </span>
-              </label>
-
-              <label
-                class="filter-field"
-                for="task-proof"
-              >
-                <span>完成凭证</span>
-                <span
-                  class="select-shell"
-                  :class="{ 'select-shell--plain': !isMineView }"
-                >
-                  <ShieldCheck
-                    v-if="isMineView"
-                    :size="18"
-                    aria-hidden="true"
-                  />
-                  <select
-                    id="task-proof"
-                    v-model="filters.requiresProof"
-                    @change="applyFilters"
-                  >
-                    <option
-                      v-for="proof in proofOptions"
-                      :key="proof.value"
-                      :value="proof.value"
-                    >
-                      {{ proof.label }}
-                    </option>
-                  </select>
-                </span>
-              </label>
-
-              <label
-                class="filter-field"
-                for="task-sort"
-              >
-                <span>排序</span>
-                <span
-                  class="select-shell"
-                  :class="{ 'select-shell--plain': !isMineView }"
-                >
-                  <ArrowUpDown
-                    v-if="isMineView"
-                    :size="18"
-                    aria-hidden="true"
-                  />
-                  <select
-                    id="task-sort"
-                    v-model="filters.sortBy"
-                    @change="applyFilters"
-                  >
-                    <option
-                      v-for="sort in TASK_SORT_OPTIONS"
-                      :key="sort.value"
-                      :value="sort.value"
-                    >
-                      {{ sort.label }}
-                    </option>
-                  </select>
-                </span>
-              </label>
-            </div>
-
-            <div class="filter-actions">
-              <button
-                class="ghost-action"
-                type="button"
-                @click="resetFilters"
-              >
-                <Trash2
-                  v-if="isMineView"
-                  :size="17"
+                <Search
+                  :size="20"
                   aria-hidden="true"
                 />
-                <X
-                  v-else
-                  :size="17"
-                  aria-hidden="true"
-                />
-                清空条件
-              </button>
-              <button
-                class="primary-action"
-                type="submit"
-                :disabled="listLoading"
-              >
-                <LoaderCircle
-                  v-if="listLoading"
-                  class="spinning"
-                  :size="18"
-                  aria-hidden="true"
-                />
-                <Filter
-                  v-else
-                  :size="18"
-                  aria-hidden="true"
-                />
-                {{ isMineView ? '更新列表' : '更新列表' }}
-              </button>
-            </div>
+                <input
+                  id="task-keyword"
+                  v-model.trim="filters.keyword"
+                  type="search"
+                  placeholder="搜索任务标题、地点或说明"
+                  @input="queueFilterRefresh"
+                >
+                <button
+                  v-if="!isMineView"
+                  class="search-submit"
+                  type="submit"
+                >
+                  搜索
+                </button>
+              </label>
+
+              <div class="filter-grid">
+                <label
+                  class="filter-field"
+                  for="task-campus"
+                >
+                  <span>校区</span>
+                  <span
+                    class="select-shell"
+                    :class="{ 'select-shell--plain': !isMineView }"
+                  >
+                    <Building2
+                      v-if="isMineView"
+                      :size="18"
+                      aria-hidden="true"
+                    />
+                    <select
+                      id="task-campus"
+                      v-model="filters.campus"
+                      @change="applyFilters"
+                    >
+                      <option value="">
+                        全部校区
+                      </option>
+                      <option
+                        v-for="campus in campusOptions"
+                        :key="campus"
+                        :value="campus"
+                      >
+                        {{ campus }}
+                      </option>
+                    </select>
+                  </span>
+                </label>
+
+                <label
+                  class="filter-field"
+                  for="task-category"
+                >
+                  <span>分类</span>
+                  <span
+                    class="select-shell"
+                    :class="{ 'select-shell--plain': !isMineView }"
+                  >
+                    <Tag
+                      v-if="isMineView"
+                      :size="18"
+                      aria-hidden="true"
+                    />
+                    <select
+                      id="task-category"
+                      v-model="filters.category"
+                      @change="applyFilters"
+                    >
+                      <option value="">
+                        全部分类
+                      </option>
+                      <option
+                        v-for="category in TASK_CATEGORY_OPTIONS"
+                        :key="category.value"
+                        :value="category.value"
+                      >
+                        {{ category.label }}
+                      </option>
+                    </select>
+                  </span>
+                </label>
+
+                <label
+                  class="filter-field"
+                  for="task-status"
+                >
+                  <span>状态</span>
+                  <span
+                    class="select-shell"
+                    :class="{ 'select-shell--plain': !isMineView }"
+                  >
+                    <Clock3
+                      v-if="isMineView"
+                      :size="18"
+                      aria-hidden="true"
+                    />
+                    <select
+                      id="task-status"
+                      v-model="filters.status"
+                      @change="applyFilters"
+                    >
+                      <option value="">
+                        全部状态
+                      </option>
+                      <option
+                        v-for="status in TASK_STATUS_OPTIONS"
+                        :key="status.value"
+                        :value="status.value"
+                      >
+                        {{ status.label }}
+                      </option>
+                    </select>
+                  </span>
+                </label>
+
+                <label
+                  class="filter-field"
+                  for="task-reward"
+                >
+                  <span>奖励方式</span>
+                  <span
+                    class="select-shell"
+                    :class="{ 'select-shell--plain': !isMineView }"
+                  >
+                    <Gift
+                      v-if="isMineView"
+                      :size="18"
+                      aria-hidden="true"
+                    />
+                    <select
+                      id="task-reward"
+                      v-model="filters.rewardType"
+                      @change="applyFilters"
+                    >
+                      <option value="">
+                        全部奖励
+                      </option>
+                      <option
+                        v-for="reward in REWARD_TYPE_OPTIONS"
+                        :key="reward.value"
+                        :value="reward.value"
+                      >
+                        {{ reward.label }}
+                      </option>
+                    </select>
+                  </span>
+                </label>
+
+                <label
+                  class="filter-field"
+                  for="task-proof"
+                >
+                  <span>完成凭证</span>
+                  <span
+                    class="select-shell"
+                    :class="{ 'select-shell--plain': !isMineView }"
+                  >
+                    <ShieldCheck
+                      v-if="isMineView"
+                      :size="18"
+                      aria-hidden="true"
+                    />
+                    <select
+                      id="task-proof"
+                      v-model="filters.requiresProof"
+                      @change="applyFilters"
+                    >
+                      <option
+                        v-for="proof in proofOptions"
+                        :key="proof.value"
+                        :value="proof.value"
+                      >
+                        {{ proof.label }}
+                      </option>
+                    </select>
+                  </span>
+                </label>
+
+                <label
+                  class="filter-field"
+                  for="task-sort"
+                >
+                  <span>排序</span>
+                  <span
+                    class="select-shell"
+                    :class="{ 'select-shell--plain': !isMineView }"
+                  >
+                    <ArrowUpDown
+                      v-if="isMineView"
+                      :size="18"
+                      aria-hidden="true"
+                    />
+                    <select
+                      id="task-sort"
+                      v-model="filters.sortBy"
+                      @change="applyFilters"
+                    >
+                      <option
+                        v-for="sort in TASK_SORT_OPTIONS"
+                        :key="sort.value"
+                        :value="sort.value"
+                      >
+                        {{ sort.label }}
+                      </option>
+                    </select>
+                  </span>
+                </label>
+              </div>
+
+              <div class="filter-actions">
+                <button
+                  class="ghost-action"
+                  type="button"
+                  @click="resetFilters"
+                >
+                  <Trash2
+                    v-if="isMineView"
+                    :size="17"
+                    aria-hidden="true"
+                  />
+                  <X
+                    v-else
+                    :size="17"
+                    aria-hidden="true"
+                  />
+                  清空条件
+                </button>
+                <button
+                  class="primary-action"
+                  type="submit"
+                  :disabled="listLoading"
+                >
+                  <LoaderCircle
+                    v-if="listLoading"
+                    class="spinning"
+                    :size="18"
+                    aria-hidden="true"
+                  />
+                  <Filter
+                    v-else
+                    :size="18"
+                    aria-hidden="true"
+                  />
+                  {{ isMineView ? '更新列表' : '更新列表' }}
+                </button>
+              </div>
             </div>
           </form>
 
@@ -2458,281 +2453,300 @@ onMounted(async () => {
               <span>{{ operationFeedback }}</span>
             </section>
 
-          <section
-            v-if="shouldShowCompletionPanel"
-            class="completion-panel"
-            aria-labelledby="task-completion-title"
-          >
-            <header class="completion-heading">
-              <div>
-                <p class="section-kicker">
-                  完成确认
-                </p>
-                <h3 id="task-completion-title">
-                  凭证与结果处理
-                </h3>
-                <p>{{ completionPanelCopy }}</p>
-              </div>
-              <StatusBadge
-                :label="taskStatusLabel(detailTask.status)"
-                :tone="taskStatusTone(detailTask.status)"
-              />
-            </header>
-
-            <div
-              class="completion-steps"
-              aria-label="任务完成流程"
-            >
-              <span
-                v-for="stage in completionStageItems"
-                :key="stage.label"
-                :class="{ done: stage.done, active: stage.active }"
-              >
-                <CheckCircle2
-                  v-if="stage.done"
-                  :size="15"
-                  aria-hidden="true"
-                />
-                <Clock3
-                  v-else
-                  :size="15"
-                  aria-hidden="true"
-                />
-                {{ stage.label }}
-              </span>
-            </div>
-
             <section
-              v-if="completionProof"
-              class="proof-card"
-              aria-labelledby="completion-proof-title"
+              v-if="shouldShowCompletionPanel"
+              class="completion-panel"
+              aria-labelledby="task-completion-title"
             >
-              <header class="proof-card-heading">
+              <header class="completion-heading">
                 <div>
-                  <strong id="completion-proof-title">已提交的完成凭证</strong>
-                  <span>{{ proofSubmittedAt ? formatDateTime(proofSubmittedAt) : '提交时间待同步' }}</span>
+                  <p class="section-kicker">
+                    完成确认
+                  </p>
+                  <h3 id="task-completion-title">
+                    凭证与结果处理
+                  </h3>
+                  <p>{{ completionPanelCopy }}</p>
                 </div>
-                <FileCheck2
-                  :size="20"
-                  aria-hidden="true"
+                <StatusBadge
+                  :label="taskStatusLabel(detailTask.status)"
+                  :tone="taskStatusTone(detailTask.status)"
                 />
               </header>
-              <p>{{ proofDescription || '帮助者暂未填写完成说明。' }}</p>
-              <div
-                v-if="proofAttachmentItems.length"
-                class="proof-attachment-list"
-              >
-                <a
-                  v-for="attachment in proofAttachmentItems"
-                  :key="attachment.id || attachment.url || attachment.name"
-                  :href="attachment.url || undefined"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  <FileCheck2
-                    :size="14"
-                    aria-hidden="true"
-                  />
-                  {{ attachment.name }}
-                </a>
-              </div>
-              <span
-                v-else
-                class="proof-empty"
-              >
-                暂无附件，仅提交了文字说明。
-              </span>
-            </section>
-
-            <section
-              v-if="canStartDetailTask"
-              class="completion-action-box"
-            >
-              <div>
-                <strong>开始执行任务</strong>
-                <span>开始后状态会从已选人进入进行中，完成后即可提交凭证。</span>
-              </div>
-              <button
-                class="primary-action"
-                type="button"
-                :disabled="operationLoading === 'start'"
-                @click="startDetailTask"
-              >
-                <LoaderCircle
-                  v-if="operationLoading === 'start'"
-                  class="spinning"
-                  :size="16"
-                  aria-hidden="true"
-                />
-                <CheckCircle2
-                  v-else
-                  :size="16"
-                  aria-hidden="true"
-                />
-                开始执行
-              </button>
-            </section>
-
-            <form
-              v-if="canSubmitCompletion"
-              class="completion-form"
-              @submit.prevent="submitCompletionProof"
-            >
-              <label
-                class="completion-field"
-                for="completion-description"
-              >
-                <span>完成说明</span>
-                <textarea
-                  id="completion-description"
-                  v-model="completionDescription"
-                  maxlength="1000"
-                  placeholder="说明完成结果、交付位置、时间或对方可核验的信息。"
-                  :aria-invalid="Boolean(completionErrors.description)"
-                  :disabled="completionSubmitting || completionUploading"
-                />
-                <small>{{ completionDescription.length }}/1000 · 必填，提交后任务进入待确认。</small>
-                <p
-                  v-if="completionErrors.description"
-                  class="field-error"
-                >
-                  {{ completionErrors.description }}
-                </p>
-              </label>
-
-              <div class="completion-upload-grid">
-                <label
-                  class="completion-field"
-                  for="completion-attachment-url"
-                >
-                  <span>附件链接</span>
-                  <span class="attachment-input-row">
-                    <input
-                      id="completion-attachment-url"
-                      v-model.trim="completionAttachmentInput"
-                      type="text"
-                      placeholder="粘贴已上传材料链接，可用空格或逗号分隔"
-                      :aria-invalid="Boolean(completionErrors.attachmentUrl)"
-                      :disabled="completionSubmitting || completionUploading"
-                    >
-                    <button
-                      class="ghost-action"
-                      type="button"
-                      :disabled="completionSubmitting || completionUploading"
-                      @click="addCompletionAttachmentUrl"
-                    >
-                      添加
-                    </button>
-                  </span>
-                  <small>链接可用于备注预览；提交给后端的凭证以附件 ID 为准。</small>
-                  <p
-                    v-if="completionErrors.attachmentUrl"
-                    class="field-error"
-                  >
-                    {{ completionErrors.attachmentUrl }}
-                  </p>
-                </label>
-
-                <label class="file-pick-control">
-                  <FileCheck2
-                    :size="22"
-                    aria-hidden="true"
-                  />
-                  <span>
-                    <strong>{{ completionUploading ? '正在上传...' : '上传凭证附件' }}</strong>
-                    <small>图片或文件，单个不超过 4MB，最多 9 个。</small>
-                  </span>
-                  <input
-                    type="file"
-                    multiple
-                    :disabled="completionSubmitting || completionUploading"
-                    @change="handleCompletionFiles"
-                  >
-                </label>
-              </div>
 
               <div
-                v-if="completionAttachments.length"
-                class="attachment-preview-list"
+                class="completion-steps"
+                aria-label="任务完成流程"
               >
                 <span
-                  v-for="(attachment, index) in completionAttachments"
-                  :key="attachment.id || attachment.url || attachment.name"
-                  :class="{ 'attachment-preview-list__item--pending': !attachment.id }"
+                  v-for="stage in completionStageItems"
+                  :key="stage.label"
+                  :class="{ done: stage.done, active: stage.active }"
                 >
-                  <FileCheck2
-                    :size="14"
+                  <CheckCircle2
+                    v-if="stage.done"
+                    :size="15"
                     aria-hidden="true"
                   />
-                  {{ attachment.name }}
-                  <small v-if="attachment.id">#{{ attachment.id }}</small>
-                  <small v-else>未上传</small>
-                  <button
-                    type="button"
-                    :aria-label="`移除 ${attachment.name}`"
-                    :disabled="completionSubmitting || completionUploading"
-                    @click="removeCompletionAttachment(index)"
-                  >
-                    <X
-                      :size="13"
-                      aria-hidden="true"
-                    />
-                  </button>
+                  <Clock3
+                    v-else
+                    :size="15"
+                    aria-hidden="true"
+                  />
+                  {{ stage.label }}
                 </span>
               </div>
 
-              <p
-                v-if="completionErrors.attachments"
-                class="field-error"
+              <section
+                v-if="completionProof"
+                class="proof-card"
+                aria-labelledby="completion-proof-title"
               >
-                {{ completionErrors.attachments }}
-              </p>
-
-              <button
-                class="primary-action completion-submit"
-                type="submit"
-                :disabled="completionSubmitting || completionUploading"
-              >
-                <LoaderCircle
-                  v-if="completionSubmitting"
-                  class="spinning"
-                  :size="17"
-                  aria-hidden="true"
-                />
-                <FileCheck2
+                <header class="proof-card-heading">
+                  <div>
+                    <strong id="completion-proof-title">已提交的完成凭证</strong>
+                    <span>{{ proofSubmittedAt ? formatDateTime(proofSubmittedAt) : '提交时间待同步' }}</span>
+                  </div>
+                  <FileCheck2
+                    :size="20"
+                    aria-hidden="true"
+                  />
+                </header>
+                <p>{{ proofDescription || '帮助者暂未填写完成说明。' }}</p>
+                <div
+                  v-if="proofAttachmentItems.length"
+                  class="proof-attachment-list"
+                >
+                  <a
+                    v-for="attachment in proofAttachmentItems"
+                    :key="attachment.id || attachment.url || attachment.name"
+                    :href="attachment.url || undefined"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <FileCheck2
+                      :size="14"
+                      aria-hidden="true"
+                    />
+                    {{ attachment.name }}
+                  </a>
+                </div>
+                <span
                   v-else
-                  :size="17"
-                  aria-hidden="true"
-                />
-                提交完成凭证
-              </button>
-            </form>
+                  class="proof-empty"
+                >
+                  暂无附件，仅提交了文字说明。
+                </span>
+              </section>
 
-            <section
-              v-if="canReviewCompletion"
-              class="completion-action-box"
-            >
-              <div>
-                <strong>处理完成结果</strong>
-                <span>确认会完成任务；驳回会退回进行中，帮助者可重新提交凭证。</span>
-              </div>
-              <div class="review-actions">
+              <section
+                v-if="canStartDetailTask"
+                class="completion-action-box"
+              >
+                <div>
+                  <strong>开始执行任务</strong>
+                  <span>开始后状态会从已选人进入进行中，完成后即可提交凭证。</span>
+                </div>
                 <button
                   class="primary-action"
                   type="button"
-                  :disabled="Boolean(operationLoading)"
-                  @click="openCompletionResolution('CONFIRM_COMPLETION')"
+                  :disabled="operationLoading === 'start'"
+                  @click="startDetailTask"
                 >
-                  确认完成
+                  <LoaderCircle
+                    v-if="operationLoading === 'start'"
+                    class="spinning"
+                    :size="16"
+                    aria-hidden="true"
+                  />
+                  <CheckCircle2
+                    v-else
+                    :size="16"
+                    aria-hidden="true"
+                  />
+                  开始执行
                 </button>
+              </section>
+
+              <form
+                v-if="canSubmitCompletion"
+                class="completion-form"
+                @submit.prevent="submitCompletionProof"
+              >
+                <label
+                  class="completion-field"
+                  for="completion-description"
+                >
+                  <span>完成说明</span>
+                  <textarea
+                    id="completion-description"
+                    v-model="completionDescription"
+                    maxlength="1000"
+                    placeholder="说明完成结果、交付位置、时间或对方可核验的信息。"
+                    :aria-invalid="Boolean(completionErrors.description)"
+                    :disabled="completionSubmitting || completionUploading"
+                  />
+                  <small>{{ completionDescription.length }}/1000 · 必填，提交后任务进入待确认。</small>
+                  <p
+                    v-if="completionErrors.description"
+                    class="field-error"
+                  >
+                    {{ completionErrors.description }}
+                  </p>
+                </label>
+
+                <div class="completion-upload-grid">
+                  <label
+                    class="completion-field"
+                    for="completion-attachment-url"
+                  >
+                    <span>附件链接</span>
+                    <span class="attachment-input-row">
+                      <input
+                        id="completion-attachment-url"
+                        v-model.trim="completionAttachmentInput"
+                        type="text"
+                        placeholder="粘贴已上传材料链接，可用空格或逗号分隔"
+                        :aria-invalid="Boolean(completionErrors.attachmentUrl)"
+                        :disabled="completionSubmitting || completionUploading"
+                      >
+                      <button
+                        class="ghost-action"
+                        type="button"
+                        :disabled="completionSubmitting || completionUploading"
+                        @click="addCompletionAttachmentUrl"
+                      >
+                        添加
+                      </button>
+                    </span>
+                    <small>链接可用于备注预览；提交给后端的凭证以附件 ID 为准。</small>
+                    <p
+                      v-if="completionErrors.attachmentUrl"
+                      class="field-error"
+                    >
+                      {{ completionErrors.attachmentUrl }}
+                    </p>
+                  </label>
+
+                  <label class="file-pick-control">
+                    <FileCheck2
+                      :size="22"
+                      aria-hidden="true"
+                    />
+                    <span>
+                      <strong>{{ completionUploading ? '正在上传...' : '上传凭证附件' }}</strong>
+                      <small>图片或文件，单个不超过 4MB，最多 9 个。</small>
+                    </span>
+                    <input
+                      type="file"
+                      multiple
+                      :disabled="completionSubmitting || completionUploading"
+                      @change="handleCompletionFiles"
+                    >
+                  </label>
+                </div>
+
+                <div
+                  v-if="completionAttachments.length"
+                  class="attachment-preview-list"
+                >
+                  <span
+                    v-for="(attachment, index) in completionAttachments"
+                    :key="attachment.id || attachment.url || attachment.name"
+                    :class="{ 'attachment-preview-list__item--pending': !attachment.id }"
+                  >
+                    <FileCheck2
+                      :size="14"
+                      aria-hidden="true"
+                    />
+                    {{ attachment.name }}
+                    <small v-if="attachment.id">#{{ attachment.id }}</small>
+                    <small v-else>未上传</small>
+                    <button
+                      type="button"
+                      :aria-label="`移除 ${attachment.name}`"
+                      :disabled="completionSubmitting || completionUploading"
+                      @click="removeCompletionAttachment(index)"
+                    >
+                      <X
+                        :size="13"
+                        aria-hidden="true"
+                      />
+                    </button>
+                  </span>
+                </div>
+
+                <p
+                  v-if="completionErrors.attachments"
+                  class="field-error"
+                >
+                  {{ completionErrors.attachments }}
+                </p>
+
                 <button
-                  class="ghost-action"
-                  type="button"
-                  :disabled="Boolean(operationLoading)"
-                  @click="openCompletionResolution('REJECT_COMPLETION')"
+                  class="primary-action completion-submit"
+                  type="submit"
+                  :disabled="completionSubmitting || completionUploading"
                 >
-                  驳回
+                  <LoaderCircle
+                    v-if="completionSubmitting"
+                    class="spinning"
+                    :size="17"
+                    aria-hidden="true"
+                  />
+                  <FileCheck2
+                    v-else
+                    :size="17"
+                    aria-hidden="true"
+                  />
+                  提交完成凭证
                 </button>
+              </form>
+
+              <section
+                v-if="canReviewCompletion"
+                class="completion-action-box"
+              >
+                <div>
+                  <strong>处理完成结果</strong>
+                  <span>确认会完成任务；驳回会退回进行中，帮助者可重新提交凭证。</span>
+                </div>
+                <div class="review-actions">
+                  <button
+                    class="primary-action"
+                    type="button"
+                    :disabled="Boolean(operationLoading)"
+                    @click="openCompletionResolution('CONFIRM_COMPLETION')"
+                  >
+                    确认完成
+                  </button>
+                  <button
+                    class="ghost-action"
+                    type="button"
+                    :disabled="Boolean(operationLoading)"
+                    @click="openCompletionResolution('REJECT_COMPLETION')"
+                  >
+                    驳回
+                  </button>
+                  <button
+                    class="danger-action"
+                    type="button"
+                    :disabled="Boolean(operationLoading)"
+                    @click="openCompletionResolution('DISPUTE')"
+                  >
+                    发起争议
+                  </button>
+                </div>
+              </section>
+
+              <section
+                v-else-if="canDisputeCompletion"
+                class="completion-action-box"
+              >
+                <div>
+                  <strong>异常处理</strong>
+                  <span>任务执行或凭证核验出现分歧时，可以发起争议并填写原因。</span>
+                </div>
                 <button
                   class="danger-action"
                   type="button"
@@ -2741,85 +2755,66 @@ onMounted(async () => {
                 >
                   发起争议
                 </button>
-              </div>
-            </section>
+              </section>
 
-            <section
-              v-else-if="canDisputeCompletion"
-              class="completion-action-box"
-            >
-              <div>
-                <strong>异常处理</strong>
-                <span>任务执行或凭证核验出现分歧时，可以发起争议并填写原因。</span>
-              </div>
-              <button
-                class="danger-action"
-                type="button"
-                :disabled="Boolean(operationLoading)"
-                @click="openCompletionResolution('DISPUTE')"
+              <section
+                v-if="resolutionMeta"
+                class="resolution-panel"
+                :class="`resolution-panel--${resolutionMeta.tone}`"
+                aria-labelledby="completion-resolution-title"
               >
-                发起争议
-              </button>
-            </section>
-
-            <section
-              v-if="resolutionMeta"
-              class="resolution-panel"
-              :class="`resolution-panel--${resolutionMeta.tone}`"
-              aria-labelledby="completion-resolution-title"
-            >
-              <h3 id="completion-resolution-title">
-                {{ resolutionMeta.title }}
-              </h3>
-              <p>{{ resolutionMeta.copy }}</p>
-              <label
-                v-if="resolutionAction !== 'CONFIRM_COMPLETION'"
-                class="completion-field"
-                for="completion-resolution-reason"
-              >
-                <span>处理原因</span>
-                <textarea
-                  id="completion-resolution-reason"
-                  v-model="resolutionReason"
-                  maxlength="300"
-                  placeholder="请写清楚不符合完成标准或产生争议的具体原因。"
-                  :aria-invalid="Boolean(resolutionReasonError)"
-                  :disabled="Boolean(operationLoading)"
-                />
-                <small>{{ resolutionReason.length }}/300 · 驳回和争议必须填写原因。</small>
-                <p
-                  v-if="resolutionReasonError"
-                  class="field-error"
+                <h3 id="completion-resolution-title">
+                  {{ resolutionMeta.title }}
+                </h3>
+                <p>{{ resolutionMeta.copy }}</p>
+                <label
+                  v-if="resolutionAction !== 'CONFIRM_COMPLETION'"
+                  class="completion-field"
+                  for="completion-resolution-reason"
                 >
-                  {{ resolutionReasonError }}
-                </p>
-              </label>
-              <div class="resolution-actions">
-                <button
-                  class="ghost-action"
-                  type="button"
-                  :disabled="Boolean(operationLoading)"
-                  @click="closeCompletionResolution"
-                >
-                  取消
-                </button>
-                <button
-                  class="primary-action"
-                  type="button"
-                  :disabled="Boolean(operationLoading)"
-                  @click="submitCompletionResolution"
-                >
-                  <LoaderCircle
-                    v-if="operationLoading === resolutionAction"
-                    class="spinning"
-                    :size="16"
-                    aria-hidden="true"
+                  <span>处理原因</span>
+                  <textarea
+                    id="completion-resolution-reason"
+                    v-model="resolutionReason"
+                    maxlength="300"
+                    placeholder="请写清楚不符合完成标准或产生争议的具体原因。"
+                    :aria-invalid="Boolean(resolutionReasonError)"
+                    :disabled="Boolean(operationLoading)"
                   />
-                  {{ resolutionMeta.button }}
-                </button>
-              </div>
+                  <small>{{ resolutionReason.length }}/300 · 驳回和争议必须填写原因。</small>
+                  <p
+                    v-if="resolutionReasonError"
+                    class="field-error"
+                  >
+                    {{ resolutionReasonError }}
+                  </p>
+                </label>
+                <div class="resolution-actions">
+                  <button
+                    class="ghost-action"
+                    type="button"
+                    :disabled="Boolean(operationLoading)"
+                    @click="closeCompletionResolution"
+                  >
+                    取消
+                  </button>
+                  <button
+                    class="primary-action"
+                    type="button"
+                    :disabled="Boolean(operationLoading)"
+                    @click="submitCompletionResolution"
+                  >
+                    <LoaderCircle
+                      v-if="operationLoading === resolutionAction"
+                      class="spinning"
+                      :size="16"
+                      aria-hidden="true"
+                    />
+                    {{ resolutionMeta.button }}
+                  </button>
+                </div>
+              </section>
             </section>
-          </section>
           </article>
 
           <section
