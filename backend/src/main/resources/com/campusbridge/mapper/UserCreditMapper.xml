@@ -43,4 +43,21 @@
     WHERE user_id = #{userId}
   </update>
 
+  <insert id="insertRecord" parameterType="com.campusbridge.pojo.CreditRecord" useGeneratedKeys="true" keyProperty="id">
+    INSERT INTO credit_records (user_id, change_value, reason, source_type, source_id, created_at)
+    VALUES (#{userId}, #{changeValue}, #{reason}, #{sourceType}, #{sourceId}, #{createdAt})
+  </insert>
+
+  <select id="selectRecordsByUserId" resultType="com.campusbridge.pojo.CreditRecord">
+    SELECT * FROM credit_records
+    WHERE user_id = #{userId}
+    ORDER BY created_at DESC
+    LIMIT #{limit} OFFSET #{offset}
+  </select>
+
+  <select id="countRecordsByUserId" resultType="int">
+    SELECT COUNT(*) FROM credit_records
+    WHERE user_id = #{userId}
+  </select>
+
 </mapper>

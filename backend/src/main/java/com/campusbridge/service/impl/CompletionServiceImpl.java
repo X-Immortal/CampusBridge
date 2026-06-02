@@ -10,6 +10,8 @@ import com.campusbridge.pojo.Task;
 import com.campusbridge.service.CompletionService;
 import com.campusbridge.service.RewardSettlementService;
 import com.campusbridge.service.TaskHistoryService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +20,7 @@ import java.time.LocalDateTime;
 @Transactional
 @Service
 public class CompletionServiceImpl implements CompletionService {
+    private static final Logger log = LoggerFactory.getLogger(CompletionServiceImpl.class);
     private static final String STATUS_IN_PROGRESS = "IN_PROGRESS";
     private static final String STATUS_PENDING_CONFIRMATION = "PENDING_CONFIRMATION";
     private static final String STATUS_COMPLETED = "COMPLETED";
@@ -132,7 +135,9 @@ public class CompletionServiceImpl implements CompletionService {
         try {
             rewardSettlementService.settleTaskReward(taskId, requesterId, task.getProviderId());
         } catch (Exception e) {
-            // TODO: 添加日志记录
+            log.error("Failed to settle reward for task {} (requester={}, provider={}): {}",
+                    taskId, requesterId, task.getProviderId(), e.getMessage(), e);
+            // 结算失败不影响任务完成状态，但记录错误日志供后续处理
         }
     }
 

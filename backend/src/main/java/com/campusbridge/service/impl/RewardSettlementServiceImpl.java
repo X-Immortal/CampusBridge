@@ -126,6 +126,8 @@ public class RewardSettlementServiceImpl implements RewardSettlementService {
 
         // 记录积分变化
         userCreditService.updateCreditByTaskCompletion(requesterId, taskId);
+        // 帮助者也应该获得信用分奖励
+        userCreditService.updateCreditByTaskCompletion(providerId, taskId);
 
         // 创建结算记录
         RewardSettlement settlement = new RewardSettlement();
