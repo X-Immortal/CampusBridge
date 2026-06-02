@@ -422,6 +422,7 @@ public class TaskServiceImpl implements TaskService {
         task.setDeadline(request.getDeadline());
         task.setRewardType(request.getRewardType().name());
         task.setRewardDescription(request.getRewardDescription());
+        task.setRewardAmount(request.getRewardAmount());
         task.setCompletionStandard(request.getCompletionStandard());
         task.setRequiresProof(toInt(request.getRequiresProof()));
         task.setOnlyInAppContact(toInt(defaultBoolean(request.getOnlyInAppContact(), true)));
@@ -655,6 +656,9 @@ public class TaskServiceImpl implements TaskService {
         if (request.getRewardDescription() != null) {
             task.setRewardDescription(request.getRewardDescription());
         }
+        if (request.getRewardAmount() != null) {
+            task.setRewardAmount(request.getRewardAmount());
+        }
         if (request.getCompletionStandard() != null) {
             task.setCompletionStandard(request.getCompletionStandard());
         }
@@ -694,6 +698,7 @@ public class TaskServiceImpl implements TaskService {
         task.setDeadline(request.getDeadline());
         task.setRewardType(request.getRewardType() != null ? request.getRewardType().name() : null);
         task.setRewardDescription(request.getRewardDescription());
+        task.setRewardAmount(request.getRewardAmount());
         task.setCompletionStandard(request.getCompletionStandard());
         task.setRequiresProof(request.getRequiresProof() != null ? toInt(request.getRequiresProof()) : 0);
         task.setOnlyInAppContact(toInt(defaultBoolean(request.getOnlyInAppContact(), true)));

@@ -8,7 +8,10 @@ import com.campusbridge.mapper.TaskMapper;
 import com.campusbridge.pojo.CompletionProof;
 import com.campusbridge.pojo.Task;
 import com.campusbridge.service.CompletionService;
+import com.campusbridge.service.CreditService;
 import com.campusbridge.service.TaskHistoryService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,17 +27,22 @@ public class CompletionServiceImpl implements CompletionService {
     private static final int MAX_DESCRIPTION_LENGTH = 1000;
     private static final int MAX_REASON_LENGTH = 500;
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(CompletionServiceImpl.class);
+
     private final CompletionProofMapper completionProofMapper;
     private final TaskMapper taskMapper;
     private final TaskHistoryService taskHistoryService;
+    private final CreditService creditService;
 
     public CompletionServiceImpl(
             CompletionProofMapper completionProofMapper,
             TaskMapper taskMapper,
-            TaskHistoryService taskHistoryService) {
+            TaskHistoryService taskHistoryService,
+            CreditService creditService) {
         this.completionProofMapper = completionProofMapper;
         this.taskMapper = taskMapper;
         this.taskHistoryService = taskHistoryService;
+        this.creditService = creditService;
     }
 
     @Override
@@ -119,6 +127,9 @@ public class CompletionServiceImpl implements CompletionService {
             throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
         }
 
+        // 积分报酬结算
+        settleReward(task);
+
         // 记录历史
         taskHistoryService.recordHistory(
                 taskId,
@@ -126,6 +137,26 @@ public class CompletionServiceImpl implements CompletionService {
                 STATUS_COMPLETED,
                 requesterId,
                 "COMPLETION_CONFIRMED");
+    }
+
+    private void settleReward(Task task) {
+        if (!"POINTS".equals(task.getRewardType())) {
+            return;
+        }
+        Integer amount = task.getRewardAmount();
+        if (amount == null || amount <= 0) {
+            return;
+        }
+        Long requesterId = task.getRequesterId();
+        Long providerId = task.getProviderId();
+        Long taskId = task.getId();
+
+        creditService.adjustCredit(requesterId, -amount,
+                "任务 #" + taskId + " 积分报酬支出", "TASK", taskId);
+        creditService.adjustCredit(providerId, +amount,
+                "任务 #" + taskId + " 积分报酬收入", "TASK", taskId);
+
+        LOGGER.info("Settled {} points for task #{}: {} -> {}", amount, taskId, requesterId, providerId);
     }
 
     @Override

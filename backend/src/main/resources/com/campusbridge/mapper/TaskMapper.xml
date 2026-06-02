@@ -3,8 +3,8 @@
 <mapper namespace="com.campusbridge.mapper.TaskMapper">
 
   <insert id="insert" parameterType="com.campusbridge.pojo.Task" useGeneratedKeys="true" keyProperty="id">
-    INSERT INTO tasks (requester_id, provider_id, category, title, description, campus, location, deadline, reward_type, reward_description, completion_standard, requires_proof, only_in_app_contact, allow_offline_contact, is_instant_task, route_hint, risk_disclosure_confirmed, sensitive_reason, status, created_at, updated_at)
-    VALUES (#{requesterId}, #{providerId}, #{category}, #{title}, #{description}, #{campus}, #{location}, #{deadline}, #{rewardType}, #{rewardDescription}, #{completionStandard}, #{requiresProof}, #{onlyInAppContact}, #{allowOfflineContact}, #{isInstantTask}, #{routeHint}, #{riskDisclosureConfirmed}, #{sensitiveReason}, #{status}, #{createdAt}, #{updatedAt})
+    INSERT INTO tasks (requester_id, provider_id, category, title, description, campus, location, deadline, reward_type, reward_description, reward_amount, completion_standard, requires_proof, only_in_app_contact, allow_offline_contact, is_instant_task, route_hint, risk_disclosure_confirmed, sensitive_reason, status, created_at, updated_at)
+    VALUES (#{requesterId}, #{providerId}, #{category}, #{title}, #{description}, #{campus}, #{location}, #{deadline}, #{rewardType}, #{rewardDescription}, #{rewardAmount}, #{completionStandard}, #{requiresProof}, #{onlyInAppContact}, #{allowOfflineContact}, #{isInstantTask}, #{routeHint}, #{riskDisclosureConfirmed}, #{sensitiveReason}, #{status}, #{createdAt}, #{updatedAt})
   </insert>
 
   <select id="selectById" resultType="com.campusbridge.pojo.Task">
@@ -28,6 +28,7 @@
       deadline = #{deadline},
       reward_type = #{rewardType},
       reward_description = #{rewardDescription},
+      reward_amount = #{rewardAmount},
       completion_standard = #{completionStandard},
       requires_proof = #{requiresProof},
       only_in_app_contact = #{onlyInAppContact},

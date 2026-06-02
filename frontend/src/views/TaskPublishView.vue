@@ -61,6 +61,7 @@ const taskForm = reactive({
   deadline: defaultDeadline(),
   rewardType: 'FREE',
   rewardDescription: '',
+  rewardAmount: '',
   completionStandard: '',
   requiresProof: true,
   onlyInAppContact: true,
@@ -241,6 +242,7 @@ function cloneForm() {
     deadline: taskForm.deadline,
     rewardType: taskForm.rewardType,
     rewardDescription: taskForm.rewardDescription,
+    rewardAmount: taskForm.rewardAmount,
     completionStandard: taskForm.completionStandard,
     requiresProof: taskForm.requiresProof,
     onlyInAppContact: taskForm.onlyInAppContact,
@@ -328,6 +330,12 @@ function optionalText(value) {
   return text || undefined
 }
 
+function optionalNumber(value) {
+  if (value === '' || value === null || value === undefined) return undefined
+  const num = Number(value)
+  return Number.isFinite(num) && num > 0 ? num : undefined
+}
+
 function booleanFlag(value, fallback = false) {
   if (value === undefined || value === null || value === '') return fallback
   if (typeof value === 'boolean') return value
@@ -403,6 +411,7 @@ function resetForm() {
     deadline: defaultDeadline(),
     rewardType: 'FREE',
     rewardDescription: '',
+    rewardAmount: '',
     completionStandard: '',
     requiresProof: true,
     onlyInAppContact: true,
@@ -439,6 +448,7 @@ function applyTaskToForm(task) {
     deadline: isRepostMode.value && isPastDateTime(nextDeadline) ? defaultDeadline() : nextDeadline,
     rewardType: task.rewardType || 'FREE',
     rewardDescription: task.rewardDescription || '',
+    rewardAmount: task.rewardAmount ?? '',
     completionStandard: task.completionStandard || '',
     requiresProof: booleanFlag(task.requiresProof, true),
     onlyInAppContact: booleanFlag(task.onlyInAppContact, true),
@@ -478,6 +488,20 @@ function validateTextLength(field, value, maxLength, message) {
   }
 }
 
+function validateRewardAmount() {
+  if (taskForm.rewardType !== 'POINTS' && taskForm.rewardType !== 'CASH') return
+  const val = taskForm.rewardAmount
+  if (!val) return
+  const num = Number(val)
+  if (!Number.isFinite(num) || num <= 0 || !Number.isInteger(num)) {
+    setError('rewardAmount', '请输入有效的正整数。')
+    return
+  }
+  if (num > 999999) {
+    setError('rewardAmount', '数值不能超过 999999。')
+  }
+}
+
 function validateForm() {
   clearErrors()
 
@@ -495,6 +519,7 @@ function validateForm() {
   validateTextLength('campus', taskForm.campus, 50, '校区最多 50 个字。')
   validateTextLength('location', taskForm.location, 120, '地点最多 120 个字。')
   validateTextLength('rewardDescription', taskForm.rewardDescription, 200, '奖励说明最多 200 个字。')
+  validateRewardAmount()
   validateTextLength('completionStandard', taskForm.completionStandard, 500, '完成标准最多 500 个字。')
   validateTextLength('routeHint', taskForm.routeHint, 300, '顺路信息最多 300 个字。')
 
@@ -530,6 +555,7 @@ function buildPayload() {
     deadline: normalizeDeadline(taskForm.deadline),
     rewardType: taskForm.rewardType,
     rewardDescription: optionalText(taskForm.rewardDescription),
+    rewardAmount: optionalNumber(taskForm.rewardAmount),
     completionStandard: taskForm.completionStandard.trim(),
     requiresProof: taskForm.requiresProof,
     onlyInAppContact: taskForm.onlyInAppContact,
@@ -577,6 +603,7 @@ function buildUpdatePayload() {
     deadline: normalizeDeadline(taskForm.deadline),
     rewardType: taskForm.rewardType,
     rewardDescription: optionalText(taskForm.rewardDescription),
+    rewardAmount: optionalNumber(taskForm.rewardAmount),
     completionStandard: taskForm.completionStandard.trim(),
     requiresProof: taskForm.requiresProof,
     onlyInAppContact: taskForm.onlyInAppContact,
@@ -1053,6 +1080,34 @@ watch(
             >
               {{ errors.rewardType }}
             </p>
+
+            <div
+              v-if="taskForm.rewardType === 'POINTS' || taskForm.rewardType === 'CASH'"
+              class="form-row form-row--reward-detail"
+            >
+              <label
+                class="publish-field"
+                for="task-reward-amount"
+              >
+                <span>{{ taskForm.rewardType === 'POINTS' ? '积分数量' : '现金金额' }}</span>
+                <input
+                  id="task-reward-amount"
+                  v-model.trim="taskForm.rewardAmount"
+                  type="number"
+                  min="1"
+                  :placeholder="taskForm.rewardType === 'POINTS' ? '例如：50' : '例如：10'"
+                  :aria-invalid="Boolean(errors.rewardAmount)"
+                  @input="clearError('rewardAmount')"
+                >
+                <small
+                  v-if="errors.rewardAmount"
+                  id="rewardAmount-error"
+                  class="field-error"
+                >
+                  {{ errors.rewardAmount }}
+                </small>
+              </label>
+            </div>
 
             <div class="form-row form-row--reward-detail">
               <label
