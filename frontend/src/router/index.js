@@ -3,6 +3,7 @@ import HomeView from '../views/HomeView.vue'
 import AuthView from '../views/AuthView.vue'
 import TaskPublishView from '../views/TaskPublishView.vue'
 import TaskListView from '../views/TaskListView.vue'
+import PostView from '../views/PostView.vue'
 import ConversationView from '../views/ConversationView.vue'
 import ReviewNotificationView from '../views/ReviewNotificationView.vue'
 import AdminView from '../views/AdminView.vue'
@@ -66,6 +67,11 @@ const router = createRouter({
       path: '/tasks/:taskId',
       name: 'task-detail',
       component: TaskListView
+    },
+    {
+      path: '/posts',
+      name: 'post-list',
+      component: PostView
     },
     {
       path: '/conversations',

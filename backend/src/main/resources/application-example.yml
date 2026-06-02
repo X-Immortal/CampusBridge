@@ -12,6 +12,17 @@ spring:
       # File upload limits
       max-file-size: 1MB
       max-request-size: 10MB
+  mail:
+    host: smtp.example.com
+    port: 465
+    username: xxxxxx@example.com
+    password: xxxxxx
+    properties:
+      mail:
+        smtp:
+          auth: true
+          ssl:
+            enable: true
 
 # MyBatis
 mybatis:
@@ -37,3 +48,10 @@ jwt:
 security:
   jwt:
     required: true
+
+campusbridge:
+  verification:
+    email:
+      enabled: true
+      from: xxxxxx@example.com
+      code-secret: ${VERIFICATION_EMAIL_CODE_SECRET:replace-with-a-random-secret}

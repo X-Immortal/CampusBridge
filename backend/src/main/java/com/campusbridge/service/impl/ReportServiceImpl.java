@@ -136,6 +136,24 @@ public class ReportServiceImpl implements ReportService {
     }
 
     @Override
+    public ResponseDtos.PagedResult<Report> listReportsForAdmin(
+            String status,
+            Integer page,
+            Integer size) {
+        int safePage = normalizePage(page);
+        int safeSize = normalizeSize(size);
+        String normalizedStatus = normalizeStatusFilter(status);
+        int offset = (safePage - 1) * safeSize;
+
+        List<Report> reports = reportMapper.selectForAdmin(
+                normalizedStatus,
+                offset,
+                safeSize);
+        long total = reportMapper.countForAdmin(normalizedStatus);
+        return new ResponseDtos.PagedResult<>(reports, safePage, safeSize, total);
+    }
+
+    @Override
     public ModerationRecord resolveReport(
             Long handlerId,
             Long reportId,
@@ -182,7 +200,7 @@ public class ReportServiceImpl implements ReportService {
             if (task == null) {
                 throw new BusinessException(ErrorCode.TASK_001_NOT_FOUND);
             }
-            markTaskDisputedIfAllowed(report.getReporterId(), task, report);
+            markTaskDisputedByAdmin(handlerId, task, report);
         }
 
         applyCreditChangeIfNeeded(report, request);
@@ -294,6 +312,36 @@ public class ReportServiceImpl implements ReportService {
         task.setUpdatedAt(now);
     }
 
+    private void markTaskDisputedByAdmin(Long adminUserId, Task task, Report report) {
+        if (task == null || report == null || task.getId() == null) {
+            return;
+        }
+        if (!DISPUTABLE_TASK_STATUSES.contains(task.getStatus())) {
+            return;
+        }
+
+        String fromStatus = task.getStatus();
+        LocalDateTime now = LocalDateTime.now();
+        if (taskMapper.updateStatusById(task.getId(), fromStatus, STATUS_DISPUTED, now) != 1) {
+            return;
+        }
+
+        taskHistoryService.recordHistory(
+                task.getId(),
+                fromStatus,
+                STATUS_DISPUTED,
+                adminUserId,
+                buildAdminReportHistoryNote(report));
+        notificationService.notifyTaskStatusChanged(
+                task,
+                fromStatus,
+                STATUS_DISPUTED,
+                adminUserId,
+                report.getReason());
+        task.setStatus(STATUS_DISPUTED);
+        task.setUpdatedAt(now);
+    }
+
     private void applyCreditChangeIfNeeded(
             Report report,
             RequestDtos.ResolveReportRequest request) {
@@ -371,6 +419,19 @@ public class ReportServiceImpl implements ReportService {
 
     private String buildReportHistoryNote(Report report) {
         String note = "REPORT_CREATED; REPORT_ID=" + report.getId();
+        if (report.getReason() == null || report.getReason().isBlank()) {
+            return note;
+        }
+        String reason = report.getReason().trim();
+        String combined = note + "; REASON=" + reason;
+        if (combined.length() <= 300) {
+            return combined;
+        }
+        return combined.substring(0, 300);
+    }
+
+    private String buildAdminReportHistoryNote(Report report) {
+        String note = "ADMIN_REPORT_RESOLVED; REPORT_ID=" + report.getId();
         if (report.getReason() == null || report.getReason().isBlank()) {
             return note;
         }

@@ -111,7 +111,25 @@ export default {
   updateMyProfile: (body) => request('/users/me/profile', { method: 'PUT', body }),
   getUserProfile: (userId) => request(`/users/${userId}/profile`),
   submitVerification: (body) => request('/verifications', { method: 'POST', body }),
+  resendEmailVerificationCode: () =>
+    request('/verifications/email/code', { method: 'POST' }),
+  confirmEmailVerification: (body) =>
+    request('/verifications/email/confirm', { method: 'POST', body }),
   getVerification: () => request('/verifications'),
+  getContent: (params) => request(`/content${buildQuery(params)}`),
+  createPost: (body) => request('/posts', { method: 'POST', body }),
+  getPosts: (params) => request(`/posts${buildQuery(params)}`),
+  getPostDetail: (postId) => request(`/posts/${postId}`),
+  updatePost: (postId, body) => request(`/posts/${postId}`, { method: 'PATCH', body }),
+  deletePost: (postId) => request(`/posts/${postId}`, { method: 'DELETE' }),
+  createPostReply: (postId, body) =>
+    request(`/posts/${postId}/replies`, { method: 'POST', body }),
+  createPostInteraction: (postId, body) =>
+    request(`/posts/${postId}/interactions`, { method: 'POST', body }),
+  cancelPostInteraction: (postId, type) =>
+    request(`/posts/${postId}/interactions${buildQuery({ type })}`, { method: 'DELETE' }),
+  acceptPostReply: (postId, replyId) =>
+    request(`/posts/${postId}/replies/${replyId}/accept`, { method: 'POST' }),
   createTask: (body) => request('/tasks', { method: 'POST', body }),
   saveTaskDraft: (body) => request('/tasks/drafts', { method: 'POST', body }),
   updateTask: (taskId, body) => request(`/tasks/${taskId}`, { method: 'PUT', body }),
@@ -133,6 +151,7 @@ export default {
     request(`/tasks/${taskId}/reviews`, { method: 'POST', body }),
   createReport: (body) => request('/reports', { method: 'POST', body }),
   getReports: (params) => request(`/reports${buildQuery(params)}`),
+  getAdminReports: (params) => request(`/admin/reports${buildQuery(params)}`),
   getPendingVerifications: (params) =>
     request(`/admin/verifications/pending${buildQuery(params)}`),
   approveVerification: (id) =>

@@ -915,7 +915,6 @@ watch(
                 <input
                   id="task-campus"
                   v-model.trim="taskForm.campus"
-                  list="campus-options"
                   maxlength="50"
                   placeholder="例如：仙林校区"
                   required
@@ -924,11 +923,6 @@ watch(
                   :aria-describedby="describedBy('campus')"
                   @input="clearError('campus')"
                 >
-                <datalist id="campus-options">
-                  <option value="仙林校区" />
-                  <option value="鼓楼校区" />
-                  <option value="浦口校区" />
-                </datalist>
                 <small
                   v-if="errors.campus"
                   id="campus-error"
@@ -1634,7 +1628,7 @@ watch(
 }
 
 .category-selector {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .reward-selector,

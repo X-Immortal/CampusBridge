@@ -24,6 +24,13 @@ public interface ReportMapper {
             @Param("reporterId") Long reporterId,
             @Param("status") String status);
 
+    List<Report> selectForAdmin(
+            @Param("status") String status,
+            @Param("offset") Integer offset,
+            @Param("size") Integer size);
+
+    long countForAdmin(@Param("status") String status);
+
     int updateStatusById(
             @Param("id") Long id,
             @Param("status") String status);

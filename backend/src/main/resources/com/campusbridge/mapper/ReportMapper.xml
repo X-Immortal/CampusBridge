@@ -34,6 +34,26 @@
     </if>
   </select>
 
+  <select id="selectForAdmin" resultType="com.campusbridge.pojo.Report">
+    SELECT * FROM reports
+    <where>
+      <if test="status != null and status != ''">
+        AND status = #{status}
+      </if>
+    </where>
+    ORDER BY created_at DESC, id DESC
+    LIMIT #{size} OFFSET #{offset}
+  </select>
+
+  <select id="countForAdmin" resultType="long">
+    SELECT COUNT(*) FROM reports
+    <where>
+      <if test="status != null and status != ''">
+        AND status = #{status}
+      </if>
+    </where>
+  </select>
+
   <update id="updateStatusById">
     UPDATE reports
     SET status = #{status}

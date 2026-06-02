@@ -5,6 +5,7 @@ import {
   AtSign,
   BadgeCheck,
   Bell,
+  BookOpen,
   Briefcase,
   Building2,
   CalendarClock,
@@ -30,6 +31,7 @@ import {
   Save,
   School,
   Search,
+  Shield,
   ShieldCheck,
   Star,
   Tag,
@@ -52,6 +54,8 @@ const {
   logout,
   refreshSession,
   submitVerification,
+  resendEmailVerificationCode,
+  confirmEmailVerification,
   updateMyProfile
 } = useAuth()
 
@@ -66,15 +70,19 @@ const feedback = ref('')
 const feedbackType = ref('success')
 const avatarLoadFailed = ref(false)
 
-const navItems = [
+const isAdmin = computed(() => String(state.user?.role || '').toUpperCase() === 'ADMIN')
+
+const navItems = computed(() => [
   { label: '个人主页', icon: Home, active: true, to: '/home' },
+  { label: '帖子广场', icon: BookOpen, to: '/posts' },
   { label: '任务广场', icon: Grid2X2, to: '/tasks' },
   { label: '发布任务', icon: PlusCircle, to: '/tasks/new' },
   { label: '我的任务', icon: ClipboardList, to: '/tasks/mine' },
   { label: '站内沟通', icon: MessageCircle, to: '/conversations' },
   { label: '评价中心', icon: Star, to: '/reviews' },
-  { label: '消息中心', icon: Bell, to: '/notifications' }
-]
+  { label: '消息中心', icon: Bell, to: '/notifications' },
+  ...(isAdmin.value ? [{ label: '管理中心', icon: Shield, to: '/admin' }] : [])
+])
 
 const verificationForm = reactive({
   method: 'STUDENT_CARD_IMAGE',
@@ -82,6 +90,7 @@ const verificationForm = reactive({
   studentNumber: '',
   school: '',
   department: '',
+  campusEmail: '',
   evidenceUrl: ''
 })
 
@@ -90,6 +99,12 @@ const profileSubmitting = ref(false)
 const profileErrors = reactive({})
 const avatarUploading = ref(false)
 const avatarFileInput = ref(null)
+const verificationEvidenceFileInput = ref(null)
+const verificationEvidenceUploading = ref(false)
+const verificationEvidenceFileName = ref('')
+const emailVerificationCode = ref('')
+const emailCodeSubmitting = ref(false)
+const emailCodeResending = ref(false)
 const searchKeyword = ref('')
 
 function handleSearch() {
@@ -204,6 +219,13 @@ const publicIdentityRows = computed(() => [
   }
 ])
 const verification = computed(() => state.verification || null)
+const isEmailVerificationMethod = computed(() => verificationForm.method === 'CAMPUS_EMAIL')
+const requiresVerificationEvidence = computed(() =>
+  ['STUDENT_CARD_IMAGE', 'MANUAL_REVIEW'].includes(verificationForm.method)
+)
+const pendingEmailVerification = computed(
+  () => verificationStatus.value === 'PENDING' && verification.value?.method === 'CAMPUS_EMAIL'
+)
 const canSubmitVerification = computed(() => {
   if (!isAuthenticated.value) return false
   return !verification.value || ['UNVERIFIED', 'REJECTED'].includes(verificationStatus.value)
@@ -217,6 +239,7 @@ const lockMessage = computed(() => {
 const statusCopy = computed(() => {
   const status = verificationStatus.value
   if (status === 'VERIFIED') return '你已完成校内认证，可以更安心地参与校园互助。'
+  if (pendingEmailVerification.value) return '验证码已发送至校园邮箱，请输入验证码完成认证。'
   if (status === 'PENDING') return '你的认证资料正在审核中，通常需要一点时间，请耐心等待。'
   if (status === 'REJECTED') return '认证未通过，请查看原因后重新提交清晰、有效的资料。'
   return '请提交真实的校园身份信息。认证通过后，其他同学只会看到你的认证状态，不会看到学号等敏感信息。'
@@ -254,6 +277,16 @@ const verificationBenefits = [
     icon: ChartLine
   }
 ]
+
+const verificationEvidenceLabel = computed(() =>
+  verificationForm.method === 'MANUAL_REVIEW' ? '人工审核照片' : '学生证照片'
+)
+
+const verificationEvidenceHint = computed(() =>
+  verificationForm.method === 'MANUAL_REVIEW'
+    ? '上传能够证明校园身份的照片，管理员会人工审核。'
+    : '上传清晰的学生证照片，系统会尝试自动识别并提交审核。'
+)
 
 function setFeedback(message, type = 'success') {
   feedback.value = message
@@ -435,6 +468,50 @@ async function handleAvatarFileChange(event) {
   }
 }
 
+function triggerVerificationEvidenceUpload() {
+  verificationEvidenceFileInput.value?.click()
+}
+
+async function handleVerificationEvidenceFileChange(event) {
+  const file = event.target.files?.[0]
+  if (!file) return
+
+  verificationEvidenceUploading.value = true
+  feedback.value = ''
+  try {
+    const result = await api.uploadAttachment({
+      file,
+      expectedOwnerType: 'VERIFICATION',
+      type: 'IMAGE'
+    })
+    const url = result?.fileUrl || result?.url
+    if (!url) {
+      throw new Error('上传成功但未返回材料地址。')
+    }
+    verificationForm.evidenceUrl = url
+    verificationEvidenceFileName.value = file.name
+    setFeedback('认证材料照片已上传。')
+  } catch (error) {
+    setFeedback(error.message || '认证材料上传失败，请稍后重试。', 'danger')
+  } finally {
+    verificationEvidenceUploading.value = false
+    if (verificationEvidenceFileInput.value) {
+      verificationEvidenceFileInput.value.value = ''
+    }
+  }
+}
+
+function isValidEmail(value) {
+  return /^[^@\s]+@[^@\s]*\.edu\.cn$/i.test(String(value || '').trim())
+}
+
+function formatEmailCodeFeedback(result) {
+  if (result?.debugCode) {
+    return `邮件服务未配置，开发验证码：${result.debugCode}`
+  }
+  return '验证码已发送至校园邮箱，请输入验证码完成认证。'
+}
+
 async function handleSubmitProfile() {
   if (!isAuthenticated.value) {
     setFeedback('请先登录后再保存个人档案。', 'danger')
@@ -476,23 +553,71 @@ async function handleRefresh() {
 }
 
 async function handleSubmitVerification() {
+  if (requiresVerificationEvidence.value && !verificationForm.evidenceUrl) {
+    setFeedback(`请先上传${verificationEvidenceLabel.value}。`, 'danger')
+    return
+  }
+  if (isEmailVerificationMethod.value && !isValidEmail(verificationForm.campusEmail)) {
+    setFeedback('请填写有效的校园邮箱地址。', 'danger')
+    return
+  }
+
   submitting.value = true
   feedback.value = ''
   try {
-    await submitVerification({
+    const result = await submitVerification({
       method: verificationForm.method,
       realName: verificationForm.realName,
       studentNumber: verificationForm.studentNumber,
       school: verificationForm.school,
       department: verificationForm.department,
+      campusEmail: verificationForm.campusEmail,
       evidenceUrl: verificationForm.evidenceUrl
     })
-    await refreshSession()
-    setFeedback('校内认证资料已提交，等待平台审核。')
+    if (isEmailVerificationMethod.value) {
+      setFeedback(formatEmailCodeFeedback(result))
+    } else {
+      await refreshSession()
+      setFeedback('校内认证资料已提交，等待平台审核。')
+    }
   } catch (error) {
     setFeedback(error.message, 'danger')
   } finally {
     submitting.value = false
+  }
+}
+
+async function handleConfirmEmailCode() {
+  const code = emailVerificationCode.value.trim()
+  if (!/^\d{6}$/.test(code)) {
+    setFeedback('请输入 6 位邮箱验证码。', 'danger')
+    return
+  }
+
+  emailCodeSubmitting.value = true
+  feedback.value = ''
+  try {
+    await confirmEmailVerification({ code })
+    await refreshSession()
+    emailVerificationCode.value = ''
+    setFeedback('校园邮箱认证已完成。')
+  } catch (error) {
+    setFeedback(error.message || '验证码确认失败，请重新检查。', 'danger')
+  } finally {
+    emailCodeSubmitting.value = false
+  }
+}
+
+async function handleResendEmailCode() {
+  emailCodeResending.value = true
+  feedback.value = ''
+  try {
+    const result = await resendEmailVerificationCode()
+    setFeedback(formatEmailCodeFeedback(result))
+  } catch (error) {
+    setFeedback(error.message || '验证码发送失败，请稍后重试。', 'danger')
+  } finally {
+    emailCodeResending.value = false
   }
 }
 
@@ -507,6 +632,15 @@ watch(
 watch(avatarPreviewUrl, () => {
   avatarLoadFailed.value = false
 })
+
+watch(
+  () => verificationForm.method,
+  () => {
+    verificationForm.evidenceUrl = ''
+    verificationEvidenceFileName.value = ''
+    emailVerificationCode.value = ''
+  }
+)
 
 watch(
   [isAuthenticated, currentUserId],
@@ -1160,7 +1294,7 @@ onBeforeUnmount(() => {
         </article>
 
         <article
-          v-if="verification && verificationStatus !== 'UNVERIFIED' && verificationStatus !== 'REJECTED'"
+          v-if="verification && verificationStatus === 'VERIFIED'"
           class="panel-card verification-overview"
         >
           <div class="panel-heading">
@@ -1246,7 +1380,7 @@ onBeforeUnmount(() => {
         </article>
 
         <article
-          v-if="canSubmitVerification"
+          v-if="canSubmitVerification || pendingEmailVerification"
           class="panel-card verification-form-card"
         >
           <div class="panel-heading">
@@ -1324,18 +1458,71 @@ onBeforeUnmount(() => {
               >
             </label>
 
-            <label class="field field-wide">
-              <span>材料链接</span>
+            <label
+              v-if="isEmailVerificationMethod"
+              class="field field-wide"
+            >
+              <span>校园邮箱</span>
               <input
-                v-model.trim="verificationForm.evidenceUrl"
-                placeholder="学生证、校园邮箱或人工审核材料链接"
+                v-model.trim="verificationForm.campusEmail"
+                required
+                type="email"
+                placeholder="请输入学校邮箱，例如 name@school.edu.cn"
               >
             </label>
+
+            <div
+              v-else-if="requiresVerificationEvidence"
+              class="field field-wide evidence-upload-field"
+            >
+              <span>{{ verificationEvidenceLabel }}</span>
+              <input
+                ref="verificationEvidenceFileInput"
+                class="sr-only"
+                type="file"
+                accept="image/*"
+                @change="handleVerificationEvidenceFileChange"
+              >
+              <div class="evidence-upload-box">
+                <button
+                  class="ghost-action upload-evidence-button"
+                  type="button"
+                  :disabled="verificationEvidenceUploading"
+                  @click="triggerVerificationEvidenceUpload"
+                >
+                  <LoaderCircle
+                    v-if="verificationEvidenceUploading"
+                    class="spinning"
+                    :size="17"
+                    aria-hidden="true"
+                  />
+                  <ImagePlus
+                    v-else
+                    :size="17"
+                    aria-hidden="true"
+                  />
+                  {{ verificationEvidenceUploading ? '上传中' : '上传照片' }}
+                </button>
+                <div>
+                  <strong>{{ verificationEvidenceFileName || '尚未上传照片' }}</strong>
+                  <small>{{ verificationEvidenceHint }}</small>
+                </div>
+              </div>
+              <a
+                v-if="verificationForm.evidenceUrl"
+                class="evidence-link"
+                :href="verificationForm.evidenceUrl"
+                target="_blank"
+                rel="noreferrer"
+              >
+                查看已上传照片
+              </a>
+            </div>
 
             <button
               class="primary-action"
               type="submit"
-              :disabled="submitting"
+              :disabled="submitting || verificationEvidenceUploading"
             >
               <LoaderCircle
                 v-if="submitting"
@@ -1351,6 +1538,65 @@ onBeforeUnmount(() => {
               提交校内认证
             </button>
           </form>
+
+          <div
+            v-else-if="pendingEmailVerification"
+            class="email-code-panel"
+          >
+            <span class="email-code-icon">
+              <AtSign
+                :size="34"
+                aria-hidden="true"
+              />
+            </span>
+            <div>
+              <h3>输入邮箱验证码</h3>
+              <p>验证码已发送至校园邮箱，输入 6 位验证码即可完成认证。</p>
+            </div>
+            <label class="field">
+              <span>邮箱验证码</span>
+              <input
+                v-model.trim="emailVerificationCode"
+                inputmode="numeric"
+                maxlength="6"
+                placeholder="请输入 6 位验证码"
+              >
+            </label>
+            <div class="email-code-actions">
+              <button
+                class="primary-action"
+                type="button"
+                :disabled="emailCodeSubmitting"
+                @click="handleConfirmEmailCode"
+              >
+                <LoaderCircle
+                  v-if="emailCodeSubmitting"
+                  class="spinning"
+                  :size="18"
+                  aria-hidden="true"
+                />
+                <CheckCircle2
+                  v-else
+                  :size="18"
+                  aria-hidden="true"
+                />
+                确认认证
+              </button>
+              <button
+                class="ghost-action"
+                type="button"
+                :disabled="emailCodeResending"
+                @click="handleResendEmailCode"
+              >
+                <RefreshCw
+                  :class="{ spinning: emailCodeResending }"
+                  :size="17"
+                  aria-hidden="true"
+                />
+                重发验证码
+              </button>
+            </div>
+          </div>
 
           <div
             v-else
@@ -1463,7 +1709,7 @@ onBeforeUnmount(() => {
   border: 1px solid #e2def0;
   border-radius: 10px;
   background: #ffffff;
-  color: #746dc3;
+  color: #4f46e5;
   box-shadow: 0 8px 22px rgba(116, 109, 195, 0.1);
   transition:
     background-color 180ms ease,
@@ -1472,8 +1718,8 @@ onBeforeUnmount(() => {
 }
 
 .collapse-button:hover {
-  border-color: #c9c2ee;
-  background: #f7f4ff;
+  border-color: #c7d2fe;
+  background: #f5f3ff;
 }
 
 .brand {
@@ -1482,7 +1728,7 @@ onBeforeUnmount(() => {
   gap: 10px;
   min-height: 58px;
   padding: 0 10px;
-  color: #7067be;
+  color: #4f46e5;
   text-decoration: none;
 }
 
@@ -1491,12 +1737,12 @@ onBeforeUnmount(() => {
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  color: #746dc3;
+  color: #4f46e5;
 }
 
 .brand-text {
   max-width: 190px;
-  color: #7067be;
+  color: #4338ca;
   font-family: Georgia, "Times New Roman", "Noto Serif", serif;
   font-size: 1.08rem;
   font-weight: 900;
@@ -1538,9 +1784,9 @@ onBeforeUnmount(() => {
 
 .nav-item:hover,
 .nav-item.active {
-  background: linear-gradient(90deg, #f1ecff 0%, #fbf9ff 100%);
-  color: #746dc3;
-  box-shadow: 0 14px 30px rgba(116, 109, 195, 0.085);
+  background: linear-gradient(90deg, #eef2ff 0%, #f8f7ff 100%);
+  color: #4f46e5;
+  box-shadow: 0 14px 30px rgba(79, 70, 229, 0.085);
 }
 
 .nav-item.active::before {
@@ -1551,7 +1797,7 @@ onBeforeUnmount(() => {
   bottom: 10px;
   width: 3px;
   border-radius: 999px;
-  background: #746dc3;
+  background: #4f46e5;
 }
 
 .nav-item span {
@@ -1565,6 +1811,7 @@ onBeforeUnmount(() => {
 }
 
 .is-collapsed .collapse-button {
+  top: 42px;
   right: 50%;
   width: 30px;
   height: 30px;
@@ -2480,6 +2727,108 @@ onBeforeUnmount(() => {
   font-size: 0.82rem;
   font-weight: 800;
   line-height: 1.4;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.evidence-upload-field {
+  gap: 10px;
+}
+
+.evidence-upload-box {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  border: 1px dashed #c9c2ee;
+  border-radius: 8px;
+  background: #fbf9ff;
+}
+
+.evidence-upload-box div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.evidence-upload-box strong {
+  color: #3c3543;
+  font-size: 0.92rem;
+  overflow-wrap: anywhere;
+}
+
+.evidence-upload-box small {
+  color: #746f7a;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.upload-evidence-button {
+  min-width: 122px;
+}
+
+.evidence-link {
+  width: fit-content;
+  color: #746dc3;
+  font-size: 0.86rem;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.evidence-link:hover {
+  color: #5d49cb;
+}
+
+.email-code-panel {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid #e0ddec;
+  border-radius: 8px;
+  background: #fbf9ff;
+}
+
+.email-code-icon {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: #f0edff;
+  color: #746dc3;
+}
+
+.email-code-panel h3,
+.email-code-panel p {
+  margin: 0;
+}
+
+.email-code-panel h3 {
+  color: #3c3543;
+  font-size: 1.05rem;
+}
+
+.email-code-panel p {
+  color: #746f7a;
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.email-code-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .primary-action,

@@ -111,6 +111,20 @@ async function submitVerification(payload) {
   return result
 }
 
+async function resendEmailVerificationCode() {
+  const result = await api.resendEmailVerificationCode()
+  authState.verification = result
+  persistAuth()
+  return result
+}
+
+async function confirmEmailVerification(payload) {
+  const result = await api.confirmEmailVerification(payload)
+  authState.verification = result
+  persistAuth()
+  return result
+}
+
 async function updateMyProfile(payload) {
   const result = await api.updateMyProfile(payload)
   authState.profile = result
@@ -139,6 +153,8 @@ export function useAuth() {
     logout,
     refreshSession,
     submitVerification,
+    resendEmailVerificationCode,
+    confirmEmailVerification,
     updateMyProfile
   }
 }

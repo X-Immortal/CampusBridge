@@ -54,7 +54,15 @@ public final class RequestDtos {
         public String studentNumber;
         public String school;
         public String department;
+        public String campusEmail;
         public String evidenceUrl;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ConfirmEmailVerificationRequest {
+        public String code;
     }
 
     @Data
