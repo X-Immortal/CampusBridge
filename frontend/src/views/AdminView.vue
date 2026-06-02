@@ -134,7 +134,7 @@ function normalizeTask(task = {}) {
     ...task,
     id: task.id ?? task.taskId,
     requesterId: task.requesterId ?? task.ownerId,
-    category: task.category || task.taskCategory || 'ATTENDANCE_ASSIST',
+    category: task.category || task.taskCategory || 'AGENCY',
     status: task.status || 'PENDING_REVIEW'
   }
 }
@@ -427,7 +427,7 @@ onMounted(async () => {
         </div>
         <div class="title-copy">
           <p>管理员工作台</p>
-          <h1>审核认证、裁决举报与处理敏感任务</h1>
+          <h1>审核认证、裁决举报与处理任务</h1>
           <span>面向管理员角色的集中处理台，直接对接管理员 API 文档中的专属端点。</span>
         </div>
         <StatusBadge
@@ -990,7 +990,7 @@ onMounted(async () => {
                 任务审核
               </p>
               <h2 id="admin-tasks-title">
-                待审核敏感任务
+                待审核任务
               </h2>
             </div>
             <button

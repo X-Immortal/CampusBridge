@@ -1010,7 +1010,7 @@ paths:
   /admin/moderation/tasks/pending:
     get:
       tags: [AdminModeration]
-      summary: 待审核敏感任务列表（管理员）
+      summary: 待审核任务列表（管理员）
       responses:
         '200':
           description: 查询成功
@@ -1028,7 +1028,7 @@ paths:
   /admin/moderation/tasks/{taskId}/approve:
     post:
       tags: [AdminModeration]
-      summary: 审核通过敏感任务（管理员）
+      summary: 审核通过任务（管理员）
       parameters:
         - $ref: '#/components/parameters/TaskIdPath'
       responses:
@@ -1052,7 +1052,7 @@ paths:
   /admin/moderation/tasks/{taskId}/reject:
     post:
       tags: [AdminModeration]
-      summary: 驳回敏感任务（管理员）
+      summary: 驳回任务（管理员）
       parameters:
         - $ref: '#/components/parameters/TaskIdPath'
       requestBody:
@@ -1264,7 +1264,6 @@ components:
         - TASK_002_INVALID_STATUS_TRANSITION
         - TASK_003_PERMISSION_DENIED
         - TASK_004_APPLICATION_NOT_FOUND
-        - TASK_005_SENSITIVE_REVIEW_REQUIRED
         - TASK_006_COMPLETION_PROOF_REQUIRED
         - REVIEW_001_DUPLICATE_REVIEW
         - CONV_001_NOT_FOUND
@@ -1550,7 +1549,7 @@ components:
 
     TaskCategory:
       type: string
-      enum: [ERRAND, AGENCY, ATTENDANCE_ASSIST]
+      enum: [ERRAND, AGENCY]
 
     RewardType:
       type: string
@@ -1629,7 +1628,7 @@ components:
         sensitiveReason:
           type: string
           maxLength: 300
-          description: 敏感任务原因说明
+          description: 内容治理或人工审核原因说明（可选）
         attachmentIds:
           type: array
           maxItems: 9

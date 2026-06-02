@@ -33,17 +33,12 @@ const categoryMeta = {
   AGENCY: {
     icon: ClipboardCheck,
     tone: 'orange'
-  },
-  ATTENDANCE_ASSIST: {
-    icon: ShieldCheck,
-    tone: 'green'
   }
 }
 
 const taskCategoryLabels = {
   ERRAND: '跑腿代取',
-  AGENCY: '委托代办',
-  ATTENDANCE_ASSIST: '签到协助'
+  AGENCY: '委托代办'
 }
 
 const taskStatusLabels = {

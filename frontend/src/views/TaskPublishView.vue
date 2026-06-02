@@ -82,11 +82,6 @@ const categoryCards = [
     ...TASK_CATEGORY_OPTIONS[1],
     icon: ClipboardCheck,
     note: '适合代交材料、排队、流程协助'
-  },
-  {
-    ...TASK_CATEGORY_OPTIONS[2],
-    icon: ShieldCheck,
-    note: '会场入场、签到、公干等'
   }
 ]
 
@@ -544,8 +539,6 @@ async function focusFirstInvalidField() {
 }
 
 function buildPayload() {
-  const isSensitiveTask = taskForm.category === 'ATTENDANCE_ASSIST'
-
   return {
     category: taskForm.category,
     title: taskForm.title.trim(),
@@ -562,17 +555,13 @@ function buildPayload() {
     allowOfflineContact: taskForm.allowOfflineContact,
     isInstantTask: taskForm.isInstantTask,
     routeHint: taskForm.isInstantTask ? optionalText(taskForm.routeHint) : undefined,
-    riskDisclosureConfirmed: isSensitiveTask,
-    sensitiveReason: isSensitiveTask
-      ? optionalText(taskForm.sensitiveReason) || '出勤协助任务，发布者已确认风险告知'
-      : undefined,
+    riskDisclosureConfirmed: taskForm.riskDisclosureConfirmed,
+    sensitiveReason: optionalText(taskForm.sensitiveReason),
     attachmentIds: []
   }
 }
 
 function buildDraftPayload() {
-  const isSensitiveTask = taskForm.category === 'ATTENDANCE_ASSIST'
-
   return {
     category: taskForm.category || undefined,
     title: optionalText(taskForm.title),
@@ -588,10 +577,8 @@ function buildDraftPayload() {
     allowOfflineContact: taskForm.allowOfflineContact,
     isInstantTask: taskForm.isInstantTask,
     routeHint: optionalText(taskForm.routeHint),
-    riskDisclosureConfirmed: isSensitiveTask ? true : taskForm.riskDisclosureConfirmed,
-    sensitiveReason: isSensitiveTask
-      ? optionalText(taskForm.sensitiveReason) || '出勤协助任务，发布者已确认风险告知'
-      : undefined,
+    riskDisclosureConfirmed: taskForm.riskDisclosureConfirmed,
+    sensitiveReason: optionalText(taskForm.sensitiveReason),
     attachmentIds: []
   }
 }

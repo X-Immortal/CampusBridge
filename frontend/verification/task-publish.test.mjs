@@ -3,8 +3,6 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { URL } from 'node:url'
 
-const DEFAULT_SENSITIVE_REASON = '出勤协助任务，发布者已确认风险告知'
-
 function pad(value) {
   return String(value).padStart(2, '0')
 }
@@ -128,8 +126,6 @@ function hasDraftContent(form) {
 }
 
 function buildPayload(form) {
-  const isSensitiveTask = form.category === 'ATTENDANCE_ASSIST'
-
   return {
     category: form.category,
     title: form.title.trim(),
@@ -145,17 +141,13 @@ function buildPayload(form) {
     allowOfflineContact: form.allowOfflineContact,
     isInstantTask: form.isInstantTask,
     routeHint: form.isInstantTask ? optionalText(form.routeHint) : undefined,
-    riskDisclosureConfirmed: isSensitiveTask,
-    sensitiveReason: isSensitiveTask
-      ? optionalText(form.sensitiveReason) || DEFAULT_SENSITIVE_REASON
-      : undefined,
+    riskDisclosureConfirmed: form.riskDisclosureConfirmed,
+    sensitiveReason: optionalText(form.sensitiveReason),
     attachmentIds: []
   }
 }
 
 function buildDraftPayload(form) {
-  const isSensitiveTask = form.category === 'ATTENDANCE_ASSIST'
-
   return {
     category: form.category || undefined,
     title: optionalText(form.title),
@@ -171,10 +163,8 @@ function buildDraftPayload(form) {
     allowOfflineContact: form.allowOfflineContact,
     isInstantTask: form.isInstantTask,
     routeHint: optionalText(form.routeHint),
-    riskDisclosureConfirmed: isSensitiveTask ? true : form.riskDisclosureConfirmed,
-    sensitiveReason: isSensitiveTask
-      ? optionalText(form.sensitiveReason) || DEFAULT_SENSITIVE_REASON
-      : undefined,
+    riskDisclosureConfirmed: form.riskDisclosureConfirmed,
+    sensitiveReason: optionalText(form.sensitiveReason),
     attachmentIds: []
   }
 }
@@ -220,7 +210,7 @@ function createApiRecorder() {
       calls.push({ method: 'createTask', body })
       return Promise.resolve({
         id: 101,
-        status: body.category === 'ATTENDANCE_ASSIST' ? 'PENDING_REVIEW' : 'OPEN',
+        status: 'OPEN',
         ...body,
         requiresProof: body.requiresProof ? 1 : 0,
         onlyInAppContact: body.onlyInAppContact ? 1 : 0,
@@ -419,21 +409,6 @@ test('即时任务会携带 routeHint，空奖励说明会省略为 undefined', 
   assert.equal(payload.rewardType, 'FREE')
 })
 
-test('出勤协助任务会自动带上风险确认和敏感说明', () => {
-  const payload = buildPayload(
-    baseForm({
-      category: 'ATTENDANCE_ASSIST',
-      rewardType: 'NEGOTIABLE',
-      rewardDescription: '',
-      sensitiveReason: ''
-    })
-  )
-
-  assert.equal(payload.riskDisclosureConfirmed, true)
-  assert.equal(payload.sensitiveReason, DEFAULT_SENSITIVE_REASON)
-  assert.equal(payload.rewardDescription, undefined)
-})
-
 test('草稿 payload 允许部分字段为空，并使用草稿接口保存', async () => {
   const api = createApiRecorder()
   const form = baseForm({
@@ -472,7 +447,7 @@ test('未登录或未认证时草稿只保存在本机，不调用后端草稿�
 test('编辑模式只提交 API 允许更新的字段', () => {
   const payload = buildUpdatePayload(
     baseForm({
-      category: 'ATTENDANCE_ASSIST',
+      category: 'AGENCY',
       campus: '不应提交',
       location: '不应提交',
       isInstantTask: true,

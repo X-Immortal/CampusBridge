@@ -24,6 +24,11 @@ public class ContentModerationServiceImpl implements ContentModerationService {
     private static final List<Rule> PROHIBITED_RULES = List.of(
             new Rule(RULE_PROHIBITED_KEYWORD, "\u4ee3\u8003"),
             new Rule(RULE_PROHIBITED_KEYWORD, "\u66ff\u8003"),
+            new Rule(RULE_PROHIBITED_KEYWORD, "\u4ee3\u7b7e\u5230"),
+            new Rule(RULE_PROHIBITED_KEYWORD, "\u4ee3\u51fa\u52e4"),
+            new Rule(RULE_PROHIBITED_KEYWORD, "\u4ee3\u4e0a\u8bfe"),
+            new Rule(RULE_PROHIBITED_KEYWORD, "\u4ee3\u8bfe"),
+            new Rule(RULE_PROHIBITED_KEYWORD, "\u7b7e\u5230"),
             new Rule(RULE_PROHIBITED_KEYWORD, "\u4f5c\u5f0a"),
             new Rule(RULE_PROHIBITED_KEYWORD, "\u5237\u8bfe"),
             new Rule(RULE_PROHIBITED_KEYWORD, "\u4e70\u5356\u7b54\u6848"),
