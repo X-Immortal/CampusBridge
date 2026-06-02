@@ -29,7 +29,8 @@ public class VerificationServiceImpl implements VerificationService {
     private static final String EMAIL_EVIDENCE_PREFIX = "EMAIL_CODE";
     private static final int EMAIL_CODE_TTL_MINUTES = 10;
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
-    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[^@\\s]+@[^@\\s]*\\.edu\\.cn$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern EMAIL_PATTERN = Pattern.compile(
+            "^[^@\\s]+@[^@\\s]*\\.edu\\.cn$", Pattern.CASE_INSENSITIVE);
 
     @Autowired
     private CampusVerificationMapper campusVerificationMapper;

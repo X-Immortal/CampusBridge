@@ -9,7 +9,6 @@ import {
   BadgeCheck,
   BookOpen,
   BriefcaseBusiness,
-  Building2,
   CalendarClock,
   CheckCircle2,
   ChevronDown,
