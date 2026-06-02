@@ -20,6 +20,7 @@ public class Task {
     private LocalDateTime deadline;
     private String rewardType;
     private String rewardDescription;
+    private Integer rewardAmount;
     private String completionStandard;
     private Integer requiresProof;
     private Integer onlyInAppContact;

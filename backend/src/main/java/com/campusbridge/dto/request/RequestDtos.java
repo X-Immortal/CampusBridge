@@ -111,6 +111,7 @@ public final class RequestDtos {
         public String routeHint;
         public Boolean riskDisclosureConfirmed;
         public String sensitiveReason;
+        public Integer rewardAmount;
         public List<Long> attachmentIds;
     }
 
@@ -123,6 +124,7 @@ public final class RequestDtos {
         public LocalDateTime deadline;
         public ApiEnums.RewardType rewardType;
         public String rewardDescription;
+        public Integer rewardAmount;
         public String completionStandard;
         public Boolean requiresProof;
         public Boolean onlyInAppContact;
