@@ -13,6 +13,7 @@ import com.campusbridge.pojo.User;
 import com.campusbridge.pojo.UserCredit;
 import com.campusbridge.pojo.UserProfile;
 import com.campusbridge.service.impl.UserProfileServiceImpl;
+import com.campusbridge.utils.AliOSSUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,6 +45,9 @@ class BE03UserProfileServiceImplTest {
     @Mock
     private CampusVerificationMapper campusVerificationMapper;
 
+    @Mock
+    private AliOSSUtils aliOSSUtils;
+
     private UserProfileServiceImpl userProfileService;
 
     @BeforeEach
@@ -53,7 +57,8 @@ class BE03UserProfileServiceImplTest {
                 userProfileMapper,
                 new ObjectMapper(),
                 userCreditMapper,
-                campusVerificationMapper);
+                campusVerificationMapper,
+                aliOSSUtils);
     }
 
     @Test

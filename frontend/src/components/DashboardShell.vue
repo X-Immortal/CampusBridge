@@ -21,6 +21,7 @@ import {
   UserRound
 } from '@lucide/vue'
 import { useDashboardSidebar } from '../composables/useDashboardSidebar'
+import { useNotificationCenter } from '../composables/useNotificationCenter'
 import { useAuth } from '../stores/auth'
 
 defineProps({
@@ -35,11 +36,20 @@ defineProps({
 })
 
 const router = useRouter()
-const { state, isAuthenticated, logout } = useAuth()
+const { state, isAuthenticated, currentUserId, logout } = useAuth()
 const { sidebarCollapsed, toggleSidebarCollapsed } = useDashboardSidebar()
+const { unreadCount: notificationUnreadCount, refreshNotificationSummary } = useNotificationCenter()
 const accountMenuOpen = ref(false)
 const accountMenuRef = ref(null)
 const avatarLoadFailed = ref(false)
+const searchKeyword = ref('')
+
+function handleSearch() {
+  const keyword = searchKeyword.value.trim()
+  if (!keyword) return
+  router.push({ name: 'task-list', query: { keyword } })
+  searchKeyword.value = ''
+}
 
 const isAdmin = computed(() => String(state.user?.role || '').toUpperCase() === 'ADMIN')
 
@@ -71,6 +81,10 @@ const accountMeta = computed(() => {
   if (!isAuthenticated.value) return '登录后同步认证和任务记录'
   return state.profile?.campus || state.profile?.college || state.user?.role || '校园互助账号'
 })
+const notificationBadgeCount = computed(() => notificationUnreadCount.value)
+const notificationBadgeLabel = computed(() =>
+  notificationBadgeCount.value > 99 ? '99+' : String(notificationBadgeCount.value)
+)
 
 function closeAccountMenu() {
   accountMenuOpen.value = false
@@ -102,6 +116,14 @@ function handleAvatarError() {
 watch(profileAvatarUrl, () => {
   avatarLoadFailed.value = false
 })
+
+watch(
+  [isAuthenticated, currentUserId],
+  () => {
+    refreshNotificationSummary()
+  },
+  { immediate: true }
+)
 
 onMounted(() => {
   document.addEventListener('pointerdown', handleDocumentPointerDown)
@@ -178,29 +200,33 @@ onBeforeUnmount(() => {
     </aside>
 
     <header class="dashboard-topbar">
-      <label class="search-box">
+      <form
+        class="search-box"
+        @submit.prevent="handleSearch"
+      >
         <Search
           :size="22"
           aria-hidden="true"
         />
         <input
+          v-model.trim="searchKeyword"
           type="search"
           placeholder="搜索任务、技能、地点或关键词"
           aria-label="搜索任务、技能、地点或关键词"
         >
-      </label>
+      </form>
 
       <div class="topbar-account">
         <RouterLink
           class="notice-button"
           to="/notifications"
-          aria-label="消息通知"
+          :aria-label="notificationBadgeCount ? `消息通知，${notificationBadgeCount} 条未读` : '消息通知'"
         >
           <Bell
             :size="25"
             aria-hidden="true"
           />
-          <span>3</span>
+          <span v-if="notificationBadgeCount > 0">{{ notificationBadgeLabel }}</span>
         </RouterLink>
         <div class="topbar-divider" />
         <div
@@ -332,18 +358,17 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .dashboard-shell {
-  --sidebar-width: 260px;
+  --sidebar-width: 293px;
   --topbar-height: 76px;
   min-height: 100vh;
   background: #fbfafc;
   color: #202033;
   font-family:
-    KaiTi,
-    STKaiti,
-    "楷体",
-    "华文楷体",
+    "PingFang SC",
     "Microsoft YaHei",
-    serif;
+    "Hiragino Sans GB",
+    "Noto Sans SC",
+    sans-serif;
 }
 
 .dashboard-shell.is-collapsed {
@@ -416,12 +441,14 @@ onBeforeUnmount(() => {
 }
 
 .brand-text {
-  max-width: 148px;
+  max-width: 190px;
   color: #4338ca;
+  font-family: Georgia, "Times New Roman", "Noto Serif", serif;
   font-size: 1.08rem;
   font-weight: 900;
   line-height: 1.08;
   overflow-wrap: anywhere;
+  white-space: nowrap;
   text-transform: uppercase;
   transition:
     max-width 180ms ease,
@@ -759,7 +786,7 @@ onBeforeUnmount(() => {
 
 @media (max-width: 1100px) {
   .dashboard-shell {
-    --sidebar-width: 224px;
+    --sidebar-width: 252px;
   }
 
   .dashboard-shell.is-collapsed {

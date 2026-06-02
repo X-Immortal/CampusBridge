@@ -165,6 +165,11 @@ export default {
     if (expectedOwnerType) formData.append('expectedOwnerType', expectedOwnerType)
     if (type) formData.append('type', type)
     return request('/attachments', { method: 'POST', body: formData, timeoutMs: 15000 })
+  },
+  uploadAvatar: (file) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return request('/users/me/avatar', { method: 'POST', body: formData, timeoutMs: 15000 })
   }
 }
 

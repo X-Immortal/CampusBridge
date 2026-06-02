@@ -490,7 +490,7 @@ function validateForm() {
   if (!taskForm.rewardType) setError('rewardType', '请选择奖励方式。')
   if (!taskForm.completionStandard.trim()) setError('completionStandard', '请填写完成标准。')
 
-  validateTextLength('title', taskForm.title, 100, '标题最多 100 个字。')
+  validateTextLength('title', taskForm.title, 50, '标题最多 50 个字。')
   validateTextLength('description', taskForm.description, 2000, '任务说明最多 2000 个字。')
   validateTextLength('campus', taskForm.campus, 50, '校区最多 50 个字。')
   validateTextLength('location', taskForm.location, 120, '地点最多 120 个字。')
@@ -789,7 +789,6 @@ watch(
               <span>1</span>
               <div>
                 <h2>基本信息</h2>
-                <p>先让帮助者知道这是什么事</p>
               </div>
             </div>
 
@@ -841,14 +840,14 @@ watch(
                 <input
                   id="task-title"
                   v-model.trim="taskForm.title"
-                  maxlength="100"
+                  maxlength="50"
                   placeholder="例如：代取菜鸟驿站的快递"
                   required
                   :aria-invalid="Boolean(errors.title)"
                   :aria-describedby="describedBy('title', 'title-hint')"
                   @input="clearError('title')"
                 >
-                <small id="title-hint">用一句话说明任务，帮助者浏览时会优先看到它。</small>
+                <small id="title-hint">{{ taskForm.title.length }}/50</small>
                 <small
                   v-if="errors.title"
                   id="title-error"
@@ -890,7 +889,6 @@ watch(
               <span>2</span>
               <div>
                 <h2>时间地点</h2>
-                <p>让接单判断成本和路线</p>
               </div>
             </div>
 
@@ -1021,7 +1019,6 @@ watch(
               <span>3</span>
               <div>
                 <h2>奖励与要求</h2>
-                <p>提前说清怎样算完成</p>
               </div>
             </div>
 
@@ -1114,7 +1111,6 @@ watch(
               <span>4</span>
               <div>
                 <h2>确认与安全</h2>
-                <p>把接触边界写在任务里</p>
               </div>
             </div>
 
@@ -1367,7 +1363,6 @@ watch(
                 </span>
                 <div>
                   <strong>标题越具体，越容易被理解</strong>
-                  <p>清晰的标题能帮助同学快速判断是否能接。</p>
                 </div>
               </div>
               <div class="tip-item">
@@ -1379,7 +1374,6 @@ watch(
                 </span>
                 <div>
                   <strong>时间地点写清楚，可以减少沟通成本</strong>
-                  <p>避开模糊、超宽范围的地点描述。</p>
                 </div>
               </div>
               <div class="tip-item">
@@ -1391,7 +1385,6 @@ watch(
                 </span>
                 <div>
                   <strong>不要发布涉及隐私、代考、违规内容</strong>
-                  <p>遵守平台规范，共建安全友善的校园互助环境。</p>
                 </div>
               </div>
             </div>
@@ -1997,7 +1990,7 @@ watch(
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   gap: 12px;
-  align-items: start;
+  align-items: center;
 }
 
 .tip-item > span {
@@ -2010,20 +2003,11 @@ watch(
   color: #746dc3;
 }
 
-.tip-item strong,
-.tip-item p {
-  margin: 0;
-}
-
 .tip-item strong {
+  display: block;
+  margin: 0;
   color: #3c3543;
   line-height: 1.35;
-}
-
-.tip-item p {
-  margin-top: 4px;
-  color: #8a8792;
-  line-height: 1.55;
 }
 
 .spinning {
@@ -2155,7 +2139,7 @@ watch(
 }
 
 .panel-card.publish-form {
-  gap: 8px;
+  gap: 20px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -2263,7 +2247,7 @@ watch(
 }
 
 .reward-selector {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .reward-choice {
@@ -2286,11 +2270,11 @@ watch(
 }
 
 .form-row--intro {
-  grid-template-columns: minmax(240px, 0.85fr) minmax(280px, 1.25fr);
+  grid-template-columns: 1fr;
 }
 
 .form-row--reward-detail {
-  grid-template-columns: minmax(240px, 0.92fr) minmax(280px, 1.08fr);
+  grid-template-columns: 1fr;
 }
 
 .publish-field {
@@ -2343,9 +2327,6 @@ watch(
   line-height: 1.32;
 }
 
-#title-hint {
-  display: none;
-}
 
 .field-error {
   font-size: 0.8rem;
@@ -2522,12 +2503,6 @@ watch(
 .tip-item strong {
   color: #111827;
   font-size: 0.9rem;
-}
-
-.tip-item p {
-  color: var(--publish-muted);
-  font-size: 0.8rem;
-  line-height: 1.4;
 }
 
 .gate-alert,
@@ -2777,8 +2752,7 @@ watch(
   }
 
   .preview-list dt,
-  .check-item,
-  .tip-item p {
+  .check-item {
     font-size: 0.88rem;
   }
 }

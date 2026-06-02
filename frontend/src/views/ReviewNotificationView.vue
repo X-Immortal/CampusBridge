@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   ClipboardCheck,
   FileCheck2,
+  Inbox,
   Info,
   LoaderCircle,
   MessageCircle,
@@ -16,11 +17,11 @@ import {
   Search,
   Sparkles,
   Star,
-  StarHalf,
   UserRound
 } from '@lucide/vue'
 import DashboardShell from '../components/DashboardShell.vue'
 import StatusBadge from '../components/StatusBadge.vue'
+import { useNotificationCenter } from '../composables/useNotificationCenter'
 import { optionLabel, TASK_CATEGORY_OPTIONS, TASK_STATUS_OPTIONS, statusTone } from '../constants'
 import api from '../services/api'
 import { useAuth } from '../stores/auth'
@@ -28,8 +29,12 @@ import { useAuth } from '../stores/auth'
 const route = useRoute()
 const router = useRouter()
 const { currentUserId } = useAuth()
-
-const READ_STORAGE_KEY = 'campusbridge.notifications.read'
+const {
+  readIds,
+  markNotificationIdsRead,
+  replaceNotificationSummary,
+  syncReadIdsFromStorage
+} = useNotificationCenter()
 
 const reviewLabels = {
   1: '体验很差',
@@ -71,7 +76,6 @@ const reviewFeedbackType = ref('success')
 const notificationFeedback = ref('')
 const notificationSearch = ref('')
 const notificationFilter = ref('ALL')
-const readIds = ref(readStoredNotificationIds())
 
 const reviewForm = reactive({
   rating: 5,
@@ -128,11 +132,6 @@ const averageGivenRating = computed(() => {
   return average.toFixed(1)
 })
 const selectedTaskReviews = computed(() => selectedTask.value?.reviews || [])
-const reviewStatusCopy = computed(() => {
-  if (!selectedTask.value) return '暂无可评价任务'
-  if (existingReview.value) return '你已经完成本次互评，评价记录会作为信用判断的一部分。'
-  return '完成后请从准时、沟通、凭证和完成标准四个维度给出真实评价。'
-})
 
 const decoratedNotifications = computed(() =>
   notifications.value
@@ -166,27 +165,6 @@ const notificationMetrics = computed(() => [
   { label: '待评价', value: pendingReviewTasks.value.length, tone: 'accent' },
   { label: '已完成评价', value: reviewedTasks.value.length, tone: 'success' }
 ])
-
-function readStoredNotificationIds() {
-  try {
-    const payload = JSON.parse(localStorage.getItem(READ_STORAGE_KEY) || '{}')
-    const userKey = String(currentUserId.value || 'anonymous')
-    return Array.isArray(payload[userKey]) ? payload[userKey].map(String) : []
-  } catch {
-    return []
-  }
-}
-
-function persistReadIds() {
-  let payload = {}
-  try {
-    payload = JSON.parse(localStorage.getItem(READ_STORAGE_KEY) || '{}')
-  } catch {
-    payload = {}
-  }
-  payload[String(currentUser.value)] = [...new Set(readIds.value.map(String))]
-  localStorage.setItem(READ_STORAGE_KEY, JSON.stringify(payload))
-}
 
 function normalizePagedItems(result) {
   if (Array.isArray(result)) return result
@@ -323,9 +301,11 @@ async function loadReviews() {
       ...(completedResult.status === 'fulfilled' ? normalizePagedItems(completedResult.value) : []),
       ...(reviewedResult.status === 'fulfilled' ? normalizePagedItems(reviewedResult.value) : [])
     ]
+    const myId = currentUserId.value
     const uniqueTasks = [...new Map(rawTasks.map((task) => [String(task.id ?? task.taskId), task])).values()]
       .filter((task) => task.id || task.taskId)
       .map(normalizeTask)
+      .filter((task) => String(task.requesterId) === String(myId))
 
     tasks.value = uniqueTasks
     if (uniqueTasks.length) await hydrateTaskReviews()
@@ -486,6 +466,7 @@ async function loadNotifications() {
     const result = await api.getConversations({ page: 1, size: 20 })
     if (requestId !== notificationRequestId) return
     const conversations = normalizePagedItems(result)
+    replaceNotificationSummary(conversations)
     let items = conversations.map(normalizeNotificationFromConversation)
 
     const messageResults = await Promise.allSettled(
@@ -506,6 +487,7 @@ async function loadNotifications() {
     selectDefaultNotification()
   } catch {
     if (requestId !== notificationRequestId) return
+    replaceNotificationSummary([])
     notifications.value = []
     selectDefaultNotification()
   } finally {
@@ -529,16 +511,12 @@ function selectNotification(notification) {
 
 function markNotificationRead(notification) {
   if (!notification?.id || notification.read) return
-  readIds.value = [...new Set([...readIds.value, String(notification.id)])]
-  persistReadIds()
+  markNotificationIdsRead([notification.id])
   notificationFeedback.value = '已标记为已读。'
 }
 
 function markAllNotificationsRead() {
-  readIds.value = [
-    ...new Set([...readIds.value, ...decoratedNotifications.value.map((notification) => String(notification.id))])
-  ]
-  persistReadIds()
+  markNotificationIdsRead(decoratedNotifications.value.map((notification) => notification.id))
   notificationFeedback.value = '全部通知已标记为已读。'
 }
 
@@ -557,7 +535,7 @@ function notificationToneClass(notification) {
 }
 
 watch(currentUser, () => {
-  readIds.value = readStoredNotificationIds()
+  syncReadIdsFromStorage()
 })
 
 onMounted(async () => {
@@ -571,7 +549,7 @@ onMounted(async () => {
       <section class="page-title-card fe08-title-card">
         <div class="title-icon">
           <component
-            :is="activeSection === 'notifications' ? BellDot : StarHalf"
+            :is="activeSection === 'notifications' ? BellDot : Star"
             :size="34"
             aria-hidden="true"
           />
@@ -677,12 +655,12 @@ onMounted(async () => {
             v-else-if="!tasks.length"
             class="empty-state"
           >
-            <Star
-              :size="34"
+            <Inbox
+              :size="30"
               aria-hidden="true"
             />
-            <h3>暂无可评价任务</h3>
-            <p>任务完成后，互评入口会出现在这里。</p>
+            <h3>暂无已完成任务</h3>
+            <p>你发布的任务完成后会出现在这里。</p>
           </div>
 
           <div
@@ -731,9 +709,17 @@ onMounted(async () => {
             />
           </div>
 
-          <p class="panel-copy">
-            {{ reviewStatusCopy }}
-          </p>
+          <div
+            v-if="!selectedTask"
+            class="empty-state"
+          >
+            <Star
+              :size="30"
+              aria-hidden="true"
+            />
+            <h3>选择任务后填写评价</h3>
+            <p>从左侧互评任务列表中选择一次已完成协作。</p>
+          </div>
 
           <div
             v-if="selectedTask"
@@ -1276,8 +1262,7 @@ onMounted(async () => {
 }
 
 .section-switch button,
-.filter-tabs button,
-.tag-chip {
+.filter-tabs button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1297,11 +1282,42 @@ onMounted(async () => {
 }
 
 .section-switch button.active,
-.filter-tabs button.active,
-.tag-chip.active {
+.filter-tabs button.active {
   border-color: #bfdbfe;
   background: #eff6ff;
   color: #0369a1;
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid #e2e0ea;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #334155;
+  font-size: 0.9rem;
+  font-weight: 800;
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.tag-chip:hover {
+  border-color: #c7c1e0;
+  background: #f9f7ff;
+}
+
+.tag-chip.active {
+  border-color: #a78bfa;
+  background: #f5f3ff;
+  color: #5d49cb;
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.12);
 }
 
 .metric-strip {
@@ -1607,10 +1623,12 @@ onMounted(async () => {
 .rating-field,
 .tag-field {
   display: grid;
-  gap: 10px;
+  gap: 12px;
   margin: 0;
-  padding: 0;
-  border: 0;
+  padding: 16px;
+  border: 1px solid #e4e1ea;
+  border-radius: 8px;
+  background: #fcfbff;
 }
 
 .rating-field legend,
