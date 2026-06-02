@@ -1,6 +1,6 @@
 ﻿-- 校园互助服务平台 database schema.
 -- MySQL 8.0 / InnoDB / utf8mb4
-
+USE campusbridge;
 CREATE TABLE `users` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '用户ID',
   `username` VARCHAR(50) NOT NULL COMMENT '用户名/学号',
@@ -142,7 +142,7 @@ CREATE TABLE `tasks` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `requester_id` BIGINT UNSIGNED NOT NULL,
   `provider_id` BIGINT UNSIGNED NULL,
-  `category` ENUM('ERRAND','AGENCY','ATTENDANCE_ASSIST') NOT NULL,
+  `category` ENUM('ERRAND','AGENCY') NOT NULL,
   `title` VARCHAR(100) NOT NULL,
   `description` TEXT NOT NULL,
   `campus` VARCHAR(50) NOT NULL,

@@ -58,8 +58,8 @@ const fixtureTasks = [
     id: 22,
     requesterId: 9,
     providerId: null,
-    category: 'ATTENDANCE_ASSIST',
-    title: '我的签到协助草稿',
+    category: 'AGENCY',
+    title: '我的材料递交草稿',
     description: '草稿内容。',
     campus: '鼓楼校区',
     location: '礼堂入口',
@@ -71,7 +71,7 @@ const fixtureTasks = [
     onlyInAppContact: 1,
     allowOfflineContact: 0,
     isInstantTask: 1,
-    riskDisclosureConfirmed: 1,
+    riskDisclosureConfirmed: 0,
     status: 'DRAFT',
     createdAt: '2026-05-30T12:00:00'
   },
@@ -371,7 +371,7 @@ test('我的任务页状态筛选能显示草稿等非 OPEN 状态', () => {
   const filters = {
     ...createDefaultFilters('my-tasks'),
     status: 'DRAFT',
-    category: 'ATTENDANCE_ASSIST'
+    category: 'AGENCY'
   }
   const response = mockListTasks(buildTaskQuery(filters, { isMineView: true }))
   const state = applyMyTaskResult(response.data, {
@@ -384,11 +384,11 @@ test('我的任务页状态筛选能显示草稿等非 OPEN 状态', () => {
   assert.equal(state.total, 1)
   assert.equal(task.id, 22)
   assert.equal(task.isInstantTask, true)
-  assert.equal(task.riskDisclosureConfirmed, true)
+  assert.equal(task.riskDisclosureConfirmed, false)
   assert.deepEqual(taskCardSnapshot(task), {
-    title: '我的签到协助草稿',
+    title: '我的材料递交草稿',
     status: '草稿',
-    category: '出勤/签到协助',
+    category: '委托代办',
     location: '鼓楼校区 · 礼堂入口',
     reward: '双方协商',
     proof: '需要完成凭证'

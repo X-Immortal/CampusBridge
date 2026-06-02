@@ -46,11 +46,6 @@ export const TASK_CATEGORY_OPTIONS = [
     value: 'AGENCY',
     label: '委托代办',
     description: '资料提交、手续办理、排队协助等明确任务'
-  },
-  {
-    value: 'ATTENDANCE_ASSIST',
-    label: '出勤/签到协助',
-    description: '会场入场、签到、公干等普通协助'
   }
 ]
 

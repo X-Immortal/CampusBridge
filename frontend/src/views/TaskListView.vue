@@ -126,11 +126,6 @@ const TASK_TYPE_META = {
     label: '委托代办',
     icon: BriefcaseBusiness,
     tone: 'green'
-  },
-  ATTENDANCE_ASSIST: {
-    label: '出勤协助',
-    icon: ClipboardCheck,
-    tone: 'amber'
   }
 }
 

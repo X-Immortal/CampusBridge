@@ -73,22 +73,22 @@ const fixtureTasks = [
     id: 12,
     requesterId: 7,
     providerId: null,
-    category: 'ATTENDANCE_ASSIST',
-    title: '会议签到协助',
-    description: '协助完成校内讲座入场签到，需按现场要求完成。',
+    category: 'AGENCY',
+    title: '材料递交协助',
+    description: '协助将活动材料递交到指定办公室。',
     campus: '鼓楼校区',
     location: '礼堂入口',
     deadline: '2026-06-04T09:00:00',
     rewardType: 'NEGOTIABLE',
     rewardDescription: '可协商',
-    completionStandard: '现场签到记录完成并站内说明',
+    completionStandard: '材料递交完成并站内说明',
     requiresProof: 1,
     onlyInAppContact: 1,
     allowOfflineContact: 0,
     isInstantTask: 1,
     routeHint: '早上 8:30 前到礼堂入口',
-    riskDisclosureConfirmed: 1,
-    sensitiveReason: '测试敏感任务展示',
+    riskDisclosureConfirmed: 0,
+    sensitiveReason: '测试待审核任务展示',
     status: 'PENDING_REVIEW',
     createdAt: '2026-05-30T12:00:00',
     updatedAt: '2026-05-30T12:00:00'
@@ -285,7 +285,7 @@ test('待审核任务可以按状态筛出并显示为待审核', () => {
   const filters = {
     ...defaultFilters,
     status: 'PENDING_REVIEW',
-    category: 'ATTENDANCE_ASSIST'
+    category: 'AGENCY'
   }
   const response = mockListTasks(buildTaskQuery(filters))
   const state = applyTaskResult(response.data, filters)
@@ -294,7 +294,7 @@ test('待审核任务可以按状态筛出并显示为待审核', () => {
   assert.equal(state.tasks.length, 1)
   assert.equal(task.id, 12)
   assert.equal(task.isInstantTask, true)
-  assert.equal(task.riskDisclosureConfirmed, true)
+  assert.equal(task.riskDisclosureConfirmed, false)
   assert.equal(taskCardSnapshot(task).status, '待审核')
-  assert.equal(taskCardSnapshot(task).category, '出勤/签到协助')
+  assert.equal(taskCardSnapshot(task).category, '委托代办')
 })

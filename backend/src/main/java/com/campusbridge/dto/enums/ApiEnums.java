@@ -33,7 +33,7 @@ public final class ApiEnums {
     }
 
     public enum TaskCategory {
-        ERRAND, AGENCY, ATTENDANCE_ASSIST
+        ERRAND, AGENCY
     }
 
     public enum RewardType {

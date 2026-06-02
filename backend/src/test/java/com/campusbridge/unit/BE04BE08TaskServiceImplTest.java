@@ -84,28 +84,6 @@ class BE04BE08TaskServiceImplTest {
     }
 
     @Test
-    void createTaskCreatesPendingReviewTaskForSensitiveCategory() {
-        RequestDtos.CreateTaskRequest request = normalCreateRequest();
-        request.setCategory(ApiEnums.TaskCategory.ATTENDANCE_ASSIST);
-        request.setRiskDisclosureConfirmed(true);
-        request.setSensitiveReason("课程临时签到协助，需要管理员审核。");
-
-        when(campusVerificationMapper.selectLatestByUserId(REQUESTER_ID))
-                .thenReturn(verifiedRecord());
-        when(taskMapper.insert(any(Task.class))).thenAnswer(invocation -> {
-            Task task = invocation.getArgument(0);
-            task.setId(TASK_ID);
-            return 1;
-        });
-
-        Task created = taskService.createTask(REQUESTER_ID, request);
-
-        assertThat(created.getStatus()).isEqualTo("PENDING_REVIEW");
-        verify(taskHistoryService)
-                .recordHistory(TASK_ID, null, "PENDING_REVIEW", REQUESTER_ID, "TASK_CREATED");
-    }
-
-    @Test
     void createTaskRejectsMissingRequiredField() {
         RequestDtos.CreateTaskRequest request = normalCreateRequest();
         request.setTitle(" ");

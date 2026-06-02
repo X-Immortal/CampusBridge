@@ -35,7 +35,6 @@ public class TaskServiceImpl implements TaskService {
 
     private static final String STATUS_OPEN = "OPEN";
     private static final String STATUS_DRAFT = "DRAFT";
-    private static final String STATUS_PENDING_REVIEW = "PENDING_REVIEW";
     private static final String VERIFICATION_STATUS_VERIFIED = "VERIFIED";
     private static final String HISTORY_NOTE_CREATED = "TASK_CREATED";
     private static final String HISTORY_NOTE_UPDATED = "TASK_UPDATED";
@@ -384,22 +383,11 @@ public class TaskServiceImpl implements TaskService {
                 "sensitiveReason is too long");
         validateAttachmentIds(request.getAttachmentIds());
         validateDeadline(request.getDeadline());
-        validateSensitiveTask(request);
     }
 
     private void validateDeadline(LocalDateTime deadline) {
         if (!deadline.isAfter(LocalDateTime.now())) {
             throwValidation("deadline must be in the future");
-        }
-    }
-
-    private void validateSensitiveTask(RequestDtos.CreateTaskRequest request) {
-        if (request.getCategory() != ApiEnums.TaskCategory.ATTENDANCE_ASSIST) {
-            return;
-        }
-        if (!Boolean.TRUE.equals(request.getRiskDisclosureConfirmed())
-                || isBlank(request.getSensitiveReason())) {
-            throw new BusinessException(ErrorCode.TASK_005_SENSITIVE_REVIEW_REQUIRED);
         }
     }
 
@@ -438,9 +426,6 @@ public class TaskServiceImpl implements TaskService {
     }
 
     private String resolveInitialStatus(RequestDtos.CreateTaskRequest request) {
-        if (request.getCategory() == ApiEnums.TaskCategory.ATTENDANCE_ASSIST) {
-            return STATUS_PENDING_REVIEW;
-        }
         return STATUS_OPEN;
     }
 
@@ -730,9 +715,6 @@ public class TaskServiceImpl implements TaskService {
     }
 
     private String resolveInitialStatusForResend(Task task) {
-        if (ApiEnums.TaskCategory.ATTENDANCE_ASSIST.name().equals(task.getCategory())) {
-            return STATUS_PENDING_REVIEW;
-        }
         return STATUS_OPEN;
     }
 }
