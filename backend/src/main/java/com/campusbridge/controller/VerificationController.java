@@ -38,6 +38,58 @@ public class VerificationController {
                         "VERIFY_002_ALREADY_PENDING_OR_VERIFIED",
                         "Verification already pending or approved");
             }
+            if (code == -4L) {
+                return Result.error("VERIFY_005_EMAIL_SEND_FAILED", "Failed to send verification email");
+            }
+            return Result.error("VERIFY_003_SUBMIT_FAILED", "Failed to submit verification");
+        }
+        return Result.success(result);
+    }
+
+    @PostMapping("/email/code")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public Result resendEmailVerificationCode() {
+        Long userId = authContextUtil.getCurrentUserId();
+        Object result = verificationService.resendEmailCode(userId);
+        if (result == null) {
+            return Result.error("VERIFY_001_INVALID_INPUT", "Invalid verification request");
+        }
+        if (result instanceof Long code) {
+            if (code == -1L) {
+                return Result.error("VERIFY_004_NOT_FOUND", "Verification record not found");
+            }
+            if (code == -2L) {
+                return Result.error("VERIFY_006_EMAIL_CODE_NOT_PENDING", "No pending email verification");
+            }
+            if (code == -4L) {
+                return Result.error("VERIFY_005_EMAIL_SEND_FAILED", "Failed to send verification email");
+            }
+            return Result.error("VERIFY_003_SUBMIT_FAILED", "Failed to submit verification");
+        }
+        return Result.success(result);
+    }
+
+    @PostMapping("/email/confirm")
+    public Result confirmEmailVerification(
+            @RequestBody RequestDtos.ConfirmEmailVerificationRequest request) {
+        Long userId = authContextUtil.getCurrentUserId();
+        Object result = verificationService.confirmEmail(userId, request);
+        if (result == null) {
+            return Result.error("VERIFY_001_INVALID_INPUT", "Invalid verification request");
+        }
+        if (result instanceof Long code) {
+            if (code == -1L) {
+                return Result.error("VERIFY_004_NOT_FOUND", "Verification record not found");
+            }
+            if (code == -2L || code == -3L) {
+                return Result.error("VERIFY_006_EMAIL_CODE_NOT_PENDING", "No pending email verification");
+            }
+            if (code == -4L) {
+                return Result.error("VERIFY_007_EMAIL_CODE_EXPIRED", "Verification code expired");
+            }
+            if (code == -5L) {
+                return Result.error("VERIFY_008_EMAIL_CODE_MISMATCH", "Verification code is incorrect");
+            }
             return Result.error("VERIFY_003_SUBMIT_FAILED", "Failed to submit verification");
         }
         return Result.success(result);

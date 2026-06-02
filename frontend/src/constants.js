@@ -54,6 +54,39 @@ export const TASK_CATEGORY_OPTIONS = [
   }
 ]
 
+export const POST_CATEGORY_OPTIONS = [
+  {
+    value: 'INQUIRY_HELP',
+    label: '问询求助',
+    description: '课程、办事、校园生活相关的问题和经验求助'
+  },
+  {
+    value: 'SECOND_HAND',
+    label: '二手闲置',
+    description: '书籍、用品、设备转让或交换'
+  },
+  {
+    value: 'TEAM_FRIEND',
+    label: '组队搭子',
+    description: '学习、比赛、活动或运动组队'
+  },
+  {
+    value: 'CAMPUS_SOCIAL',
+    label: '校园交流',
+    description: '校内见闻、活动分享和轻量讨论'
+  }
+]
+
+export const POST_STATUS_OPTIONS = [
+  { value: 'DRAFT', label: '草稿', tone: 'muted' },
+  { value: 'PUBLISHED', label: '已发布', tone: 'success' },
+  { value: 'PENDING_REVIEW', label: '待审核', tone: 'warning' },
+  { value: 'HIDDEN', label: '已隐藏', tone: 'muted' },
+  { value: 'CLOSED', label: '已关闭', tone: 'muted' },
+  { value: 'DELETED', label: '已删除', tone: 'danger' },
+  { value: 'REJECTED', label: '未通过', tone: 'danger' }
+]
+
 export const REWARD_TYPE_OPTIONS = [
   { value: 'FREE', label: '免费互助', description: '适合轻量、顺手帮忙的需求' },
   { value: 'POINTS', label: '积分奖励', description: '用于平台积分或活动确认' },
@@ -109,6 +142,7 @@ export function statusTone(status) {
   return [
     ...STATUS_OPTIONS,
     ...MODERATION_STATUS_OPTIONS,
+    ...POST_STATUS_OPTIONS,
     ...TASK_STATUS_OPTIONS,
     ...APPLICATION_STATUS_OPTIONS,
     ...CONVERSATION_TYPE_OPTIONS

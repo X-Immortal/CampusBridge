@@ -11,7 +11,6 @@ import com.campusbridge.pojo.Task;
 import com.campusbridge.service.ReportService;
 import com.campusbridge.service.TaskHistoryService;
 import com.campusbridge.service.VerificationService;
-import com.campusbridge.utils.AuthContextUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -36,7 +35,6 @@ public class AdminModerationController {
     private final CurrentUserResolver currentUserResolver;
     private final ReportService reportService;
     private final VerificationService verificationService;
-    private final AuthContextUtil authContextUtil;
     private final TaskMapper taskMapper;
     private final TaskHistoryService taskHistoryService;
 
@@ -44,13 +42,11 @@ public class AdminModerationController {
             CurrentUserResolver currentUserResolver,
             ReportService reportService,
             VerificationService verificationService,
-            AuthContextUtil authContextUtil,
             TaskMapper taskMapper,
             TaskHistoryService taskHistoryService) {
         this.currentUserResolver = currentUserResolver;
         this.reportService = reportService;
         this.verificationService = verificationService;
-        this.authContextUtil = authContextUtil;
         this.taskMapper = taskMapper;
         this.taskHistoryService = taskHistoryService;
     }
@@ -138,6 +134,14 @@ public class AdminModerationController {
         return Result.success(task);
     }
 
+    @GetMapping("/reports")
+    public Result listReports(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false, defaultValue = "1") Integer page,
+            @RequestParam(required = false, defaultValue = "20") Integer size) {
+        return Result.success(reportService.listReportsForAdmin(status, page, size));
+    }
+
     @PostMapping("/reports/{reportId}/resolve")
     public Result resolveReport(
             HttpServletRequest servletRequest,
@@ -158,43 +162,39 @@ public class AdminModerationController {
     }
 
     @PostMapping("/verifications/{id}/approve")
-    public Result approveVerification(@PathVariable Long id) {
-        Long adminUserId = authContextUtil.getCurrentUserId();
+    public Result approveVerification(
+            HttpServletRequest servletRequest,
+            @PathVariable Long id) {
+        Long adminUserId = currentUserResolver.requireCurrentUserId(servletRequest);
         Object result = verificationService.review(adminUserId, id, true, null);
-        if (result == null) {
-            return Result.error("VERIFY_003_SUBMIT_FAILED", "审核操作失败");
-        }
-        if (result instanceof Long code) {
-            if (code == -1L) {
-                return Result.error("VERIFY_004_NOT_FOUND", "认证记录不存在");
-            }
-            if (code == -2L) {
-                return Result.error("VERIFY_005_ALREADY_REVIEWED", "该认证记录已审核");
-            }
-            return Result.error("VERIFY_003_SUBMIT_FAILED", "审核操作失败");
-        }
+        assertVerificationReviewResult(result);
         return Result.success(result);
     }
 
     @PostMapping("/verifications/{id}/reject")
     public Result rejectVerification(
+            HttpServletRequest servletRequest,
             @PathVariable Long id,
             @RequestBody Map<String, String> body) {
-        Long adminUserId = authContextUtil.getCurrentUserId();
+        Long adminUserId = currentUserResolver.requireCurrentUserId(servletRequest);
         String reason = body != null ? body.getOrDefault("reason", "") : "";
         Object result = verificationService.review(adminUserId, id, false, reason);
+        assertVerificationReviewResult(result);
+        return Result.success(result);
+    }
+
+    private void assertVerificationReviewResult(Object result) {
         if (result == null) {
-            return Result.error("VERIFY_003_SUBMIT_FAILED", "审核操作失败");
+            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "审核操作失败");
         }
         if (result instanceof Long code) {
             if (code == -1L) {
-                return Result.error("VERIFY_004_NOT_FOUND", "认证记录不存在");
+                throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "认证记录不存在");
             }
             if (code == -2L) {
-                return Result.error("VERIFY_005_ALREADY_REVIEWED", "该认证记录已审核");
+                throw new BusinessException(ErrorCode.COMMON_003_CONFLICT, "该认证记录已审核");
             }
-            return Result.error("VERIFY_003_SUBMIT_FAILED", "审核操作失败");
+            throw new BusinessException(ErrorCode.COMMON_999_INTERNAL_ERROR, "审核操作失败");
         }
-        return Result.success(result);
     }
 }

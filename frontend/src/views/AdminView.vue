@@ -270,9 +270,9 @@ async function loadReports() {
   reportsLoading.value = true
   reportFeedback.value = ''
   try {
-    const result = await api.getReports(reportFilters)
+    const result = await api.getAdminReports(reportFilters)
     applyReportResult(result)
-    setReportFeedback(`已同步 ${reports.value.length} 条我的举报记录。`)
+    setReportFeedback(`已同步 ${reports.value.length} 条举报记录。`)
   } catch (error) {
     setReportFeedback(error.message, 'danger')
   } finally {
@@ -413,7 +413,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <DashboardShell active-label="管理后台">
+  <DashboardShell active-label="管理中心">
     <main
       class="admin-page"
       :aria-busy="verificationsLoading || reportsLoading || taskModerationLoading"
@@ -426,8 +426,8 @@ onMounted(async () => {
           />
         </div>
         <div class="title-copy">
-          <p>管理员工作台</p>
-          <h1>审核认证、裁决举报与处理敏感任务</h1>
+          <p>管理中心</p>
+          <h1>审核认证、处理举报与敏感任务</h1>
           <span>面向管理员角色的集中处理台，直接对接管理员 API 文档中的专属端点。</span>
         </div>
         <StatusBadge
@@ -457,7 +457,7 @@ onMounted(async () => {
           <strong>{{ pendingVerificationCount }}</strong>
         </article>
         <article class="admin-metric admin-metric--info">
-          <span>我的举报记录</span>
+          <span>举报记录</span>
           <strong>{{ reportCount }}</strong>
         </article>
         <article class="admin-metric admin-metric--accent">
@@ -705,7 +705,7 @@ onMounted(async () => {
               <p class="section-kicker">
                 举报记录
               </p>
-              <h2>我的举报列表</h2>
+              <h2>举报列表</h2>
             </div>
             <button
               class="icon-action"

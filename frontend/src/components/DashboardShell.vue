@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   Bell,
+  BookOpen,
   ChevronDown,
   ChevronsLeft,
   ChevronsRight,
@@ -24,7 +25,7 @@ import { useDashboardSidebar } from '../composables/useDashboardSidebar'
 import { useNotificationCenter } from '../composables/useNotificationCenter'
 import { useAuth } from '../stores/auth'
 
-defineProps({
+const props = defineProps({
   activeLabel: {
     type: String,
     default: '个人主页'
@@ -43,11 +44,19 @@ const accountMenuOpen = ref(false)
 const accountMenuRef = ref(null)
 const avatarLoadFailed = ref(false)
 const searchKeyword = ref('')
+const activeLabel = computed(() => props.activeLabel)
+const publishMode = computed(() => props.publishMode)
+const searchPlaceholder = computed(() =>
+  activeLabel.value === '帖子广场' ? '搜索帖子标题、内容或关键词' : '搜索任务、技能、地点或关键词'
+)
 
 function handleSearch() {
   const keyword = searchKeyword.value.trim()
   if (!keyword) return
-  router.push({ name: 'task-list', query: { keyword } })
+  router.push({
+    name: activeLabel.value === '帖子广场' ? 'post-list' : 'task-list',
+    query: { keyword }
+  })
   searchKeyword.value = ''
 }
 
@@ -55,13 +64,14 @@ const isAdmin = computed(() => String(state.user?.role || '').toUpperCase() === 
 
 const navItems = computed(() => [
   { label: '个人主页', icon: Home, to: '/home' },
+  { label: '帖子广场', icon: BookOpen, to: '/posts' },
   { label: '任务广场', icon: Grid2X2, to: '/tasks' },
   { label: '发布任务', icon: PlusCircle, to: '/tasks/new' },
   { label: '我的任务', icon: ClipboardList, to: '/tasks/mine' },
   { label: '站内沟通', icon: MessageCircle, to: '/conversations' },
   { label: '评价中心', icon: Star, to: '/reviews' },
   { label: '消息中心', icon: Bell, to: '/notifications' },
-  ...(isAdmin.value ? [{ label: '管理后台', icon: Shield, to: '/admin' }] : [])
+  ...(isAdmin.value ? [{ label: '管理中心', icon: Shield, to: '/admin' }] : [])
 ])
 
 const userName = computed(() =>
@@ -211,8 +221,8 @@ onBeforeUnmount(() => {
         <input
           v-model.trim="searchKeyword"
           type="search"
-          placeholder="搜索任务、技能、地点或关键词"
-          aria-label="搜索任务、技能、地点或关键词"
+          :placeholder="searchPlaceholder"
+          :aria-label="searchPlaceholder"
         >
       </form>
 
@@ -505,6 +515,7 @@ onBeforeUnmount(() => {
 }
 
 .is-collapsed .collapse-button {
+  top: 42px;
   right: 50%;
   transform: translateX(50%);
 }

@@ -104,8 +104,6 @@ const proofOptions = [
 const pageSizeOptions = [8, 12, 20]
 const filterExpanded = ref(false)
 
-const campusOptions = ['仙林校区', '鼓楼校区', '浦口校区']
-
 const TASK_TYPE_META = {
   ERRAND: {
     label: '跑腿代取',
@@ -1912,32 +1910,13 @@ onMounted(async () => {
                   for="task-campus"
                 >
                   <span>校区</span>
-                  <span
-                    class="select-shell"
-                    :class="{ 'select-shell--plain': !isMineView }"
+                  <input
+                    id="task-campus"
+                    v-model.trim="filters.campus"
+                    type="text"
+                    placeholder="输入校区名称"
+                    @input="queueFilterRefresh"
                   >
-                    <Building2
-                      v-if="isMineView"
-                      :size="18"
-                      aria-hidden="true"
-                    />
-                    <select
-                      id="task-campus"
-                      v-model="filters.campus"
-                      @change="applyFilters"
-                    >
-                      <option value="">
-                        全部校区
-                      </option>
-                      <option
-                        v-for="campus in campusOptions"
-                        :key="campus"
-                        :value="campus"
-                      >
-                        {{ campus }}
-                      </option>
-                    </select>
-                  </span>
                 </label>
 
                 <label

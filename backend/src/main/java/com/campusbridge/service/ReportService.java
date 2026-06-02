@@ -14,6 +14,11 @@ public interface ReportService {
             Integer page,
             Integer size);
 
+    ResponseDtos.PagedResult<Report> listReportsForAdmin(
+            String status,
+            Integer page,
+            Integer size);
+
     ModerationRecord resolveReport(
             Long handlerId,
             Long reportId,

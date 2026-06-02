@@ -8,6 +8,10 @@ import java.util.List;
 public interface VerificationService {
     Object submit(Long userId, RequestDtos.CreateVerificationRequest request);
 
+    Object confirmEmail(Long userId, RequestDtos.ConfirmEmailVerificationRequest request);
+
+    Object resendEmailCode(Long userId);
+
     CampusVerification getMyLatest(Long userId);
 
     List<CampusVerification> listPending(int page, int size);
