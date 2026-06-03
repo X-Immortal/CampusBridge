@@ -61,14 +61,18 @@ class BE09CompletionServiceImplTest {
         Task task = task(TASK_ID, REQUESTER_ID, PROVIDER_ID, "IN_PROGRESS", "POINTS", 20);
         when(taskMapper.selectById(TASK_ID)).thenReturn(task);
         when(completionProofMapper.insert(any(CompletionProof.class))).thenReturn(1);
-        when(taskMapper.updateStatusById(eq(TASK_ID), eq("IN_PROGRESS"), eq("PENDING_CONFIRMATION"), any())).thenReturn(1);
+        when(taskMapper.updateStatusById(
+                eq(TASK_ID), eq("IN_PROGRESS"), eq("PENDING_CONFIRMATION"), any()))
+                .thenReturn(1);
 
         CompletionProof proof = completionService.submitCompletionProof(
                 PROVIDER_ID, TASK_ID, submitRequest("已完成任务"));
 
         assertThat(proof.getTaskId()).isEqualTo(TASK_ID);
         assertThat(proof.getSubmitterId()).isEqualTo(PROVIDER_ID);
-        verify(taskHistoryService).recordHistory(TASK_ID, "IN_PROGRESS", "PENDING_CONFIRMATION", PROVIDER_ID, "COMPLETION_PROOF_SUBMITTED");
+        verify(taskHistoryService).recordHistory(TASK_ID,
+                "IN_PROGRESS", "PENDING_CONFIRMATION", PROVIDER_ID,
+                "COMPLETION_PROOF_SUBMITTED");
     }
 
     @Test
@@ -110,13 +114,19 @@ class BE09CompletionServiceImplTest {
     void confirmCompletionSettlesPointsReward() {
         Task task = task(TASK_ID, REQUESTER_ID, PROVIDER_ID, "PENDING_CONFIRMATION", "POINTS", 20);
         when(taskMapper.selectById(TASK_ID)).thenReturn(task);
-        when(taskMapper.updateStatusById(eq(TASK_ID), eq("PENDING_CONFIRMATION"), eq("COMPLETED"), any())).thenReturn(1);
+        when(taskMapper.updateStatusById(
+                eq(TASK_ID), eq("PENDING_CONFIRMATION"), eq("COMPLETED"), any()))
+                .thenReturn(1);
 
         completionService.confirmCompletion(REQUESTER_ID, TASK_ID);
 
-        verify(creditService).adjustCredit(REQUESTER_ID, -20, "任务 #10 积分报酬支出", "TASK", TASK_ID);
-        verify(creditService).adjustCredit(PROVIDER_ID, 20, "任务 #10 积分报酬收入", "TASK", TASK_ID);
-        verify(taskHistoryService).recordHistory(TASK_ID, "PENDING_CONFIRMATION", "COMPLETED", REQUESTER_ID, "COMPLETION_CONFIRMED");
+        verify(creditService).adjustCredit(
+                REQUESTER_ID, -20, "任务 #10 积分报酬支出", "TASK", TASK_ID);
+        verify(creditService).adjustCredit(
+                PROVIDER_ID, 20, "任务 #10 积分报酬收入", "TASK", TASK_ID);
+        verify(taskHistoryService).recordHistory(TASK_ID,
+                "PENDING_CONFIRMATION", "COMPLETED", REQUESTER_ID,
+                "COMPLETION_CONFIRMED");
     }
 
     @Test
@@ -134,11 +144,14 @@ class BE09CompletionServiceImplTest {
     void confirmCompletionSkipsSettlementForNonPointsReward() {
         Task task = task(TASK_ID, REQUESTER_ID, PROVIDER_ID, "PENDING_CONFIRMATION", "CASH", 50);
         when(taskMapper.selectById(TASK_ID)).thenReturn(task);
-        when(taskMapper.updateStatusById(eq(TASK_ID), eq("PENDING_CONFIRMATION"), eq("COMPLETED"), any())).thenReturn(1);
+        when(taskMapper.updateStatusById(
+                eq(TASK_ID), eq("PENDING_CONFIRMATION"), eq("COMPLETED"), any()))
+                .thenReturn(1);
 
         completionService.confirmCompletion(REQUESTER_ID, TASK_ID);
 
-        verify(creditService, never()).adjustCredit(anyLong(), anyInt(), any(), any(), any());
+        verify(creditService, never())
+                .adjustCredit(anyLong(), anyInt(), any(), any(), any());
     }
 
     // ---- rejectCompletion ----
@@ -147,11 +160,15 @@ class BE09CompletionServiceImplTest {
     void rejectCompletionReturnsToInProgress() {
         Task task = task(TASK_ID, REQUESTER_ID, PROVIDER_ID, "PENDING_CONFIRMATION", "POINTS", 20);
         when(taskMapper.selectById(TASK_ID)).thenReturn(task);
-        when(taskMapper.updateStatusById(eq(TASK_ID), eq("PENDING_CONFIRMATION"), eq("IN_PROGRESS"), any())).thenReturn(1);
+        when(taskMapper.updateStatusById(
+                eq(TASK_ID), eq("PENDING_CONFIRMATION"), eq("IN_PROGRESS"), any()))
+                .thenReturn(1);
 
         completionService.rejectCompletion(REQUESTER_ID, TASK_ID, "凭证不充分");
 
-        verify(taskHistoryService).recordHistory(TASK_ID, "PENDING_CONFIRMATION", "IN_PROGRESS", REQUESTER_ID, "COMPLETION_REJECTED; REASON=凭证不充分");
+        verify(taskHistoryService).recordHistory(TASK_ID,
+                "PENDING_CONFIRMATION", "IN_PROGRESS", REQUESTER_ID,
+                "COMPLETION_REJECTED; REASON=凭证不充分");
     }
 
     @Test
@@ -168,11 +185,15 @@ class BE09CompletionServiceImplTest {
     void disputeCompletionMarksTaskDisputed() {
         Task task = task(TASK_ID, REQUESTER_ID, PROVIDER_ID, "PENDING_CONFIRMATION", "POINTS", 20);
         when(taskMapper.selectById(TASK_ID)).thenReturn(task);
-        when(taskMapper.updateStatusById(eq(TASK_ID), eq("PENDING_CONFIRMATION"), eq("DISPUTED"), any())).thenReturn(1);
+        when(taskMapper.updateStatusById(
+                eq(TASK_ID), eq("PENDING_CONFIRMATION"), eq("DISPUTED"), any()))
+                .thenReturn(1);
 
         completionService.disputeCompletion(REQUESTER_ID, TASK_ID, "任务未按要求完成");
 
-        verify(taskHistoryService).recordHistory(TASK_ID, "PENDING_CONFIRMATION", "DISPUTED", REQUESTER_ID, "COMPLETION_DISPUTED; REASON=任务未按要求完成");
+        verify(taskHistoryService).recordHistory(TASK_ID,
+                "PENDING_CONFIRMATION", "DISPUTED", REQUESTER_ID,
+                "COMPLETION_DISPUTED; REASON=任务未按要求完成");
     }
 
     @Test
@@ -199,7 +220,8 @@ class BE09CompletionServiceImplTest {
 
     // ---- helpers ----
 
-    private Task task(Long id, Long requesterId, Long providerId, String status, String rewardType, Integer rewardAmount) {
+    private Task task(Long id, Long requesterId, Long providerId,
+                      String status, String rewardType, Integer rewardAmount) {
         Task task = new Task();
         task.setId(id);
         task.setRequesterId(requesterId);

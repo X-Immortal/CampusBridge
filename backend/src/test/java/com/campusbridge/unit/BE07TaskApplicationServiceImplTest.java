@@ -21,8 +21,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
-import java.util.List;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -85,7 +83,8 @@ class BE07TaskApplicationServiceImplTest {
         assertThat(result.getTaskId()).isEqualTo(TASK_ID);
         assertThat(result.getApplicantId()).isEqualTo(APPLICANT_ID);
         assertThat(result.getStatus()).isEqualTo("PENDING");
-        verify(notificationService).notifyTaskApplicationCreated(any(Task.class), any(TaskApplication.class), eq(APPLICANT_ID));
+        verify(notificationService)
+                .notifyTaskApplicationCreated(any(Task.class), any(TaskApplication.class), eq(APPLICANT_ID));
     }
 
     @Test
@@ -163,15 +162,21 @@ class BE07TaskApplicationServiceImplTest {
         TaskApplication application = pendingApplication(APPLICATION_ID, TASK_ID, APPLICANT_ID);
         when(taskMapper.selectById(TASK_ID)).thenReturn(task);
         when(taskApplicationMapper.selectById(APPLICATION_ID)).thenReturn(application);
-        when(taskMapper.acceptProviderById(eq(TASK_ID), eq(REQUESTER_ID), eq(APPLICANT_ID), any())).thenReturn(1);
-        when(taskApplicationMapper.updateStatusById(eq(APPLICATION_ID), eq("PENDING"), eq("ACCEPTED"), any())).thenReturn(1);
+        when(taskMapper.acceptProviderById(
+                eq(TASK_ID), eq(REQUESTER_ID), eq(APPLICANT_ID), any())).thenReturn(1);
+        when(taskApplicationMapper.updateStatusById(
+                eq(APPLICATION_ID), eq("PENDING"), eq("ACCEPTED"), any())).thenReturn(1);
 
-        TaskApplication result = applicationService.acceptApplication(REQUESTER_ID, TASK_ID, APPLICATION_ID);
+        TaskApplication result =
+                applicationService.acceptApplication(REQUESTER_ID, TASK_ID, APPLICATION_ID);
 
         assertThat(result.getStatus()).isEqualTo("ACCEPTED");
-        verify(taskApplicationMapper).rejectOtherPendingByTaskId(eq(TASK_ID), eq(APPLICATION_ID), any());
-        verify(taskHistoryService).recordHistory(TASK_ID, "OPEN", "ACCEPTED", REQUESTER_ID, "APPLICATION_ACCEPTED");
-        verify(notificationService).notifyTaskApplicationAccepted(any(Task.class), any(TaskApplication.class), eq(REQUESTER_ID));
+        verify(taskApplicationMapper)
+                .rejectOtherPendingByTaskId(eq(TASK_ID), eq(APPLICATION_ID), any());
+        verify(taskHistoryService)
+                .recordHistory(TASK_ID, "OPEN", "ACCEPTED", REQUESTER_ID, "APPLICATION_ACCEPTED");
+        verify(notificationService)
+                .notifyTaskApplicationAccepted(any(Task.class), any(TaskApplication.class), eq(REQUESTER_ID));
     }
 
     @Test

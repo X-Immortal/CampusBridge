@@ -5,7 +5,6 @@ import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.pojo.User;
 import com.campusbridge.service.impl.AuthServiceImpl;
 import com.campusbridge.utils.JwtUtil;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

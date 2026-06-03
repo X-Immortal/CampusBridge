@@ -83,8 +83,9 @@ class TaskWorkflowIntegrationTest {
 
         // Insert verification record for requester (required for task publishing)
         jdbcTemplate.update(
-                "INSERT INTO campus_verifications (user_id, method, real_name_cipher, student_number_cipher, school, status) "
-                        + "VALUES (?, 'MANUAL_REVIEW', 'test', 'test', '测试大学', 'VERIFIED')",
+                "INSERT INTO campus_verifications"
+                        + " (user_id, method, real_name_cipher, student_number_cipher, school, status)"
+                        + " VALUES (?, 'MANUAL_REVIEW', 'test', 'test', '测试大学', 'VERIFIED')",
                 requesterId);
 
         String providerUsername = "prov_" + System.nanoTime();
@@ -116,8 +117,9 @@ class TaskWorkflowIntegrationTest {
 
         // Insert verification record for provider
         jdbcTemplate.update(
-                "INSERT INTO campus_verifications (user_id, method, real_name_cipher, student_number_cipher, school, status) "
-                        + "VALUES (?, 'MANUAL_REVIEW', 'test', 'test', '测试大学', 'VERIFIED')",
+                "INSERT INTO campus_verifications"
+                        + " (user_id, method, real_name_cipher, student_number_cipher, school, status)"
+                        + " VALUES (?, 'MANUAL_REVIEW', 'test', 'test', '测试大学', 'VERIFIED')",
                 providerId);
     }
 
