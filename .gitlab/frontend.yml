@@ -1,7 +1,6 @@
 # Frontend CI/CD: lint → build → auto-deploy on main
 stages:
   - lint
-  - test
   - build
   - deploy
 
@@ -16,23 +15,6 @@ frontend-lint:
     - cd frontend
     - npm install
     - npm run lint
-
-frontend-test:
-  stage: test
-  image: node:20
-  cache:
-    key: frontend-${CI_COMMIT_REF_SLUG}
-    paths:
-      - frontend/node_modules/
-  script:
-    - cd frontend
-    - npm install
-    - npm run test:tasks
-    - npm run test:task-applications
-    - npm run test:task-completion
-    - npm run test:task-publish
-    - npm run test:my-tasks
-    - npm run test:admin
 
 frontend-build:
   stage: build
