@@ -65,12 +65,15 @@ CREATE TABLE `user_credits` (
   `user_id` BIGINT UNSIGNED NOT NULL,
   `points` INT NOT NULL DEFAULT 0 COMMENT '当前积分',
   `level` INT NOT NULL DEFAULT 1 COMMENT '积分等级',
+  `credit_score` INT NOT NULL DEFAULT 100 COMMENT '信用分（0-200）',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_user_credits_user_id` (`user_id`),
   KEY `idx_user_credits_level` (`level`),
+  KEY `idx_user_credits_credit_score` (`credit_score`),
   CONSTRAINT `fk_user_credits_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户积分等级';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户积分与信用';
 
 CREATE TABLE `credit_records` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -318,5 +321,25 @@ CREATE TABLE `moderation_records` (
   CONSTRAINT `fk_moderation_records_report` FOREIGN KEY (`report_id`) REFERENCES `reports` (`id`),
   CONSTRAINT `fk_moderation_records_handler` FOREIGN KEY (`handler_id`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='治理处理记录';
+
+CREATE TABLE `reward_settlements` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `task_id` BIGINT UNSIGNED NOT NULL COMMENT '关联任务ID',
+  `requester_id` BIGINT UNSIGNED NOT NULL COMMENT '求助者ID',
+  `provider_id` BIGINT UNSIGNED NOT NULL COMMENT '帮助者ID',
+  `reward_type` VARCHAR(50) NOT NULL COMMENT '奖励类型：POINTS, NEGOTIABLE',
+  `points_amount` INT NULL COMMENT '积分数量（POINTS类型时）',
+  `negotiated_amount` DECIMAL(10,2) NULL COMMENT '协商金额（NEGOTIABLE类型时）',
+  `settlement_status` ENUM('PENDING','COMPLETED','CANCELLED') NOT NULL DEFAULT 'COMPLETED',
+  `settled_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '结算时间',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_reward_settlements_task` (`task_id`),
+  KEY `idx_reward_settlements_provider` (`provider_id`,`settled_at`),
+  KEY `idx_reward_settlements_requester` (`requester_id`,`settled_at`),
+  CONSTRAINT `fk_reward_settlements_task` FOREIGN KEY (`task_id`) REFERENCES `tasks` (`id`),
+  CONSTRAINT `fk_reward_settlements_requester` FOREIGN KEY (`requester_id`) REFERENCES `users` (`id`),
+  CONSTRAINT `fk_reward_settlements_provider` FOREIGN KEY (`provider_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='奖励结算记录';
 
 

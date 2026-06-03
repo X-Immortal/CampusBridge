@@ -609,16 +609,12 @@ public class TaskServiceImpl implements TaskService {
             validateLength(request.getDescription(), MAX_DESCRIPTION_LENGTH, "description is too long");
         }
         if (request.getRewardDescription() != null) {
-            validateLength(
-                    request.getRewardDescription(),
-                    MAX_REWARD_DESCRIPTION_LENGTH,
-                    "rewardDescription is too long");
+            validateLength(request.getRewardDescription(),
+                    MAX_REWARD_DESCRIPTION_LENGTH, "rewardDescription is too long");
         }
         if (request.getCompletionStandard() != null) {
-            validateLength(
-                    request.getCompletionStandard(),
-                    MAX_COMPLETION_STANDARD_LENGTH,
-                    "completionStandard is too long");
+            validateLength(request.getCompletionStandard(),
+                    MAX_COMPLETION_STANDARD_LENGTH, "completionStandard is too long");
         }
         if (request.getDeadline() != null && !request.getDeadline().isAfter(LocalDateTime.now())) {
             throwValidation("deadline must be in the future");

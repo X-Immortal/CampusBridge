@@ -3,6 +3,7 @@ package com.campusbridge.controller;
 import com.campusbridge.common.CurrentUserResolver;
 import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.pojo.Result;
+import com.campusbridge.pojo.Review;
 import com.campusbridge.service.ReviewService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
@@ -35,8 +36,8 @@ public class ReviewController {
             @PathVariable Long taskId,
             @RequestBody RequestDtos.CreateReviewRequest request) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
-        return Result.success(reviewService.createReview(currentUserId, taskId, request));
-    }
+        Review review = reviewService.createReview(currentUserId, taskId, request);
+        return Result.success(review);    }
 
     @GetMapping
     public Result listReviews(@PathVariable Long taskId) {

@@ -5,9 +5,11 @@ import com.campusbridge.common.CurrentUserResolver;
 import com.campusbridge.common.ErrorCode;
 import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.mapper.TaskMapper;
+import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.pojo.CampusVerification;
 import com.campusbridge.pojo.Result;
 import com.campusbridge.pojo.Task;
+import com.campusbridge.pojo.User;
 import com.campusbridge.service.ReportService;
 import com.campusbridge.service.TaskHistoryService;
 import com.campusbridge.service.VerificationService;
@@ -37,18 +39,21 @@ public class AdminModerationController {
     private final VerificationService verificationService;
     private final TaskMapper taskMapper;
     private final TaskHistoryService taskHistoryService;
+    private final UserMapper userMapper;
 
     public AdminModerationController(
             CurrentUserResolver currentUserResolver,
             ReportService reportService,
             VerificationService verificationService,
             TaskMapper taskMapper,
-            TaskHistoryService taskHistoryService) {
+            TaskHistoryService taskHistoryService,
+            UserMapper userMapper) {
         this.currentUserResolver = currentUserResolver;
         this.reportService = reportService;
         this.verificationService = verificationService;
         this.taskMapper = taskMapper;
         this.taskHistoryService = taskHistoryService;
+        this.userMapper = userMapper;
     }
 
     @GetMapping("/moderation/tasks/pending")
@@ -71,8 +76,16 @@ public class AdminModerationController {
     @PostMapping("/moderation/tasks/{taskId}/approve")
     public Result approveTask(
             HttpServletRequest servletRequest,
-            @PathVariable Long taskId) {
+            @PathVariable Long taskId,
+            @RequestBody(required = false) Map<String, String> request) {
         Long adminUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        validateAdminRole(adminUserId);
+
+        String reviewNote = request != null ? request.get("reviewNote") : null;
+        if (reviewNote != null && reviewNote.length() > 300) {
+            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR,
+                    "reviewNote is too long (max 300 characters)");
+        }
 
         Task task = taskMapper.selectById(taskId);
         if (task == null) {
@@ -89,9 +102,12 @@ public class AdminModerationController {
             throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
         }
 
+        String historyNote = reviewNote != null && !reviewNote.isBlank()
+                ? "ADMIN_APPROVED: " + reviewNote
+                : "ADMIN_APPROVED";
         taskHistoryService.recordHistory(
                 taskId, STATUS_PENDING_REVIEW, STATUS_OPEN, adminUserId,
-                "ADMIN_APPROVED");
+                historyNote);
 
         task.setStatus(STATUS_OPEN);
         task.setUpdatedAt(now);
@@ -104,7 +120,17 @@ public class AdminModerationController {
             @PathVariable Long taskId,
             @RequestBody(required = false) Map<String, String> request) {
         Long adminUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        validateAdminRole(adminUserId);
+
         String reason = request != null ? request.getOrDefault("reason", "") : "";
+        if (reason == null || reason.isBlank()) {
+            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR,
+                    "rejectReason is required");
+        }
+        if (reason.length() > 300) {
+            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR,
+                    "rejectReason is too long (max 300 characters)");
+        }
 
         Task task = taskMapper.selectById(taskId);
         if (task == null) {
@@ -121,10 +147,7 @@ public class AdminModerationController {
             throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
         }
 
-        String historyNote = "ADMIN_REJECTED";
-        if (reason != null && !reason.isBlank()) {
-            historyNote += "; REASON=" + reason;
-        }
+        String historyNote = "ADMIN_REJECTED: " + reason;
         taskHistoryService.recordHistory(
                 taskId, STATUS_PENDING_REVIEW, STATUS_REJECTED, adminUserId,
                 historyNote);
@@ -195,6 +218,17 @@ public class AdminModerationController {
                 throw new BusinessException(ErrorCode.COMMON_003_CONFLICT, "该认证记录已审核");
             }
             throw new BusinessException(ErrorCode.COMMON_999_INTERNAL_ERROR, "审核操作失败");
+        }
+    }
+
+    private void validateAdminRole(Long userId) {
+        if (userId == null) {
+            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "userId is required");
+        }
+        User user = userMapper.selectById(userId);
+        if (user == null || !"ADMIN".equals(user.getRole())) {
+            throw new BusinessException(ErrorCode.TASK_003_PERMISSION_DENIED,
+                    "Only administrators can perform this action");
         }
     }
 }
