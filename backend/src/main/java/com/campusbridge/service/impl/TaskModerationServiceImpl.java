@@ -159,7 +159,7 @@ public class TaskModerationServiceImpl implements TaskModerationService {
     private void validateTaskStatusForModeration(Task task) {
         if (!STATUS_PENDING_REVIEW.equals(task.getStatus())) {
             throw new BusinessException(
-                    ErrorCode.TASK_005_SENSITIVE_REVIEW_REQUIRED,
+                    ErrorCode.TASK_002_INVALID_STATUS_TRANSITION,
                     "Task is not in PENDING_REVIEW status");
         }
     }
