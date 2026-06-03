@@ -71,7 +71,7 @@ public class UserProfileServiceImpl implements UserProfileService {
     public ViewDtos.UserProfileView getMyProfile(Long currentUserId) {
         requireUser(currentUserId);
         UserProfile profile = getOrCreateProfile(currentUserId);
-        return toProfileView(profile);
+        return toProfileView(profile, currentUserId);
     }
 
     @Override
@@ -99,7 +99,7 @@ public class UserProfileServiceImpl implements UserProfileService {
                     "Failed to update user profile");
         }
 
-        return toProfileView(profile);
+        return toProfileView(profile, currentUserId);
     }
 
     @Override
@@ -238,7 +238,20 @@ public class UserProfileServiceImpl implements UserProfileService {
                 user.getCreatedAt());
     }
 
-    private ViewDtos.UserProfileView toProfileView(UserProfile profile) {
+    private ViewDtos.UserProfileView toProfileView(UserProfile profile, Long userId) {
+        UserCredit credit = userCreditMapper.selectByUserId(userId);
+        CampusVerification verification =
+                campusVerificationMapper.selectLatestByUserId(userId);
+
+        int points = credit == null || credit.getPoints() == null
+                ? 0
+                : credit.getPoints();
+        int creditLevel = credit == null || credit.getLevel() == null
+                ? 1
+                : credit.getLevel();
+        boolean verified = verification != null
+                && "VERIFIED".equals(verification.getStatus());
+
         return new ViewDtos.UserProfileView(
                 profile.getUserId(),
                 profile.getNickname(),
@@ -248,7 +261,10 @@ public class UserProfileServiceImpl implements UserProfileService {
                 profile.getAvatarUrl(),
                 profile.getContactInfo(),
                 parseTags(profile.getInterestTags()),
-                parseTags(profile.getSkillTags()));
+                parseTags(profile.getSkillTags()),
+                verified,
+                creditLevel,
+                points);
     }
 
     private void validateProfileRequest(RequestDtos.UpdateUserProfileRequest request) {

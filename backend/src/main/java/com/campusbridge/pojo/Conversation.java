@@ -18,5 +18,8 @@ public class Conversation {
     private Long relatedId;
     private Integer replyable;
     private LocalDateTime lastMessageAt;
+    private String lastMessagePreview;
+    private Integer unreadCount;
+    private LocalDateTime lastReadAt;
     private LocalDateTime createdAt;
 }

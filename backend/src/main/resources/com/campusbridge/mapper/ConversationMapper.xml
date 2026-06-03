@@ -2,24 +2,52 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.campusbridge.mapper.ConversationMapper">
 
+  <sql id="conversationColumns">
+    c.*,
+    COALESCE((
+      SELECT COUNT(*)
+      FROM messages m_unread
+      WHERE m_unread.conversation_id = c.id
+        AND m_unread.read_at IS NULL
+    ), 0) AS unread_count,
+    (
+      SELECT m_preview.content
+      FROM messages m_preview
+      WHERE m_preview.conversation_id = c.id
+      ORDER BY m_preview.created_at DESC, m_preview.id DESC
+      LIMIT 1
+    ) AS last_message_preview,
+    (
+      SELECT MAX(m_read.read_at)
+      FROM messages m_read
+      WHERE m_read.conversation_id = c.id
+    ) AS last_read_at
+  </sql>
+
   <insert id="insert" parameterType="com.campusbridge.pojo.Conversation" useGeneratedKeys="true" keyProperty="id">
     INSERT INTO conversations (type, title, owner_id, peer_user_id, related_type, related_id, replyable, last_message_at, created_at)
     VALUES (#{type}, #{title}, #{ownerId}, #{peerUserId}, #{relatedType}, #{relatedId}, #{replyable}, #{lastMessageAt}, #{createdAt})
   </insert>
 
   <select id="selectById" resultType="com.campusbridge.pojo.Conversation">
-    SELECT * FROM conversations
-    WHERE id = #{id}
+    SELECT
+      <include refid="conversationColumns"/>
+    FROM conversations c
+    WHERE c.id = #{id}
   </select>
 
   <select id="selectAll" resultType="com.campusbridge.pojo.Conversation">
-    SELECT * FROM conversations
+    SELECT
+      <include refid="conversationColumns"/>
+    FROM conversations c
   </select>
 
   <select id="selectByOwnerId" resultType="com.campusbridge.pojo.Conversation">
-    SELECT * FROM conversations
-    WHERE owner_id = #{ownerId}
-    ORDER BY last_message_at DESC, id DESC
+    SELECT
+      <include refid="conversationColumns"/>
+    FROM conversations c
+    WHERE c.owner_id = #{ownerId}
+    ORDER BY c.last_message_at DESC, c.id DESC
     LIMIT #{size} OFFSET #{offset}
   </select>
 
@@ -29,29 +57,35 @@
   </select>
 
   <select id="selectOwnedById" resultType="com.campusbridge.pojo.Conversation">
-    SELECT * FROM conversations
-    WHERE id = #{id}
-      AND owner_id = #{ownerId}
+    SELECT
+      <include refid="conversationColumns"/>
+    FROM conversations c
+    WHERE c.id = #{id}
+      AND c.owner_id = #{ownerId}
   </select>
 
   <select id="selectByOwnerAndRelated" resultType="com.campusbridge.pojo.Conversation">
-    SELECT * FROM conversations
-    WHERE owner_id = #{ownerId}
-      AND type = #{type}
-      AND related_type = #{relatedType}
-      AND related_id = #{relatedId}
-    ORDER BY id ASC
+    SELECT
+      <include refid="conversationColumns"/>
+    FROM conversations c
+    WHERE c.owner_id = #{ownerId}
+      AND c.type = #{type}
+      AND c.related_type = #{relatedType}
+      AND c.related_id = #{relatedId}
+    ORDER BY c.id ASC
     LIMIT 1
   </select>
 
   <select id="selectByOwnerPeerAndRelated" resultType="com.campusbridge.pojo.Conversation">
-    SELECT * FROM conversations
-    WHERE owner_id = #{ownerId}
-      AND peer_user_id = #{peerUserId}
-      AND type = #{type}
-      AND related_type = #{relatedType}
-      AND related_id = #{relatedId}
-    ORDER BY id ASC
+    SELECT
+      <include refid="conversationColumns"/>
+    FROM conversations c
+    WHERE c.owner_id = #{ownerId}
+      AND c.peer_user_id = #{peerUserId}
+      AND c.type = #{type}
+      AND c.related_type = #{relatedType}
+      AND c.related_id = #{relatedId}
+    ORDER BY c.id ASC
     LIMIT 1
   </select>
 

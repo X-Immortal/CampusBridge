@@ -30,10 +30,10 @@ const route = useRoute()
 const router = useRouter()
 const { currentUserId } = useAuth()
 const {
-  readIds,
-  markNotificationIdsRead,
+  markConversationRead: markConversationReadOnServer,
+  markAllNotificationsRead: markAllNotificationsReadOnServer,
   replaceNotificationSummary,
-  syncReadIdsFromStorage
+  refreshNotificationSummary
 } = useNotificationCenter()
 
 const reviewLabels = {
@@ -137,11 +137,14 @@ const decoratedNotifications = computed(() =>
   notifications.value
     .map((notification) => ({
       ...notification,
-      read: Boolean(notification.readAt || readIds.value.includes(String(notification.id)))
+      read: Number(notification.unreadCount || 0) <= 0
     }))
     .sort((current, next) => new Date(next.createdAt) - new Date(current.createdAt))
 )
 const unreadNotifications = computed(() => decoratedNotifications.value.filter((notification) => !notification.read))
+const unreadNotificationCount = computed(() =>
+  decoratedNotifications.value.reduce((sum, notification) => sum + Number(notification.unreadCount || 0), 0)
+)
 const filteredNotifications = computed(() => {
   const keyword = notificationSearch.value.trim().toLowerCase()
   return decoratedNotifications.value.filter((notification) => {
@@ -161,7 +164,7 @@ const filteredNotifications = computed(() => {
 })
 
 const notificationMetrics = computed(() => [
-  { label: '未读通知', value: unreadNotifications.value.length, tone: 'info' },
+  { label: '未读通知', value: unreadNotificationCount.value, tone: 'info' },
   { label: '待评价', value: pendingReviewTasks.value.length, tone: 'accent' },
   { label: '已完成评价', value: reviewedTasks.value.length, tone: 'success' }
 ])
@@ -400,7 +403,10 @@ function appendReviewToTask(taskId, review) {
 }
 
 function normalizeNotificationFromConversation(conversation = {}) {
-  const id = `conversation-${conversation.id || conversation.conversationId}`
+  const conversationId = conversation.id || conversation.conversationId
+  if (!conversationId) return null
+  const id = `conversation-${conversationId}`
+  const unreadCount = Number(conversation.unreadCount || 0)
   const content =
     conversation.lastMessagePreview ||
     conversation.lastMessageContent ||
@@ -409,31 +415,16 @@ function normalizeNotificationFromConversation(conversation = {}) {
     '有新的站内协作动态。'
   return {
     id,
-    type: conversation.type === 'SYSTEM' ? 'CREDIT' : 'TASK',
-    tone: Number(conversation.unreadCount || 0) > 0 ? 'info' : 'muted',
-    title: conversation.title || '站内协作动态',
+    type: conversation.type === 'SYSTEM' ? inferNotificationType(content) : 'TASK',
+    tone: unreadCount > 0 ? inferNotificationTone(content) : 'muted',
+    title: inferNotificationTitle(content, conversation.title || '站内协作动态'),
     content,
     source: conversation.type === 'SYSTEM' ? '系统通知' : '任务会话',
     taskId: conversation.relatedType === 'TASK' ? conversation.relatedId : null,
-    conversationId: conversation.id || conversation.conversationId,
+    conversationId,
     createdAt: conversation.lastMessageAt || conversation.updatedAt || conversation.createdAt || new Date().toISOString(),
-    readAt: Number(conversation.unreadCount || 0) > 0 ? null : conversation.readAt
-  }
-}
-
-function normalizeNotificationFromMessage(message = {}, conversation = {}) {
-  const content = message.content || '有一条新的系统通知。'
-  return {
-    id: `message-${message.id || message.createdAt || content}`,
-    type: inferNotificationType(content),
-    tone: inferNotificationTone(content),
-    title: inferNotificationTitle(content, conversation.title),
-    content,
-    source: conversation.title || '系统通知',
-    taskId: conversation.relatedType === 'TASK' ? conversation.relatedId : null,
-    conversationId: conversation.id || message.conversationId,
-    createdAt: message.createdAt || conversation.lastMessageAt || new Date().toISOString(),
-    readAt: message.readAt || null
+    unreadCount,
+    readAt: unreadCount > 0 ? null : conversation.lastReadAt || conversation.readAt || conversation.lastMessageAt
   }
 }
 
@@ -457,6 +448,20 @@ function inferNotificationTitle(content, fallback) {
   return fallback || '系统通知'
 }
 
+function applyConversationRead(conversationId) {
+  const readAt = new Date().toISOString()
+  notifications.value = notifications.value.map((notification) =>
+    String(notification.conversationId) === String(conversationId)
+      ? {
+          ...notification,
+          unreadCount: 0,
+          readAt,
+          tone: notification.tone === 'info' ? 'muted' : notification.tone
+        }
+      : notification
+  )
+}
+
 async function loadNotifications() {
   loadingNotifications.value = true
   notificationFeedback.value = ''
@@ -467,23 +472,7 @@ async function loadNotifications() {
     if (requestId !== notificationRequestId) return
     const conversations = normalizePagedItems(result)
     replaceNotificationSummary(conversations)
-    let items = conversations.map(normalizeNotificationFromConversation)
-
-    const messageResults = await Promise.allSettled(
-      conversations.slice(0, 8).map(async (conversation) => {
-        const conversationId = conversation.id || conversation.conversationId
-        const messages = await api.getConversationMessages(conversationId, { page: 1, size: 20 })
-        return normalizePagedItems(messages)
-          .filter((message) => message.type === 'SYSTEM_NOTIFICATION')
-          .map((message) => normalizeNotificationFromMessage(message, conversation))
-      })
-    )
-    items = [
-      ...items,
-      ...messageResults.flatMap((resultItem) => (resultItem.status === 'fulfilled' ? resultItem.value : []))
-    ]
-
-    notifications.value = items
+    notifications.value = conversations.map(normalizeNotificationFromConversation).filter(Boolean)
     selectDefaultNotification()
   } catch {
     if (requestId !== notificationRequestId) return
@@ -509,15 +498,31 @@ function selectNotification(notification) {
   selectedNotificationId.value = String(notification.id)
 }
 
-function markNotificationRead(notification) {
+async function markNotificationRead(notification) {
   if (!notification?.id || notification.read) return
-  markNotificationIdsRead([notification.id])
-  notificationFeedback.value = '已标记为已读。'
+  try {
+    await markConversationReadOnServer(notification.conversationId)
+    applyConversationRead(notification.conversationId)
+    notificationFeedback.value = '已标记为已读。'
+  } catch (error) {
+    notificationFeedback.value = error.message || '标记已读失败，请稍后重试。'
+  }
 }
 
-function markAllNotificationsRead() {
-  markNotificationIdsRead(decoratedNotifications.value.map((notification) => notification.id))
-  notificationFeedback.value = '全部通知已标记为已读。'
+async function markAllNotificationsRead() {
+  try {
+    await markAllNotificationsReadOnServer()
+    const readAt = new Date().toISOString()
+    notifications.value = notifications.value.map((notification) => ({
+      ...notification,
+      unreadCount: 0,
+      readAt,
+      tone: notification.tone === 'info' ? 'muted' : notification.tone
+    }))
+    notificationFeedback.value = '全部通知已标记为已读。'
+  } catch (error) {
+    notificationFeedback.value = error.message || '全部已读失败，请稍后重试。'
+  }
 }
 
 async function switchSection(section) {
@@ -535,7 +540,7 @@ function notificationToneClass(notification) {
 }
 
 watch(currentUser, () => {
-  syncReadIdsFromStorage()
+  refreshNotificationSummary()
 })
 
 onMounted(async () => {
@@ -922,7 +927,7 @@ onMounted(async () => {
             <button
               class="ghost-action ghost-action--compact"
               type="button"
-              :disabled="!unreadNotifications.length"
+              :disabled="!unreadNotifications.length || loadingNotifications"
               @click="markAllNotificationsRead"
             >
               <CheckCheck
@@ -1111,7 +1116,7 @@ onMounted(async () => {
               <button
                 class="primary-action"
                 type="button"
-                :disabled="selectedNotification.read"
+                :disabled="selectedNotification.read || loadingNotifications"
                 @click="markNotificationRead(selectedNotification)"
               >
                 <CheckCheck
@@ -1170,7 +1175,7 @@ onMounted(async () => {
             </article>
           </div>
           <p class="panel-copy">
-            已读状态会保存在当前浏览器，后端补充专门通知接口后可直接替换为服务端已读状态。
+            已读状态来自服务端会话消息记录，换设备或清理浏览器缓存后仍会保持一致。
           </p>
         </section>
       </section>

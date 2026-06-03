@@ -31,6 +31,12 @@ public interface MessageMapper {
             @Param("conversationId") Long conversationId,
             @Param("readAt") LocalDateTime readAt);
 
+    int markOwnerUnreadAsRead(
+            @Param("ownerId") Long ownerId,
+            @Param("readAt") LocalDateTime readAt);
+
+    long countOwnerUnread(Long ownerId);
+
     int updateById(Message entity);
 
     int deleteById(Long id);

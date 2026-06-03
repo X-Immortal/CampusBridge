@@ -81,7 +81,7 @@ const navItems = computed(() => [
   { label: '站内沟通', icon: MessageCircle, to: '/conversations' },
   { label: '评价中心', icon: Star, to: '/reviews' },
   { label: '消息中心', icon: Bell, to: '/notifications' },
-  ...(isAdmin.value ? [{ label: '管理中心', icon: Shield, to: '/admin' }] : [])
+  ...(isAdmin.value ? [{ label: '管理后台', icon: Shield, to: '/admin' }] : [])
 ])
 
 const verificationForm = reactive({
@@ -164,6 +164,36 @@ const profileInitial = computed(() => {
 })
 const accountStatusLabel = computed(() => (state.user?.enabled === false ? '已停用' : '正常启用'))
 const contactDisplay = computed(() => myProfile.value.contactInfo || '尚未填写，仅自己可见')
+const creditLevel = computed(() => myProfile.value.creditLevel ?? 1)
+const creditPoints = computed(() => myProfile.value.points ?? 0)
+
+const levelThresholds = [0, 60, 80, 90, 100]
+
+const nextLevelThreshold = computed(() => {
+  const currentLevel = creditLevel.value
+  if (currentLevel >= 5) return 100
+  return levelThresholds[currentLevel] ?? 60
+})
+
+const prevLevelThreshold = computed(() => {
+  const currentLevel = creditLevel.value
+  if (currentLevel <= 1) return 0
+  return levelThresholds[currentLevel - 1] ?? 0
+})
+
+const levelProgressPercent = computed(() => {
+  if (creditLevel.value >= 5) return 100
+  const range = nextLevelThreshold.value - prevLevelThreshold.value
+  if (range <= 0) return 0
+  const progress = creditPoints.value - prevLevelThreshold.value
+  return Math.min(100, Math.max(0, Math.round((progress / range) * 100)))
+})
+
+const levelLabel = computed(() => {
+  const labels = ['', '新手上路', '靠谱帮手', '校园达人', '互助之星']
+  return labels[creditLevel.value] || '新手上路'
+})
+
 const profileCompletion = computed(() => {
   const profile = myProfile.value
   const filledCount = [
@@ -949,9 +979,27 @@ onBeforeUnmount(() => {
             >
 
             <div class="profile-main-copy">
-              <p class="section-kicker">
-                身份档案
-              </p>
+              <div class="section-kicker-row">
+                <p class="section-kicker">
+                  身份档案
+                </p>
+                <div class="credit-badge">
+                  <span class="credit-level-icon">
+                    <ChartLine
+                      :size="15"
+                      aria-hidden="true"
+                    />
+                  </span>
+                  <span class="credit-level-text">Lv.{{ creditLevel }} {{ levelLabel }}</span>
+                  <span class="credit-points">{{ creditPoints }} 积分</span>
+                </div>
+              </div>
+              <div class="credit-progress-track">
+                <span
+                  class="credit-progress-fill"
+                  :style="{ width: `${levelProgressPercent}%` }"
+                />
+              </div>
               <h2>{{ userName }}</h2>
               <span>{{ myProfile.bio || '还没有填写个人简介。' }}</span>
               <div class="profile-chip-row">
@@ -2301,6 +2349,64 @@ onBeforeUnmount(() => {
   display: grid;
   gap: 7px;
   min-width: 0;
+}
+
+.section-kicker-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.section-kicker-row .section-kicker {
+  margin: 0;
+}
+
+.credit-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 12px;
+  border-radius: 8px;
+  background: #f3f0ff;
+  border: 1px solid #ddd6fe;
+  color: #5d49cb;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.credit-level-icon {
+  display: inline-flex;
+  align-items: center;
+  color: #746dc3;
+}
+
+.credit-level-text {
+  white-space: nowrap;
+}
+
+.credit-points {
+  color: #8b87a8;
+  font-size: 0.74rem;
+  white-space: nowrap;
+}
+
+.credit-progress-track {
+  display: block;
+  height: 6px;
+  margin-top: 2px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e7e2f1;
+}
+
+.credit-progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #746dc3, #a78bfa);
+  transition: width 320ms ease;
 }
 
 .profile-main-copy h2 {

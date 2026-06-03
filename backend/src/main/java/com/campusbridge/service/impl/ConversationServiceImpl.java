@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 @Transactional
 @Service
@@ -176,6 +177,31 @@ public class ConversationServiceImpl implements ConversationService {
         touchConversation(conversation, conversation.getPeerUserId(), now);
         touchConversation(peerConversation, senderId, now);
         return message;
+    }
+
+    @Override
+    public Conversation markConversationRead(
+            Long ownerId,
+            Long conversationId) {
+        requireUserId(ownerId);
+        Conversation conversation = requireOwnedConversation(ownerId, conversationId);
+        messageMapper.markUnreadAsRead(conversation.getId(), LocalDateTime.now());
+        return conversationMapper.selectOwnedById(conversation.getId(), ownerId);
+    }
+
+    @Override
+    public Map<String, Object> markAllConversationsRead(Long ownerId) {
+        requireUserId(ownerId);
+        int updatedCount = messageMapper.markOwnerUnreadAsRead(ownerId, LocalDateTime.now());
+        return Map.of(
+                "updatedCount", updatedCount,
+                "unreadCount", messageMapper.countOwnerUnread(ownerId));
+    }
+
+    @Override
+    public Map<String, Object> getUnreadSummary(Long ownerId) {
+        requireUserId(ownerId);
+        return Map.of("unreadCount", messageMapper.countOwnerUnread(ownerId));
     }
 
     private void validateCreateConversationRequest(

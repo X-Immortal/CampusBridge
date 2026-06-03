@@ -4,7 +4,11 @@
       <router-view />
     </main>
     <footer class="app-footer">
-      <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener">
+      <a
+        href="https://beian.miit.gov.cn/"
+        target="_blank"
+        rel="noopener"
+      >
         苏 ICP备2026035146号
       </a>
     </footer>

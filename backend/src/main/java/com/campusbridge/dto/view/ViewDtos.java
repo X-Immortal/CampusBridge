@@ -148,5 +148,8 @@ public final class ViewDtos {
         private String contactInfo;
         private List<String> interestTags;
         private List<String> skillTags;
+        private Boolean verified;
+        private Integer creditLevel;
+        private Integer points;
     }
 }

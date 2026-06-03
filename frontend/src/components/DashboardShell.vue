@@ -71,7 +71,7 @@ const navItems = computed(() => [
   { label: '站内沟通', icon: MessageCircle, to: '/conversations' },
   { label: '评价中心', icon: Star, to: '/reviews' },
   { label: '消息中心', icon: Bell, to: '/notifications' },
-  ...(isAdmin.value ? [{ label: '管理中心', icon: Shield, to: '/admin' }] : [])
+  ...(isAdmin.value ? [{ label: '管理后台', icon: Shield, to: '/admin' }] : [])
 ])
 
 const userName = computed(() =>

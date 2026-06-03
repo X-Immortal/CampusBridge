@@ -173,7 +173,10 @@ export default {
   acceptTaskApplication: (taskId, applicationId) =>
     request(`/tasks/${taskId}/applications/${applicationId}/accept`, { method: 'POST' }),
   getConversations: (params) => request(`/conversations${buildQuery(params)}`),
+  getConversationUnreadCount: () => request('/conversations/unread-count'),
   createConversation: (body) => request('/conversations', { method: 'POST', body }),
+  markConversationRead: (conversationId) => request(`/conversations/${conversationId}/read`, { method: 'POST' }),
+  markAllConversationsRead: () => request('/conversations/read-all', { method: 'POST' }),
   getConversationMessages: (conversationId, params) =>
     request(`/conversations/${conversationId}/messages${buildQuery(params)}`),
   sendConversationMessage: (conversationId, body) =>

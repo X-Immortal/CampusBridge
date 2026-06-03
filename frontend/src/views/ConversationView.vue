@@ -18,12 +18,14 @@ import {
 } from '@lucide/vue'
 import DashboardShell from '../components/DashboardShell.vue'
 import StatusBadge from '../components/StatusBadge.vue'
+import { useNotificationCenter } from '../composables/useNotificationCenter'
 import api from '../services/api'
 import { useAuth } from '../stores/auth'
 
 const route = useRoute()
 const router = useRouter()
 const { currentUserId } = useAuth()
+const { refreshNotificationSummary } = useNotificationCenter()
 
 const categoryMeta = {
   ERRAND: {
@@ -388,6 +390,8 @@ async function loadMessages() {
 
     const paged = normalizePagedResult(result, messagePage.size)
     applyMessagePage(paged)
+    markConversationLocallyRead(conversationId)
+    refreshNotificationSummary()
   } catch {
     if (requestId !== messagesRequestId) return
     applyMessagePage({ items: [], page: 1, size: messagePage.size, total: 0 })
@@ -404,6 +408,17 @@ function applyMessagePage(paged) {
   messagePage.size = paged.size || messagePage.size
   messagePage.total = paged.total || messages.value.length
   scrollMessagesToBottom()
+}
+
+function markConversationLocallyRead(conversationId) {
+  conversations.value = conversations.value.map((conversation) =>
+    String(conversation.id) === String(conversationId)
+      ? {
+          ...conversation,
+          unreadCount: 0
+        }
+      : conversation
+  )
 }
 
 async function loadRelatedTask() {

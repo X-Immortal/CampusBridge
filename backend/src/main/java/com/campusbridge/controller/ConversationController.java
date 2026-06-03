@@ -67,4 +67,25 @@ public class ConversationController {
         return Result.success(
                 conversationService.sendMessage(currentUserId, conversationId, request));
     }
+
+    @PostMapping("/read-all")
+    public Result markAllConversationsRead(HttpServletRequest servletRequest) {
+        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        return Result.success(conversationService.markAllConversationsRead(currentUserId));
+    }
+
+    @GetMapping("/unread-count")
+    public Result getUnreadSummary(HttpServletRequest servletRequest) {
+        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        return Result.success(conversationService.getUnreadSummary(currentUserId));
+    }
+
+    @PostMapping("/{conversationId}/read")
+    public Result markConversationRead(
+            HttpServletRequest servletRequest,
+            @PathVariable Long conversationId) {
+        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        return Result.success(
+                conversationService.markConversationRead(currentUserId, conversationId));
+    }
 }
