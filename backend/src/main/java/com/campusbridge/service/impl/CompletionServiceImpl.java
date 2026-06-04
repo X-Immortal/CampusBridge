@@ -9,7 +9,6 @@ import com.campusbridge.pojo.CompletionProof;
 import com.campusbridge.pojo.Task;
 import com.campusbridge.service.CompletionService;
 import com.campusbridge.service.CreditService;
-import com.campusbridge.service.RewardSettlementService;
 import com.campusbridge.service.TaskHistoryService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,7 +20,6 @@ import java.time.LocalDateTime;
 @Transactional
 @Service
 public class CompletionServiceImpl implements CompletionService {
-    private static final Logger log = LoggerFactory.getLogger(CompletionServiceImpl.class);
     private static final String STATUS_IN_PROGRESS = "IN_PROGRESS";
     private static final String STATUS_PENDING_CONFIRMATION = "PENDING_CONFIRMATION";
     private static final String STATUS_COMPLETED = "COMPLETED";
@@ -29,28 +27,29 @@ public class CompletionServiceImpl implements CompletionService {
     private static final int MAX_DESCRIPTION_LENGTH = 1000;
     private static final int MAX_REASON_LENGTH = 500;
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(CompletionServiceImpl.class);
+
     private final CompletionProofMapper completionProofMapper;
     private final TaskMapper taskMapper;
     private final TaskHistoryService taskHistoryService;
     private final CreditService creditService;
-    private final RewardSettlementService rewardSettlementService;
 
     public CompletionServiceImpl(
             CompletionProofMapper completionProofMapper,
             TaskMapper taskMapper,
             TaskHistoryService taskHistoryService,
-            CreditService creditService,
-            RewardSettlementService rewardSettlementService) {
+            CreditService creditService) {
         this.completionProofMapper = completionProofMapper;
         this.taskMapper = taskMapper;
         this.taskHistoryService = taskHistoryService;
         this.creditService = creditService;
-        this.rewardSettlementService = rewardSettlementService;
     }
 
     @Override
-    public CompletionProof submitCompletionProof(Long submitterId, Long taskId,
-                                                  RequestDtos.SubmitCompletionRequest request) {
+    public CompletionProof submitCompletionProof(
+            Long submitterId,
+            Long taskId,
+            RequestDtos.SubmitCompletionRequest request) {
         validateSubmitterId(submitterId);
         validateTaskId(taskId);
         validateSubmitCompletionRequest(request);
@@ -60,14 +59,17 @@ public class CompletionServiceImpl implements CompletionService {
             throw new BusinessException(ErrorCode.TASK_001_NOT_FOUND);
         }
 
+        // 验证提交者必须是任务的provider
         if (!submitterId.equals(task.getProviderId())) {
             throw new BusinessException(ErrorCode.TASK_003_PERMISSION_DENIED);
         }
 
+        // 验证任务状态必须是 IN_PROGRESS
         if (!STATUS_IN_PROGRESS.equals(task.getStatus())) {
             throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
         }
 
+        // 创建完成凭证
         CompletionProof proof = new CompletionProof();
         proof.setTaskId(taskId);
         proof.setSubmitterId(submitterId);
@@ -79,12 +81,14 @@ public class CompletionServiceImpl implements CompletionService {
             throw new BusinessException(ErrorCode.COMMON_999_INTERNAL_ERROR, "Failed to submit completion proof");
         }
 
+        // 更新任务状态为 PENDING_CONFIRMATION
         LocalDateTime now = LocalDateTime.now();
         int statusAffected = taskMapper.updateStatusById(taskId, STATUS_IN_PROGRESS, STATUS_PENDING_CONFIRMATION, now);
         if (statusAffected != 1) {
             throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
         }
 
+        // 记录历史
         taskHistoryService.recordHistory(
                 taskId,
                 STATUS_IN_PROGRESS,
@@ -92,6 +96,7 @@ public class CompletionServiceImpl implements CompletionService {
                 submitterId,
                 "COMPLETION_PROOF_SUBMITTED");
 
+        proof.setSubmittedAt(now);
         return proof;
     }
 
@@ -105,40 +110,36 @@ public class CompletionServiceImpl implements CompletionService {
             throw new BusinessException(ErrorCode.TASK_001_NOT_FOUND);
         }
 
+        // 验证操作者必须是requester
         if (!requesterId.equals(task.getRequesterId())) {
             throw new BusinessException(ErrorCode.TASK_003_PERMISSION_DENIED);
         }
 
+        // 验证任务状态必须是 PENDING_CONFIRMATION
         if (!STATUS_PENDING_CONFIRMATION.equals(task.getStatus())) {
             throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
         }
 
+        // 更新任务状态为 COMPLETED
         LocalDateTime now = LocalDateTime.now();
         int affectedRows = taskMapper.updateStatusById(taskId, STATUS_PENDING_CONFIRMATION, STATUS_COMPLETED, now);
         if (affectedRows != 1) {
             throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
         }
 
+        // 积分报酬结算
+        settleReward(task);
+
+        // 记录历史
         taskHistoryService.recordHistory(
                 taskId,
                 STATUS_PENDING_CONFIRMATION,
                 STATUS_COMPLETED,
                 requesterId,
                 "COMPLETION_CONFIRMED");
-
-        // 积分报酬结算（使用 CreditService）
-        settlePointsReward(task);
-
-        // 奖励结算记录（使用 RewardSettlementService）
-        try {
-            rewardSettlementService.settleTaskReward(taskId, requesterId, task.getProviderId());
-        } catch (Exception e) {
-            log.error("Failed to create reward settlement for task {} (requester={}, provider={}): {}",
-                    taskId, requesterId, task.getProviderId(), e.getMessage(), e);
-        }
     }
 
-    private void settlePointsReward(Task task) {
+    private void settleReward(Task task) {
         if (!"POINTS".equals(task.getRewardType())) {
             return;
         }
@@ -155,8 +156,7 @@ public class CompletionServiceImpl implements CompletionService {
         creditService.adjustCredit(providerId, +amount,
                 "任务 #" + taskId + " 积分报酬收入", "TASK", taskId);
 
-        log.info("Settled {} points for task #{}: requester {} -> provider {}",
-                amount, taskId, requesterId, providerId);
+        LOGGER.info("Settled {} points for task #{}: {} -> {}", amount, taskId, requesterId, providerId);
     }
 
     @Override
@@ -170,20 +170,24 @@ public class CompletionServiceImpl implements CompletionService {
             throw new BusinessException(ErrorCode.TASK_001_NOT_FOUND);
         }
 
+        // 验证操作者必须是requester
         if (!requesterId.equals(task.getRequesterId())) {
             throw new BusinessException(ErrorCode.TASK_003_PERMISSION_DENIED);
         }
 
+        // 验证任务状态必须是 PENDING_CONFIRMATION
         if (!STATUS_PENDING_CONFIRMATION.equals(task.getStatus())) {
             throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
         }
 
+        // 更新任务状态回到 IN_PROGRESS（可以重新提交）
         LocalDateTime now = LocalDateTime.now();
         int affectedRows = taskMapper.updateStatusById(taskId, STATUS_PENDING_CONFIRMATION, STATUS_IN_PROGRESS, now);
         if (affectedRows != 1) {
             throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
         }
 
+        // 记录历史（包含驳回原因）
         taskHistoryService.recordHistory(
                 taskId,
                 STATUS_PENDING_CONFIRMATION,
@@ -203,6 +207,7 @@ public class CompletionServiceImpl implements CompletionService {
             throw new BusinessException(ErrorCode.TASK_001_NOT_FOUND);
         }
 
+        // 验证操作者必须是任务参与者（requester或provider）
         boolean isRequester = participantId.equals(task.getRequesterId());
         boolean isProvider = task.getProviderId() != null && participantId.equals(task.getProviderId());
 
@@ -210,17 +215,20 @@ public class CompletionServiceImpl implements CompletionService {
             throw new BusinessException(ErrorCode.TASK_003_PERMISSION_DENIED);
         }
 
+        // 验证任务状态：只能在 IN_PROGRESS 或 PENDING_CONFIRMATION 时发起争议
         String fromStatus = task.getStatus();
         if (!STATUS_IN_PROGRESS.equals(fromStatus) && !STATUS_PENDING_CONFIRMATION.equals(fromStatus)) {
             throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
         }
 
+        // 更新任务状态为 DISPUTED
         LocalDateTime now = LocalDateTime.now();
         int affectedRows = taskMapper.updateStatusById(taskId, fromStatus, STATUS_DISPUTED, now);
         if (affectedRows != 1) {
             throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
         }
 
+        // 记录历史（包含争议原因）
         taskHistoryService.recordHistory(
                 taskId,
                 fromStatus,
@@ -255,7 +263,8 @@ public class CompletionServiceImpl implements CompletionService {
             throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "description is required");
         }
         if (request.getDescription().length() > MAX_DESCRIPTION_LENGTH) {
-            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR,
+            throw new BusinessException(
+                    ErrorCode.COMMON_001_VALIDATION_ERROR,
                     "description is too long (max " + MAX_DESCRIPTION_LENGTH + " characters)");
         }
     }
@@ -265,7 +274,8 @@ public class CompletionServiceImpl implements CompletionService {
             throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "reason is required");
         }
         if (reason != null && reason.length() > MAX_REASON_LENGTH) {
-            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR,
+            throw new BusinessException(
+                    ErrorCode.COMMON_001_VALIDATION_ERROR,
                     "reason is too long (max " + MAX_REASON_LENGTH + " characters)");
         }
     }

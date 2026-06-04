@@ -32,6 +32,7 @@ public class TaskServiceImpl implements TaskService {
     private static final int MAX_SENSITIVE_REASON_LENGTH = 300;
     private static final int MAX_ATTACHMENT_COUNT = 9;
     private static final int MAX_TRANSITION_REASON_LENGTH = 300;
+    private static final int MAX_POINTS_REWARD_AMOUNT = 10;
 
     private static final String STATUS_OPEN = "OPEN";
     private static final String STATUS_DRAFT = "DRAFT";
@@ -164,7 +165,7 @@ public class TaskServiceImpl implements TaskService {
             throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
         }
 
-        validateUpdateTaskRequest(request);
+        validateUpdateTaskRequest(request, existingTask);
 
         applyUpdateToTask(existingTask, request);
         LocalDateTime now = LocalDateTime.now();
@@ -277,7 +278,9 @@ public class TaskServiceImpl implements TaskService {
             throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
         }
 
-        contentModerationService.assertTaskPublishAllowed(operatorId, buildResendRequest(task));
+        RequestDtos.CreateTaskRequest resendRequest = buildResendRequest(task);
+        validateRewardAmount(resendRequest.getRewardType(), resendRequest.getRewardAmount());
+        contentModerationService.assertTaskPublishAllowed(operatorId, resendRequest);
 
         String fromStatus = task.getStatus();
         String toStatus = resolveInitialStatusForResend(task);
@@ -383,6 +386,7 @@ public class TaskServiceImpl implements TaskService {
                 "sensitiveReason is too long");
         validateAttachmentIds(request.getAttachmentIds());
         validateDeadline(request.getDeadline());
+        validateRewardAmount(request.getRewardType(), request.getRewardAmount());
     }
 
     private void validateDeadline(LocalDateTime deadline) {
@@ -464,6 +468,19 @@ public class TaskServiceImpl implements TaskService {
         throw new BusinessException(
                 ErrorCode.COMMON_001_VALIDATION_ERROR,
                 message);
+    }
+
+    private void validateRewardAmount(ApiEnums.RewardType rewardType, Integer rewardAmount) {
+        if (rewardAmount == null) {
+            return;
+        }
+        if (rewardAmount <= 0) {
+            throwValidation("rewardAmount must be positive");
+        }
+        if (ApiEnums.RewardType.POINTS.equals(rewardType)
+                && rewardAmount > MAX_POINTS_REWARD_AMOUNT) {
+            throwValidation("points rewardAmount must be less than or equal to 10");
+        }
     }
 
     private void validateTransitionRequest(
@@ -601,7 +618,7 @@ public class TaskServiceImpl implements TaskService {
         }
     }
 
-    private void validateUpdateTaskRequest(RequestDtos.UpdateTaskRequest request) {
+    private void validateUpdateTaskRequest(RequestDtos.UpdateTaskRequest request, Task currentTask) {
         if (request.getTitle() != null) {
             validateLength(request.getTitle(), MAX_TITLE_LENGTH, "title is too long");
         }
@@ -609,15 +626,29 @@ public class TaskServiceImpl implements TaskService {
             validateLength(request.getDescription(), MAX_DESCRIPTION_LENGTH, "description is too long");
         }
         if (request.getRewardDescription() != null) {
-            validateLength(request.getRewardDescription(),
-                    MAX_REWARD_DESCRIPTION_LENGTH, "rewardDescription is too long");
+            validateLength(
+                    request.getRewardDescription(),
+                    MAX_REWARD_DESCRIPTION_LENGTH,
+                    "rewardDescription is too long");
         }
         if (request.getCompletionStandard() != null) {
-            validateLength(request.getCompletionStandard(),
-                    MAX_COMPLETION_STANDARD_LENGTH, "completionStandard is too long");
+            validateLength(
+                    request.getCompletionStandard(),
+                    MAX_COMPLETION_STANDARD_LENGTH,
+                    "completionStandard is too long");
         }
         if (request.getDeadline() != null && !request.getDeadline().isAfter(LocalDateTime.now())) {
             throwValidation("deadline must be in the future");
+        }
+        if (request.getRewardType() != null || request.getRewardAmount() != null) {
+            ApiEnums.RewardType rewardType = request.getRewardType();
+            if (rewardType == null && currentTask.getRewardType() != null) {
+                rewardType = ApiEnums.RewardType.valueOf(currentTask.getRewardType());
+            }
+            Integer rewardAmount = request.getRewardAmount() != null
+                    ? request.getRewardAmount()
+                    : currentTask.getRewardAmount();
+            validateRewardAmount(rewardType, rewardAmount);
         }
     }
 
@@ -664,6 +695,7 @@ public class TaskServiceImpl implements TaskService {
         if (request.getDescription() != null) {
             validateLength(request.getDescription(), MAX_DESCRIPTION_LENGTH, "description is too long");
         }
+        validateRewardAmount(request.getRewardType(), request.getRewardAmount());
     }
 
     private Task buildDraftTask(Long requesterId, RequestDtos.CreateTaskRequest request) {
@@ -704,6 +736,7 @@ public class TaskServiceImpl implements TaskService {
         request.setDeadline(task.getDeadline());
         request.setRewardType(ApiEnums.RewardType.valueOf(task.getRewardType()));
         request.setRewardDescription(task.getRewardDescription());
+        request.setRewardAmount(task.getRewardAmount());
         request.setCompletionStandard(task.getCompletionStandard());
         request.setRequiresProof(task.getRequiresProof() == 1);
         request.setOnlyInAppContact(task.getOnlyInAppContact() == 1);

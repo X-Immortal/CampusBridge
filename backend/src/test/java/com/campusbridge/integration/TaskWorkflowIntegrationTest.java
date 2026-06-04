@@ -129,7 +129,7 @@ class TaskWorkflowIntegrationTest {
     @SuppressWarnings("unchecked")
     void fullTaskWorkflowPublishApplyAcceptStartCompleteReview() throws Exception {
         // Step 1: Publish a task
-        Long taskId = publishTask("帮取快递包裹", "在校门口快递点取一个包裹送到宿舍楼下", 30);
+        Long taskId = publishTask("帮取快递包裹", "在校门口快递点取一个包裹送到宿舍楼下", 10);
 
         // Step 2: Provider applies for the task
         mockMvc.perform(post("/api/v1/tasks/" + taskId + "/applications")

@@ -34,13 +34,6 @@ public interface TaskMapper {
 
     List<Task> selectWithFilters(Map<String, Object> params);
 
-    List<Task> selectTasksByStatus(
-            @Param("status") String status,
-            @Param("offset") Integer offset,
-            @Param("limit") Integer limit);
-
-    int countTasksByStatus(@Param("status") String status);
-
     List<Task> selectTasksNeedingTimeoutReminder(
             @Param("status") String status,
             @Param("referenceTime") LocalDateTime referenceTime,

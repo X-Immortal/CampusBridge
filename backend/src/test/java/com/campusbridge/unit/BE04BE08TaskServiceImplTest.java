@@ -98,6 +98,20 @@ class BE04BE08TaskServiceImplTest {
     }
 
     @Test
+    void createTaskRejectsPointsRewardGreaterThanTen() {
+        RequestDtos.CreateTaskRequest request = normalCreateRequest();
+        request.setRewardAmount(11);
+
+        when(campusVerificationMapper.selectLatestByUserId(REQUESTER_ID))
+                .thenReturn(verifiedRecord());
+
+        assertThatThrownBy(() -> taskService.createTask(REQUESTER_ID, request))
+                .isInstanceOfSatisfying(BusinessException.class, ex ->
+                        assertThat(ex.getErrorCode())
+                                .isEqualTo(ErrorCode.COMMON_001_VALIDATION_ERROR));
+    }
+
+    @Test
     void createTaskRejectsUnverifiedUser() {
         when(campusVerificationMapper.selectLatestByUserId(REQUESTER_ID))
                 .thenReturn(null);
@@ -170,7 +184,8 @@ class BE04BE08TaskServiceImplTest {
         request.setLocation("南门快递点");
         request.setDeadline(LocalDateTime.now().plusDays(1));
         request.setRewardType(ApiEnums.RewardType.POINTS);
-        request.setRewardDescription("20 积分");
+        request.setRewardDescription("10 积分");
+        request.setRewardAmount(10);
         request.setCompletionStandard("送到宿舍楼下并拍照确认");
         request.setRequiresProof(true);
         return request;

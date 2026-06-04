@@ -3,8 +3,8 @@
 <mapper namespace="com.campusbridge.mapper.UserCreditMapper">
 
   <insert id="insert" parameterType="com.campusbridge.pojo.UserCredit" useGeneratedKeys="true" keyProperty="id">
-    INSERT INTO user_credits (user_id, points, level, credit_score, updated_at)
-    VALUES (#{userId}, #{points}, #{level}, #{creditScore}, #{updatedAt})
+    INSERT INTO user_credits (user_id, points, level, updated_at)
+    VALUES (#{userId}, #{points}, #{level}, #{updatedAt})
   </insert>
 
   <select id="selectById" resultType="com.campusbridge.pojo.UserCredit">
@@ -26,7 +26,6 @@
     SET user_id = #{userId},
       points = #{points},
       level = #{level},
-      credit_score = #{creditScore},
       updated_at = #{updatedAt}
     WHERE id = #{id}
   </update>
@@ -35,29 +34,5 @@
     DELETE FROM user_credits
     WHERE id = #{id}
   </delete>
-
-  <update id="updateCreditScore">
-    UPDATE user_credits
-    SET credit_score = #{creditScore},
-        updated_at = #{updatedAt}
-    WHERE user_id = #{userId}
-  </update>
-
-  <insert id="insertRecord" parameterType="com.campusbridge.pojo.CreditRecord" useGeneratedKeys="true" keyProperty="id">
-    INSERT INTO credit_records (user_id, change_value, reason, source_type, source_id, created_at)
-    VALUES (#{userId}, #{changeValue}, #{reason}, #{sourceType}, #{sourceId}, #{createdAt})
-  </insert>
-
-  <select id="selectRecordsByUserId" resultType="com.campusbridge.pojo.CreditRecord">
-    SELECT * FROM credit_records
-    WHERE user_id = #{userId}
-    ORDER BY created_at DESC
-    LIMIT #{limit} OFFSET #{offset}
-  </select>
-
-  <select id="countRecordsByUserId" resultType="int">
-    SELECT COUNT(*) FROM credit_records
-    WHERE user_id = #{userId}
-  </select>
 
 </mapper>

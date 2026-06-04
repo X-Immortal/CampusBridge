@@ -492,6 +492,10 @@ function validateRewardAmount() {
     setError('rewardAmount', '请输入有效的正整数。')
     return
   }
+  if (taskForm.rewardType === 'POINTS' && num > 10) {
+    setError('rewardAmount', '积分数量不能超过 10。')
+    return
+  }
   if (num > 999999) {
     setError('rewardAmount', '数值不能超过 999999。')
   }
@@ -1076,7 +1080,8 @@ watch(
                   v-model.trim="taskForm.rewardAmount"
                   type="number"
                   min="1"
-                  :placeholder="taskForm.rewardType === 'POINTS' ? '例如：50' : '例如：10'"
+                  :max="taskForm.rewardType === 'POINTS' ? 10 : undefined"
+                  :placeholder="taskForm.rewardType === 'POINTS' ? '不超过10' : '例如：10'"
                   :aria-invalid="Boolean(errors.rewardAmount)"
                   @input="clearError('rewardAmount')"
                 >

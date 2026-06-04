@@ -150,6 +150,7 @@ CREATE TABLE `tasks` (
   `deadline` DATETIME NOT NULL,
   `reward_type` ENUM('FREE','POINTS','CASH','NEGOTIABLE') NOT NULL,
   `reward_description` VARCHAR(200) NULL,
+  `reward_amount` INT NULL COMMENT '积分/金额奖励数值',
   `completion_standard` VARCHAR(500) NOT NULL,
   `requires_proof` TINYINT(1) NOT NULL DEFAULT 0,
   `only_in_app_contact` TINYINT(1) NOT NULL DEFAULT 1,

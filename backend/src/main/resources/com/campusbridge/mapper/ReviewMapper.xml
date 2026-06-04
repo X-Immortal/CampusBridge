@@ -32,17 +32,4 @@
     WHERE id = #{id}
   </delete>
 
-  <select id="selectByTaskId" resultType="com.campusbridge.pojo.Review">
-    SELECT * FROM reviews
-    WHERE task_id = #{taskId}
-    ORDER BY created_at DESC
-  </select>
-
-  <select id="selectByTaskAndReviewer" resultType="com.campusbridge.pojo.Review">
-    SELECT * FROM reviews
-    WHERE task_id = #{taskId}
-      AND reviewer_id = #{reviewerId}
-      AND reviewee_id = #{revieweeId}
-  </select>
-
 </mapper>

@@ -31,6 +31,11 @@ function optionalText(value = '') {
   return text || undefined
 }
 
+function optionalNumber(value) {
+  if (value === '' || value === null || value === undefined) return undefined
+  return Number(value)
+}
+
 function booleanFlag(value, fallback = false) {
   if (value === undefined || value === null || value === '') return fallback
   if (typeof value === 'boolean') return value
@@ -52,7 +57,8 @@ function baseForm(overrides = {}) {
     location: ' 南门菜鸟驿站 ',
     deadline: futureDeadline(),
     rewardType: 'POINTS',
-    rewardDescription: ' 12积分 ',
+    rewardDescription: ' 8积分 ',
+    rewardAmount: '8',
     completionStandard: ' 包裹送达图书馆服务台并站内确认 ',
     requiresProof: false,
     onlyInAppContact: true,
@@ -95,6 +101,18 @@ function validateForm(form, { isEditMode = false } = {}) {
   validateTextLength('completionStandard', form.completionStandard, 500, '完成标准最多 500 个字。')
   validateTextLength('routeHint', form.routeHint, 300, '顺路信息最多 300 个字。')
 
+  if (form.rewardType === 'POINTS' || form.rewardType === 'CASH') {
+    const val = form.rewardAmount
+    if (val !== undefined && val !== null && val !== '') {
+      const num = Number(val)
+      if (!Number.isFinite(num) || num <= 0 || !Number.isInteger(num)) {
+        setError('rewardAmount', '请输入有效的正整数。')
+      } else if (form.rewardType === 'POINTS' && num > 10) {
+        setError('rewardAmount', '积分数量不能超过 10。')
+      }
+    }
+  }
+
   if (form.deadline) {
     const deadline = new Date(form.deadline)
     if (Number.isNaN(deadline.getTime()) || deadline <= new Date()) {
@@ -135,6 +153,7 @@ function buildPayload(form) {
     deadline: normalizeDeadline(form.deadline),
     rewardType: form.rewardType,
     rewardDescription: optionalText(form.rewardDescription),
+    rewardAmount: optionalNumber(form.rewardAmount),
     completionStandard: form.completionStandard.trim(),
     requiresProof: form.requiresProof,
     onlyInAppContact: form.onlyInAppContact,
@@ -157,6 +176,7 @@ function buildDraftPayload(form) {
     deadline: form.deadline ? normalizeDeadline(form.deadline) : undefined,
     rewardType: form.rewardType || undefined,
     rewardDescription: optionalText(form.rewardDescription),
+    rewardAmount: optionalNumber(form.rewardAmount),
     completionStandard: optionalText(form.completionStandard),
     requiresProof: form.requiresProof,
     onlyInAppContact: form.onlyInAppContact,
@@ -176,6 +196,7 @@ function buildUpdatePayload(form) {
     deadline: normalizeDeadline(form.deadline),
     rewardType: form.rewardType,
     rewardDescription: optionalText(form.rewardDescription),
+    rewardAmount: optionalNumber(form.rewardAmount),
     completionStandard: form.completionStandard.trim(),
     requiresProof: form.requiresProof,
     onlyInAppContact: form.onlyInAppContact,
@@ -351,6 +372,17 @@ test('创建模式会校验必填项、未来截止时间和即时任务路线',
   const pastResult = validateForm(baseForm({ deadline: pastDeadline() }))
   assert.equal(pastResult.valid, false)
   assert.equal(pastResult.errors.deadline, '截止时间必须晚于当前时间。')
+
+  const pointsResult = validateForm(baseForm({ rewardAmount: '11' }))
+  assert.equal(pointsResult.valid, false)
+  assert.equal(pointsResult.errors.rewardAmount, '积分数量不能超过 10。')
+})
+
+test('积分数量输入框提示不超过 10', async () => {
+  const source = await readFile(new URL('../src/views/TaskPublishView.vue', import.meta.url), 'utf8')
+
+  assert.match(source, /不超过10/)
+  assert.match(source, /积分数量不能超过 10。/)
 })
 
 test('编辑模式不要求重新提交分类、校区和地点，但仍校验可编辑字段', () => {
@@ -381,7 +413,8 @@ test('发布普通任务会生成文档要求的请求体并清理表单空白',
     location: '南门菜鸟驿站',
     deadline: normalizeDeadline(payload.deadline.slice(0, 16)),
     rewardType: 'POINTS',
-    rewardDescription: '12积分',
+    rewardDescription: '8积分',
+    rewardAmount: 8,
     completionStandard: '包裹送达图书馆服务台并站内确认',
     requiresProof: false,
     onlyInAppContact: true,
@@ -464,6 +497,7 @@ test('编辑模式只提交 API 允许更新的字段', () => {
     'description',
     'onlyInAppContact',
     'requiresProof',
+    'rewardAmount',
     'rewardDescription',
     'rewardType',
     'title'
