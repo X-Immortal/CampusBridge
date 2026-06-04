@@ -308,7 +308,8 @@ async function loadReviews() {
     const uniqueTasks = [...new Map(rawTasks.map((task) => [String(task.id ?? task.taskId), task])).values()]
       .filter((task) => task.id || task.taskId)
       .map(normalizeTask)
-      .filter((task) => String(task.requesterId) === String(myId))
+      .filter((task) =>
+        String(task.requesterId) === String(myId) || String(task.providerId) === String(myId))
 
     tasks.value = uniqueTasks
     if (uniqueTasks.length) await hydrateTaskReviews()
@@ -665,7 +666,7 @@ onMounted(async () => {
               aria-hidden="true"
             />
             <h3>暂无已完成任务</h3>
-            <p>你发布的任务完成后会出现在这里。</p>
+            <p>你发布或承接的任务完成后会出现在这里，双方可互相评价。</p>
           </div>
 
           <div

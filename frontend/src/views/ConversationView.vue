@@ -263,8 +263,7 @@ function selectInitialConversation() {
     )
   }
   if (hasRouteConversationHint()) {
-    const target = findConversationByRouteHint()
-    if (target) return target
+    return findConversationByRouteHint()
   }
   return conversations.value[0]
 }
@@ -359,7 +358,8 @@ async function ensureConversationFromRoute() {
       await api.createConversation({
         relatedType: routeRelatedType.value,
         relatedId: Number(routeRelatedId.value),
-        peerUserId: Number(peerUserId)
+        peerUserId: Number(peerUserId),
+        initialMessage: 'hello'
       })
     )
     if (!conversation.id) return null

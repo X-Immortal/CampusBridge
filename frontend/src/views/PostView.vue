@@ -59,6 +59,10 @@ const publishing = ref(false)
 const publishErrors = reactive({})
 const postForm = reactive(createDefaultPostForm())
 
+const replyContent = ref('')
+const replySubmitting = ref(false)
+const replyError = ref('')
+
 let listRequestId = 0
 let detailRequestId = 0
 
@@ -474,6 +478,31 @@ function authorCopy(authorId) {
     return '我发布'
   }
   return `同学 ${authorId}`
+}
+
+async function submitReply() {
+  const content = replyContent.value.trim()
+  if (!content) {
+    replyError.value = '请输入回复内容'
+    return
+  }
+  if (content.length > 2000) {
+    replyError.value = '回复内容不能超过2000字'
+    return
+  }
+  if (!detailPost.value?.id) return
+
+  replyError.value = ''
+  replySubmitting.value = true
+  try {
+    await api.createPostReply(detailPost.value.id, { content })
+    replyContent.value = ''
+    await loadPostDetail(detailPost.value.id)
+  } catch (error) {
+    replyError.value = error.message || '回复发送失败，请稍后重试。'
+  } finally {
+    replySubmitting.value = false
+  }
 }
 
 watch(
@@ -924,6 +953,54 @@ onMounted(() => {
                 <h3>回复</h3>
                 <span>{{ detailReplies.length }} 条</span>
               </div>
+
+              <form
+                v-if="isAuthenticated"
+                class="reply-form"
+                @submit.prevent="submitReply"
+              >
+                <textarea
+                  v-model="replyContent"
+                  :disabled="replySubmitting"
+                  maxlength="2000"
+                  placeholder="写下你的回复，帮助楼主或参与讨论..."
+                  :aria-invalid="Boolean(replyError)"
+                />
+                <div class="reply-form-footer">
+                  <small>{{ replyContent.length }}/2000</small>
+                  <p
+                    v-if="replyError"
+                    class="reply-form-error"
+                  >
+                    {{ replyError }}
+                  </p>
+                  <button
+                    class="primary-action"
+                    type="submit"
+                    :disabled="replySubmitting || !replyContent.trim()"
+                  >
+                    <LoaderCircle
+                      v-if="replySubmitting"
+                      class="spinning"
+                      :size="16"
+                      aria-hidden="true"
+                    />
+                    <Send
+                      v-else
+                      :size="16"
+                      aria-hidden="true"
+                    />
+                    发送回复
+                  </button>
+                </div>
+              </form>
+              <p
+                v-else
+                class="reply-login-hint"
+              >
+                请先登录后再参与回复。
+              </p>
+
               <div
                 v-if="!detailReplies.length"
                 class="reply-empty"
@@ -1733,6 +1810,67 @@ onMounted(() => {
 .reply-heading span {
   color: #8a8792;
   font-weight: 900;
+}
+
+.reply-form {
+  display: grid;
+  gap: 8px;
+  padding: 13px;
+  border: 1px solid #dbd7e8;
+  border-radius: 8px;
+  background: #fbf9fc;
+}
+
+.reply-form textarea {
+  width: 100%;
+  min-height: 88px;
+  padding: 10px 12px;
+  border: 1px solid #d7d1e5;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #3c3543;
+  line-height: 1.55;
+  outline: 0;
+  resize: vertical;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.reply-form textarea:focus {
+  border-color: #9a93dc;
+  box-shadow: 0 0 0 4px rgba(116, 109, 195, 0.12);
+}
+
+.reply-form textarea[aria-invalid="true"] {
+  border-color: #ef4444;
+}
+
+.reply-form-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.reply-form-footer small {
+  color: #8a8792;
+}
+
+.reply-form-error {
+  color: #ef4444;
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+.reply-login-hint {
+  margin: 0;
+  padding: 13px;
+  border: 1px dashed #d7d1e5;
+  border-radius: 8px;
+  background: #fbf9fc;
+  color: #667085;
+  text-align: center;
+  font-size: 0.92rem;
 }
 
 .reply-empty {
