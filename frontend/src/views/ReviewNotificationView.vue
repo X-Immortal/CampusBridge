@@ -952,7 +952,7 @@ onMounted(async () => {
                 id="notification-search"
                 v-model.trim="notificationSearch"
                 type="search"
-                placeholder="搜索通知、任务编号或来源"
+                placeholder="搜索任务标题、内容或关键词"
               >
             </label>
             <button

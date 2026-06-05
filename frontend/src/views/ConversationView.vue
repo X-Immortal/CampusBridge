@@ -645,7 +645,7 @@ onMounted(async () => {
             <input
               v-model="conversationSearch"
               type="search"
-              placeholder="搜索会话、任务编号"
+              placeholder="搜索任务标题、内容或关键词"
               aria-label="搜索会话、任务编号"
             >
           </label>

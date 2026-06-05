@@ -47,7 +47,7 @@ const searchKeyword = ref('')
 const activeLabel = computed(() => props.activeLabel)
 const publishMode = computed(() => props.publishMode)
 const searchPlaceholder = computed(() =>
-  activeLabel.value === '帖子广场' ? '搜索帖子标题、内容或关键词' : '搜索任务、技能、地点或关键词'
+  activeLabel.value === '帖子广场' ? '搜索帖子标题、内容或关键词' : '搜索任务标题、内容或关键词'
 )
 
 function handleSearch() {

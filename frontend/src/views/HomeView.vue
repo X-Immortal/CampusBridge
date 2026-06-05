@@ -777,8 +777,8 @@ onBeforeUnmount(() => {
         <input
           v-model.trim="searchKeyword"
           type="search"
-          placeholder="搜索任务、技能、地点或关键词"
-          aria-label="搜索任务、技能、地点或关键词"
+          placeholder="搜索任务标题、内容或关键词"
+          aria-label="搜索任务标题、内容或关键词"
         >
       </form>
 
@@ -2008,7 +2008,7 @@ onBeforeUnmount(() => {
 }
 
 .search-box input::placeholder {
-  color: #b8b5c1;
+  color: #b9b5c2;
 }
 
 .topbar-account {

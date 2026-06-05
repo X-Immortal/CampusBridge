@@ -1962,7 +1962,7 @@ onMounted(async () => {
                   id="task-keyword"
                   v-model.trim="filters.keyword"
                   type="search"
-                  placeholder="搜索任务标题、地点或说明"
+                  placeholder="搜索任务标题、内容或关键词"
                   @input="queueFilterRefresh"
                 >
                 <button
