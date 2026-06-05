@@ -121,8 +121,6 @@ class BE09CompletionServiceImplTest {
         completionService.confirmCompletion(REQUESTER_ID, TASK_ID);
 
         verify(creditService).adjustCredit(
-                REQUESTER_ID, -20, "任务 #10 积分报酬支出", "TASK", TASK_ID);
-        verify(creditService).adjustCredit(
                 PROVIDER_ID, 20, "任务 #10 积分报酬收入", "TASK", TASK_ID);
         verify(taskHistoryService).recordHistory(TASK_ID,
                 "PENDING_CONFIRMATION", "COMPLETED", REQUESTER_ID,

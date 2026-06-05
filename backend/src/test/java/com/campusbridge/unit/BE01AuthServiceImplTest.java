@@ -38,7 +38,7 @@ class BE01AuthServiceImplTest {
 
     @Test
     void registerCreatesUserAndReturnsId() {
-        RequestDtos.RegisterRequest request = registerRequest("alice", "pass123", "13800000001", "alice@test.com");
+        RequestDtos.RegisterRequest request = registerRequest("alice", "pass123", "13800000001", null);
         when(userMapper.selectByUsername("alice")).thenReturn(null);
         when(userMapper.selectByPhoneHash(any())).thenReturn(null);
         when(passwordEncoder.encode("pass123")).thenReturn("hashed-pass");
