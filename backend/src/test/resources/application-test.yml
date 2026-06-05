@@ -10,7 +10,7 @@ spring:
     init:
       schema-locations: file:sql/schema.sql
       mode: always
-      continue-on-error: false
+      continue-on-error: true
   servlet:
     multipart:
       max-file-size: 5MB

@@ -27,8 +27,8 @@ test('附件上传接口使用 /attachments multipart 表单并允许传完成�
   assert.match(source, /if \(!isFormData\) \{[\s\S]*?requestHeaders\['Content-Type'\] = 'application\/json'/)
   assert.match(source, /uploadAttachment:\s*\(\{ file,\s*expectedOwnerType,\s*type \} = \{\}\) => \{/)
   assert.match(source, /formData\.append\('file', file\)/)
-  assert.match(source, /formData\.append\('expectedOwnerType', expectedOwnerType\)/)
-  assert.match(source, /request\('\/attachments',\s*\{\s*method:\s*'POST',\s*body:\s*formData,\s*timeoutMs:\s*15000\s*\}\)/)
+  assert.match(source, /extraHeaders\['X-Expected-Owner-Type'\] = expectedOwnerType/)
+  assert.match(source, /request\('\/attachments',\s*\{\s*method:\s*'POST',\s*body:\s*formData,.*timeoutMs:\s*60000\s*\}\)/)
 })
 
 test('完成凭证请求体只提交说明和有效附件 ID', () => {
@@ -66,7 +66,7 @@ test('详情弹窗包含凭证上传、提交、确认、驳回和争议交互',
   assert.match(source, /expectedOwnerType:\s*'COMPLETION_PROOF'/)
   assert.match(source, /@submit\.prevent="submitCompletionProof"/)
   assert.match(source, /api\.submitTaskCompletion\(detailTask\.value\.id,\s*\{[\s\S]*?description:[\s\S]*?attachmentIds/)
-  assert.match(source, /openCompletionResolution\('CONFIRM_COMPLETION'\)/)
+  assert.match(source, /submitQuickConfirmCompletion/)
   assert.match(source, /openCompletionResolution\('REJECT_COMPLETION'\)/)
   assert.match(source, /openCompletionResolution\('DISPUTE'\)/)
   assert.match(source, /api\.confirmTaskCompletion\(detailTask\.value\.id\)/)

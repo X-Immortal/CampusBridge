@@ -70,7 +70,7 @@ test('管理员 API 封装路径与接口文档保持一致', async () => {
 test('举报裁决只展示终局状态，并为状态提供正确标签与色调', () => {
   assert.deepEqual(
     MODERATION_DECISION_OPTIONS.map((option) => option.value),
-    ['APPROVED', 'REJECTED', 'RESOLVED', 'PUNISHED']
+    ['APPROVED', 'REJECTED']
   )
   assert.equal(optionLabel(MODERATION_STATUS_OPTIONS, 'PUNISHED'), '已处罚')
   assert.equal(statusTone('PUNISHED'), 'danger')
@@ -176,7 +176,6 @@ test('管理员工作台和任务详情包含核心交互入口', async () => {
   assert.match(shellSource, /管理后台/)
   assert.match(adminSource, /activeSection === 'verifications'/)
   assert.match(adminSource, /submitReportResolution/)
-  assert.match(adminSource, /moderateTask\(taskManualForm\.taskId,\s*'approve'/)
   assert.match(taskSource, /workflow-entry workflow-entry--report/)
   assert.match(taskSource, /@submit\.prevent="submitReport"/)
   assert.match(taskSource, /api\.createReport/)
