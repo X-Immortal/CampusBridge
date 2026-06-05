@@ -8,9 +8,7 @@ spring:
       validation-query: SELECT 1
   sql:
     init:
-      schema-locations: file:sql/schema.sql
-      mode: always
-      continue-on-error: true
+      mode: never
   servlet:
     multipart:
       max-file-size: 5MB
