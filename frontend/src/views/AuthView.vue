@@ -424,8 +424,15 @@ async function handleRegister() {
               :disabled="registerCodeSending || state.loading || registerCodeSent"
               @click="sendRegisterCode"
             >
-              <LoaderCircle v-if="registerCodeSending" class="spinning" :size="17" />
-              <Mail v-else :size="17" />
+              <LoaderCircle
+                v-if="registerCodeSending"
+                class="spinning"
+                :size="17"
+              />
+              <Mail
+                v-else
+                :size="17"
+              />
               发送邮箱验证码
             </button>
             <label class="publish-field">

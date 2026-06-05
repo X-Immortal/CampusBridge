@@ -777,20 +777,6 @@ function isProviderTask(task = {}) {
   return providerId !== undefined && providerId !== null && String(providerId) === String(currentUserId.value)
 }
 
-function paginateTasks(items, page, size) {
-  const normalizedSize = Number(size) > 0 ? Number(size) : currentDefaultFilters().size
-  const totalPagesForItems = Math.max(1, Math.ceil(items.length / normalizedSize))
-  const normalizedPage = Math.min(Math.max(Number(page) || 1, 1), totalPagesForItems)
-  const start = (normalizedPage - 1) * normalizedSize
-
-  return {
-    page: normalizedPage,
-    size: normalizedSize,
-    total: items.length,
-    items: items.slice(start, start + normalizedSize)
-  }
-}
-
 function applyTaskResult(result) {
   const items = normalizePagedTasks(result).map(normalizeTask)
 
@@ -810,7 +796,6 @@ function applyTaskResult(result) {
     pagination.size = filters.size
     pagination.total = activeItems.length
     filters.page = activePage.value
-    filters.size = filters.size
     return
   }
 

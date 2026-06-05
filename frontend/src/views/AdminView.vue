@@ -5,7 +5,6 @@ import {
   CheckCircle2,
   FileWarning,
   IdCard,
-  Info,
   LoaderCircle,
   RefreshCw,
   Scale,

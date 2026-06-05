@@ -1358,7 +1358,11 @@ onBeforeUnmount(() => {
               </p>
               <h2>审核中</h2>
             </div>
-            <StatusBadge status="PENDING" tone="warning" label="审核中" />
+            <StatusBadge
+              status="PENDING"
+              tone="warning"
+              label="审核中"
+            />
           </div>
           <p class="panel-copy">
             你的认证资料已提交，正在等待管理员审核，请耐心等待。
