@@ -1,22 +1,22 @@
 spring:
   application:
     name: campusbridge
-  # Spring Boot datasource
+  # Spring Boot datasource — configure via CI/CD variables or environment
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: xxxxx
-    username: xxxxxx
-    password: "xxxxxx"
+    url: ${MYSQL_URL:jdbc:mysql://localhost:3306/campusbridge?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:changeme}
   servlet:
     multipart:
       # File upload limits
-      max-file-size: 1MB
+      max-file-size: 5MB
       max-request-size: 10MB
   mail:
-    host: smtp.example.com
-    port: 465
-    username: xxxxxx@example.com
-    password: xxxxxx
+    host: ${SMTP_HOST:smtp.example.com}
+    port: ${SMTP_PORT:465}
+    username: ${SMTP_USERNAME:your-email@example.com}
+    password: ${SMTP_PASSWORD:your-smtp-password}
     properties:
       mail:
         smtp:
@@ -33,9 +33,9 @@ mybatis:
 # Aliyun OSS
 aliyun:
   oss:
-    endpoint: https://oss-cn-beijing.aliyuncs.com
-    bucketName: campusbridge
-    region: cn-beijing
+    endpoint: ${ALIYUN_OSS_ENDPOINT:https://oss-cn-beijing.aliyuncs.com}
+    bucketName: ${ALIYUN_OSS_BUCKET:campusbridge}
+    region: ${ALIYUN_OSS_REGION:cn-beijing}
 
 # JWT
 jwt:
@@ -52,6 +52,9 @@ security:
 campusbridge:
   verification:
     email:
-      enabled: true
-      from: xxxxxx@example.com
-      code-secret: ${VERIFICATION_EMAIL_CODE_SECRET:replace-with-a-random-secret}
+      enabled: ${VERIFICATION_EMAIL_ENABLED:false}
+      code-secret: ${VERIFICATION_EMAIL_CODE_SECRET:campusbridge-email-code}
+
+server:
+  port: ${SERVER_PORT:8081}
+  forward-headers-strategy: native
