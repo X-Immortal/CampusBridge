@@ -2,7 +2,9 @@ package com.campusbridge.integration;
 
 import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.pojo.CompletionProof;
+import com.campusbridge.pojo.Review;
 import com.campusbridge.pojo.Task;
+import com.campusbridge.pojo.TaskApplication;
 import com.campusbridge.service.AuthService;
 import com.campusbridge.service.CompletionService;
 import com.campusbridge.service.ReviewService;
@@ -21,8 +23,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -34,7 +36,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Controller-layer integration tests for the core task workflow.
+ * Controller-layer integration tests for core task workflow.
  * Services are mocked so no database schema is required.
  *
  * Normal flow: register → login → publish → apply → accept → start → complete → review
@@ -80,19 +82,9 @@ class TaskWorkflowIntegrationTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        // Mock registration
-        when(authService.register(any(RequestDtos.RegisterRequest.class)))
-                .thenReturn(REQUESTER_ID)
-                .thenReturn(PROVIDER_ID);
-
-        // Mock login for requester
-        when(authService.login(argThat(req ->
-                req != null && "req_test".equals(req.username) && "Test@12345".equals(req.password))))
-                .thenReturn(loginPayload(REQUESTER_ID, "req_test", "USER"));
-
-        // Mock login for provider
-        when(authService.login(argThat(req ->
-                req != null && "prov_test".equals(req.username) && "Test@12345".equals(req.password))))
+        // Mock login
+        when(authService.login(any(RequestDtos.LoginRequest.class)))
+                .thenReturn(loginPayload(REQUESTER_ID, "req_test", "USER"))
                 .thenReturn(loginPayload(PROVIDER_ID, "prov_test", "USER"));
 
         // Register + login requester
@@ -143,23 +135,25 @@ class TaskWorkflowIntegrationTest {
     @Test
     void fullTaskWorkflowPublishApplyAcceptStartCompleteReview() throws Exception {
         // Mock task creation
-        when(taskService.createTask(any(RequestDtos.CreateTaskRequest.class), eq(REQUESTER_ID)))
+        when(taskService.createTask(eq(REQUESTER_ID), any(RequestDtos.CreateTaskRequest.class)))
                 .thenReturn(openTask());
 
-        // Mock application
-        when(taskApplicationService.apply(eq(TASK_ID), eq(PROVIDER_ID), any()))
+        // Mock application creation
+        when(taskApplicationService.createApplication(eq(PROVIDER_ID), eq(TASK_ID),
+                any(RequestDtos.CreateTaskApplicationRequest.class)))
                 .thenReturn(pendingApplication());
 
         // Mock list applications
-        when(taskApplicationService.listApplications(eq(TASK_ID), eq(REQUESTER_ID)))
-                .thenReturn(List.of(pendingApplication()));
+        when(taskApplicationService.listApplications(eq(REQUESTER_ID), eq(TASK_ID)))
+                .thenReturn(Collections.emptyList());
 
         // Mock accept application
-        when(taskApplicationService.acceptApplication(eq(TASK_ID), eq(APPLICATION_ID), eq(REQUESTER_ID)))
+        when(taskApplicationService.acceptApplication(eq(REQUESTER_ID), eq(TASK_ID), eq(APPLICATION_ID)))
                 .thenReturn(acceptedApplication());
 
-        // Mock status transitions
-        when(taskService.transitionTaskStatus(eq(TASK_ID), eq(PROVIDER_ID), any()))
+        // Mock status transition: START → IN_PROGRESS
+        when(taskService.transitionTaskStatus(eq(PROVIDER_ID), eq(TASK_ID),
+                any(RequestDtos.TaskStatusTransitionRequest.class)))
                 .thenReturn(taskWithStatus("IN_PROGRESS"));
 
         // Mock completion proof
@@ -167,18 +161,20 @@ class TaskWorkflowIntegrationTest {
         proof.setId(PROOF_ID);
         proof.setTaskId(TASK_ID);
         proof.setSubmitterId(PROVIDER_ID);
-        when(completionService.submitCompletionProof(eq(PROVIDER_ID), eq(TASK_ID), any()))
+        when(completionService.submitCompletionProof(eq(PROVIDER_ID), eq(TASK_ID),
+                any(RequestDtos.SubmitCompletionRequest.class)))
                 .thenReturn(proof);
 
-        // Mock confirm completion
-        when(completionService.confirmCompletion(eq(REQUESTER_ID), eq(TASK_ID)))
-                .thenReturn(taskWithStatus("COMPLETED"));
+        // Mock review
+        when(reviewService.createReview(any(Long.class), any(Long.class),
+                any(RequestDtos.CreateReviewRequest.class)))
+                .thenReturn(new Review());
 
         // Step 1: Publish task
-        Long taskId = publishTask("帮取快递包裹", "在校门口快递点取一个包裹送到宿舍楼下", 10);
+        publishTask("帮取快递包裹", "在校门口快递点取一个包裹送到宿舍楼下");
 
         // Step 2: Provider applies
-        mockMvc.perform(post("/api/v1/tasks/" + taskId + "/applications")
+        mockMvc.perform(post("/api/v1/tasks/" + TASK_ID + "/applications")
                         .header("Authorization", "Bearer " + providerToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(mapOf(
@@ -186,24 +182,24 @@ class TaskWorkflowIntegrationTest {
                 .andExpect(status().isCreated());
 
         // Step 3: Requester views applications
-        mockMvc.perform(get("/api/v1/tasks/" + taskId + "/applications")
+        mockMvc.perform(get("/api/v1/tasks/" + TASK_ID + "/applications")
                         .header("Authorization", "Bearer " + requesterToken))
                 .andExpect(status().isOk());
 
         // Step 4: Requester accepts application
-        mockMvc.perform(post("/api/v1/tasks/" + taskId + "/applications/" + APPLICATION_ID + "/accept")
+        mockMvc.perform(post("/api/v1/tasks/" + TASK_ID + "/applications/" + APPLICATION_ID + "/accept")
                         .header("Authorization", "Bearer " + requesterToken))
                 .andExpect(status().isOk());
 
-        // Step 5: Provider starts task → IN_PROGRESS
-        mockMvc.perform(post("/api/v1/tasks/" + taskId + "/status-transitions")
+        // Step 5: Provider starts task
+        mockMvc.perform(post("/api/v1/tasks/" + TASK_ID + "/status-transitions")
                         .header("Authorization", "Bearer " + providerToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(mapOf("action", "START"))))
                 .andExpect(status().isOk());
 
         // Step 6: Provider submits completion proof
-        mockMvc.perform(post("/api/v1/tasks/" + taskId + "/completion")
+        mockMvc.perform(post("/api/v1/tasks/" + TASK_ID + "/completion")
                         .header("Authorization", "Bearer " + providerToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(mapOf(
@@ -211,14 +207,12 @@ class TaskWorkflowIntegrationTest {
                 .andExpect(status().isOk());
 
         // Step 7: Requester confirms completion
-        mockMvc.perform(post("/api/v1/tasks/" + taskId + "/completion/confirm")
+        mockMvc.perform(post("/api/v1/tasks/" + TASK_ID + "/completion/confirm")
                         .header("Authorization", "Bearer " + requesterToken))
                 .andExpect(status().isOk());
 
         // Step 8: Reviews
-        when(reviewService.createReview(any(RequestDtos.CreateReviewRequest.class)))
-                .thenReturn(null);
-        mockMvc.perform(post("/api/v1/tasks/" + taskId + "/reviews")
+        mockMvc.perform(post("/api/v1/tasks/" + TASK_ID + "/reviews")
                         .header("Authorization", "Bearer " + requesterToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(mapOf(
@@ -245,18 +239,19 @@ class TaskWorkflowIntegrationTest {
 
     @Test
     void invalidStateTransitionOnOpenTaskReturnsConflict() throws Exception {
-        when(taskService.createTask(any(RequestDtos.CreateTaskRequest.class), eq(REQUESTER_ID)))
+        when(taskService.createTask(eq(REQUESTER_ID), any(RequestDtos.CreateTaskRequest.class)))
                 .thenReturn(openTask());
 
-        Long taskId = publishTask("测试状态流转", "测试非法流转拒绝", 10);
+        publishTask("测试状态流转", "测试非法流转拒绝");
 
-        // START on OPEN task (not yet ACCEPTED) → should fail via service validation
-        when(taskService.transitionTaskStatus(eq(taskId), eq(PROVIDER_ID), any()))
+        // START on OPEN task → service throws, controller returns 409
+        when(taskService.transitionTaskStatus(eq(PROVIDER_ID), eq(TASK_ID),
+                any(RequestDtos.TaskStatusTransitionRequest.class)))
                 .thenThrow(new com.campusbridge.common.BusinessException(
                         com.campusbridge.common.ErrorCode.TASK_002_INVALID_STATUS_TRANSITION,
                         "非法状态流转"));
 
-        mockMvc.perform(post("/api/v1/tasks/" + taskId + "/status-transitions")
+        mockMvc.perform(post("/api/v1/tasks/" + TASK_ID + "/status-transitions")
                         .header("Authorization", "Bearer " + providerToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(mapOf("action", "START"))))
@@ -267,28 +262,30 @@ class TaskWorkflowIntegrationTest {
 
     @Test
     void duplicateApplicationIsRejected() throws Exception {
-        when(taskService.createTask(any(RequestDtos.CreateTaskRequest.class), eq(REQUESTER_ID)))
+        when(taskService.createTask(eq(REQUESTER_ID), any(RequestDtos.CreateTaskRequest.class)))
                 .thenReturn(openTask());
 
-        when(taskApplicationService.apply(eq(TASK_ID), eq(PROVIDER_ID), any()))
+        // First application succeeds
+        when(taskApplicationService.createApplication(eq(PROVIDER_ID), eq(TASK_ID),
+                any(RequestDtos.CreateTaskApplicationRequest.class)))
                 .thenReturn(pendingApplication());
 
-        Long taskId = publishTask("禁止重复接单测试", "测试重复接单被拒", 10);
+        publishTask("禁止重复接单测试", "测试重复接单被拒");
 
-        // First application succeeds
-        mockMvc.perform(post("/api/v1/tasks/" + taskId + "/applications")
+        mockMvc.perform(post("/api/v1/tasks/" + TASK_ID + "/applications")
                         .header("Authorization", "Bearer " + providerToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(mapOf("message", "申请接单"))))
                 .andExpect(status().isCreated());
 
-        // Second application fails — mock service to throw
-        when(taskApplicationService.apply(eq(TASK_ID), eq(PROVIDER_ID), any()))
+        // Second application → service throws
+        when(taskApplicationService.createApplication(eq(PROVIDER_ID), eq(TASK_ID),
+                any(RequestDtos.CreateTaskApplicationRequest.class)))
                 .thenThrow(new com.campusbridge.common.BusinessException(
                         com.campusbridge.common.ErrorCode.TASK_007_ALREADY_APPLIED,
                         "你已经申请过这个任务"));
 
-        mockMvc.perform(post("/api/v1/tasks/" + taskId + "/applications")
+        mockMvc.perform(post("/api/v1/tasks/" + TASK_ID + "/applications")
                         .header("Authorization", "Bearer " + providerToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(mapOf("message", "申请接单"))))
@@ -298,7 +295,7 @@ class TaskWorkflowIntegrationTest {
 
     // ==================== Helpers ====================
 
-    private Long publishTask(String title, String description, int rewardAmount) throws Exception {
+    private void publishTask(String title, String description) throws Exception {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("category", "ERRAND");
         body.put("title", title);
@@ -307,7 +304,7 @@ class TaskWorkflowIntegrationTest {
         body.put("location", "图书馆");
         body.put("deadline", LocalDateTime.now().plusDays(1).toString());
         body.put("rewardType", "POINTS");
-        body.put("rewardAmount", rewardAmount);
+        body.put("rewardAmount", 10);
         body.put("completionStandard", "按要求完成并拍照确认");
         body.put("requiresProof", false);
         body.put("onlyInAppContact", true);
@@ -317,8 +314,6 @@ class TaskWorkflowIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isCreated());
-
-        return TASK_ID;
     }
 
     private static Map<String, Object> loginPayload(Long userId, String username, String role) {
@@ -348,8 +343,8 @@ class TaskWorkflowIntegrationTest {
         return task;
     }
 
-    private com.campusbridge.pojo.TaskApplication pendingApplication() {
-        com.campusbridge.pojo.TaskApplication app = new com.campusbridge.pojo.TaskApplication();
+    private TaskApplication pendingApplication() {
+        TaskApplication app = new TaskApplication();
         app.setId(APPLICATION_ID);
         app.setTaskId(TASK_ID);
         app.setApplicantId(PROVIDER_ID);
@@ -357,8 +352,8 @@ class TaskWorkflowIntegrationTest {
         return app;
     }
 
-    private com.campusbridge.pojo.TaskApplication acceptedApplication() {
-        com.campusbridge.pojo.TaskApplication app = pendingApplication();
+    private TaskApplication acceptedApplication() {
+        TaskApplication app = pendingApplication();
         app.setStatus("ACCEPTED");
         return app;
     }
@@ -374,12 +369,5 @@ class TaskWorkflowIntegrationTest {
             map.put(key, value);
         }
         return map;
-    }
-
-    /**
-     * Custom argThat matcher using a lambda predicate.
-     */
-    private static <T> T argThat(java.util.function.Predicate<T> predicate) {
-        return org.mockito.ArgumentMatchers.argThat(predicate::test);
     }
 }
