@@ -5,11 +5,11 @@ import com.campusbridge.pojo.CompletionProof;
 import com.campusbridge.pojo.Review;
 import com.campusbridge.pojo.Task;
 import com.campusbridge.pojo.TaskApplication;
-import com.campusbridge.service.AuthService;
 import com.campusbridge.service.CompletionService;
 import com.campusbridge.service.ReviewService;
 import com.campusbridge.service.TaskApplicationService;
 import com.campusbridge.service.TaskService;
+import com.campusbridge.utils.JwtUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,11 +38,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * Controller-layer integration tests for core task workflow.
  * Services are mocked so no database schema is required.
- *
- * Normal flow: register → login → publish → apply → accept → start → complete → review
- * Abnormal flow 1: unauthenticated access to protected endpoint
- * Abnormal flow 2: invalid state transition on OPEN task
- * Abnormal flow 3: duplicate application rejected
+ * Real JWT tokens are generated via JwtUtil to pass security filter validation.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -62,8 +58,8 @@ class TaskWorkflowIntegrationTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @MockitoBean
-    private AuthService authService;
+    @Autowired
+    private JwtUtil jwtUtil;
 
     @MockitoBean
     private TaskService taskService;
@@ -81,53 +77,9 @@ class TaskWorkflowIntegrationTest {
     private String providerToken;
 
     @BeforeEach
-    void setUp() throws Exception {
-        // Mock login
-        when(authService.login(any(RequestDtos.LoginRequest.class)))
-                .thenReturn(loginPayload(REQUESTER_ID, "req_test", "USER"))
-                .thenReturn(loginPayload(PROVIDER_ID, "prov_test", "USER"));
-
-        // Register + login requester
-        mockMvc.perform(post("/api/v1/auth/register")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(mapOf(
-                        "username", "req_test",
-                        "password", "Test@12345",
-                        "phone", "13800000001"
-                ))));
-
-        requesterToken = objectMapper.readTree(
-                mockMvc.perform(post("/api/v1/auth/login")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(mapOf(
-                                        "username", "req_test",
-                                        "password", "Test@12345"
-                                ))))
-                        .andExpect(status().isOk())
-                        .andReturn()
-                        .getResponse().getContentAsString())
-                .get("data").get("token").asText();
-
-        // Register + login provider
-        mockMvc.perform(post("/api/v1/auth/register")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(mapOf(
-                        "username", "prov_test",
-                        "password", "Test@12345",
-                        "phone", "13800000002"
-                ))));
-
-        providerToken = objectMapper.readTree(
-                mockMvc.perform(post("/api/v1/auth/login")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(objectMapper.writeValueAsString(mapOf(
-                                        "username", "prov_test",
-                                        "password", "Test@12345"
-                                ))))
-                        .andExpect(status().isOk())
-                        .andReturn()
-                        .getResponse().getContentAsString())
-                .get("data").get("token").asText();
+    void setUp() {
+        requesterToken = "Bearer " + jwtUtil.generateToken(REQUESTER_ID, "USER");
+        providerToken = "Bearer " + jwtUtil.generateToken(PROVIDER_ID, "USER");
     }
 
     // ==================== Normal Flow ====================
@@ -175,7 +127,7 @@ class TaskWorkflowIntegrationTest {
 
         // Step 2: Provider applies
         mockMvc.perform(post("/api/v1/tasks/" + TASK_ID + "/applications")
-                        .header("Authorization", "Bearer " + providerToken)
+                        .header("Authorization", providerToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(mapOf(
                                 "message", "我经常取快递，可以帮忙"))))
@@ -183,24 +135,24 @@ class TaskWorkflowIntegrationTest {
 
         // Step 3: Requester views applications
         mockMvc.perform(get("/api/v1/tasks/" + TASK_ID + "/applications")
-                        .header("Authorization", "Bearer " + requesterToken))
+                        .header("Authorization", requesterToken))
                 .andExpect(status().isOk());
 
         // Step 4: Requester accepts application
         mockMvc.perform(post("/api/v1/tasks/" + TASK_ID + "/applications/" + APPLICATION_ID + "/accept")
-                        .header("Authorization", "Bearer " + requesterToken))
+                        .header("Authorization", requesterToken))
                 .andExpect(status().isOk());
 
         // Step 5: Provider starts task
         mockMvc.perform(post("/api/v1/tasks/" + TASK_ID + "/status-transitions")
-                        .header("Authorization", "Bearer " + providerToken)
+                        .header("Authorization", providerToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(mapOf("action", "START"))))
                 .andExpect(status().isOk());
 
         // Step 6: Provider submits completion proof
         mockMvc.perform(post("/api/v1/tasks/" + TASK_ID + "/completion")
-                        .header("Authorization", "Bearer " + providerToken)
+                        .header("Authorization", providerToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(mapOf(
                                 "description", "已取到包裹并送到宿舍楼下"))))
@@ -208,12 +160,12 @@ class TaskWorkflowIntegrationTest {
 
         // Step 7: Requester confirms completion
         mockMvc.perform(post("/api/v1/tasks/" + TASK_ID + "/completion/confirm")
-                        .header("Authorization", "Bearer " + requesterToken))
+                        .header("Authorization", requesterToken))
                 .andExpect(status().isOk());
 
         // Step 8: Reviews
         mockMvc.perform(post("/api/v1/tasks/" + TASK_ID + "/reviews")
-                        .header("Authorization", "Bearer " + requesterToken)
+                        .header("Authorization", requesterToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(mapOf(
                                 "revieweeId", PROVIDER_ID,
@@ -244,7 +196,7 @@ class TaskWorkflowIntegrationTest {
 
         publishTask("测试状态流转", "测试非法流转拒绝");
 
-        // START on OPEN task → service throws, controller returns 409
+        // START on OPEN task → service throws
         when(taskService.transitionTaskStatus(eq(PROVIDER_ID), eq(TASK_ID),
                 any(RequestDtos.TaskStatusTransitionRequest.class)))
                 .thenThrow(new com.campusbridge.common.BusinessException(
@@ -252,7 +204,7 @@ class TaskWorkflowIntegrationTest {
                         "非法状态流转"));
 
         mockMvc.perform(post("/api/v1/tasks/" + TASK_ID + "/status-transitions")
-                        .header("Authorization", "Bearer " + providerToken)
+                        .header("Authorization", providerToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(mapOf("action", "START"))))
                 .andExpect(status().isConflict());
@@ -273,7 +225,7 @@ class TaskWorkflowIntegrationTest {
         publishTask("禁止重复接单测试", "测试重复接单被拒");
 
         mockMvc.perform(post("/api/v1/tasks/" + TASK_ID + "/applications")
-                        .header("Authorization", "Bearer " + providerToken)
+                        .header("Authorization", providerToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(mapOf("message", "申请接单"))))
                 .andExpect(status().isCreated());
@@ -286,7 +238,7 @@ class TaskWorkflowIntegrationTest {
                         "你已经申请过这个任务"));
 
         mockMvc.perform(post("/api/v1/tasks/" + TASK_ID + "/applications")
-                        .header("Authorization", "Bearer " + providerToken)
+                        .header("Authorization", providerToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(mapOf("message", "申请接单"))))
                 .andExpect(status().isConflict())
@@ -310,20 +262,10 @@ class TaskWorkflowIntegrationTest {
         body.put("onlyInAppContact", true);
 
         mockMvc.perform(post("/api/v1/tasks")
-                        .header("Authorization", "Bearer " + requesterToken)
+                        .header("Authorization", requesterToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(body)))
                 .andExpect(status().isCreated());
-    }
-
-    private static Map<String, Object> loginPayload(Long userId, String username, String role) {
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("userId", userId);
-        payload.put("username", username);
-        payload.put("role", role);
-        payload.put("token", "jwt-token-" + userId);
-        payload.put("refreshToken", "refresh-token-" + userId);
-        return payload;
     }
 
     private Task openTask() {
