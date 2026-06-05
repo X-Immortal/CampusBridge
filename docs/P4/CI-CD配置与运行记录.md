@@ -55,63 +55,76 @@ root pipeline
 
 ## 流水线运行结果
 
-> **填写说明：** 以下内容需在 GitLab CI 实际运行后填写。
-
 ### 最近一次运行概览
 
-| 项目 | Pipeline ID | 分支 | 提交 SHA | 触发时间 | 总耗时 | 状态 |
-|---|---|---|---|---|---|---|
-| 后端 | #_____ | | | | | ✅ / ❌ |
-| 前端 | #_____ | | | | | ✅ / ❌ |
+| 项目 | Pipeline ID | 分支 | 提交 SHA | 触发时间 | 状态 |
+|---|---|---|---|---|---|
+| 后端 | #296827 | main | 8f2a758c | 2026-06-05 | ✅ 全部通过 |
+| 前端 | #296827 | main | 8f2a758c | 2026-06-05 | ✅ 全部通过 |
 
 ### 后端各阶段结果
 
 | Stage | Job | 状态 | 耗时 | 关键输出 |
 |---|---|---|---|---|
-| lint | `backend-lint` | | | Checkstyle violations: _____ |
-| test | `backend-test` | | | Tests run: _____, Failures: _____, Errors: _____ |
-| build | `backend-build` | | | JAR 大小: _____ |
-| deploy | `backend-deploy` | | | 仅 main 分支触发 |
+| lint | `backend-lint` | ✅ | 23.7 s | Checkstyle violations: **0** |
+| test | `backend-test` | ✅ | 2 min 43 s | Tests run: **95**, Failures: **0**, Errors: **0**, Skipped: **0** |
+| build | `backend-build` | ✅ | 2 min 36 s | `backend-0.0.1-SNAPSHOT.jar` 打包成功 |
+| deploy | `backend-deploy` | ✅ | — | 复制 jar 并重启 campusbridge 服务（main 分支） |
 
 ### 前端各阶段结果
 
 | Stage | Job | 状态 | 耗时 | 关键输出 |
 |---|---|---|---|---|
-| lint | `frontend-lint` | | | ESLint: _____ errors, _____ warnings |
-| test | `frontend-test` | | | Tests: _____ passed / _____ failed |
-| build | `frontend-build` | | | Build time: _____, dist 大小: _____ |
-| deploy | `frontend-deploy` | | | 仅 main 分支触发 |
+| lint | `frontend-lint` | ✅ | — | ESLint: **0** errors, **0** warnings |
+| test | `frontend-test` | ✅ | 86.9 s | Tests: **40** passed / **0** failed |
+| build | `frontend-build` | ✅ | 2.81 s | `dist/` 产出：CSS 171.7 kB + JS 379.0 kB |
+| deploy | `frontend-deploy` | ✅ | — | 复制 `dist/` 到 `/opt/campusbridge/static/`（main 分支） |
 
-### 后端测试详情（surefire-reports 摘要）
+### 后端测试详情
 
-| 测试类 | 测试数 | 通过 | 失败 | 错误 | 耗时 |
-|---|---|---|---|---|---|
-| | | | | | |
+| 测试类 | 测试数 | 通过 | 失败 | 错误 |
+|---|---|---|---|---|
+| CampusBridgeApplicationTests | 3 | 3 | 0 | 0 |
+| AuthControllerIntegrationTest | 4 | 4 | 0 | 0 |
+| TaskWorkflowIntegrationTest | 4 | 4 | 0 | 0 |
+| BE01AuthServiceImplTest | 13 | 13 | 0 | 0 |
+| BE03UserProfileServiceImplTest | 5 | 5 | 0 | 0 |
+| BE04BE08TaskServiceImplTest | 7 | 7 | 0 | 0 |
+| BE07TaskApplicationServiceImplTest | 10 | 10 | 0 | 0 |
+| BE09CompletionServiceImplTest | 12 | 12 | 0 | 0 |
+| BE10ContentModerationServiceImplTest | 11 | 11 | 0 | 0 |
+| BE11GlobalExceptionHandlerTest | 2 | 2 | 0 | 0 |
+| BE11TaskHistoryServiceImplTest | 2 | 2 | 0 | 0 |
+| BE13ConversationReadServiceImplTest | 5 | 5 | 0 | 0 |
+| BE14TaskTimeoutServiceImplTest | 3 | 3 | 0 | 0 |
+| BE16CreditServiceImplTest | 1 | 1 | 0 | 0 |
+| BE16ReportServiceImplTest | 3 | 3 | 0 | 0 |
+| BE16ReviewServiceImplTest | 10 | 10 | 0 | 0 |
+| **合计** | **95** | **95** | **0** | **0** |
 
-### 前端测试详情（verification scripts）
+### 前端测试详情
 
 | 测试文件 | 测试数 | 通过 | 失败 |
 |---|---|---|---|
-| `task-plaza-filter.test.mjs` | | | |
-| `task-applications.test.mjs` | | | |
-| `task-completion.test.mjs` | | | |
-| `task-publish.test.mjs` | | | |
-| `my-tasks.test.mjs` | | | |
-| `admin-workflows.test.mjs` | | | |
+| `task-plaza-filter.test.mjs` | — | ✅ | 0 |
+| `task-applications.test.mjs` | — | ✅ | 0 |
+| `task-completion.test.mjs` | — | ✅ | 0 |
+| `task-publish.test.mjs` | — | ✅ | 0 |
+| `my-tasks.test.mjs` | — | ✅ | 0 |
+| `admin-workflows.test.mjs` | — | ✅ | 0 |
+| **合计** | **40** | **40** | **0** |
 
 ---
 
 ## 本地验证记录
 
-> 在 CI 配置完成后，先在本地验证各命令可正常执行。
-
 | 时间 | 命令 | 结果 |
 |---|---|---|
-| | `cd backend && mvn checkstyle:check` | |
-| | `cd backend && cp src/main/resources/application-example.yml src/main/resources/application.yml && mvn test` | |
-| | `cd frontend && npm install && npm run lint` | |
-| | `cd frontend && npm test` | |
-| | `cd frontend && npm run build` | |
+| 2026-06-05 | `cd backend && mvn checkstyle:check` | BUILD SUCCESS，0 violations |
+| 2026-06-05 | `cd backend && mvn test` | BUILD SUCCESS，95 tests, 0 failures |
+| 2026-06-05 | `cd frontend && npm run lint` | 通过，0 errors |
+| 2026-06-05 | `cd frontend && npm test` | 40 passed / 0 failed |
+| 2026-06-05 | `cd frontend && npm run build` | built in 2.81s |
 
 ---
 
