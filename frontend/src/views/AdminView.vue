@@ -3,7 +3,6 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import {
   BadgeCheck,
   CheckCircle2,
-  ClipboardCheck,
   FileWarning,
   IdCard,
   Info,
@@ -21,8 +20,6 @@ import {
   MODERATION_STATUS_OPTIONS,
   optionLabel,
   REPORT_TARGET_TYPE_OPTIONS,
-  TASK_CATEGORY_OPTIONS,
-  TASK_STATUS_OPTIONS,
   VERIFICATION_METHODS
 } from '../constants'
 import api from '../services/api'
@@ -32,8 +29,7 @@ const { state } = useAuth()
 
 const sections = [
   { key: 'verifications', label: '认证审核', icon: IdCard },
-  { key: 'reports', label: '举报裁决', icon: Scale },
-  { key: 'tasks', label: '任务审核', icon: ClipboardCheck }
+  { key: 'reports', label: '举报裁决', icon: Scale }
 ]
 
 const verificationPage = reactive({
@@ -58,35 +54,21 @@ const reportFilters = reactive({
 })
 const reportForm = reactive({
   reportId: '',
-  status: 'RESOLVED',
+  status: 'APPROVED',
   decision: '',
-  punishedUserId: '',
-  creditChange: '',
   markTaskDisputed: false
 })
 const reportErrors = reactive({})
 const reportSubmitting = ref(false)
+const activeReportId = ref('')
 const lastModerationRecord = ref(null)
 
-const pendingTasks = ref([])
-const taskModerationLoading = ref(false)
-const taskModerationFeedback = ref('')
-const taskModerationFeedbackType = ref('success')
-const taskActionLoading = ref('')
-const taskManualForm = reactive({
-  taskId: '',
-  note: ''
-})
 
 const activeSection = ref('verifications')
 
 const isAdmin = computed(() => String(state.user?.role || '').toUpperCase() === 'ADMIN')
 const pendingVerificationCount = computed(() => verifications.value.length)
-const pendingTaskCount = computed(() => pendingTasks.value.length)
 const reportCount = computed(() => reports.value.length)
-const selectedReportFinalStatus = computed(() => reportForm.status)
-const shouldShowPunishmentFields = computed(() => selectedReportFinalStatus.value === 'PUNISHED')
-
 function switchSection(sectionKey) {
   activeSection.value = sectionKey
 }
@@ -99,11 +81,6 @@ function setVerificationFeedback(message, type = 'success') {
 function setReportFeedback(message, type = 'success') {
   reportFeedback.value = message
   reportFeedbackType.value = type
-}
-
-function setTaskFeedback(message, type = 'success') {
-  taskModerationFeedback.value = message
-  taskModerationFeedbackType.value = type
 }
 
 function normalizeItems(result) {
@@ -126,16 +103,6 @@ function normalizeReport(report = {}) {
     ...report,
     id: report.id ?? report.reportId,
     status: report.status || 'PENDING'
-  }
-}
-
-function normalizeTask(task = {}) {
-  return {
-    ...task,
-    id: task.id ?? task.taskId,
-    requesterId: task.requesterId ?? task.ownerId,
-    category: task.category || task.taskCategory || 'AGENCY',
-    status: task.status || 'PENDING_REVIEW'
   }
 }
 
@@ -168,14 +135,6 @@ function moderationStatusLabel(status) {
   return optionLabel(MODERATION_STATUS_OPTIONS, status)
 }
 
-function taskCategoryLabel(category) {
-  return optionLabel(TASK_CATEGORY_OPTIONS, category)
-}
-
-function taskStatusLabel(status) {
-  return optionLabel(TASK_STATUS_OPTIONS, status)
-}
-
 function recordSummary(record = {}) {
   const parts = [
     record.id ? `记录 #${record.id}` : '',
@@ -184,21 +143,6 @@ function recordSummary(record = {}) {
     record.targetId ? `目标 #${record.targetId}` : ''
   ].filter(Boolean)
   return parts.join(' · ') || '处理记录已生成'
-}
-
-function taskTitle(task = {}) {
-  return task.title || task.name || `任务 #${task.id || '待选择'}`
-}
-
-function taskMeta(task = {}) {
-  return [
-    taskCategoryLabel(task.category),
-    task.campus || task.school,
-    task.location,
-    task.requesterId ? `发布者 #${task.requesterId}` : ''
-  ]
-    .filter(Boolean)
-    .join(' · ')
 }
 
 function reportTargetCopy(report = {}) {
@@ -224,7 +168,6 @@ async function loadVerifications() {
       size: verificationPage.size
     })
     verifications.value = normalizeItems(result).map(normalizeVerification)
-    setVerificationFeedback(`已同步 ${verifications.value.length} 条待审认证。`)
   } catch (error) {
     setVerificationFeedback(error.message, 'danger')
   } finally {
@@ -270,9 +213,8 @@ async function loadReports() {
   reportsLoading.value = true
   reportFeedback.value = ''
   try {
-    const result = await api.getReports(reportFilters)
+    const result = await api.getAdminReports(reportFilters)
     applyReportResult(result)
-    setReportFeedback(`已同步 ${reports.value.length} 条我的举报记录。`)
   } catch (error) {
     setReportFeedback(error.message, 'danger')
   } finally {
@@ -281,6 +223,7 @@ async function loadReports() {
 }
 
 function useReportForResolution(report) {
+  activeReportId.value = String(report.id || '')
   reportForm.reportId = String(report.id || '')
   reportForm.decision = report.reason
     ? `已核查举报原因：${report.reason}`
@@ -289,6 +232,14 @@ function useReportForResolution(report) {
     reportForm.markTaskDisputed = true
   }
   setReportFeedback(`已载入举报 #${report.id} 到裁决表单。`)
+}
+
+function clearActiveReport() {
+  activeReportId.value = ''
+  reportForm.reportId = ''
+  reportForm.decision = ''
+  reportForm.markTaskDisputed = false
+  Object.keys(reportErrors).forEach(k => delete reportErrors[k])
 }
 
 function validateReportForm() {
@@ -303,31 +254,15 @@ function validateReportForm() {
   if (reportForm.decision.trim().length > 500) {
     setReportError('decision', '裁决说明不能超过 500 个字符。')
   }
-  if (reportForm.creditChange !== '' && Number(reportForm.creditChange) === 0) {
-    setReportError('creditChange', '积分变化不能为 0。')
-  }
-  if (reportForm.creditChange !== '' && !Number.isFinite(Number(reportForm.creditChange))) {
-    setReportError('creditChange', '积分变化必须是数字。')
-  }
-
   return Object.keys(reportErrors).length === 0
 }
 
 function buildResolvePayload() {
-  const payload = {
+  return {
     status: reportForm.status,
     decision: reportForm.decision.trim(),
     markTaskDisputed: Boolean(reportForm.markTaskDisputed)
   }
-
-  if (String(reportForm.punishedUserId).trim()) {
-    payload.punishedUserId = Number(reportForm.punishedUserId)
-  }
-  if (String(reportForm.creditChange).trim()) {
-    payload.creditChange = Number(reportForm.creditChange)
-  }
-
-  return payload
 }
 
 async function submitReportResolution() {
@@ -358,57 +293,8 @@ async function submitReportResolution() {
   }
 }
 
-async function loadPendingTasks() {
-  taskModerationLoading.value = true
-  taskModerationFeedback.value = ''
-  try {
-    const result = await api.getPendingModerationTasks()
-    pendingTasks.value = normalizeItems(result).map(normalizeTask)
-    setTaskFeedback(
-      pendingTasks.value.length
-        ? `已同步 ${pendingTasks.value.length} 个待审任务。`
-        : '后端当前返回空列表；该接口仍可用于联调 stub 响应。'
-    )
-  } catch (error) {
-    setTaskFeedback(error.message, 'danger')
-  } finally {
-    taskModerationLoading.value = false
-  }
-}
-
-async function moderateTask(taskId, action, note = '') {
-  const normalizedId = String(taskId || '').trim()
-  if (!normalizedId) {
-    setTaskFeedback('请先填写任务 ID。', 'danger')
-    return
-  }
-
-  const loadingKey = `${action}:${normalizedId}`
-  taskActionLoading.value = loadingKey
-  taskModerationFeedback.value = ''
-  try {
-    const body = note.trim() ? { decision: note.trim(), note: note.trim() } : {}
-    if (action === 'approve') {
-      await api.approveModerationTask(normalizedId, body)
-      setTaskFeedback(`任务 #${normalizedId} 已提交通过审核。`)
-    } else {
-      await api.rejectModerationTask(normalizedId, body)
-      setTaskFeedback(`任务 #${normalizedId} 已提交驳回审核。`)
-    }
-    pendingTasks.value = pendingTasks.value.filter((task) => String(task.id) !== normalizedId)
-    if (String(taskManualForm.taskId) === normalizedId) {
-      taskManualForm.taskId = ''
-      taskManualForm.note = ''
-    }
-  } catch (error) {
-    setTaskFeedback(error.message, 'danger')
-  } finally {
-    taskActionLoading.value = ''
-  }
-}
-
 onMounted(async () => {
-  await Promise.allSettled([loadVerifications(), loadReports(), loadPendingTasks()])
+  await Promise.allSettled([loadVerifications(), loadReports()])
 })
 </script>
 
@@ -416,7 +302,7 @@ onMounted(async () => {
   <DashboardShell active-label="管理后台">
     <main
       class="admin-page"
-      :aria-busy="verificationsLoading || reportsLoading || taskModerationLoading"
+      :aria-busy="verificationsLoading || reportsLoading"
     >
       <section class="page-title-card admin-title-card">
         <div class="title-icon">
@@ -457,12 +343,8 @@ onMounted(async () => {
           <strong>{{ pendingVerificationCount }}</strong>
         </article>
         <article class="admin-metric admin-metric--info">
-          <span>我的举报记录</span>
+          <span>全站举报</span>
           <strong>{{ reportCount }}</strong>
-        </article>
-        <article class="admin-metric admin-metric--accent">
-          <span>待审任务</span>
-          <strong>{{ pendingTaskCount }}</strong>
         </article>
       </section>
 
@@ -537,34 +419,17 @@ onMounted(async () => {
                 max="100"
               >
             </label>
-            <button
-              class="primary-action"
-              type="button"
-              :disabled="verificationsLoading"
-              @click="loadVerifications"
-            >
-              <LoaderCircle
-                v-if="verificationsLoading"
-                class="spinning"
-                :size="17"
-                aria-hidden="true"
-              />
-              同步列表
-            </button>
           </div>
 
-          <section
-            v-if="verificationFeedback"
-            class="operation-feedback"
-            :class="verificationFeedbackType === 'danger' ? 'operation-feedback--danger' : 'operation-feedback--success'"
-            role="status"
-          >
-            <Info
-              :size="18"
-              aria-hidden="true"
-            />
-            <span>{{ verificationFeedback }}</span>
-          </section>
+          <div class="inline-controls">
+            <span
+              v-if="verificationFeedback"
+              class="report-sync-hint"
+              :class="verificationFeedbackType === 'danger' ? 'report-sync-hint--error' : ''"
+            >
+              {{ verificationFeedback }}
+            </span>
+          </div>
 
           <div
             v-if="verificationsLoading && !verifications.length"
@@ -705,7 +570,7 @@ onMounted(async () => {
               <p class="section-kicker">
                 举报记录
               </p>
-              <h2>我的举报列表</h2>
+              <h2>全站举报列表</h2>
             </div>
             <button
               class="icon-action"
@@ -738,14 +603,13 @@ onMounted(async () => {
                 </option>
               </select>
             </label>
-            <button
-              class="primary-action"
-              type="button"
-              :disabled="reportsLoading"
-              @click="loadReports"
+            <span
+              v-if="reportFeedback"
+              class="report-sync-hint"
+              :class="reportFeedbackType === 'danger' ? 'report-sync-hint--error' : ''"
             >
-              同步举报
-            </button>
+              {{ reportFeedback }}
+            </span>
           </div>
 
           <div
@@ -770,7 +634,7 @@ onMounted(async () => {
               aria-hidden="true"
             />
             <h3>暂无举报记录</h3>
-            <p>你提交的举报会显示在这里；管理员裁决仍可直接输入举报 ID。</p>
+            <p>用户提交的举报审核后会出现在这里。</p>
           </div>
 
           <article
@@ -778,6 +642,11 @@ onMounted(async () => {
             v-else
             :key="report.id"
             class="report-card"
+            :class="{ 'report-card--active': String(report.id) === activeReportId }"
+            role="button"
+            tabindex="0"
+            @click="useReportForResolution(report)"
+            @keydown.enter="useReportForResolution(report)"
           >
             <header class="record-card-head">
               <div>
@@ -791,15 +660,6 @@ onMounted(async () => {
             </header>
             <p>{{ report.reason || '未填写简要原因。' }}</p>
             <small>{{ report.description || '暂无详细描述。' }}</small>
-            <footer class="record-actions">
-              <button
-                class="ghost-action"
-                type="button"
-                @click="useReportForResolution(report)"
-              >
-                载入裁决
-              </button>
-            </footer>
           </article>
         </aside>
 
@@ -831,14 +691,23 @@ onMounted(async () => {
               for="resolve-report-id"
             >
               <span>举报 ID</span>
-              <input
-                id="resolve-report-id"
-                v-model.trim="reportForm.reportId"
-                type="number"
-                min="1"
-                :aria-invalid="Boolean(reportErrors.reportId)"
-                placeholder="例如：3"
-              >
+              <span class="readonly-id-row">
+                <input
+                  id="resolve-report-id"
+                  :value="reportForm.reportId"
+                  type="number"
+                  readonly
+                  placeholder="点击左边举报自动填充"
+                >
+                <button
+                  v-if="activeReportId"
+                  class="ghost-action"
+                  type="button"
+                  @click="clearActiveReport"
+                >
+                  清除
+                </button>
+              </span>
               <small
                 v-if="reportErrors.reportId"
                 class="field-error"
@@ -899,54 +768,6 @@ onMounted(async () => {
               <span>若举报目标是任务，尝试标记为争议任务</span>
             </label>
 
-            <template v-if="shouldShowPunishmentFields">
-              <label
-                class="field-control"
-                for="punished-user-id"
-              >
-                <span>处罚用户 ID</span>
-                <input
-                  id="punished-user-id"
-                  v-model.trim="reportForm.punishedUserId"
-                  type="number"
-                  min="1"
-                  placeholder="可留空由后端推断"
-                >
-              </label>
-              <label
-                class="field-control"
-                for="credit-change"
-              >
-                <span>积分变化</span>
-                <input
-                  id="credit-change"
-                  v-model.trim="reportForm.creditChange"
-                  type="number"
-                  :aria-invalid="Boolean(reportErrors.creditChange)"
-                  placeholder="例如：-20"
-                >
-                <small
-                  v-if="reportErrors.creditChange"
-                  class="field-error"
-                >
-                  {{ reportErrors.creditChange }}
-                </small>
-              </label>
-            </template>
-
-            <section
-              v-if="reportFeedback"
-              class="operation-feedback field-control--wide"
-              :class="reportFeedbackType === 'danger' ? 'operation-feedback--danger' : 'operation-feedback--success'"
-              role="status"
-            >
-              <Info
-                :size="18"
-                aria-hidden="true"
-              />
-              <span>{{ reportFeedback }}</span>
-            </section>
-
             <button
               class="primary-action field-control--wide"
               type="submit"
@@ -976,180 +797,6 @@ onMounted(async () => {
             <p>{{ lastModerationRecord.decision || reportForm.decision }}</p>
           </section>
         </section>
-      </section>
-
-      <section
-        v-else
-        class="admin-layout admin-layout--tasks"
-        aria-labelledby="admin-tasks-title"
-      >
-        <section class="panel-card admin-list-panel">
-          <div class="panel-heading">
-            <div>
-              <p class="section-kicker">
-                任务审核
-              </p>
-              <h2 id="admin-tasks-title">
-                待审核任务
-              </h2>
-            </div>
-            <button
-              class="icon-action"
-              type="button"
-              aria-label="刷新待审任务"
-              :disabled="taskModerationLoading"
-              @click="loadPendingTasks"
-            >
-              <RefreshCw
-                :class="{ spinning: taskModerationLoading }"
-                :size="18"
-                aria-hidden="true"
-              />
-            </button>
-          </div>
-
-          <section
-            v-if="taskModerationFeedback"
-            class="operation-feedback"
-            :class="taskModerationFeedbackType === 'danger' ? 'operation-feedback--danger' : 'operation-feedback--success'"
-            role="status"
-          >
-            <Info
-              :size="18"
-              aria-hidden="true"
-            />
-            <span>{{ taskModerationFeedback }}</span>
-          </section>
-
-          <div
-            v-if="taskModerationLoading && !pendingTasks.length"
-            class="loading-state"
-            role="status"
-          >
-            <LoaderCircle
-              class="spinning"
-              :size="24"
-              aria-hidden="true"
-            />
-            <span>正在同步待审任务...</span>
-          </div>
-
-          <div
-            v-else-if="!pendingTasks.length"
-            class="empty-state"
-          >
-            <ClipboardCheck
-              :size="36"
-              aria-hidden="true"
-            />
-            <h3>暂无待审任务</h3>
-            <p>文档说明当前后端任务审核接口是 stub，空列表属于预期联调状态。</p>
-          </div>
-
-          <article
-            v-for="task in pendingTasks"
-            v-else
-            :key="task.id"
-            class="task-moderation-card"
-          >
-            <header class="record-card-head">
-              <div>
-                <strong>{{ taskTitle(task) }}</strong>
-                <span>{{ taskMeta(task) }}</span>
-              </div>
-              <StatusBadge
-                :label="taskStatusLabel(task.status)"
-                tone="warning"
-              />
-            </header>
-            <p>{{ task.description || task.sensitiveReason || '暂无任务说明。' }}</p>
-            <footer class="record-actions">
-              <button
-                class="primary-action"
-                type="button"
-                :disabled="Boolean(taskActionLoading)"
-                @click="moderateTask(task.id, 'approve')"
-              >
-                通过
-              </button>
-              <button
-                class="danger-action"
-                type="button"
-                :disabled="Boolean(taskActionLoading)"
-                @click="moderateTask(task.id, 'reject')"
-              >
-                驳回
-              </button>
-            </footer>
-          </article>
-        </section>
-
-        <aside class="panel-card admin-form-panel">
-          <div class="panel-heading">
-            <div>
-              <p class="section-kicker">
-                手动联调
-              </p>
-              <h2>按任务 ID 审核</h2>
-            </div>
-            <StatusBadge
-              label="Stub 接口"
-              tone="warning"
-            />
-          </div>
-
-          <p class="panel-copy">
-            后端当前会返回空成功；这里保留按任务 ID 调用 approve/reject 的入口，方便后续后端补全业务逻辑后直接联调。
-          </p>
-
-          <form
-            class="admin-form"
-            @submit.prevent="moderateTask(taskManualForm.taskId, 'approve', taskManualForm.note)"
-          >
-            <label
-              class="field-control"
-              for="manual-task-id"
-            >
-              <span>任务 ID</span>
-              <input
-                id="manual-task-id"
-                v-model.trim="taskManualForm.taskId"
-                type="number"
-                min="1"
-                placeholder="例如：10"
-              >
-            </label>
-            <label
-              class="field-control field-control--wide"
-              for="manual-task-note"
-            >
-              <span>审核备注</span>
-              <textarea
-                id="manual-task-note"
-                v-model.trim="taskManualForm.note"
-                maxlength="300"
-                placeholder="可选；用于后端补全 ModerationRecord 后同步。"
-              />
-            </label>
-            <div class="manual-actions field-control--wide">
-              <button
-                class="primary-action"
-                type="submit"
-                :disabled="Boolean(taskActionLoading)"
-              >
-                通过任务
-              </button>
-              <button
-                class="danger-action"
-                type="button"
-                :disabled="Boolean(taskActionLoading)"
-                @click="moderateTask(taskManualForm.taskId, 'reject', taskManualForm.note)"
-              >
-                驳回任务
-              </button>
-            </div>
-          </form>
-        </aside>
       </section>
     </main>
   </DashboardShell>
@@ -1552,6 +1199,51 @@ onMounted(async () => {
   margin: 0;
   color: #334155;
   line-height: 1.55;
+}
+
+.report-card {
+  cursor: pointer;
+  transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+
+.report-card:hover {
+  border-color: #c4b5fd;
+  box-shadow: 0 2px 10px rgba(116, 109, 195, 0.08);
+}
+
+.report-card--active {
+  border-color: #a78bfa;
+  background: #f5f3ff;
+  box-shadow: 0 0 0 3px rgba(116, 109, 195, 0.15);
+}
+
+.readonly-id-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.readonly-id-row input {
+  flex: 1;
+  cursor: default;
+  background: #f8fafc;
+}
+
+.readonly-id-row .ghost-action {
+  flex-shrink: 0;
+  font-size: 0.82rem;
+}
+
+.report-sync-hint {
+  margin-left: auto;
+  font-size: 0.83rem;
+  color: #059669;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.report-sync-hint--error {
+  color: #dc2626;
 }
 
 .record-meta-grid {

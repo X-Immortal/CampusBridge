@@ -12,6 +12,8 @@ public class Task {
     private Long id;
     private Long requesterId;
     private Long providerId;
+    private String requesterName;
+    private String providerName;
     private String category;
     private String title;
     private String description;

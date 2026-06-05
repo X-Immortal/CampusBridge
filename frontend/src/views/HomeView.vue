@@ -39,6 +39,7 @@ import {
   UserRound,
   X
 } from '@lucide/vue'
+import AccountSettingsModal from '../components/AccountSettingsModal.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import { useDashboardSidebar } from '../composables/useDashboardSidebar'
 import { useNotificationCenter } from '../composables/useNotificationCenter'
@@ -94,6 +95,7 @@ const verificationForm = reactive({
   evidenceUrl: ''
 })
 
+const showAccountModal = ref(false)
 const profileEditing = ref(false)
 const profileSubmitting = ref(false)
 const profileErrors = reactive({})
@@ -277,12 +279,16 @@ const statusCopy = computed(() => {
 const stepItems = computed(() => {
   const hasRecord = Boolean(verification.value)
   const verified = verificationStatus.value === 'VERIFIED'
-  return [
+  const items = [
     { label: '登录账号', done: isAuthenticated.value },
     { label: '提交资料', done: hasRecord },
     { label: '平台审核', done: hasRecord && verificationStatus.value !== 'UNVERIFIED' },
     { label: '认证通过', done: verified }
   ]
+  for (let i = 0; i < items.length; i++) {
+    items[i].connectorDone = items[i].done && i + 1 < items.length && items[i + 1].done
+  }
+  return items
 })
 
 const verificationBenefits = [
@@ -522,7 +528,8 @@ async function handleVerificationEvidenceFileChange(event) {
     verificationEvidenceFileName.value = file.name
     setFeedback('认证材料照片已上传。')
   } catch (error) {
-    setFeedback(error.message || '认证材料上传失败，请稍后重试。', 'danger')
+    const detail = error.code ? ` [${error.code}]` : ''
+    setFeedback((error.message || '认证材料上传失败，请稍后重试。') + detail, 'danger')
   } finally {
     verificationEvidenceUploading.value = false
     if (verificationEvidenceFileInput.value) {
@@ -1030,14 +1037,13 @@ onBeforeUnmount(() => {
             <button
               class="ghost-action profile-edit-shortcut"
               type="button"
-              :disabled="profileSubmitting || profileEditing"
-              @click="handleEditProfile"
+              @click="showAccountModal = true"
             >
               <UserPen
                 :size="17"
                 aria-hidden="true"
               />
-              {{ profileEditing ? '正在编辑' : '编辑档案' }}
+              账号信息修改
             </button>
           </div>
 
@@ -1342,6 +1348,52 @@ onBeforeUnmount(() => {
         </article>
 
         <article
+          v-if="verification && verificationStatus === 'PENDING' && verification.method !== 'CAMPUS_EMAIL'"
+          class="panel-card verification-overview"
+        >
+          <div class="panel-heading">
+            <div>
+              <p class="section-kicker">
+                认证状态
+              </p>
+              <h2>审核中</h2>
+            </div>
+            <StatusBadge status="PENDING" tone="warning" label="审核中" />
+          </div>
+          <p class="panel-copy">
+            你的认证资料已提交，正在等待管理员审核，请耐心等待。
+          </p>
+          <div class="step-list">
+            <div
+              v-for="step in stepItems"
+              :key="step.label"
+              class="step-item"
+              :class="{ done: step.done, 'connector-done': step.connectorDone }"
+            >
+              <CheckCircle2
+                :size="18"
+                aria-hidden="true"
+              />
+              <span>{{ step.label }}</span>
+            </div>
+          </div>
+          <dl class="record-grid">
+            <div>
+              <dt>认证方式</dt>
+              <dd>{{ optionLabel(VERIFICATION_METHODS, verification?.method) }}</dd>
+            </div>
+            <div>
+              <dt>学校</dt>
+              <dd>{{ verification?.school || '未提交' }}</dd>
+            </div>
+            <div>
+              <dt>院系</dt>
+              <dd>{{ verification?.department || '未提交' }}</dd>
+            </div>
+          </dl>
+        </article>
+
+        <article
           v-if="verification && verificationStatus === 'VERIFIED'"
           class="panel-card verification-overview"
         >
@@ -1363,7 +1415,7 @@ onBeforeUnmount(() => {
               v-for="step in stepItems"
               :key="step.label"
               class="step-item"
-              :class="{ done: step.done }"
+              :class="{ done: step.done, 'connector-done': step.connectorDone }"
             >
               <CheckCircle2
                 :size="18"
@@ -1697,6 +1749,11 @@ onBeforeUnmount(() => {
       </section>
     </main>
   </section>
+
+  <AccountSettingsModal
+    :visible="showAccountModal"
+    @close="showAccountModal = false"
+  />
 </template>
 
 <style scoped>
@@ -1747,7 +1804,7 @@ onBeforeUnmount(() => {
 
 .collapse-button {
   position: absolute;
-  top: 18px;
+  bottom: 18px;
   right: 14px;
   display: inline-flex;
   align-items: center;
@@ -1859,7 +1916,7 @@ onBeforeUnmount(() => {
 }
 
 .is-collapsed .collapse-button {
-  top: 42px;
+  bottom: 42px;
   right: 50%;
   width: 30px;
   height: 30px;
@@ -1876,6 +1933,7 @@ onBeforeUnmount(() => {
   justify-content: center;
   min-height: 46px;
   padding-inline: 0;
+  gap: 0;
 }
 
 .is-collapsed .brand-mark svg {
@@ -1885,9 +1943,7 @@ onBeforeUnmount(() => {
 
 .is-collapsed .brand-text,
 .is-collapsed .nav-item span {
-  max-width: 0;
-  opacity: 0;
-  overflow: hidden;
+  display: none;
 }
 
 .is-collapsed .sidebar-nav {
@@ -2394,6 +2450,7 @@ onBeforeUnmount(() => {
 
 .credit-progress-track {
   display: block;
+  max-width: 220px;
   height: 6px;
   margin-top: 2px;
   overflow: hidden;
@@ -2676,6 +2733,14 @@ onBeforeUnmount(() => {
 }
 
 .step-item.done::before {
+  background: linear-gradient(to right, #8b7de0 50%, #e7e2f1 50%);
+}
+
+.step-item.connector-done::before {
+  background: #8b7de0;
+}
+
+.step-item:last-child.done::before {
   background: #8b7de0;
 }
 
@@ -3115,8 +3180,7 @@ onBeforeUnmount(() => {
 
   .is-collapsed .brand-text,
   .is-collapsed .nav-item span {
-    max-width: none;
-    opacity: 1;
+    display: block;
   }
 
   .sidebar-nav {

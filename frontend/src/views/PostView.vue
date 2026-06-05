@@ -22,6 +22,7 @@ import {
 } from '@lucide/vue'
 import DashboardShell from '../components/DashboardShell.vue'
 import StatusBadge from '../components/StatusBadge.vue'
+import UserProfileModal from '../components/UserProfileModal.vue'
 import { optionLabel, POST_CATEGORY_OPTIONS, POST_STATUS_OPTIONS } from '../constants'
 import api from '../services/api'
 import { useAuth } from '../stores/auth'
@@ -62,6 +63,15 @@ const postForm = reactive(createDefaultPostForm())
 const replyContent = ref('')
 const replySubmitting = ref(false)
 const replyError = ref('')
+
+const profileUserId = ref(null)
+const showProfileModal = ref(false)
+
+function openProfileModal(userId) {
+  if (!userId) return
+  profileUserId.value = userId
+  showProfileModal.value = true
+}
 
 let listRequestId = 0
 let detailRequestId = 0
@@ -182,15 +192,17 @@ function normalizePostDetail(result) {
     return {
       ...result,
       post: normalizePost(result.post),
-      replies: Array.isArray(result.replies) ? result.replies.map(normalizeReply) : []
+      replies: Array.isArray(result.replies) ? result.replies.map(normalizeReply) : [],
+      likedByCurrentUser: Boolean(result.likedByCurrentUser),
+      markedByCurrentUser: Boolean(result.markedByCurrentUser)
     }
   }
 
   return {
     post: normalizePost(result),
     replies: [],
-    likedByCurrentUser: false,
-    markedByCurrentUser: false,
+    likedByCurrentUser: Boolean(result.likedByCurrentUser),
+    markedByCurrentUser: Boolean(result.markedByCurrentUser),
     acceptedReplyId: result.acceptedReplyId || null
   }
 }
@@ -472,11 +484,15 @@ function compactContent(value, maxLength = 118) {
   return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text
 }
 
-function authorCopy(authorId) {
+function authorCopy(source) {
+  if (!source) return '发布者未记录'
+  const authorId = typeof source === 'object' ? source.authorId : source
+  const authorName = typeof source === 'object' ? source.authorName : undefined
   if (authorId === undefined || authorId === null) return '发布者未记录'
   if (currentUserId.value !== undefined && currentUserId.value !== null && String(authorId) === String(currentUserId.value)) {
     return '我发布'
   }
+  if (authorName && authorName.trim()) return authorName.trim()
   return `同学 ${authorId}`
 }
 
@@ -504,6 +520,123 @@ async function submitReply() {
     replySubmitting.value = false
   }
 }
+
+async function togglePostLike(post) {
+  if (!isAuthenticated.value || !post?.id) return
+  const postRef = post
+  const currentlyLiked = postRef._likedByCurrentUser ?? false
+  const prevCount = Number(postRef.likeCount) || 0
+  const newCount = currentlyLiked ? Math.max(0, prevCount - 1) : prevCount + 1
+
+  postRef._likedByCurrentUser = !currentlyLiked
+  postRef.likeCount = newCount
+
+  const isDetailPost = postDetail.value?.post?.id === post.id
+  if (isDetailPost && postDetail.value) {
+    postDetail.value.likedByCurrentUser = !currentlyLiked
+    postDetail.value.post.likeCount = newCount
+  }
+
+  try {
+    if (currentlyLiked) {
+      await api.cancelPostInteraction(post.id, 'LIKE')
+    } else {
+      await api.createPostInteraction(post.id, { type: 'LIKE' })
+    }
+  } catch {
+    postRef._likedByCurrentUser = currentlyLiked
+    postRef.likeCount = prevCount
+    if (isDetailPost && postDetail.value) {
+      postDetail.value.likedByCurrentUser = currentlyLiked
+      postDetail.value.post.likeCount = prevCount
+    }
+  }
+}
+
+async function toggleDetailLike() {
+  if (!detailPost.value?.id || !postDetail.value) return
+  const postRef = postDetail.value
+  const postObj = postRef.post
+  const currentlyLiked = postRef.likedByCurrentUser ?? false
+  const prevCount = Number(postObj.likeCount) || 0
+  const newCount = currentlyLiked ? Math.max(0, prevCount - 1) : prevCount + 1
+
+  postRef.likedByCurrentUser = !currentlyLiked
+  postObj.likeCount = newCount
+
+  try {
+    if (currentlyLiked) {
+      await api.cancelPostInteraction(postObj.id, 'LIKE')
+    } else {
+      await api.createPostInteraction(postObj.id, { type: 'LIKE' })
+    }
+  } catch {
+    postRef.likedByCurrentUser = currentlyLiked
+    postObj.likeCount = prevCount
+  }
+}
+
+async function togglePostMark(post) {
+  if (!isAuthenticated.value || !post?.id) return
+  const postRef = post
+  const currentlyMarked = postRef._markedByCurrentUser ?? false
+  const prevCount = Number(postRef.markCount) || 0
+  const newCount = currentlyMarked ? Math.max(0, prevCount - 1) : prevCount + 1
+
+  postRef._markedByCurrentUser = !currentlyMarked
+  postRef.markCount = newCount
+
+  const isDetailPost = postDetail.value?.post?.id === post.id
+  if (isDetailPost && postDetail.value) {
+    postDetail.value.markedByCurrentUser = !currentlyMarked
+    postDetail.value.post.markCount = newCount
+  }
+
+  try {
+    if (currentlyMarked) {
+      await api.cancelPostInteraction(post.id, 'MARK')
+    } else {
+      await api.createPostInteraction(post.id, { type: 'MARK' })
+    }
+  } catch {
+    postRef._markedByCurrentUser = currentlyMarked
+    postRef.markCount = prevCount
+    if (isDetailPost && postDetail.value) {
+      postDetail.value.markedByCurrentUser = currentlyMarked
+      postDetail.value.post.markCount = prevCount
+    }
+  }
+}
+
+async function toggleDetailMark() {
+  if (!detailPost.value?.id || !postDetail.value) return
+  const postRef = postDetail.value
+  const postObj = postRef.post
+  const currentlyMarked = postRef.markedByCurrentUser ?? false
+  const prevCount = Number(postObj.markCount) || 0
+  const newCount = currentlyMarked ? Math.max(0, prevCount - 1) : prevCount + 1
+
+  postRef.markedByCurrentUser = !currentlyMarked
+  postObj.markCount = newCount
+
+  try {
+    if (currentlyMarked) {
+      await api.cancelPostInteraction(postObj.id, 'MARK')
+    } else {
+      await api.createPostInteraction(postObj.id, { type: 'MARK' })
+    }
+  } catch {
+    postRef.markedByCurrentUser = currentlyMarked
+    postObj.markCount = prevCount
+  }
+}
+
+const markedFilter = ref(false)
+
+const displayPosts = computed(() => {
+  if (!markedFilter.value) return posts.value
+  return posts.value.filter((p) => p._markedByCurrentUser)
+})
 
 watch(
   () => route.query,
@@ -684,6 +817,19 @@ onMounted(() => {
         </div>
 
         <div class="filter-actions">
+          <label class="mark-filter-toggle">
+            <input
+              v-model="markedFilter"
+              type="checkbox"
+              :disabled="listLoading"
+            >
+            <Bookmark
+              :size="16"
+              :fill="markedFilter ? 'currentColor' : 'none'"
+              aria-hidden="true"
+            />
+            仅显示标记
+          </label>
           <button
             class="ghost-action"
             type="button"
@@ -774,15 +920,15 @@ onMounted(() => {
           </div>
 
           <div
-            v-else-if="!posts.length"
+            v-else-if="!displayPosts.length"
             class="empty-state"
           >
             <FileText
               :size="40"
               aria-hidden="true"
             />
-            <h3>还没有匹配的帖子</h3>
-            <p>可以清空筛选条件，或发布一条新的校园帖子。</p>
+            <h3>{{ markedFilter ? '当前页面没有标记的帖子' : '还没有匹配的帖子' }}</h3>
+            <p>{{ markedFilter ? '试试取消仅显示标记，或标记感兴趣的帖子后再次查看。' : '可以清空筛选条件，或发布一条新的校园帖子。' }}</p>
             <button
               class="primary-action"
               type="button"
@@ -801,7 +947,7 @@ onMounted(() => {
             class="post-list"
           >
             <button
-              v-for="post in posts"
+              v-for="post in displayPosts"
               :key="post.id"
               class="post-card"
               :class="{ selected: String(post.id) === selectedPostId }"
@@ -824,7 +970,7 @@ onMounted(() => {
                 <span class="post-card-heading">
                   <span>
                     <strong>{{ post.title || '未命名帖子' }}</strong>
-                    <small>{{ categoryLabel(post.category) }} · {{ authorCopy(post.authorId) }}</small>
+                    <small>{{ categoryLabel(post.category) }} · {{ authorCopy(post) }}</small>
                   </span>
                   <StatusBadge
                     :status="post.status"
@@ -841,20 +987,34 @@ onMounted(() => {
                     />
                     {{ post.replyCount }} 回复
                   </span>
-                  <span>
+                  <button
+                    class="like-action"
+                    :class="{ 'like-action--active': post._likedByCurrentUser }"
+                    type="button"
+                    :aria-label="post._likedByCurrentUser ? '取消点赞' : '点赞'"
+                    @click.stop="togglePostLike(post)"
+                  >
                     <ThumbsUp
                       :size="15"
+                      :fill="post._likedByCurrentUser ? 'currentColor' : 'none'"
                       aria-hidden="true"
                     />
                     {{ post.likeCount }} 赞
-                  </span>
-                  <span>
+                  </button>
+                  <button
+                    class="like-action"
+                    :class="{ 'like-action--active': post._markedByCurrentUser }"
+                    type="button"
+                    :aria-label="post._markedByCurrentUser ? '取消标记' : '标记'"
+                    @click.stop="togglePostMark(post)"
+                  >
                     <Bookmark
                       :size="15"
+                      :fill="post._markedByCurrentUser ? 'currentColor' : 'none'"
                       aria-hidden="true"
                     />
                     {{ post.markCount }} 标记
-                  </span>
+                  </button>
                   <span>
                     <Clock3
                       :size="15"
@@ -862,6 +1022,13 @@ onMounted(() => {
                     />
                     {{ formatDateTime(post.createdAt) }}
                   </span>
+                  <button
+                    class="inline-profile-btn"
+                    type="button"
+                    @click.stop="openProfileModal(post.authorId)"
+                  >
+                    <UserRound :size="13" /> 查看
+                  </button>
                 </span>
               </span>
             </button>
@@ -927,7 +1094,16 @@ onMounted(() => {
             <dl class="detail-facts">
               <div>
                 <dt>发布者</dt>
-                <dd>{{ authorCopy(detailPost.authorId) }}</dd>
+                <dd>
+                  {{ authorCopy(detailPost) }}
+                  <button
+                    class="inline-profile-btn"
+                    type="button"
+                    @click="openProfileModal(detailPost.authorId)"
+                  >
+                    <UserRound :size="14" /> 查看
+                  </button>
+                </dd>
               </div>
               <div>
                 <dt>发布时间</dt>
@@ -939,7 +1115,36 @@ onMounted(() => {
               </div>
               <div>
                 <dt>互动</dt>
-                <dd>{{ detailPost.likeCount }} 赞 · {{ detailPost.markCount }} 标记</dd>
+                <dd>
+                  <button
+                    class="like-action detail-like"
+                    :class="{ 'like-action--active': postDetail?.likedByCurrentUser }"
+                    type="button"
+                    :aria-label="postDetail?.likedByCurrentUser ? '取消点赞' : '点赞'"
+                    @click="toggleDetailLike"
+                  >
+                    <ThumbsUp
+                      :size="17"
+                      :fill="postDetail?.likedByCurrentUser ? 'currentColor' : 'none'"
+                      aria-hidden="true"
+                    />
+                    {{ detailPost.likeCount || 0 }} 赞
+                  </button>
+                  <button
+                    class="like-action detail-like"
+                    :class="{ 'like-action--active': postDetail?.markedByCurrentUser }"
+                    type="button"
+                    :aria-label="postDetail?.markedByCurrentUser ? '取消标记' : '标记'"
+                    @click="toggleDetailMark"
+                  >
+                    <Bookmark
+                      :size="17"
+                      :fill="postDetail?.markedByCurrentUser ? 'currentColor' : 'none'"
+                      aria-hidden="true"
+                    />
+                    {{ detailPost.markCount || 0 }} 标记
+                  </button>
+                </dd>
               </div>
             </dl>
 
@@ -1217,6 +1422,12 @@ onMounted(() => {
         </section>
       </div>
     </main>
+
+    <UserProfileModal
+      :user-id="profileUserId"
+      :visible="showProfileModal"
+      @close="showProfileModal = false"
+    />
   </DashboardShell>
 </template>
 
@@ -1791,6 +2002,91 @@ onMounted(() => {
 .detail-section {
   display: grid;
   gap: 10px;
+}
+
+.inline-profile-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 6px;
+  padding: 2px 8px;
+  border: 1px solid #dbd7e8;
+  border-radius: 6px;
+  background: #f9f7fc;
+  color: #746dc3;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 180ms ease, border-color 180ms ease;
+  white-space: nowrap;
+}
+
+.inline-profile-btn:hover {
+  background: #ede9fe;
+  border-color: #c4b5fd;
+}
+
+.like-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: color 150ms ease;
+}
+
+.like-action:hover {
+  color: #4f46e5;
+}
+
+.like-action--active {
+  color: #4f46e5;
+  font-weight: 700;
+}
+
+.detail-like {
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.detail-mark-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 12px;
+  color: #5c5869;
+}
+
+.mark-filter-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 13px;
+  border: 1px solid #dbd7e8;
+  border-radius: 8px;
+  background: #f9f7fc;
+  color: #5c5869;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  transition: background 180ms ease, border-color 180ms ease;
+}
+
+.mark-filter-toggle:hover {
+  background: #ede9fe;
+  border-color: #c4b5fd;
+}
+
+.mark-filter-toggle input[type="checkbox"] {
+  accent-color: #746dc3;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
 }
 
 .detail-section h3 {

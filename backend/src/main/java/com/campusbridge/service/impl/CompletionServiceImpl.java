@@ -147,16 +147,13 @@ public class CompletionServiceImpl implements CompletionService {
         if (amount == null || amount <= 0) {
             return;
         }
-        Long requesterId = task.getRequesterId();
         Long providerId = task.getProviderId();
         Long taskId = task.getId();
 
-        creditService.adjustCredit(requesterId, -amount,
-                "任务 #" + taskId + " 积分报酬支出", "TASK", taskId);
         creditService.adjustCredit(providerId, +amount,
                 "任务 #" + taskId + " 积分报酬收入", "TASK", taskId);
 
-        LOGGER.info("Settled {} points for task #{}: {} -> {}", amount, taskId, requesterId, providerId);
+        LOGGER.info("Awarded {} points to provider #{} for task #{}", amount, providerId, taskId);
     }
 
     @Override

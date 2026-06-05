@@ -21,6 +21,7 @@ public final class RequestDtos {
         public String password;
         public String phone;
         public String email;
+        public String code;
     }
 
     @Data

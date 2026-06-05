@@ -14,6 +14,7 @@ import {
   UserRound
 } from '@lucide/vue'
 import { useRoute, useRouter } from 'vue-router'
+import api from '../services/api'
 import { useAuth } from '../stores/auth'
 
 const { state, login, register } = useAuth()
@@ -47,8 +48,11 @@ const registerForm = reactive({
   username: '',
   password: '',
   phone: '',
-  email: ''
+  email: '',
+  code: ''
 })
+const registerCodeSent = ref(false)
+const registerCodeSending = ref(false)
 
 const formTitle = computed(() => (mode.value === 'login' ? '欢迎回来' : '创建账号'))
 const formSubtitle = computed(
@@ -101,13 +105,42 @@ async function handleLogin() {
   }
 }
 
+async function sendRegisterCode() {
+  const email = registerForm.email.trim()
+  if (!email) {
+    setFeedback('请先填写邮箱', 'danger')
+    return
+  }
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    setFeedback('请填写有效的邮箱地址', 'danger')
+    return
+  }
+  registerCodeSending.value = true
+  try {
+    await api.sendRegistrationCode({ email })
+    registerCodeSent.value = true
+    setFeedback('验证码已发送')
+  } catch (error) {
+    setFeedback(error.message, 'danger')
+  } finally {
+    registerCodeSending.value = false
+  }
+}
+
 async function handleRegister() {
   pendingAction.value = 'register'
   feedback.value = ''
+  const email = registerForm.email.trim()
+  if (email && !registerForm.code.trim()) {
+    setFeedback('请先发送并填写邮箱验证码', 'danger')
+    return
+  }
   try {
-    await register(registerForm)
+    await register({ ...registerForm, email, code: registerForm.code.trim() })
     setFeedback('注册成功，请使用用户名和密码登录。')
     mode.value = 'login'
+    registerCodeSent.value = false
+    registerForm.code = ''
   } catch (error) {
     setFeedback(error.message, 'danger')
   } finally {
@@ -380,6 +413,35 @@ async function handleRegister() {
               >
             </div>
           </label>
+
+          <div
+            v-if="registerForm.email.trim()"
+            class="auth-field-row code-row"
+          >
+            <button
+              class="primary-action code-send-btn"
+              type="button"
+              :disabled="registerCodeSending || state.loading || registerCodeSent"
+              @click="sendRegisterCode"
+            >
+              <LoaderCircle v-if="registerCodeSending" class="spinning" :size="17" />
+              <Mail v-else :size="17" />
+              发送邮箱验证码
+            </button>
+            <label class="publish-field">
+              <span>验证码</span>
+              <div class="input-shell">
+                <input
+                  v-model.trim="registerForm.code"
+                  inputmode="numeric"
+                  maxlength="6"
+                  placeholder="6位验证码"
+                  required
+                  :disabled="state.loading"
+                >
+              </div>
+            </label>
+          </div>
 
           <button
             class="primary-action"
@@ -679,6 +741,30 @@ async function handleRegister() {
 .primary-action:disabled {
   cursor: not-allowed;
   opacity: 0.62;
+}
+
+.code-send-btn {
+  background: #f0edf9;
+  border-color: #c4b5fd;
+  color: #5d49cb;
+  box-shadow: 0 2px 8px rgba(116, 109, 195, 0.12);
+  font-size: 0.92rem;
+  min-height: 46px;
+  flex-shrink: 0;
+}
+
+.code-row {
+  grid-template-columns: auto 1fr !important;
+}
+
+.code-send-btn:hover:not(:disabled) {
+  background: #e5e0f7;
+  border-color: #a78bfa;
+  box-shadow: 0 4px 12px rgba(116, 109, 195, 0.18);
+}
+
+.code-send-btn:disabled {
+  opacity: 0.5;
 }
 
 .primary-action--loading {

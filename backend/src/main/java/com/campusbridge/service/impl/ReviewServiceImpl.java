@@ -100,4 +100,13 @@ public class ReviewServiceImpl implements ReviewService {
                 .filter(r -> r.getTaskId().equals(taskId))
                 .collect(java.util.stream.Collectors.toList());
     }
+
+    @Override
+    public List<Review> listReviewsByUser(Long userId) {
+        if (userId == null) {
+            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR,
+                    "userId is required");
+        }
+        return reviewMapper.selectByRevieweeId(userId);
+    }
 }

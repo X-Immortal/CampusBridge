@@ -8,12 +8,18 @@
   </insert>
 
   <select id="selectById" resultType="com.campusbridge.pojo.Task">
-    SELECT * FROM tasks
-    WHERE id = #{id}
+    SELECT t.*, req.nickname AS requester_name, prov.nickname AS provider_name
+    FROM tasks t
+    LEFT JOIN user_profiles req ON req.user_id = t.requester_id
+    LEFT JOIN user_profiles prov ON prov.user_id = t.provider_id
+    WHERE t.id = #{id}
   </select>
 
   <select id="selectAll" resultType="com.campusbridge.pojo.Task">
-    SELECT * FROM tasks
+    SELECT t.*, req.nickname AS requester_name, prov.nickname AS provider_name
+    FROM tasks t
+    LEFT JOIN user_profiles req ON req.user_id = t.requester_id
+    LEFT JOIN user_profiles prov ON prov.user_id = t.provider_id
   </select>
 
   <update id="updateById" parameterType="com.campusbridge.pojo.Task">
@@ -68,39 +74,45 @@
   </delete>
 
   <select id="selectWithFilters" resultType="com.campusbridge.pojo.Task">
-    SELECT * FROM tasks
+    SELECT t.*, req.nickname AS requester_name, prov.nickname AS provider_name
+    FROM tasks t
+    LEFT JOIN user_profiles req ON req.user_id = t.requester_id
+    LEFT JOIN user_profiles prov ON prov.user_id = t.provider_id
     <where>
       <if test="keyword != null and keyword != ''">
-        AND (title LIKE CONCAT('%', #{keyword}, '%') OR description LIKE CONCAT('%', #{keyword}, '%'))
+        AND (t.title LIKE CONCAT('%', #{keyword}, '%') OR t.description LIKE CONCAT('%', #{keyword}, '%'))
       </if>
       <if test="category != null and category != ''">
-        AND category = #{category}
+        AND t.category = #{category}
       </if>
       <if test="campus != null and campus != ''">
-        AND campus = #{campus}
+        AND t.campus = #{campus}
       </if>
       <if test="status != null and status != ''">
-        AND status = #{status}
+        AND t.status = #{status}
+      </if>
+      <if test="status == null or status == ''">
+        AND t.status NOT IN ('DISPUTED', 'CANCELLED')
       </if>
       <if test="rewardType != null and rewardType != ''">
-        AND reward_type = #{rewardType}
+        AND t.reward_type = #{rewardType}
       </if>
       <if test="requiresProof != null">
-        AND requires_proof = #{requiresProof}
+        AND t.requires_proof = #{requiresProof}
       </if>
     </where>
     <choose>
       <when test="sortBy == 'DEADLINE_ASC'">
-        ORDER BY deadline ASC
+        ORDER BY t.deadline ASC
       </when>
       <when test="sortBy == 'DEADLINE_DESC'">
-        ORDER BY deadline DESC
+        ORDER BY t.deadline DESC
       </when>
       <when test="sortBy == 'CREATED_AT_DESC'">
-        ORDER BY created_at DESC
+        ORDER BY t.created_at DESC
       </when>
       <otherwise>
-        ORDER BY created_at DESC
+        ORDER BY t.created_at DESC
       </otherwise>
     </choose>
     LIMIT #{limit} OFFSET #{offset}

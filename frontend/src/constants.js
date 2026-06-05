@@ -32,9 +32,10 @@ export const MODERATION_STATUS_OPTIONS = [
   { value: 'PUNISHED', label: '已处罚', tone: 'danger' }
 ]
 
-export const MODERATION_DECISION_OPTIONS = MODERATION_STATUS_OPTIONS.filter(
-  (option) => !['PENDING', 'PROCESSING'].includes(option.value)
-)
+export const MODERATION_DECISION_OPTIONS = [
+  { value: 'APPROVED', label: '举报成立', tone: 'success' },
+  { value: 'REJECTED', label: '驳回举报', tone: 'muted' }
+]
 
 export const TASK_CATEGORY_OPTIONS = [
   {

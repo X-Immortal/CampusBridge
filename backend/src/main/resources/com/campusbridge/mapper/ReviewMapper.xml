@@ -16,6 +16,12 @@
     SELECT * FROM reviews
   </select>
 
+  <select id="selectByRevieweeId" resultType="com.campusbridge.pojo.Review">
+    SELECT * FROM reviews
+    WHERE reviewee_id = #{revieweeId}
+    ORDER BY created_at DESC
+  </select>
+
   <update id="updateById" parameterType="com.campusbridge.pojo.Review">
     UPDATE reviews
     SET task_id = #{taskId},

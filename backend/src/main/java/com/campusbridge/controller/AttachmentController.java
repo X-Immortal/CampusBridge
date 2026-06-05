@@ -28,8 +28,8 @@ public class AttachmentController {
     public Result uploadAttachment(
             @RequestParam("file") MultipartFile file,
             @RequestHeader(value = "X-User-Id", required = false) Long fallbackUserId,
-            @RequestParam(required = false) String expectedOwnerType,
-            @RequestParam(required = false) String type) {
+            @RequestHeader(value = "X-Expected-Owner-Type", required = false) String expectedOwnerType,
+            @RequestHeader(value = "X-Attachment-Type", required = false) String type) {
         Long currentUserId = authContextUtil.getCurrentUserId();
         if (currentUserId == null) {
             currentUserId = fallbackUserId;

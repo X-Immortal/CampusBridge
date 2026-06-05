@@ -54,8 +54,11 @@ public class PostController {
     }
 
     @GetMapping("/{postId}")
-    public Result getPostDetail(@PathVariable Long postId) {
-        return Result.success(postService.getPostDetail(postId));
+    public Result getPostDetail(
+            HttpServletRequest servletRequest,
+            @PathVariable Long postId) {
+        Long currentUserId = currentUserResolver.resolveOptionalUserId(servletRequest);
+        return Result.success(postService.getPostDetail(postId, currentUserId));
     }
 
     @PatchMapping("/{postId}")

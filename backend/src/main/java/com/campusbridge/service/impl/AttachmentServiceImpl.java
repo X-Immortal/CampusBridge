@@ -5,6 +5,8 @@ import com.campusbridge.mapper.AttachmentMapper;
 import com.campusbridge.pojo.Attachment;
 import com.campusbridge.service.AttachmentService;
 import com.campusbridge.utils.AliOSSUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -14,6 +16,8 @@ import java.time.LocalDateTime;
 
 @Service
 public class AttachmentServiceImpl implements AttachmentService {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(AttachmentServiceImpl.class);
 
     @Autowired
     private AttachmentMapper attachmentMapper;
@@ -40,30 +44,31 @@ public class AttachmentServiceImpl implements AttachmentService {
             return -3L;
         }
 
-        String fileUrl;
         try {
-            fileUrl = aliOSSUtils.upload(file);
+            String fileUrl = aliOSSUtils.upload(file);
+
+            Attachment entity = new Attachment();
+            entity.setUploaderId(uploaderId);
+            entity.setOwnerType(ownerTypeEnum == null ? null : ownerTypeEnum.name());
+            entity.setOwnerId(null);
+            entity.setType(attachmentType.name());
+            entity.setFileName(file.getOriginalFilename());
+            entity.setFileUrl(fileUrl);
+            entity.setContentType(file.getContentType());
+            entity.setSize(file.getSize());
+            entity.setStatus(ApiEnums.AttachmentStatus.TEMPORARY.name());
+            entity.setCreatedAt(LocalDateTime.now());
+
+            int affected = attachmentMapper.insert(entity);
+            if (affected <= 0) {
+                return -5L;
+            }
+            return entity;
         } catch (Exception e) {
+            LOGGER.error("Attachment upload failed: uploaderId={}, expectedOwnerType={}, type={}",
+                    uploaderId, expectedOwnerType, type, e);
             return -4L;
         }
-
-        Attachment entity = new Attachment();
-        entity.setUploaderId(uploaderId);
-        entity.setOwnerType(ownerTypeEnum == null ? null : ownerTypeEnum.name());
-        entity.setOwnerId(null);
-        entity.setType(attachmentType.name());
-        entity.setFileName(file.getOriginalFilename());
-        entity.setFileUrl(fileUrl);
-        entity.setContentType(file.getContentType());
-        entity.setSize(file.getSize());
-        entity.setStatus(ApiEnums.AttachmentStatus.TEMPORARY.name());
-        entity.setCreatedAt(LocalDateTime.now());
-
-        int affected = attachmentMapper.insert(entity);
-        if (affected <= 0) {
-            return -5L;
-        }
-        return entity;
     }
 
     private ApiEnums.AttachmentOwnerType parseOwnerType(String value) {

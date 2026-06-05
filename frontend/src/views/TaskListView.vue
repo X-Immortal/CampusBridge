@@ -31,11 +31,13 @@ import {
   ShieldAlert,
   Tag,
   Trash2,
+  UserRound,
   Utensils,
   X
 } from '@lucide/vue'
 import DashboardShell from '../components/DashboardShell.vue'
 import StatusBadge from '../components/StatusBadge.vue'
+import UserProfileModal from '../components/UserProfileModal.vue'
 import {
   APPLICATION_STATUS_OPTIONS,
   MODERATION_STATUS_OPTIONS,
@@ -128,6 +130,10 @@ const TASK_TYPE_META = {
 
 const filters = reactive(readFiltersFromRoute(route.name))
 
+const mineSubTab = ref('published')
+const minePublishedPage = ref(1)
+const mineAcceptedPage = ref(1)
+
 const tasks = ref([])
 const taskDetail = ref(null)
 const selectedTaskId = ref(route.params.taskId ? String(route.params.taskId) : '')
@@ -138,6 +144,15 @@ const detailError = ref('')
 const operationFeedback = ref('')
 const operationFeedbackType = ref('success')
 const operationLoading = ref('')
+const profileUserId = ref(null)
+const showProfileModal = ref(false)
+
+function openProfileModal(userId) {
+  if (!userId) return
+  profileUserId.value = userId
+  showProfileModal.value = true
+}
+
 const cancelPanelOpen = ref(false)
 const cancelReason = ref('')
 const cancelReasonError = ref('')
@@ -240,18 +255,22 @@ const visibleTaskGroups = computed(() => {
     ]
   }
 
+  if (mineSubTab.value === 'accepted') {
+    return [
+      {
+        key: 'accepted',
+        title: '我接受的任务',
+        emptyCopy: '当前筛选下没有你接下的任务。',
+        items: acceptedTaskCards.value
+      }
+    ]
+  }
   return [
     {
       key: 'requested',
       title: '我发出的任务',
       emptyCopy: '当前筛选下没有你发布的任务。',
       items: requesterTaskCards.value
-    },
-    {
-      key: 'accepted',
-      title: '我接受的任务',
-      emptyCopy: '当前筛选下没有你接下的任务。',
-      items: acceptedTaskCards.value
     }
   ]
 })
@@ -777,14 +796,21 @@ function applyTaskResult(result) {
 
   if (isMineView.value) {
     const mineItems = items.filter((task) => isRequesterTask(task) || isProviderTask(task))
-    const pageState = paginateTasks(mineItems, filters.page, filters.size)
+    const publishedItems = mineItems.filter((task) => isRequesterTask(task))
+    const acceptedItems = mineItems.filter((task) => isProviderTask(task))
 
-    tasks.value = pageState.items
-    pagination.page = pageState.page
-    pagination.size = pageState.size
-    pagination.total = pageState.total
-    filters.page = pagination.page
-    filters.size = pagination.size
+    const activePage = mineSubTab.value === 'published' ? minePublishedPage : mineAcceptedPage
+    const activeItems = mineSubTab.value === 'published' ? publishedItems : acceptedItems
+
+    const start = (activePage.value - 1) * filters.size
+    const pagedItems = activeItems.slice(start, start + filters.size)
+
+    tasks.value = pagedItems
+    pagination.page = activePage.value
+    pagination.size = filters.size
+    pagination.total = activeItems.length
+    filters.page = activePage.value
+    filters.size = filters.size
     return
   }
 
@@ -1156,9 +1182,28 @@ async function loadCandidates(taskId) {
   }
 }
 
+function switchMineTab(tab) {
+  mineSubTab.value = tab
+  applyFilters()
+}
+
+function handleMinePageChange(page) {
+  if (mineSubTab.value === 'published') {
+    minePublishedPage.value = page
+  } else {
+    mineAcceptedPage.value = page
+  }
+  filters.page = page
+  refreshTasks()
+}
+
 async function applyFilters() {
   window.clearTimeout(filterTimer)
   filters.page = 1
+  if (isMineView.value) {
+    minePublishedPage.value = 1
+    mineAcceptedPage.value = 1
+  }
   await syncRoute()
   await loadTasks()
 }
@@ -1204,6 +1249,9 @@ async function changePage(nextPage) {
   const normalizedPage = Math.min(Math.max(nextPage, 1), totalPages.value)
   if (normalizedPage === filters.page) return
   filters.page = normalizedPage
+  if (isMineView.value) {
+    handleMinePageChange(normalizedPage)
+  }
   await syncRoute()
   await loadTasks()
 }
@@ -1387,12 +1435,6 @@ function setReportError(field, message) {
 function validateReportForm() {
   clearReportErrors()
 
-  if (!reportForm.targetType) {
-    setReportError('targetType', '请选择举报目标类型。')
-  }
-  if (!String(reportForm.targetId).trim()) {
-    setReportError('targetId', '请填写举报目标 ID。')
-  }
   if (!String(reportForm.reason).trim()) {
     setReportError('reason', '请填写举报原因。')
   }
@@ -2217,6 +2259,24 @@ onMounted(async () => {
             <span>{{ listError }}</span>
           </section>
 
+          <div
+            v-if="isMineView"
+            class="mine-subtabs"
+          >
+            <button
+              :class="{ active: mineSubTab === 'published' }"
+              @click="switchMineTab('published')"
+            >
+              我发布的
+            </button>
+            <button
+              :class="{ active: mineSubTab === 'accepted' }"
+              @click="switchMineTab('accepted')"
+            >
+              我接取的
+            </button>
+          </div>
+
           <section
             class="panel-card list-panel"
             :class="{ 'list-panel--mine': isMineView }"
@@ -2497,6 +2557,12 @@ onMounted(async () => {
         </section>
       </section>
     </main>
+
+    <UserProfileModal
+      :user-id="profileUserId"
+      :visible="showProfileModal"
+      @close="showProfileModal = false"
+    />
   </DashboardShell>
 
   <Teleport to="body">
@@ -2603,6 +2669,26 @@ onMounted(async () => {
             </div>
 
             <dl class="detail-info-list">
+              <div>
+                <dt>
+                  <UserRound
+                    :size="16"
+                    aria-hidden="true"
+                  />
+                  发布者
+                </dt>
+                <dd>
+                  {{ detailTask.requesterName || `同学 ${detailTask.requesterId || ''}` || '未知' }}
+                  <button
+                    v-if="detailTask.requesterId"
+                    class="inline-profile-btn"
+                    type="button"
+                    @click="openProfileModal(detailTask.requesterId)"
+                  >
+                    <UserRound :size="14" /> 查看
+                  </button>
+                </dd>
+              </div>
               <div>
                 <dt>
                   <MapPin
@@ -3658,7 +3744,7 @@ onMounted(async () => {
         </header>
 
         <div class="report-context">
-          <span>
+          <span class="report-context__info">
             <strong>{{ detailTask.title || '当前任务' }}</strong>
             <small>任务 #{{ detailTask.id }} · {{ taskCategoryLabel(detailTask) }}</small>
           </span>
@@ -3672,52 +3758,14 @@ onMounted(async () => {
           class="report-form"
           @submit.prevent="submitReport"
         >
-          <label
-            class="report-field"
-            for="report-target-type"
+          <input
+            type="hidden"
+            :value="reportForm.targetType"
           >
-            <span>目标类型</span>
-            <select
-              id="report-target-type"
-              v-model="reportForm.targetType"
-              :aria-invalid="Boolean(reportErrors.targetType)"
-            >
-              <option
-                v-for="target in REPORT_TARGET_TYPE_OPTIONS"
-                :key="target.value"
-                :value="target.value"
-              >
-                {{ target.label }}
-              </option>
-            </select>
-            <p
-              v-if="reportErrors.targetType"
-              class="field-error"
-            >
-              {{ reportErrors.targetType }}
-            </p>
-          </label>
-
-          <label
-            class="report-field"
-            for="report-target-id"
+          <input
+            type="hidden"
+            :value="reportForm.targetId"
           >
-            <span>目标 ID</span>
-            <input
-              id="report-target-id"
-              v-model.trim="reportForm.targetId"
-              type="number"
-              min="1"
-              :aria-invalid="Boolean(reportErrors.targetId)"
-              placeholder="例如：当前任务 ID"
-            >
-            <p
-              v-if="reportErrors.targetId"
-              class="field-error"
-            >
-              {{ reportErrors.targetId }}
-            </p>
-          </label>
 
           <label
             class="report-field report-field--wide"
@@ -4444,7 +4492,7 @@ onMounted(async () => {
 }
 
 .toolbar-actions {
-  display: flex;
+  display: flex !important;
   align-items: center;
   gap: 10px;
 }
@@ -4857,6 +4905,40 @@ onMounted(async () => {
   font-weight: 900;
 }
 
+.mine-subtabs {
+  display: flex;
+  gap: 8px;
+  padding-bottom: 8px;
+}
+
+.mine-subtabs button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 20px;
+  border: 1px solid #dbd7e8;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #5c5869;
+  font-size: 0.92rem;
+  font-weight: 900;
+  cursor: pointer;
+  transition: background 180ms ease, border-color 180ms ease;
+}
+
+.mine-subtabs button:hover:not(.active) {
+  border-color: #c4b5fd;
+  background: #f5f3ff;
+}
+
+.mine-subtabs button.active {
+  border-color: #746dc3;
+  background: #746dc3;
+  color: #ffffff;
+}
+
 .pagination-bar {
   display: flex;
   align-items: center;
@@ -5116,6 +5198,28 @@ onMounted(async () => {
   margin: 0;
   color: #4a4455;
   line-height: 1.65;
+}
+
+.inline-profile-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 6px;
+  padding: 2px 8px;
+  border: 1px solid #dbd7e8;
+  border-radius: 6px;
+  background: #f9f7fc;
+  color: #746dc3;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 180ms ease, border-color 180ms ease;
+  white-space: nowrap;
+}
+
+.inline-profile-btn:hover {
+  background: #ede9fe;
+  border-color: #c4b5fd;
 }
 
 .detail-soft-pill,
@@ -5865,7 +5969,7 @@ onMounted(async () => {
   background: #fff7ed;
 }
 
-.report-context span {
+.report-context__info {
   display: grid;
   gap: 4px;
 }
@@ -6291,7 +6395,6 @@ onMounted(async () => {
   .conversation-entry,
   .candidate-heading,
   .report-heading,
-  .report-context,
   .candidate-top,
   .candidate-actions,
   .proof-card-heading,

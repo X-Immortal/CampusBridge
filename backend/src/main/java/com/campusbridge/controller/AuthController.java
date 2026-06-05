@@ -13,12 +13,24 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/v1/auth")
 public class AuthController {
 
     @Autowired
     private AuthService authService;
+
+    @PostMapping("/register/send-code")
+    public Result sendRegistrationCode(@RequestBody Map<String, String> body) {
+        String email = body.get("email");
+        String code = authService.sendRegistrationCode(email);
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("sent", true);
+        return Result.success(payload);
+    }
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)

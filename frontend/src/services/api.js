@@ -105,11 +105,17 @@ function buildQuery(params = {}) {
 
 export default {
   register: (body) => request('/auth/register', { method: 'POST', body }),
+  sendRegistrationCode: (body) => request('/auth/register/send-code', { method: 'POST', body }),
   login: (body) => request('/auth/login', { method: 'POST', body }),
   getCurrentUser: () => request('/users/me'),
   getMyProfile: () => request('/users/me/profile'),
   updateMyProfile: (body) => request('/users/me/profile', { method: 'PUT', body }),
   getUserProfile: (userId) => request(`/users/${userId}/profile`),
+  getUserReviews: (userId) => request(`/users/${userId}/reviews`),
+  changePassword: (body) => request('/account/password', { method: 'PUT', body }),
+  sendAccountEmailCode: (body) => request('/account/email', { method: 'PUT', body }),
+  confirmAccountEmail: (body) => request('/account/email/confirm', { method: 'PUT', body }),
+  updatePhone: (body) => request('/account/phone', { method: 'PUT', body }),
   submitVerification: (body) => request('/verifications', { method: 'POST', body }),
   resendEmailVerificationCode: () =>
     request('/verifications/email/code', { method: 'POST' }),
@@ -184,14 +190,15 @@ export default {
   uploadAttachment: ({ file, expectedOwnerType, type } = {}) => {
     const formData = new FormData()
     formData.append('file', file)
-    if (expectedOwnerType) formData.append('expectedOwnerType', expectedOwnerType)
-    if (type) formData.append('type', type)
-    return request('/attachments', { method: 'POST', body: formData, timeoutMs: 15000 })
+    const extraHeaders = {}
+    if (expectedOwnerType) extraHeaders['X-Expected-Owner-Type'] = expectedOwnerType
+    if (type) extraHeaders['X-Attachment-Type'] = type
+    return request('/attachments', { method: 'POST', body: formData, headers: extraHeaders, timeoutMs: 60000 })
   },
   uploadAvatar: (file) => {
     const formData = new FormData()
     formData.append('file', file)
-    return request('/users/me/avatar', { method: 'POST', body: formData, timeoutMs: 15000 })
+    return request('/users/me/avatar', { method: 'POST', body: formData, timeoutMs: 60000 })
   }
 }
 

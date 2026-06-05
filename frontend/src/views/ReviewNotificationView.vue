@@ -1697,6 +1697,11 @@ onMounted(async () => {
   align-items: center;
 }
 
+.history-review-head > div {
+  display: grid;
+  gap: 2px;
+}
+
 .review-avatar {
   display: grid;
   place-items: center;

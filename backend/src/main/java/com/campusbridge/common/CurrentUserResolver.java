@@ -46,4 +46,12 @@ public class CurrentUserResolver {
             throw new BusinessException(ErrorCode.AUTH_001_UNAUTHORIZED);
         }
     }
+
+    public Long resolveOptionalUserId(HttpServletRequest request) {
+        try {
+            return requireCurrentUserId(request);
+        } catch (BusinessException e) {
+            return null;
+        }
+    }
 }

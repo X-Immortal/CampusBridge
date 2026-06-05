@@ -411,7 +411,7 @@ onBeforeUnmount(() => {
 
 .collapse-button {
   position: absolute;
-  top: 18px;
+  bottom: 18px;
   right: 14px;
   display: inline-flex;
   align-items: center;
@@ -515,7 +515,7 @@ onBeforeUnmount(() => {
 }
 
 .is-collapsed .collapse-button {
-  top: 42px;
+  bottom: 42px;
   right: 50%;
   transform: translateX(50%);
 }
@@ -523,13 +523,12 @@ onBeforeUnmount(() => {
 .is-collapsed .brand {
   justify-content: center;
   padding-inline: 0;
+  gap: 0;
 }
 
 .is-collapsed .brand-text,
 .is-collapsed .nav-item span {
-  max-width: 0;
-  opacity: 0;
-  overflow: hidden;
+  display: none;
 }
 
 .is-collapsed .nav-item {
@@ -848,8 +847,7 @@ onBeforeUnmount(() => {
 
   .is-collapsed .brand-text,
   .is-collapsed .nav-item span {
-    max-width: none;
-    opacity: 1;
+    display: block;
   }
 
   .sidebar-nav {

@@ -3,6 +3,7 @@ package com.campusbridge.controller;
 import com.campusbridge.common.CurrentUserResolver;
 import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.pojo.Result;
+import com.campusbridge.service.ReviewService;
 import com.campusbridge.service.UserProfileService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,12 +23,15 @@ import java.util.Map;
 public class UserController {
     private final CurrentUserResolver currentUserResolver;
     private final UserProfileService userProfileService;
+    private final ReviewService reviewService;
 
     public UserController(
             CurrentUserResolver currentUserResolver,
-            UserProfileService userProfileService) {
+            UserProfileService userProfileService,
+            ReviewService reviewService) {
         this.currentUserResolver = currentUserResolver;
         this.userProfileService = userProfileService;
+        this.reviewService = reviewService;
     }
 
     @GetMapping("/me")
@@ -62,5 +66,10 @@ public class UserController {
         Long currentUserId = currentUserResolver.requireCurrentUserId(request);
         String avatarUrl = userProfileService.updateAvatar(currentUserId, file);
         return Result.success(Map.of("avatarUrl", avatarUrl));
+    }
+
+    @GetMapping("/{userId}/reviews")
+    public Result getUserReviews(@PathVariable Long userId) {
+        return Result.success(reviewService.listReviewsByUser(userId));
     }
 }

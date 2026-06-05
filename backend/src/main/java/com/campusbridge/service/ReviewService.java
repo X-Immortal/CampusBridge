@@ -9,4 +9,6 @@ public interface ReviewService {
     Review createReview(Long reviewerId, Long taskId, RequestDtos.CreateReviewRequest request);
 
     List<Review> listReviews(Long taskId);
+
+    List<Review> listReviewsByUser(Long userId);
 }

@@ -5,9 +5,11 @@ import com.campusbridge.common.ErrorCode;
 import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.dto.response.ResponseDtos;
 import com.campusbridge.dto.view.ViewDtos;
+import com.campusbridge.mapper.PostInteractionMapper;
 import com.campusbridge.mapper.PostMapper;
 import com.campusbridge.mapper.ReplyMapper;
 import com.campusbridge.pojo.Post;
+import com.campusbridge.pojo.PostInteraction;
 import com.campusbridge.pojo.Reply;
 import com.campusbridge.service.ContentModerationService;
 import com.campusbridge.service.PostService;
@@ -26,14 +28,17 @@ public class PostServiceImpl implements PostService {
 
     private final PostMapper postMapper;
     private final ReplyMapper replyMapper;
+    private final PostInteractionMapper postInteractionMapper;
     private final ContentModerationService contentModerationService;
 
     public PostServiceImpl(
             PostMapper postMapper,
             ReplyMapper replyMapper,
+            PostInteractionMapper postInteractionMapper,
             ContentModerationService contentModerationService) {
         this.postMapper = postMapper;
         this.replyMapper = replyMapper;
+        this.postInteractionMapper = postInteractionMapper;
         this.contentModerationService = contentModerationService;
     }
 
@@ -74,11 +79,21 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
-    public ViewDtos.PostDetailView getPostDetail(Long postId) {
+    public ViewDtos.PostDetailView getPostDetail(Long postId, Long currentUserId) {
         Post post = requirePostExists(postId);
         List<Reply> replies = replyMapper.selectByPostId(postId, 0, 50);
+        boolean likedByCurrentUser = false;
+        boolean markedByCurrentUser = false;
+        if (currentUserId != null) {
+            PostInteraction likeInteraction = postInteractionMapper.selectByUserTargetType(
+                    currentUserId, "POST", postId, "LIKE");
+            likedByCurrentUser = likeInteraction != null;
+            PostInteraction markInteraction = postInteractionMapper.selectByUserTargetType(
+                    currentUserId, "POST", postId, "MARK");
+            markedByCurrentUser = markInteraction != null;
+        }
         return new ViewDtos.PostDetailView(
-                post, replies, false, false, post.getAcceptedReplyId());
+                post, replies, likedByCurrentUser, markedByCurrentUser, post.getAcceptedReplyId());
     }
 
     @Override
