@@ -5,7 +5,8 @@ class User {
   id: Long
   username: String
   passwordHash: String
-  phone: String
+  phoneCipher: String
+  phoneHash: String
   email: String
   role: UserRole
   enabled: Boolean
@@ -30,8 +31,9 @@ class CampusVerification {
   id: Long
   userId: Long
   method: VerificationMethod
-  realName: String
-  studentNumber: String
+  realNameCipher: String
+  studentNumberCipher: String
+  studentNumberHash: String
   school: String
   department: String
   status: VerificationStatus

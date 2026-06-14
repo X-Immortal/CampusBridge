@@ -9,9 +9,9 @@ flowchart LR
   UserProfile["<b>UserProfile</b><hr/>userId: Long<br/>nickname: String<br/>campus: String<br/>college: String<br/>contactInfo: String"]:::user
   UserCredit["<b>UserCredit</b><hr/>userId: Long<br/>points: Integer<br/>level: Integer"]:::user
 
-  Post["<b>Post</b><hr/>authorId: Long<br/>categoryId: Long<br/>title: String<br/>status: PostStatus<br/>replyCount: Integer"]:::post
+  Post["<b>Post</b><hr/>authorId: Long<br/>category: PostCategory<br/>title: String<br/>status: PostStatus<br/>replyCount: Integer"]:::post
   Reply["<b>Reply</b><hr/>postId: Long<br/>authorId: Long<br/>parentReplyId: Long<br/>content: String<br/>status: PostStatus"]:::post
-  PostInteraction["<b>PostInteraction</b><hr/>userId: Long<br/>targetType: InteractionTargetType<br/>targetId: Long<br/>type: InteractionType"]:::post
+  PostInteraction["<b>PostInteraction</b><hr/>userId: Long<br/>targetType: InteractionTargetType<br/>targetId: Long<br/>type: PostInteractionType"]:::post
 
   Task["<b>Task</b><hr/>requesterId: Long<br/>providerId: Long<br/>category: TaskCategory<br/>status: TaskStatus<br/>deadline: LocalDateTime<hr/>assignProvider(Long) : void<br/>markInProgress() : void<br/>markCompleted() : void"]:::task
   TaskApplication["<b>TaskApplication</b><hr/>taskId: Long<br/>applicantId: Long<br/>status: ApplicationStatus<br/>message: String"]:::task
@@ -21,7 +21,7 @@ flowchart LR
 
   Conversation["<b>Conversation</b><hr/>type: ConversationType<br/>ownerId: Long<br/>peerUserId: Long<br/>replyable: Boolean"]:::msg
   Message["<b>Message</b><hr/>conversationId: Long<br/>senderId: Long<br/>type: MessageType<br/>content: String"]:::msg
-  Attachment["<b>Attachment</b><hr/>ownerType: AttachmentOwnerType<br/>ownerId: Long<br/>type: AttachmentType<br/>url: String"]:::attach
+  Attachment["<b>Attachment</b><hr/>uploaderId: Long<br/>ownerType: AttachmentOwnerType<br/>ownerId: Long<br/>type: AttachmentType<br/>fileUrl: String<br/>status: AttachmentStatus"]:::attach
   Report["<b>Report</b><hr/>reporterId: Long<br/>targetType: ReportTargetType<br/>targetId: Long<br/>status: ModerationStatus"]:::govern
   ModerationRecord["<b>ModerationRecord</b><hr/>reportId: Long<br/>targetType: ReportTargetType<br/>handlerId: Long<br/>decision: String"]:::govern
 

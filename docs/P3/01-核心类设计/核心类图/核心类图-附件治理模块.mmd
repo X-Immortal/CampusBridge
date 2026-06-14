@@ -3,10 +3,15 @@ classDiagram
 direction LR
 class Attachment {
   id: Long
+  uploaderId: Long
   ownerType: AttachmentOwnerType
   ownerId: Long
   type: AttachmentType
-  url: String
+  fileName: String
+  fileUrl: String
+  contentType: String
+  size: Long
+  status: AttachmentStatus
   createdAt: LocalDateTime
 }
 class AttachmentOwnerType {
@@ -22,6 +27,12 @@ class AttachmentType {
   type: enumeration value list
   IMAGE value
   FILE value
+}
+class AttachmentStatus {
+  type: enumeration value list
+  TEMPORARY value
+  BOUND value
+  DELETED value
 }
 class Report {
   id: Long
@@ -60,6 +71,7 @@ class ModerationStatus {
 }
 Attachment --> AttachmentOwnerType : ownerType
 Attachment --> AttachmentType : type
+Attachment --> AttachmentStatus : status
 Report o-- ModerationRecord : 0..*
 Report --> ReportTargetType : target
 Report --> ModerationStatus : status
@@ -68,6 +80,7 @@ ModerationRecord --> ModerationStatus : status
 class Attachment:::attach
 class AttachmentOwnerType:::attach
 class AttachmentType:::attach
+class AttachmentStatus:::attach
 class Report:::govern
 class ModerationRecord:::govern
 class ReportTargetType:::govern

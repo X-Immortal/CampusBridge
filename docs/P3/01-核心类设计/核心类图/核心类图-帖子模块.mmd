@@ -4,7 +4,7 @@ direction LR
 class Post {
   id: Long
   authorId: Long
-  categoryId: Long
+  category: PostCategory
   title: String
   content: String
   status: PostStatus
@@ -26,7 +26,7 @@ class PostInteraction {
   userId: Long
   targetType: InteractionTargetType
   targetId: Long
-  type: InteractionType
+  type: PostInteractionType
   createdAt: LocalDateTime
 }
 class PostCategory {
@@ -51,11 +51,10 @@ class InteractionTargetType {
   POST value
   REPLY value
 }
-class InteractionType {
+class PostInteractionType {
   type: enumeration value list
   LIKE value
   MARK value
-  ACCEPT value
 }
 Post *-- Reply : 1-*
 Reply --> Reply : parent
@@ -65,14 +64,14 @@ Reply --> PostStatus : status
 PostInteraction --> Post : target
 PostInteraction --> Reply : target
 PostInteraction --> InteractionTargetType : targetType
-PostInteraction --> InteractionType : type
+PostInteraction --> PostInteractionType : type
 class Post:::post
 class Reply:::post
 class PostInteraction:::post
 class PostCategory:::post
 class PostStatus:::post
 class InteractionTargetType:::post
-class InteractionType:::post
+class PostInteractionType:::post
 classDef view fill:#E9F5FF,stroke:#2F80ED,color:#1f2933;
 classDef user fill:#F0F7EA,stroke:#5A9C42,color:#1f2933;
 classDef post fill:#FFF6DE,stroke:#D99A00,color:#1f2933;
