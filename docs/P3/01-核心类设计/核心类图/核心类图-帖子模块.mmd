@@ -1,0 +1,83 @@
+﻿%%{init: {"theme": "base", "themeVariables": {"fontFamily": "Arial, Microsoft YaHei, sans-serif", "fontSize": "14px", "primaryTextColor": "#1f2933", "lineColor": "#333333"}, "flowchart": {"curve": "linear"}, "class": {"hideEmptyMembersBox": true}}}%%
+classDiagram
+direction LR
+class Post {
+  id: Long
+  authorId: Long
+  categoryId: Long
+  title: String
+  content: String
+  status: PostStatus
+  replyCount: Integer
+  likeCount: Integer
+  markCount: Integer
+}
+class Reply {
+  id: Long
+  postId: Long
+  authorId: Long
+  parentReplyId: Long
+  content: String
+  status: PostStatus
+  likeCount: Integer
+}
+class PostInteraction {
+  id: Long
+  userId: Long
+  targetType: InteractionTargetType
+  targetId: Long
+  type: InteractionType
+  createdAt: LocalDateTime
+}
+class PostCategory {
+  type: enumeration value list
+  INQUIRY_HELP value
+  SECOND_HAND value
+  TEAM_FRIEND value
+  CAMPUS_SOCIAL value
+}
+class PostStatus {
+  type: enumeration value list
+  DRAFT value
+  PUBLISHED value
+  PENDING_REVIEW value
+  HIDDEN value
+  CLOSED value
+  DELETED value
+  REJECTED value
+}
+class InteractionTargetType {
+  type: enumeration value list
+  POST value
+  REPLY value
+}
+class InteractionType {
+  type: enumeration value list
+  LIKE value
+  MARK value
+  ACCEPT value
+}
+Post *-- Reply : 1-*
+Reply --> Reply : parent
+Post --> PostCategory : category
+Post --> PostStatus : status
+Reply --> PostStatus : status
+PostInteraction --> Post : target
+PostInteraction --> Reply : target
+PostInteraction --> InteractionTargetType : targetType
+PostInteraction --> InteractionType : type
+class Post:::post
+class Reply:::post
+class PostInteraction:::post
+class PostCategory:::post
+class PostStatus:::post
+class InteractionTargetType:::post
+class InteractionType:::post
+classDef view fill:#E9F5FF,stroke:#2F80ED,color:#1f2933;
+classDef user fill:#F0F7EA,stroke:#5A9C42,color:#1f2933;
+classDef post fill:#FFF6DE,stroke:#D99A00,color:#1f2933;
+classDef task fill:#FDECEC,stroke:#D94B4B,color:#1f2933;
+classDef msg fill:#F1ECFF,stroke:#7B61D1,color:#1f2933;
+classDef attach fill:#EEF2F5,stroke:#607D8B,color:#1f2933;
+classDef govern fill:#FFF0F6,stroke:#C94F8A,color:#1f2933;
+classDef service fill:#F5F5F5,stroke:#555555,color:#1f2933;

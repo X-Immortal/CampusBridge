@@ -1,0 +1,82 @@
+﻿%%{init: {"theme": "base", "themeVariables": {"fontFamily": "Arial, Microsoft YaHei, sans-serif", "fontSize": "14px", "primaryTextColor": "#1f2933", "lineColor": "#333333"}, "flowchart": {"curve": "linear"}, "class": {"hideEmptyMembersBox": true}}}%%
+classDiagram
+direction LR
+class ContentItemView {
+  itemType: ContentItemType
+  sourceId: Long
+  title: String
+  summary: String
+  authorId: Long
+  categoryName: String
+  statusLabel: String
+  sortTime: LocalDateTime
+  rewardLabel: String
+}
+class PostDetailView {
+  post: Post
+  authorProfile: UserHomepageView
+  replies: List~Reply~
+  likedByCurrentUser: Boolean
+  markedByCurrentUser: Boolean
+  acceptedReplyId: Long
+}
+class TaskDetailView {
+  task: Task
+  requesterProfile: UserHomepageView
+  providerProfile: UserHomepageView
+  applications: List~TaskApplication~
+  completionProof: CompletionProof
+  history: List~TaskHistory~
+  reviews: List~Review~
+}
+class ContentSearchCriteria {
+  keyword: String
+  itemTypes: Set~ContentItemType~
+  categoryCode: String
+  campus: String
+  status: String
+  sortBy: String
+  pageRequest: PageRequest
+}
+class ContentItemAdapter~T~ {
+  <<interface>>
+  sourceType(): Class~T~
+  itemType(): ContentItemType
+  toContentItem(T): ContentItemView
+}
+class PostContentItemAdapter {
+  sourceType(): Class~Post~
+  itemType(): POST
+  toContentItem(Post): ContentItemView
+}
+class TaskContentItemAdapter {
+  sourceType(): Class~Task~
+  itemType(): TASK
+  toContentItem(Task): ContentItemView
+}
+PostContentItemAdapter ..|> ContentItemAdapter~T~ : create
+TaskContentItemAdapter ..|> ContentItemAdapter~T~ : create
+PostContentItemAdapter ..> ContentItemView : view
+TaskContentItemAdapter ..> ContentItemView : view
+PostDetailView o-- Post : post
+PostDetailView o-- Reply : replies
+PostDetailView o-- UserHomepageView : authorProfile
+TaskDetailView o-- Task : task
+TaskDetailView o-- TaskApplication : applications
+TaskDetailView o-- CompletionProof : completionProof
+TaskDetailView o-- TaskHistory : history
+TaskDetailView o-- Review : reviews
+class ContentItemView:::view
+class PostDetailView:::view
+class TaskDetailView:::view
+class ContentSearchCriteria:::view
+class PostContentItemAdapter:::view
+class TaskContentItemAdapter:::view
+classDef view fill:#E9F5FF,stroke:#2F80ED,color:#1f2933;
+classDef user fill:#F0F7EA,stroke:#5A9C42,color:#1f2933;
+classDef post fill:#FFF6DE,stroke:#D99A00,color:#1f2933;
+classDef task fill:#FDECEC,stroke:#D94B4B,color:#1f2933;
+classDef msg fill:#F1ECFF,stroke:#7B61D1,color:#1f2933;
+classDef attach fill:#EEF2F5,stroke:#607D8B,color:#1f2933;
+classDef govern fill:#FFF0F6,stroke:#C94F8A,color:#1f2933;
+classDef service fill:#F5F5F5,stroke:#555555,color:#1f2933;
