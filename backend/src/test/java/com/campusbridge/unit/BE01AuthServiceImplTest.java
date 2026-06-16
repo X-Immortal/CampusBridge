@@ -4,13 +4,16 @@ import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.pojo.User;
 import com.campusbridge.service.impl.AuthServiceImpl;
+import com.campusbridge.service.impl.EmailVerificationCodeSender;
 import com.campusbridge.utils.JwtUtil;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Map;
 
@@ -31,14 +34,25 @@ class BE01AuthServiceImplTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
+    @Mock
+    private EmailVerificationCodeSender emailCodeSender;
+
     @InjectMocks
     private AuthServiceImpl authService;
+
+    @BeforeEach
+    void setUp() {
+        ReflectionTestUtils.setField(authService, "emailCodeSecret", "test-secret");
+    }
 
     // ---- register ----
 
     @Test
     void registerCreatesUserAndReturnsId() {
-        RequestDtos.RegisterRequest request = registerRequest("alice", "pass123", "13800000001", null);
+        when(emailCodeSender.sendCode(any(), any(), any())).thenReturn(true);
+        String code = authService.sendRegistrationCode("alice@test.com");
+
+        RequestDtos.RegisterRequest request = registerRequest("alice", "pass123", "13800000001", "alice@test.com", code);
         when(userMapper.selectByUsername("alice")).thenReturn(null);
         when(userMapper.selectByPhoneHash(any())).thenReturn(null);
         when(passwordEncoder.encode("pass123")).thenReturn("hashed-pass");
@@ -61,13 +75,13 @@ class BE01AuthServiceImplTest {
 
     @Test
     void registerReturnsNullForBlankUsername() {
-        RequestDtos.RegisterRequest request = registerRequest("  ", "pass123", "13800000001", null);
+        RequestDtos.RegisterRequest request = registerRequest("  ", "pass123", "13800000001", "alice@test.com", "000000");
         assertThat(authService.register(request)).isNull();
     }
 
     @Test
     void registerReturnsMinusOneForDuplicateUsername() {
-        RequestDtos.RegisterRequest request = registerRequest("alice", "pass123", "13800000001", null);
+        RequestDtos.RegisterRequest request = registerRequest("alice", "pass123", "13800000001", "alice@test.com", "000000");
         when(userMapper.selectByUsername("alice")).thenReturn(new User());
 
         assertThat(authService.register(request)).isEqualTo(-1L);
@@ -75,7 +89,10 @@ class BE01AuthServiceImplTest {
 
     @Test
     void registerReturnsMinusTwoForDuplicatePhone() {
-        RequestDtos.RegisterRequest request = registerRequest("alice", "pass123", "13800000001", null);
+        when(emailCodeSender.sendCode(any(), any(), any())).thenReturn(true);
+        String code = authService.sendRegistrationCode("alice@test.com");
+
+        RequestDtos.RegisterRequest request = registerRequest("alice", "pass123", "13800000001", "alice@test.com", code);
         when(userMapper.selectByUsername("alice")).thenReturn(null);
         when(userMapper.selectByPhoneHash(any())).thenReturn(new User());
 
@@ -84,7 +101,10 @@ class BE01AuthServiceImplTest {
 
     @Test
     void registerReturnsNullWhenInsertFails() {
-        RequestDtos.RegisterRequest request = registerRequest("alice", "pass123", "13800000001", null);
+        when(emailCodeSender.sendCode(any(), any(), any())).thenReturn(true);
+        String code = authService.sendRegistrationCode("alice@test.com");
+
+        RequestDtos.RegisterRequest request = registerRequest("alice", "pass123", "13800000001", "alice@test.com", code);
         when(userMapper.selectByUsername("alice")).thenReturn(null);
         when(userMapper.selectByPhoneHash(any())).thenReturn(null);
         when(passwordEncoder.encode("pass123")).thenReturn("hashed-pass");
@@ -166,12 +186,13 @@ class BE01AuthServiceImplTest {
 
     // ---- helpers ----
 
-    private RequestDtos.RegisterRequest registerRequest(String username, String password, String phone, String email) {
+    private RequestDtos.RegisterRequest registerRequest(String username, String password, String phone, String email, String code) {
         RequestDtos.RegisterRequest request = new RequestDtos.RegisterRequest();
         request.username = username;
         request.password = password;
         request.phone = phone;
         request.email = email;
+        request.code = code;
         return request;
     }
 
