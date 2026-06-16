@@ -1,0 +1,127 @@
+﻿%%{init: {"theme": "base", "themeVariables": {"fontFamily": "Arial, Microsoft YaHei, sans-serif", "fontSize": "14px", "primaryTextColor": "#1f2933", "lineColor": "#333333"}, "flowchart": {"curve": "linear"}, "class": {"hideEmptyMembersBox": true}}}%%
+classDiagram
+direction LR
+class User {
+  id: Long
+  username: String
+  passwordHash: String
+  phoneCipher: String
+  phoneHash: String
+  email: String
+  role: UserRole
+  enabled: Boolean
+  isAdmin(): boolean
+  disable(): void
+  enable(): void
+  changePassword(String): void
+}
+class UserProfile {
+  id: Long
+  userId: Long
+  nickname: String
+  bio: String
+  campus: String
+  college: String
+  contactInfo: String
+  avatarUrl: String
+  interestTags: List~String~
+  skillTags: List~String~
+}
+class CampusVerification {
+  id: Long
+  userId: Long
+  method: VerificationMethod
+  realNameCipher: String
+  studentNumberCipher: String
+  studentNumberHash: String
+  school: String
+  department: String
+  status: VerificationStatus
+  reviewerId: Long
+}
+class UserHomepageView {
+  userId: Long
+  nickname: String
+  avatarUrl: String
+  campus: String
+  bio: String
+  verified: Boolean
+  creditLevel: Integer
+  points: Integer
+}
+class UserCredit {
+  id: Long
+  userId: Long
+  points: Integer
+  level: Integer
+  updatedAt: LocalDateTime
+}
+class CreditRecord {
+  id: Long
+  userId: Long
+  changeValue: Integer
+  reason: String
+  sourceType: String
+  sourceId: Long
+  createdAt: LocalDateTime
+}
+class CreditLevelPolicy {
+  calculateLevel(int): Integer
+  pointsRequiredForLevel(int): Integer
+}
+class AuthResult {
+  userId: Long
+  username: String
+  role: UserRole
+  accessToken: String
+  expiresAt: LocalDateTime
+  profileCompleted: Boolean
+}
+class UserRole {
+  type: enumeration value list
+  USER value
+  ADMIN value
+}
+class VerificationMethod {
+  type: enumeration value list
+  STUDENT_CARD_IMAGE value
+  CAMPUS_EMAIL value
+  MANUAL_REVIEW value
+}
+class VerificationStatus {
+  type: enumeration value list
+  UNVERIFIED value
+  PENDING value
+  VERIFIED value
+  REJECTED value
+}
+User *-- UserProfile : 1-1
+User o-- CampusVerification : 1-0..*
+User *-- UserCredit : 1-1
+User o-- CreditRecord : 1-*
+CreditLevelPolicy ..> UserCredit : calculate
+UserHomepageView o-- UserProfile : summary
+UserHomepageView o-- UserCredit : credit
+CampusVerification --> VerificationStatus : status
+CampusVerification --> VerificationMethod : for
+User --> UserRole : role
+AuthResult --> UserRole : role
+class User:::user
+class UserProfile:::user
+class CampusVerification:::user
+class UserHomepageView:::user
+class UserCredit:::user
+class CreditRecord:::user
+class CreditLevelPolicy:::user
+class AuthResult:::user
+class UserRole:::user
+class VerificationMethod:::user
+class VerificationStatus:::user
+classDef view fill:#E9F5FF,stroke:#2F80ED,color:#1f2933;
+classDef user fill:#F0F7EA,stroke:#5A9C42,color:#1f2933;
+classDef post fill:#FFF6DE,stroke:#D99A00,color:#1f2933;
+classDef task fill:#FDECEC,stroke:#D94B4B,color:#1f2933;
+classDef msg fill:#F1ECFF,stroke:#7B61D1,color:#1f2933;
+classDef attach fill:#EEF2F5,stroke:#607D8B,color:#1f2933;
+classDef govern fill:#FFF0F6,stroke:#C94F8A,color:#1f2933;
+classDef service fill:#F5F5F5,stroke:#555555,color:#1f2933;

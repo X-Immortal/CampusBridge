@@ -1,0 +1,242 @@
+﻿%%{init: {"theme": "base", "themeVariables": {"fontFamily": "Arial, Microsoft YaHei, sans-serif", "fontSize": "18px", "primaryTextColor": "#1f2933", "lineColor": "#333333"}, "er": {"layoutDirection": "TB"}}}%%
+erDiagram
+  USERS["users"] {
+    bigint id PK
+    string username UK
+    string password_hash
+    string phone_cipher
+    string phone_hash UK
+    string email
+    string role
+    boolean enabled
+    datetime created_at
+    datetime updated_at
+  }
+
+  USER_PROFILES["user_profiles"] {
+    bigint id PK
+    bigint user_id FK
+    string nickname
+    string bio
+    string campus
+    string college
+    string contact_info
+    string avatar_url
+    string interest_tags
+    string skill_tags
+  }
+
+  CAMPUS_VERIFICATIONS["campus_verifications"] {
+    bigint id PK
+    bigint user_id FK
+    bigint reviewer_id FK
+    string method
+    string real_name_cipher
+    string student_number_cipher
+    string student_number_hash
+    string school
+    string department
+    string status
+    datetime reviewed_at
+  }
+
+  USER_CREDITS["user_credits"] {
+    bigint id PK
+    bigint user_id FK
+    int points
+    int level
+    datetime updated_at
+  }
+
+  CREDIT_RECORDS["credit_records"] {
+    bigint id PK
+    bigint user_id FK
+    int change_value
+    string reason
+    string source_type
+    bigint source_id
+    datetime created_at
+  }
+
+  POSTS["posts"] {
+    bigint id PK
+    bigint author_id FK
+    bigint accepted_reply_id
+    string category
+    string title
+    string content
+    string status
+    int reply_count
+    int like_count
+    int mark_count
+    datetime created_at
+  }
+
+  REPLIES["replies"] {
+    bigint id PK
+    bigint post_id FK
+    bigint author_id FK
+    bigint parent_reply_id FK
+    string content
+    string status
+    int like_count
+    datetime created_at
+  }
+
+  POST_INTERACTIONS["post_interactions"] {
+    bigint id PK
+    bigint user_id FK
+    string target_type
+    bigint target_id
+    string type
+    datetime created_at
+  }
+
+  TASKS["tasks"] {
+    bigint id PK
+    bigint requester_id FK
+    bigint provider_id FK
+    string category
+    string title
+    string description
+    string campus
+    string location
+    datetime deadline
+    string reward_type
+    string reward_description
+    int reward_amount
+    string completion_standard
+    boolean requires_proof
+    string status
+    datetime created_at
+  }
+
+  TASK_APPLICATIONS["task_applications"] {
+    bigint id PK
+    bigint task_id FK
+    bigint applicant_id FK
+    string message
+    string status
+    datetime created_at
+    datetime handled_at
+  }
+
+  COMPLETION_PROOFS["completion_proofs"] {
+    bigint id PK
+    bigint task_id FK
+    bigint submitter_id FK
+    string description
+    datetime submitted_at
+  }
+
+  TASK_HISTORIES["task_histories"] {
+    bigint id PK
+    bigint task_id FK
+    bigint operator_id FK
+    string from_status
+    string to_status
+    string note
+    datetime created_at
+  }
+
+  REVIEWS["reviews"] {
+    bigint id PK
+    bigint task_id FK
+    bigint reviewer_id FK
+    bigint reviewee_id FK
+    int rating
+    string comment
+    datetime created_at
+  }
+
+  CONVERSATIONS["conversations"] {
+    bigint id PK
+    bigint owner_id FK
+    bigint peer_user_id FK
+    string type
+    string title
+    string related_type
+    bigint related_id
+    boolean replyable
+    datetime last_message_at
+  }
+
+  MESSAGES["messages"] {
+    bigint id PK
+    bigint conversation_id FK
+    bigint sender_id FK
+    string type
+    string content
+    datetime read_at
+    datetime created_at
+  }
+
+  ATTACHMENTS["attachments"] {
+    bigint id PK
+    bigint uploader_id FK
+    string owner_type
+    bigint owner_id
+    string type
+    string file_name
+    string file_url
+    string content_type
+    bigint size
+    string status
+    datetime created_at
+  }
+
+  REPORTS["reports"] {
+    bigint id PK
+    bigint reporter_id FK
+    string target_type
+    bigint target_id
+    string reason
+    string description
+    string status
+    datetime created_at
+  }
+
+  MODERATION_RECORDS["moderation_records"] {
+    bigint id PK
+    bigint report_id FK
+    bigint handler_id FK
+    string target_type
+    bigint target_id
+    string status
+    string decision
+    datetime handled_at
+  }
+
+  USERS ||--|| USER_PROFILES : owns
+  USERS ||--|| USER_CREDITS : owns
+  USERS ||--o{ CAMPUS_VERIFICATIONS : submits
+  USERS ||--o{ CAMPUS_VERIFICATIONS : reviews
+  USERS ||--o{ CREDIT_RECORDS : has
+
+  USERS ||--o{ POSTS : authors
+  POSTS ||--o{ REPLIES : contains
+  USERS ||--o{ REPLIES : authors
+  REPLIES ||--o{ REPLIES : parent_of
+  USERS ||--o{ POST_INTERACTIONS : creates
+
+  USERS ||--o{ TASKS : requests
+  USERS ||--o{ TASKS : provides
+  TASKS ||--o{ TASK_APPLICATIONS : receives
+  USERS ||--o{ TASK_APPLICATIONS : applies
+  TASKS ||--o| COMPLETION_PROOFS : has
+  USERS ||--o{ COMPLETION_PROOFS : submits
+  TASKS ||--o{ TASK_HISTORIES : records
+  USERS ||--o{ TASK_HISTORIES : operates
+  TASKS ||--o{ REVIEWS : receives
+  USERS ||--o{ REVIEWS : writes
+  USERS ||--o{ REVIEWS : receives
+
+  USERS ||--o{ CONVERSATIONS : owns
+  USERS ||--o{ CONVERSATIONS : peers
+  CONVERSATIONS ||--o{ MESSAGES : contains
+  USERS ||--o{ MESSAGES : sends
+
+  USERS ||--o{ ATTACHMENTS : uploads
+  USERS ||--o{ REPORTS : reports
+  REPORTS ||--o{ MODERATION_RECORDS : produces
+  USERS ||--o{ MODERATION_RECORDS : handles
