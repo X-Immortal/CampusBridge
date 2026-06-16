@@ -52,7 +52,8 @@ class BE01AuthServiceImplTest {
         when(emailCodeSender.sendCode(any(), any(), any())).thenReturn(true);
         String code = authService.sendRegistrationCode("alice@test.com");
 
-        RequestDtos.RegisterRequest request = registerRequest("alice", "pass123", "13800000001", "alice@test.com", code);
+        RequestDtos.RegisterRequest request =
+                registerRequest("alice", "pass123", "13800000001", "alice@test.com", code);
         when(userMapper.selectByUsername("alice")).thenReturn(null);
         when(userMapper.selectByPhoneHash(any())).thenReturn(null);
         when(passwordEncoder.encode("pass123")).thenReturn("hashed-pass");
@@ -75,13 +76,15 @@ class BE01AuthServiceImplTest {
 
     @Test
     void registerReturnsNullForBlankUsername() {
-        RequestDtos.RegisterRequest request = registerRequest("  ", "pass123", "13800000001", "alice@test.com", "000000");
+        RequestDtos.RegisterRequest request =
+                registerRequest("  ", "pass123", "13800000001", "alice@test.com", "000000");
         assertThat(authService.register(request)).isNull();
     }
 
     @Test
     void registerReturnsMinusOneForDuplicateUsername() {
-        RequestDtos.RegisterRequest request = registerRequest("alice", "pass123", "13800000001", "alice@test.com", "000000");
+        RequestDtos.RegisterRequest request =
+                registerRequest("alice", "pass123", "13800000001", "alice@test.com", "000000");
         when(userMapper.selectByUsername("alice")).thenReturn(new User());
 
         assertThat(authService.register(request)).isEqualTo(-1L);
@@ -92,7 +95,8 @@ class BE01AuthServiceImplTest {
         when(emailCodeSender.sendCode(any(), any(), any())).thenReturn(true);
         String code = authService.sendRegistrationCode("alice@test.com");
 
-        RequestDtos.RegisterRequest request = registerRequest("alice", "pass123", "13800000001", "alice@test.com", code);
+        RequestDtos.RegisterRequest request =
+                registerRequest("alice", "pass123", "13800000001", "alice@test.com", code);
         when(userMapper.selectByUsername("alice")).thenReturn(null);
         when(userMapper.selectByPhoneHash(any())).thenReturn(new User());
 
@@ -104,7 +108,8 @@ class BE01AuthServiceImplTest {
         when(emailCodeSender.sendCode(any(), any(), any())).thenReturn(true);
         String code = authService.sendRegistrationCode("alice@test.com");
 
-        RequestDtos.RegisterRequest request = registerRequest("alice", "pass123", "13800000001", "alice@test.com", code);
+        RequestDtos.RegisterRequest request =
+                registerRequest("alice", "pass123", "13800000001", "alice@test.com", code);
         when(userMapper.selectByUsername("alice")).thenReturn(null);
         when(userMapper.selectByPhoneHash(any())).thenReturn(null);
         when(passwordEncoder.encode("pass123")).thenReturn("hashed-pass");
@@ -186,7 +191,8 @@ class BE01AuthServiceImplTest {
 
     // ---- helpers ----
 
-    private RequestDtos.RegisterRequest registerRequest(String username, String password, String phone, String email, String code) {
+    private RequestDtos.RegisterRequest registerRequest(
+            String username, String password, String phone, String email, String code) {
         RequestDtos.RegisterRequest request = new RequestDtos.RegisterRequest();
         request.username = username;
         request.password = password;
