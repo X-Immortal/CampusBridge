@@ -46,8 +46,11 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public Long register(RequestDtos.RegisterRequest request) {
-        if (request == null || request.username == null || request.username.isBlank()
-                || request.password == null || request.password.isBlank()) {
+        if (request == null
+                || request.username == null || request.username.isBlank()
+                || request.password == null || request.password.isBlank()
+                || request.email == null || request.email.isBlank()
+                || request.phone == null || request.phone.isBlank()) {
             return null;
         }
 
@@ -55,25 +58,23 @@ public class AuthServiceImpl implements AuthService {
             return -1L;
         }
 
-        if (request.email != null && !request.email.isBlank()) {
-            if (!registrationCodeStore.containsKey(request.email.toLowerCase().trim())) {
-                throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "请先发送邮箱验证码");
-            }
-            AccountEmailRecord record = registrationCodeStore.get(request.email.toLowerCase().trim());
-            if (record.expiresAt.isBefore(LocalDateTime.now())) {
-                registrationCodeStore.remove(request.email.toLowerCase().trim());
-                throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "验证码已过期，请重新发送");
-            }
-            String expectedHash = sha256(
-                    emailCodeSecret + ":" + request.email.toLowerCase().trim() + ":" + request.code.trim());
-            if (!expectedHash.equals(record.codeHash)) {
-                throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "验证码不正确");
-            }
-            registrationCodeStore.remove(request.email.toLowerCase().trim());
+        if (!registrationCodeStore.containsKey(request.email.toLowerCase().trim())) {
+            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "请先发送邮箱验证码");
         }
+        AccountEmailRecord record = registrationCodeStore.get(request.email.toLowerCase().trim());
+        if (record.expiresAt.isBefore(LocalDateTime.now())) {
+            registrationCodeStore.remove(request.email.toLowerCase().trim());
+            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "验证码已过期，请重新发送");
+        }
+        String expectedHash = sha256(
+                emailCodeSecret + ":" + request.email.toLowerCase().trim() + ":" + request.code.trim());
+        if (!expectedHash.equals(record.codeHash)) {
+            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "验证码不正确");
+        }
+        registrationCodeStore.remove(request.email.toLowerCase().trim());
 
         String phoneHash = sha256(request.phone);
-        if (phoneHash != null && userMapper.selectByPhoneHash(phoneHash) != null) {
+        if (userMapper.selectByPhoneHash(phoneHash) != null) {
             return -2L;
         }
 

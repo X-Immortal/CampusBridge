@@ -1,11 +1,10 @@
 <script setup>
-import { computed, reactive, ref } from 'vue'
+import { reactive, ref } from 'vue'
 import {
   AtSign,
   KeyRound,
   LoaderCircle,
   Phone,
-  ShieldCheck,
   X
 } from '@lucide/vue'
 import api from '../services/api'
@@ -37,8 +36,6 @@ const emailSending = ref(false)
 const phoneForm = reactive({ phone: '' })
 const phoneErrors = reactive({})
 
-const currentEmail = computed(() => state.user?.email || '')
-const currentPhone = computed(() => state.user?.phone || '')
 
 function setFeedback(msg, type = 'success') {
   feedback.value = msg
@@ -264,9 +261,6 @@ function close() {
         class="modal-form"
         @submit.prevent="handleConfirmEmail"
       >
-        <p class="modal-hint">
-          <ShieldCheck :size="15" /> 当前邮箱：{{ currentEmail || '未设置' }}
-        </p>
         <label class="field">
           <span>新邮箱</span>
           <input
@@ -321,9 +315,6 @@ function close() {
         class="modal-form"
         @submit.prevent="handleUpdatePhone"
       >
-        <p class="modal-hint">
-          <ShieldCheck :size="15" /> 当前手机：{{ currentPhone || '未设置' }}
-        </p>
         <label class="field">
           <span>手机号</span>
           <input

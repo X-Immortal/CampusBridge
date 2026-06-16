@@ -130,11 +130,29 @@ async function sendRegisterCode() {
 async function handleRegister() {
   pendingAction.value = 'register'
   feedback.value = ''
+
+  if (!registerForm.username.trim()) {
+    setFeedback('请输入用户名', 'danger')
+    return
+  }
+  if (!registerForm.phone.trim()) {
+    setFeedback('请输入手机号', 'danger')
+    return
+  }
   const email = registerForm.email.trim()
-  if (email && !registerForm.code.trim()) {
+  if (!email) {
+    setFeedback('请输入邮箱', 'danger')
+    return
+  }
+  if (!registerForm.code.trim()) {
     setFeedback('请先发送并填写邮箱验证码', 'danger')
     return
   }
+  if (!registerForm.password) {
+    setFeedback('请输入密码', 'danger')
+    return
+  }
+
   try {
     await register({ ...registerForm, email, code: registerForm.code.trim() })
     setFeedback('注册成功，请使用用户名和密码登录。')
