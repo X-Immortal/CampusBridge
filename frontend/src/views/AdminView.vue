@@ -3,6 +3,8 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import {
   BadgeCheck,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   FileWarning,
   IdCard,
   LoaderCircle,
@@ -35,12 +37,32 @@ const verificationPage = reactive({
   page: 1,
   size: 20
 })
+const verificationTotal = ref(0)
 const verifications = ref([])
 const verificationsLoading = ref(false)
 const verificationFeedback = ref('')
 const verificationFeedbackType = ref('success')
 const verificationRejectDrafts = reactive({})
 const verificationActionLoading = ref('')
+
+const verificationTotalPages = computed(() =>
+  Math.max(1, Math.ceil(verificationTotal.value / verificationPage.size))
+)
+
+const visibleVerificationPages = computed(() => {
+  const total = verificationTotalPages.value
+  const current = verificationPage.page
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, i) => i + 1)
+  }
+  const pages = new Set([1, total])
+  for (let i = Math.max(2, current - 1); i <= Math.min(total - 1, current + 1); i++) {
+    pages.add(i)
+  }
+  if (current > 3) pages.add(Math.max(2, current - 2))
+  if (current < total - 2) pages.add(Math.min(total - 1, current + 2))
+  return Array.from(pages).sort((a, b) => a - b)
+})
 
 const reports = ref([])
 const reportsLoading = ref(false)
@@ -66,7 +88,7 @@ const lastModerationRecord = ref(null)
 const activeSection = ref('verifications')
 
 const isAdmin = computed(() => String(state.user?.role || '').toUpperCase() === 'ADMIN')
-const pendingVerificationCount = computed(() => verifications.value.length)
+const pendingVerificationCount = computed(() => verificationTotal.value)
 const reportCount = computed(() => reports.value.length)
 function switchSection(sectionKey) {
   activeSection.value = sectionKey
@@ -158,6 +180,12 @@ function setReportError(key, message) {
   reportErrors[key] = message
 }
 
+function extractTotal(result) {
+  if (result == null) return 0
+  if (Array.isArray(result)) return result.length
+  return Number(result?.total ?? result?.totalElements ?? result?.totalCount ?? result?.count ?? 0)
+}
+
 async function loadVerifications() {
   verificationsLoading.value = true
   verificationFeedback.value = ''
@@ -166,12 +194,20 @@ async function loadVerifications() {
       page: verificationPage.page,
       size: verificationPage.size
     })
+    verificationTotal.value = extractTotal(result)
     verifications.value = normalizeItems(result).map(normalizeVerification)
   } catch (error) {
     setVerificationFeedback(error.message, 'danger')
   } finally {
     verificationsLoading.value = false
   }
+}
+
+function goToVerificationPage(page) {
+  const pageNum = Number(page)
+  if (!pageNum || pageNum < 1 || pageNum > verificationTotalPages.value) return
+  verificationPage.page = pageNum
+  loadVerifications()
 }
 
 async function approveVerification(record) {
@@ -385,39 +421,6 @@ onMounted(async () => {
                 待审核校园身份
               </h2>
             </div>
-            <button
-              class="icon-action"
-              type="button"
-              aria-label="刷新待审认证"
-              :disabled="verificationsLoading"
-              @click="loadVerifications"
-            >
-              <RefreshCw
-                :class="{ spinning: verificationsLoading }"
-                :size="18"
-                aria-hidden="true"
-              />
-            </button>
-          </div>
-
-          <div class="inline-controls">
-            <label class="field-control">
-              <span>页码</span>
-              <input
-                v-model.number="verificationPage.page"
-                type="number"
-                min="1"
-              >
-            </label>
-            <label class="field-control">
-              <span>每页</span>
-              <input
-                v-model.number="verificationPage.size"
-                type="number"
-                min="1"
-                max="100"
-              >
-            </label>
           </div>
 
           <div class="inline-controls">
@@ -455,106 +458,152 @@ onMounted(async () => {
             <p>新的 PENDING 认证申请会出现在这里。</p>
           </div>
 
-          <article
-            v-for="record in verifications"
-            v-else
-            :key="record.id"
-            class="verification-card"
-          >
-            <header class="record-card-head">
-              <div>
-                <strong>{{ record.realNameCipher || '待核验姓名' }}</strong>
-                <span>认证 #{{ record.id }} · 用户 #{{ record.userId || '未知' }}</span>
-              </div>
-              <StatusBadge
-                :label="methodLabel(record.method)"
-                tone="info"
-              />
-            </header>
-
-            <dl class="record-meta-grid">
-              <div>
-                <dt>学校</dt>
-                <dd>{{ record.school || '未填写' }}</dd>
-              </div>
-              <div>
-                <dt>院系</dt>
-                <dd>{{ record.department || '未填写' }}</dd>
-              </div>
-              <div>
-                <dt>学号</dt>
-                <dd>{{ record.studentNumberCipher || '未填写' }}</dd>
-              </div>
-              <div>
-                <dt>提交时间</dt>
-                <dd>{{ formatDateTime(record.createdAt) }}</dd>
-              </div>
-            </dl>
-
-            <a
-              v-if="record.evidenceUrl"
-              class="evidence-link"
-              :href="record.evidenceUrl"
-              target="_blank"
-              rel="noreferrer"
+          <template v-else>
+            <nav
+              class="pagination-bar"
+              aria-label="认证审核翻页"
             >
-              查看认证材料
-            </a>
+              <button
+                class="pagination-btn"
+                type="button"
+                :disabled="verificationPage.page <= 1"
+                @click="goToVerificationPage(verificationPage.page - 1)"
+              >
+                <ChevronLeft
+                  :size="17"
+                  aria-hidden="true"
+                />
+                上一页
+              </button>
 
-            <label
-              class="field-control field-control--wide"
-              :for="`verification-reject-${record.id}`"
+              <div class="pagination-pages">
+                <button
+                  v-for="pageNum in visibleVerificationPages"
+                  :key="pageNum"
+                  class="pagination-num"
+                  :class="{ active: pageNum === verificationPage.page }"
+                  type="button"
+                  :aria-current="pageNum === verificationPage.page ? 'page' : undefined"
+                  @click="goToVerificationPage(pageNum)"
+                >
+                  {{ pageNum }}
+                </button>
+              </div>
+
+              <button
+                class="pagination-btn"
+                type="button"
+                :disabled="verificationPage.page >= verificationTotalPages"
+                @click="goToVerificationPage(verificationPage.page + 1)"
+              >
+                下一页
+                <ChevronRight
+                  :size="17"
+                  aria-hidden="true"
+                />
+              </button>
+            </nav>
+
+            <article
+              v-for="record in verifications"
+              :key="record.id"
+              class="verification-card"
             >
-              <span>驳回原因</span>
-              <textarea
-                :id="`verification-reject-${record.id}`"
-                v-model.trim="verificationRejectDrafts[record.id]"
-                maxlength="200"
-                placeholder="可选；不填写则使用后端默认原因。"
-              />
-            </label>
+              <header class="record-card-head">
+                <div>
+                  <strong>{{ record.realNameCipher || '待核验姓名' }}</strong>
+                  <span>认证 #{{ record.id }} · 用户 #{{ record.userId || '未知' }}</span>
+                </div>
+                <StatusBadge
+                  :label="methodLabel(record.method)"
+                  tone="info"
+                />
+              </header>
 
-            <footer class="record-actions">
-              <button
-                class="primary-action"
-                type="button"
-                :disabled="Boolean(verificationActionLoading)"
-                @click="approveVerification(record)"
+              <dl class="record-meta-grid">
+                <div>
+                  <dt>学校</dt>
+                  <dd>{{ record.school || '未填写' }}</dd>
+                </div>
+                <div>
+                  <dt>院系</dt>
+                  <dd>{{ record.department || '未填写' }}</dd>
+                </div>
+                <div>
+                  <dt>学号</dt>
+                  <dd>{{ record.studentNumberCipher || '未填写' }}</dd>
+                </div>
+                <div>
+                  <dt>提交时间</dt>
+                  <dd>{{ formatDateTime(record.createdAt) }}</dd>
+                </div>
+              </dl>
+
+              <a
+                v-if="record.evidenceUrl"
+                class="evidence-link"
+                :href="record.evidenceUrl"
+                target="_blank"
+                rel="noreferrer"
               >
-                <LoaderCircle
-                  v-if="verificationActionLoading === `approve:${record.id}`"
-                  class="spinning"
-                  :size="17"
-                  aria-hidden="true"
-                />
-                <CheckCircle2
-                  v-else
-                  :size="17"
-                  aria-hidden="true"
-                />
-                通过
-              </button>
-              <button
-                class="danger-action"
-                type="button"
-                :disabled="Boolean(verificationActionLoading)"
-                @click="rejectVerification(record)"
+                查看认证材料
+              </a>
+
+              <label
+                class="field-control field-control--wide"
+                :for="`verification-reject-${record.id}`"
               >
-                <LoaderCircle
-                  v-if="verificationActionLoading === `reject:${record.id}`"
-                  class="spinning"
-                  :size="17"
-                  aria-hidden="true"
+                <span>驳回原因</span>
+                <textarea
+                  :id="`verification-reject-${record.id}`"
+                  v-model.trim="verificationRejectDrafts[record.id]"
+                  maxlength="200"
+                  placeholder="可选；不填写则使用后端默认原因。"
                 />
-                <XCircle
-                  v-else
-                  :size="17"
-                  aria-hidden="true"
-                />
-                驳回
-              </button>
-            </footer>
-          </article>
+              </label>
+
+              <footer class="record-actions">
+                <button
+                  class="primary-action"
+                  type="button"
+                  :disabled="Boolean(verificationActionLoading)"
+                  @click="approveVerification(record)"
+                >
+                  <LoaderCircle
+                    v-if="verificationActionLoading === `approve:${record.id}`"
+                    class="spinning"
+                    :size="17"
+                    aria-hidden="true"
+                  />
+                  <CheckCircle2
+                    v-else
+                    :size="17"
+                    aria-hidden="true"
+                  />
+                  通过
+                </button>
+                <button
+                  class="danger-action"
+                  type="button"
+                  :disabled="Boolean(verificationActionLoading)"
+                  @click="rejectVerification(record)"
+                >
+                  <LoaderCircle
+                    v-if="verificationActionLoading === `reject:${record.id}`"
+                    class="spinning"
+                    :size="17"
+                    aria-hidden="true"
+                  />
+                  <XCircle
+                    v-else
+                    :size="17"
+                    aria-hidden="true"
+                  />
+                  驳回
+                </button>
+              </footer>
+            </article>
+          </template>
         </section>
       </section>
 
@@ -1003,6 +1052,80 @@ onMounted(async () => {
   gap: 10px;
 }
 
+/* ---- 翻页组件 ---- */
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding-top: 8px;
+}
+
+.pagination-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid #dbe4ee;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #334155;
+  font-weight: 900;
+  transition:
+    border-color 180ms ease,
+    background-color 180ms ease,
+    color 180ms ease;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  border-color: #c7d2fe;
+  background: #eef2ff;
+  color: #4f46e5;
+}
+
+.pagination-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.pagination-pages {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pagination-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 38px;
+  height: 38px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #334155;
+  font-size: 0.92rem;
+  font-weight: 900;
+  transition:
+    border-color 180ms ease,
+    background-color 180ms ease,
+    color 180ms ease;
+}
+
+.pagination-num:hover {
+  border-color: #c7d2fe;
+  background: #f5f3ff;
+  color: #4f46e5;
+}
+
+.pagination-num.active {
+  border-color: #4f46e5;
+  background: #4f46e5;
+  color: #ffffff;
+}
+
 .field-control {
   display: grid;
   gap: 7px;
@@ -1352,6 +1475,10 @@ onMounted(async () => {
 
   .admin-section-switch button {
     flex: 1 1 140px;
+  }
+
+  .pagination-bar {
+    flex-wrap: wrap;
   }
 }
 </style>
