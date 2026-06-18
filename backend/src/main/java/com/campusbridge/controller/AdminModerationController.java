@@ -5,7 +5,6 @@ import com.campusbridge.common.CurrentUserResolver;
 import com.campusbridge.common.ErrorCode;
 import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.mapper.TaskMapper;
-import com.campusbridge.pojo.CampusVerification;
 import com.campusbridge.pojo.Result;
 import com.campusbridge.pojo.Task;
 import com.campusbridge.service.ReportService;
@@ -157,8 +156,7 @@ public class AdminModerationController {
     public Result listPendingVerifications(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
-        List<CampusVerification> list = verificationService.listPending(page, size);
-        return Result.success(list);
+        return Result.success(verificationService.listPending(page, size));
     }
 
     @PostMapping("/verifications/{id}/approve")

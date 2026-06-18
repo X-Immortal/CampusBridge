@@ -26,7 +26,7 @@
   <select id="selectByStatus" resultType="com.campusbridge.pojo.CampusVerification">
     SELECT * FROM campus_verifications
     WHERE status = #{status}
-    ORDER BY created_at ASC
+    ORDER BY created_at DESC
   </select>
 
   <update id="updateById" parameterType="com.campusbridge.pojo.CampusVerification">

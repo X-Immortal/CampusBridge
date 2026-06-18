@@ -2,6 +2,7 @@ package com.campusbridge.service.impl;
 
 import com.campusbridge.dto.enums.ApiEnums;
 import com.campusbridge.dto.request.RequestDtos;
+import com.campusbridge.dto.response.ResponseDtos;
 import com.campusbridge.mapper.CampusVerificationMapper;
 import com.campusbridge.pojo.CampusVerification;
 import com.campusbridge.service.VerificationService;
@@ -155,9 +156,15 @@ public class VerificationServiceImpl implements VerificationService {
     }
 
     @Override
-    public List<CampusVerification> listPending(int page, int size) {
-        PageHelper.startPage(page, size);
-        return campusVerificationMapper.selectByStatus(STATUS_PENDING);
+    public ResponseDtos.PagedResult<CampusVerification> listPending(int page, int size) {
+        int safePage = Math.max(page, 1);
+        int safeSize = Math.min(Math.max(size, 1), 100);
+        PageHelper.startPage(safePage, safeSize);
+        List<CampusVerification> list = campusVerificationMapper.selectByStatus(STATUS_PENDING);
+        long total = list instanceof com.github.pagehelper.Page<?> pageResult
+                ? pageResult.getTotal()
+                : list.size();
+        return new ResponseDtos.PagedResult<>(list, safePage, safeSize, total);
     }
 
     @Override

@@ -3,7 +3,7 @@ package com.campusbridge.service;
 import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.pojo.CampusVerification;
 
-import java.util.List;
+import com.campusbridge.dto.response.ResponseDtos;
 
 public interface VerificationService {
     Object submit(Long userId, RequestDtos.CreateVerificationRequest request);
@@ -14,7 +14,7 @@ public interface VerificationService {
 
     CampusVerification getMyLatest(Long userId);
 
-    List<CampusVerification> listPending(int page, int size);
+    ResponseDtos.PagedResult<CampusVerification> listPending(int page, int size);
 
     Object review(Long adminUserId, Long verificationId, boolean approved, String rejectReason);
 }
