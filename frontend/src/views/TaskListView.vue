@@ -51,10 +51,12 @@ import {
 } from '../constants'
 import api from '../services/api'
 import { useAuth } from '../stores/auth'
+import { useToast } from '../composables/useToast'
 
 const route = useRoute()
 const router = useRouter()
 const { isAuthenticated, currentUserId, verificationStatus } = useAuth()
+const { showToast } = useToast()
 const MINE_TASK_FETCH_SIZE = 100
 
 function isMineRoute(routeName = route.name) {
@@ -141,8 +143,6 @@ const listLoading = ref(false)
 const detailLoading = ref(false)
 const listError = ref('')
 const detailError = ref('')
-const operationFeedback = ref('')
-const operationFeedbackType = ref('success')
 const operationLoading = ref('')
 const profileUserId = ref(null)
 const showProfileModal = ref(false)
@@ -1225,11 +1225,6 @@ async function refreshTasks() {
   if (selectedTaskId.value) await loadTaskDetail(selectedTaskId.value)
 }
 
-function setOperationFeedback(message, type = 'success') {
-  operationFeedback.value = message
-  operationFeedbackType.value = type
-}
-
 async function changePage(nextPage) {
   const normalizedPage = Math.min(Math.max(nextPage, 1), totalPages.value)
   if (normalizedPage === filters.page) return
@@ -1264,7 +1259,6 @@ async function clearSelectedTask() {
   candidatesLoaded.value = false
   candidatesError.value = ''
   submittedApplication.value = null
-  operationFeedback.value = ''
   applicationMessage.value = ''
   applicationMessageError.value = ''
   cancelPanelOpen.value = false
@@ -1288,7 +1282,6 @@ function openCancelPanel() {
   cancelPanelOpen.value = true
   cancelReason.value = ''
   cancelReasonError.value = ''
-  operationFeedback.value = ''
 }
 
 function closeCancelPanel() {
@@ -1327,20 +1320,19 @@ function focusCompletionForm() {
     descriptionInput.scrollIntoView({ behavior: 'smooth', block: 'center' })
     return
   }
-  setOperationFeedback('任务已进入执行流程，请在完成确认区域处理后续状态。')
+  showToast('任务已进入执行流程，请在完成确认区域处理后续状态。', { type: 'success' })
 }
 
 async function submitQuickConfirmCompletion() {
   if (!detailTask.value?.id || !canReviewCompletion.value) return
 
   operationLoading.value = 'quick-confirm'
-  operationFeedback.value = ''
   try {
     await api.confirmTaskCompletion(detailTask.value.id)
-    setOperationFeedback('任务已确认完成。')
+    showToast('任务已确认完成。', { type: 'success' })
     await refreshTasks()
   } catch (error) {
-    setOperationFeedback(error.message || '确认完成失败，请稍后重试。', 'danger')
+    showToast(error.message || '确认完成失败，请稍后重试。', { type: 'danger' })
   } finally {
     operationLoading.value = ''
   }
@@ -1351,12 +1343,11 @@ async function openTaskConversation() {
 
   const peerUserId = detailConversationPeerUserId.value
   if (!peerUserId) {
-    setOperationFeedback('未能确定接单者或发布者，暂时无法打开任务会话。', 'danger')
+    showToast('未能确定接单者或发布者，暂时无法打开任务会话。', { type: 'danger' })
     return
   }
 
   operationLoading.value = 'conversation'
-  operationFeedback.value = ''
   try {
     const conversation = await api.createConversation({
       relatedType: 'TASK',
@@ -1379,7 +1370,7 @@ async function openTaskConversation() {
       }
     })
   } catch (error) {
-    setOperationFeedback(error.message || '打开任务会话失败，请稍后重试。', 'danger')
+    showToast(error.message || '打开任务会话失败，请稍后重试。', { type: 'danger' })
   } finally {
     operationLoading.value = ''
   }
@@ -1437,7 +1428,6 @@ async function submitReport() {
   if (!validateReportForm()) return
 
   reportSubmitting.value = true
-  operationFeedback.value = ''
   try {
     const result = await api.createReport({
       targetType: reportForm.targetType,
@@ -1448,10 +1438,10 @@ async function submitReport() {
     const normalized = normalizeReport(result)
     myReports.value = [normalized, ...myReports.value.filter((report) => String(report.id) !== String(normalized.id))]
     reportsLoaded.value = true
-    setOperationFeedback(`举报 #${normalized.id || reportForm.targetId} 已提交，管理员会根据站内记录处理。`)
+    showToast(`举报 #${normalized.id || reportForm.targetId} 已提交，管理员会根据站内记录处理。`, { type: 'success' })
     closeReportPanel()
   } catch (error) {
-    setOperationFeedback(error.message || '举报提交失败，请稍后重试。', 'danger')
+    showToast(error.message || '举报提交失败，请稍后重试。', { type: 'danger' })
   } finally {
     reportSubmitting.value = false
   }
@@ -1470,11 +1460,11 @@ async function submitCancelTask() {
   cancelReasonError.value = ''
   try {
     await api.cancelTask(detailTask.value.id, reason)
-    setOperationFeedback('任务已取消，状态记录会保留在任务历史中。')
+    showToast('任务已取消，状态记录会保留在任务历史中。', { type: 'success' })
     closeCancelPanel()
     await refreshTasks()
   } catch (error) {
-    setOperationFeedback(error.message || '取消任务失败，请稍后重试。', 'danger')
+    showToast(error.message || '取消任务失败，请稍后重试。', { type: 'danger' })
   } finally {
     operationLoading.value = ''
   }
@@ -1595,16 +1585,15 @@ async function startDetailTask() {
   if (!detailTask.value?.id || !canStartDetailTask.value) return
 
   operationLoading.value = 'start'
-  operationFeedback.value = ''
   try {
     await api.transitionTaskStatus(detailTask.value.id, {
       action: 'START',
       reason: '帮助者开始执行任务'
     })
-    setOperationFeedback('任务已进入进行中，完成后可以提交说明和凭证。')
+    showToast('任务已进入进行中，完成后可以提交说明和凭证。', { type: 'success' })
     await refreshTasks()
   } catch (error) {
-    setOperationFeedback(error.message || '开始任务失败，请稍后重试。', 'danger')
+    showToast(error.message || '开始任务失败，请稍后重试。', { type: 'danger' })
   } finally {
     operationLoading.value = ''
   }
@@ -1615,18 +1604,17 @@ async function submitCompletionProof() {
   if (!validateCompletionForm()) return
 
   completionSubmitting.value = true
-  operationFeedback.value = ''
   try {
     const attachmentIds = completionAttachmentIds()
     await api.submitTaskCompletion(detailTask.value.id, {
       description: completionDescription.value.trim(),
       attachmentIds
     })
-    setOperationFeedback('完成凭证已提交，任务进入待确认状态。')
+    showToast('完成凭证已提交，任务进入待确认状态。', { type: 'success' })
     resetCompletionState()
     await refreshTasks()
   } catch (error) {
-    setOperationFeedback(error.message || '提交完成凭证失败，请稍后重试。', 'danger')
+    showToast(error.message || '提交完成凭证失败，请稍后重试。', { type: 'danger' })
   } finally {
     completionSubmitting.value = false
   }
@@ -1669,7 +1657,6 @@ async function submitCompletionResolution() {
   resolutionReasonError.value = ''
 
   operationLoading.value = resolutionAction.value
-  operationFeedback.value = ''
   try {
     if (resolutionAction.value === 'CONFIRM_COMPLETION') {
       await api.confirmTaskCompletion(detailTask.value.id)
@@ -1678,17 +1665,15 @@ async function submitCompletionResolution() {
     } else {
       await api.disputeTaskCompletion(detailTask.value.id, { reason })
     }
-    setOperationFeedback(
-      resolutionAction.value === 'CONFIRM_COMPLETION'
+    showToast(resolutionAction.value === 'CONFIRM_COMPLETION'
         ? '已确认任务完成，完成记录会保留在任务历史中。'
         : resolutionAction.value === 'REJECT_COMPLETION'
           ? '已驳回完成结果，原因会写入任务记录。'
-          : '已发起争议，平台可基于凭证和站内记录继续处理。'
-    )
+          : '已发起争议，平台可基于凭证和站内记录继续处理。', { type: 'success' })
     closeCompletionResolution()
     await refreshTasks()
   } catch (error) {
-    setOperationFeedback(error.message || '完成确认操作失败，请稍后重试。', 'danger')
+    showToast(error.message || '完成确认操作失败，请稍后重试。', { type: 'danger' })
   } finally {
     operationLoading.value = ''
   }
@@ -1717,7 +1702,6 @@ async function submitTaskApplication() {
   if (!validateApplicationMessage()) return
 
   applicationSubmitting.value = true
-  operationFeedback.value = ''
   try {
     const message = applicationMessage.value.trim()
     const result = await api.createTaskApplication(detailTask.value.id, { message })
@@ -1732,11 +1716,11 @@ async function submitTaskApplication() {
       taskId: detailTask.value.id
     }
     applicationMessage.value = ''
-    setOperationFeedback('接单申请已提交，求助者会在候选列表中看到你的说明。')
+    showToast('接单申请已提交，求助者会在候选列表中看到你的说明。', { type: 'success' })
     closeApplicationPanel()
     await refreshTasks()
   } catch (error) {
-    setOperationFeedback(error.message || '接单申请提交失败，请稍后重试。', 'danger')
+    showToast(error.message || '接单申请提交失败，请稍后重试。', { type: 'danger' })
   } finally {
     applicationSubmitting.value = false
   }
@@ -1746,13 +1730,12 @@ async function acceptCandidate(candidate) {
   if (!detailTask.value?.id || !candidate?.applicationId || candidate.status !== 'PENDING') return
 
   operationLoading.value = `accept-${candidate.applicationId}`
-  operationFeedback.value = ''
   try {
     await api.acceptTaskApplication(detailTask.value.id, candidate.applicationId)
-    setOperationFeedback(`已选择 ${candidate.name} 作为帮助者，其他待处理申请会自动婉拒。`)
+    showToast(`已选择 ${candidate.name} 作为帮助者，其他待处理申请会自动婉拒。`, { type: 'success' })
     await refreshTasks()
   } catch (error) {
-    setOperationFeedback(error.message || '选择帮助者失败，请稍后重试。', 'danger')
+    showToast(error.message || '选择帮助者失败，请稍后重试。', { type: 'danger' })
   } finally {
     operationLoading.value = ''
   }
@@ -1859,7 +1842,6 @@ watch(
     }
 
     selectedTaskId.value = taskId ? String(taskId) : ''
-    operationFeedback.value = ''
     applicationMessage.value = ''
     applicationMessageError.value = ''
     candidateApplications.value = []
@@ -2230,18 +2212,6 @@ onMounted(async () => {
               <span>需要凭证</span>
               <strong>{{ proofTaskCount }}</strong>
             </article>
-          </section>
-
-          <section
-            v-if="listError"
-            class="page-feedback page-feedback--danger"
-            role="status"
-          >
-            <Info
-              :size="18"
-              aria-hidden="true"
-            />
-            <span>{{ listError }}</span>
           </section>
 
           <div
@@ -2729,19 +2699,6 @@ onMounted(async () => {
                 <dd>{{ formatDateTime(detailTask.createdAt) }}（{{ formatRelativeTime(detailTask.createdAt) }}）</dd>
               </div>
             </dl>
-
-            <section
-              v-if="operationFeedback"
-              class="operation-feedback"
-              :class="operationFeedbackType === 'danger' ? 'operation-feedback--danger' : 'operation-feedback--success'"
-              role="status"
-            >
-              <Info
-                :size="18"
-                aria-hidden="true"
-              />
-              <span>{{ operationFeedback }}</span>
-            </section>
 
             <section
               v-if="shouldShowCompletionPanel"
@@ -3902,8 +3859,7 @@ onMounted(async () => {
 }
 
 .page-title-card,
-.panel-card,
-.page-feedback {
+.panel-card {
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-surface);
@@ -4439,7 +4395,6 @@ onMounted(async () => {
   font-size: 2.1rem;
 }
 
-.page-feedback,
 .detail-error {
   display: flex;
   align-items: flex-start;
@@ -4448,7 +4403,6 @@ onMounted(async () => {
   line-height: 1.55;
 }
 
-.page-feedback--danger,
 .detail-error {
   border-color: var(--color-danger-soft);
   background: var(--color-danger-bg);
@@ -5259,18 +5213,6 @@ onMounted(async () => {
   gap: 10px;
 }
 
-.operation-feedback {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 12px;
-  border: 1px solid var(--color-success-soft);
-  border-radius: 8px;
-  background: var(--color-success-bg);
-  color: var(--color-success-text);
-  line-height: 1.55;
-}
-
 .conversation-entry {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -5295,12 +5237,6 @@ onMounted(async () => {
 .conversation-entry span {
   color: var(--color-success-text);
   line-height: 1.5;
-}
-
-.operation-feedback--danger {
-  border-color: var(--color-danger-soft);
-  background: var(--color-danger-bg);
-  color: var(--color-danger-text);
 }
 
 .workflow-entry-grid {

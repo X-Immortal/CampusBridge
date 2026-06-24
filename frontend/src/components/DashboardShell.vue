@@ -17,6 +17,7 @@ import {
   PlusCircle,
   School,
   Search,
+  Settings,
   ShieldCheck,
   Star,
   UserRound
@@ -24,7 +25,10 @@ import {
 import { useDashboardSidebar } from '../composables/useDashboardSidebar'
 import { useNotificationCenter } from '../composables/useNotificationCenter'
 import { useAuth } from '../stores/auth'
+import { usePreferences } from '../composables/usePreferences'
+import BackToTop from './BackToTop.vue'
 import ThemeToggle from './ThemeToggle.vue'
+import ThemePreferences from './ThemePreferences.vue'
 
 const props = defineProps({
   activeLabel: {
@@ -41,8 +45,11 @@ const router = useRouter()
 const { state, isAuthenticated, currentUserId, logout } = useAuth()
 const { sidebarCollapsed, toggleSidebarCollapsed } = useDashboardSidebar()
 const { unreadCount: notificationUnreadCount, refreshNotificationSummary } = useNotificationCenter()
+usePreferences()
 const accountMenuOpen = ref(false)
 const accountMenuRef = ref(null)
+const preferencesOpen = ref(false)
+const preferencesRef = ref(null)
 const avatarLoadFailed = ref(false)
 const searchKeyword = ref('')
 const activeLabel = computed(() => props.activeLabel)
@@ -103,15 +110,32 @@ function closeAccountMenu() {
 
 function toggleAccountMenu() {
   accountMenuOpen.value = !accountMenuOpen.value
+  if (accountMenuOpen.value) preferencesOpen.value = false
+}
+
+function closePreferences() {
+  preferencesOpen.value = false
+}
+
+function togglePreferences() {
+  preferencesOpen.value = !preferencesOpen.value
+  if (preferencesOpen.value) accountMenuOpen.value = false
 }
 
 function handleDocumentPointerDown(event) {
-  if (!accountMenuOpen.value || !accountMenuRef.value) return
-  if (!accountMenuRef.value.contains(event.target)) closeAccountMenu()
+  if (accountMenuOpen.value && accountMenuRef.value && !accountMenuRef.value.contains(event.target)) {
+    closeAccountMenu()
+  }
+  if (preferencesOpen.value && preferencesRef.value && !preferencesRef.value.contains(event.target)) {
+    closePreferences()
+  }
 }
 
 function handleDocumentKeydown(event) {
-  if (event.key === 'Escape') closeAccountMenu()
+  if (event.key === 'Escape') {
+    closeAccountMenu()
+    closePreferences()
+  }
 }
 
 async function handleLogout() {
@@ -240,6 +264,25 @@ onBeforeUnmount(() => {
           <span v-if="notificationBadgeCount > 0">{{ notificationBadgeLabel }}</span>
         </RouterLink>
         <ThemeToggle />
+        <div
+          ref="preferencesRef"
+          class="topbar-preferences"
+        >
+          <button
+            class="preferences-toggle"
+            type="button"
+            aria-label="主题偏好"
+            aria-haspopup="dialog"
+            :aria-expanded="preferencesOpen"
+            @click="togglePreferences"
+          >
+            <Settings
+              :size="20"
+              aria-hidden="true"
+            />
+          </button>
+          <ThemePreferences v-model:open="preferencesOpen" />
+        </div>
         <div class="topbar-divider" />
         <div
           ref="accountMenuRef"
@@ -365,6 +408,7 @@ onBeforeUnmount(() => {
     <div class="dashboard-main">
       <slot />
     </div>
+    <BackToTop />
   </section>
 </template>
 
@@ -594,6 +638,48 @@ onBeforeUnmount(() => {
   justify-content: flex-end;
   gap: 18px;
   min-width: max-content;
+}
+
+.topbar-preferences {
+  position: relative;
+}
+
+.preferences-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition:
+    color var(--transition-base),
+    border-color var(--transition-base),
+    background-color var(--transition-base),
+    box-shadow var(--transition-base);
+}
+
+.preferences-toggle:hover,
+.preferences-toggle.active {
+  border-color: var(--color-brand-border-hover);
+  background: var(--color-brand-soft);
+  color: var(--color-brand);
+  box-shadow: var(--shadow-focus);
+}
+
+.preferences-toggle:focus-visible {
+  outline: 3px solid var(--color-brand-glow);
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .preferences-toggle {
+    width: 38px;
+    height: 38px;
+  }
 }
 
 .notice-button,

@@ -43,6 +43,7 @@ import AccountSettingsModal from '../components/AccountSettingsModal.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import { useDashboardSidebar } from '../composables/useDashboardSidebar'
 import { useNotificationCenter } from '../composables/useNotificationCenter'
+import { useToast } from '../composables/useToast'
 import { optionLabel, STATUS_OPTIONS, VERIFICATION_METHODS } from '../constants'
 import api from '../services/api'
 import { useAuth } from '../stores/auth'
@@ -63,12 +64,11 @@ const {
 const router = useRouter()
 const { sidebarCollapsed, toggleSidebarCollapsed } = useDashboardSidebar()
 const { unreadCount: notificationUnreadCount, refreshNotificationSummary } = useNotificationCenter()
+const { showToast } = useToast()
 const accountMenuOpen = ref(false)
 const accountMenuRef = ref(null)
 const loading = ref(false)
 const submitting = ref(false)
-const feedback = ref('')
-const feedbackType = ref('success')
 const avatarLoadFailed = ref(false)
 
 const isAdmin = computed(() => String(state.user?.role || '').toUpperCase() === 'ADMIN')
@@ -324,11 +324,6 @@ const verificationEvidenceHint = computed(() =>
     : '上传清晰的学生证照片，系统会尝试自动识别并提交审核。'
 )
 
-function setFeedback(message, type = 'success') {
-  feedback.value = message
-  feedbackType.value = type
-}
-
 function closeAccountMenu() {
   accountMenuOpen.value = false
 }
@@ -453,13 +448,12 @@ function validateProfileForm() {
 
 function handleEditProfile() {
   if (!isAuthenticated.value) {
-    setFeedback('请先登录后再编辑个人档案。', 'danger')
+    showToast('请先登录后再编辑个人档案。', { type: 'danger' })
     return
   }
 
   hydrateProfileForm(myProfile.value)
   clearProfileErrors()
-  feedback.value = ''
   profileEditing.value = true
 }
 
@@ -482,7 +476,6 @@ async function handleAvatarFileChange(event) {
   if (!file) return
 
   avatarUploading.value = true
-  feedback.value = ''
   try {
     const result = await api.uploadAvatar(file)
     const url = typeof result === 'string' ? result : result?.avatarUrl
@@ -492,10 +485,10 @@ async function handleAvatarFileChange(event) {
       if (state.profile) {
         state.profile.avatarUrl = url
       }
-      setFeedback('头像已上传并更新。')
+      showToast('头像已上传并更新。')
     }
   } catch (error) {
-    setFeedback(error.message || '头像上传失败，请稍后重试。', 'danger')
+    showToast(error.message || '头像上传失败，请稍后重试。', { type: 'danger' })
   } finally {
     avatarUploading.value = false
     if (avatarFileInput.value) {
@@ -513,7 +506,6 @@ async function handleVerificationEvidenceFileChange(event) {
   if (!file) return
 
   verificationEvidenceUploading.value = true
-  feedback.value = ''
   try {
     const result = await api.uploadAttachment({
       file,
@@ -526,10 +518,10 @@ async function handleVerificationEvidenceFileChange(event) {
     }
     verificationForm.evidenceUrl = url
     verificationEvidenceFileName.value = file.name
-    setFeedback('认证材料照片已上传。')
+    showToast('认证材料照片已上传。')
   } catch (error) {
     const detail = error.code ? ` [${error.code}]` : ''
-    setFeedback((error.message || '认证材料上传失败，请稍后重试。') + detail, 'danger')
+    showToast((error.message || '认证材料上传失败，请稍后重试。') + detail, { type: 'danger' })
   } finally {
     verificationEvidenceUploading.value = false
     if (verificationEvidenceFileInput.value) {
@@ -551,25 +543,24 @@ function formatEmailCodeFeedback(result) {
 
 async function handleSubmitProfile() {
   if (!isAuthenticated.value) {
-    setFeedback('请先登录后再保存个人档案。', 'danger')
+    showToast('请先登录后再保存个人档案。', { type: 'danger' })
     return
   }
 
   const { valid, payload } = validateProfileForm()
   if (!valid) {
-    setFeedback('请检查档案表单中标出的内容。', 'danger')
+    showToast('请检查档案表单中标出的内容。', { type: 'danger' })
     return
   }
 
   profileSubmitting.value = true
-  feedback.value = ''
   try {
     const savedProfile = await updateMyProfile(payload)
     hydrateProfileForm(savedProfile || {})
     profileEditing.value = false
-    setFeedback('个人档案已保存，公开主页信息会同步更新。')
+    showToast('个人档案已保存，公开主页信息会同步更新。')
   } catch (error) {
-    setFeedback(error.message, 'danger')
+    showToast(error.message, { type: 'danger' })
   } finally {
     profileSubmitting.value = false
   }
@@ -578,12 +569,11 @@ async function handleSubmitProfile() {
 async function handleRefresh() {
   if (!isAuthenticated.value) return
   loading.value = true
-  feedback.value = ''
   try {
     await refreshSession()
-    setFeedback('个人档案与认证状态已刷新。')
+    showToast('个人档案与认证状态已刷新。')
   } catch (error) {
-    setFeedback(error.message, 'danger')
+    showToast(error.message, { type: 'danger' })
   } finally {
     loading.value = false
   }
@@ -591,16 +581,15 @@ async function handleRefresh() {
 
 async function handleSubmitVerification() {
   if (requiresVerificationEvidence.value && !verificationForm.evidenceUrl) {
-    setFeedback(`请先上传${verificationEvidenceLabel.value}。`, 'danger')
+    showToast(`请先上传${verificationEvidenceLabel.value}。`, { type: 'danger' })
     return
   }
   if (isEmailVerificationMethod.value && !isValidEmail(verificationForm.campusEmail)) {
-    setFeedback('请填写有效的校园邮箱地址。', 'danger')
+    showToast('请填写有效的校园邮箱地址。', { type: 'danger' })
     return
   }
 
   submitting.value = true
-  feedback.value = ''
   try {
     const result = await submitVerification({
       method: verificationForm.method,
@@ -612,13 +601,13 @@ async function handleSubmitVerification() {
       evidenceUrl: verificationForm.evidenceUrl
     })
     if (isEmailVerificationMethod.value) {
-      setFeedback(formatEmailCodeFeedback(result))
+      showToast(formatEmailCodeFeedback(result))
     } else {
       await refreshSession()
-      setFeedback('校内认证资料已提交，等待平台审核。')
+      showToast('校内认证资料已提交，等待平台审核。')
     }
   } catch (error) {
-    setFeedback(error.message, 'danger')
+    showToast(error.message, { type: 'danger' })
   } finally {
     submitting.value = false
   }
@@ -627,19 +616,18 @@ async function handleSubmitVerification() {
 async function handleConfirmEmailCode() {
   const code = emailVerificationCode.value.trim()
   if (!/^\d{6}$/.test(code)) {
-    setFeedback('请输入 6 位邮箱验证码。', 'danger')
+    showToast('请输入 6 位邮箱验证码。', { type: 'danger' })
     return
   }
 
   emailCodeSubmitting.value = true
-  feedback.value = ''
   try {
     await confirmEmailVerification({ code })
     await refreshSession()
     emailVerificationCode.value = ''
-    setFeedback('校园邮箱认证已完成。')
+    showToast('校园邮箱认证已完成。')
   } catch (error) {
-    setFeedback(error.message || '验证码确认失败，请重新检查。', 'danger')
+    showToast(error.message || '验证码确认失败，请重新检查。', { type: 'danger' })
   } finally {
     emailCodeSubmitting.value = false
   }
@@ -647,12 +635,11 @@ async function handleConfirmEmailCode() {
 
 async function handleResendEmailCode() {
   emailCodeResending.value = true
-  feedback.value = ''
   try {
     const result = await resendEmailVerificationCode()
-    setFeedback(formatEmailCodeFeedback(result))
+    showToast(formatEmailCodeFeedback(result))
   } catch (error) {
-    setFeedback(error.message || '验证码发送失败，请稍后重试。', 'danger')
+    showToast(error.message || '验证码发送失败，请稍后重试。', { type: 'danger' })
   } finally {
     emailCodeResending.value = false
   }
@@ -931,19 +918,6 @@ onBeforeUnmount(() => {
         </div>
         <StatusBadge :status="verificationStatus" />
       </section>
-
-      <div
-        v-if="feedback"
-        class="page-feedback"
-        :class="feedbackType === 'danger' ? 'page-feedback--danger' : 'page-feedback--success'"
-        role="status"
-      >
-        <BadgeCheck
-          :size="18"
-          aria-hidden="true"
-        />
-        <span>{{ feedback }}</span>
-      </div>
 
       <section class="content-grid">
         <article class="panel-card identity-profile-card">
@@ -1718,7 +1692,7 @@ onBeforeUnmount(() => {
               <button
                 class="primary-action primary-action--compact"
                 type="button"
-                @click="setFeedback('认证资料已在上方展示。')"
+                @click="showToast('认证资料已在上方展示。')"
               >
                 <ClipboardList
                   :size="17"
@@ -2200,8 +2174,7 @@ onBeforeUnmount(() => {
 }
 
 .page-title-card,
-.panel-card,
-.page-feedback {
+.panel-card {
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-surface);
@@ -2270,25 +2243,6 @@ onBeforeUnmount(() => {
   color: var(--color-text);
 }
 
-.page-feedback {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  margin-top: 14px;
-  padding: 10px 12px;
-}
-
-.page-feedback--success {
-  border-color: var(--color-success-soft);
-  background: var(--color-success-bg);
-  color: var(--color-success-text);
-}
-
-.page-feedback--danger {
-  border-color: var(--color-danger-soft);
-  background: var(--color-danger-bg);
-  color: var(--color-danger-text);
-}
 
 .content-grid {
   display: grid;

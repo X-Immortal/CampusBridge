@@ -9,6 +9,7 @@ import {
 } from '@lucide/vue'
 import api from '../services/api'
 import { useAuth } from '../stores/auth'
+import { useToast } from '../composables/useToast'
 
 defineProps({
   visible: { type: Boolean, default: false }
@@ -17,10 +18,9 @@ defineProps({
 const emit = defineEmits(['close'])
 
 const { state } = useAuth()
+const { showToast } = useToast()
 
 const activeTab = ref('password')
-const feedback = ref('')
-const feedbackType = ref('success')
 const submitting = ref(false)
 
 // Password
@@ -35,12 +35,6 @@ const emailSending = ref(false)
 // Phone
 const phoneForm = reactive({ phone: '' })
 const phoneErrors = reactive({})
-
-
-function setFeedback(msg, type = 'success') {
-  feedback.value = msg
-  feedbackType.value = type
-}
 
 function clearPasswordErrors() {
   Object.keys(passwordErrors).forEach(k => delete passwordErrors[k])
@@ -69,9 +63,9 @@ async function handleChangePassword() {
     passwordForm.oldPassword = ''
     passwordForm.newPassword = ''
     passwordForm.confirmPassword = ''
-    setFeedback('密码已更新')
+    showToast('密码已更新', { type: 'success' })
   } catch (e) {
-    setFeedback(e.message || '密码修改失败', 'danger')
+    showToast(e.message || '密码修改失败', { type: 'danger' })
   } finally {
     submitting.value = false
   }
@@ -84,16 +78,16 @@ function isValidEmail(val) {
 async function handleSendEmailCode() {
   const email = emailForm.email.trim()
   if (!email || !isValidEmail(email)) {
-    setFeedback('请输入有效的邮箱地址', 'danger')
+    showToast('请输入有效的邮箱地址', { type: 'warning' })
     return
   }
   emailSending.value = true
   try {
     await api.sendAccountEmailCode({ email })
     emailCodeSent.value = true
-    setFeedback('验证码已发送')
+    showToast('验证码已发送', { type: 'success' })
   } catch (e) {
-    setFeedback(e.message || '发送失败', 'danger')
+    showToast(e.message || '发送失败', { type: 'danger' })
   } finally {
     emailSending.value = false
   }
@@ -101,7 +95,7 @@ async function handleSendEmailCode() {
 
 async function handleConfirmEmail() {
   if (!emailForm.code.trim()) {
-    setFeedback('请输入验证码', 'danger')
+    showToast('请输入验证码', { type: 'warning' })
     return
   }
   submitting.value = true
@@ -111,9 +105,9 @@ async function handleConfirmEmail() {
     emailForm.email = ''
     emailForm.code = ''
     emailCodeSent.value = false
-    setFeedback('邮箱已更新')
+    showToast('邮箱已更新', { type: 'success' })
   } catch (e) {
-    setFeedback(e.message || '验证失败', 'danger')
+    showToast(e.message || '验证失败', { type: 'danger' })
   } finally {
     submitting.value = false
   }
@@ -129,16 +123,15 @@ async function handleUpdatePhone() {
   try {
     await api.updatePhone({ phone })
     state.user.phone = phone
-    setFeedback('手机号已更新')
+    showToast('手机号已更新', { type: 'success' })
   } catch (e) {
-    setFeedback(e.message || '更新失败', 'danger')
+    showToast(e.message || '更新失败', { type: 'danger' })
   } finally {
     submitting.value = false
   }
 }
 
 function close() {
-  feedback.value = ''
   emit('close')
 }
 </script>
@@ -187,14 +180,6 @@ function close() {
           <Phone :size="16" /> 修改手机
         </button>
       </div>
-
-      <section
-        v-if="feedback"
-        class="modal-feedback"
-        :class="feedbackType === 'danger' ? 'modal-feedback--error' : ''"
-      >
-        {{ feedback }}
-      </section>
 
       <!-- Password -->
       <form
@@ -427,20 +412,6 @@ function close() {
   border-color: var(--color-brand-text);
   background: var(--color-brand-text);
   color: var(--color-surface);
-}
-
-.modal-feedback {
-  padding: 10px 14px;
-  border-radius: 8px;
-  background: var(--color-success-bg);
-  color: var(--color-success-text);
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-
-.modal-feedback--error {
-  background: var(--color-danger-bg);
-  color: var(--color-danger-text);
 }
 
 .modal-form {

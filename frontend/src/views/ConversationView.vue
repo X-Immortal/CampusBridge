@@ -19,6 +19,7 @@ import {
 import DashboardShell from '../components/DashboardShell.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import { useNotificationCenter } from '../composables/useNotificationCenter'
+import { useToast } from '../composables/useToast'
 import api from '../services/api'
 import { useAuth } from '../stores/auth'
 
@@ -26,6 +27,7 @@ const route = useRoute()
 const router = useRouter()
 const { currentUserId } = useAuth()
 const { refreshNotificationSummary } = useNotificationCenter()
+const { showToast } = useToast()
 
 const categoryMeta = {
   ERRAND: {
@@ -65,10 +67,6 @@ const messagesLoading = ref(false)
 const sending = ref(false)
 const conversationSearch = ref('')
 const threadRef = ref(null)
-const feedback = reactive({
-  message: '',
-  type: 'success'
-})
 
 const conversationPage = reactive({
   page: 1,
@@ -166,11 +164,6 @@ function normalizePositiveId(value) {
 
 function hasRouteConversationHint() {
   return Boolean(routeRelatedType.value && routeRelatedId.value)
-}
-
-function setFeedback(message, type = 'success') {
-  feedback.message = message
-  feedback.type = type
 }
 
 function normalizePagedResult(result, fallbackSize) {
@@ -283,7 +276,7 @@ async function loadConversations() {
     await applyConversationPage(paged)
   } catch (error) {
     if (requestId !== listRequestId) return
-    setFeedback(error.message || '会话列表加载失败，请稍后重试。', 'danger')
+    showToast(error.message || '会话列表加载失败，请稍后重试。', { type: 'danger' })
     await applyConversationPage({ items: [], page: 1, size: conversationPage.size, total: 0 })
   } finally {
     if (requestId === listRequestId) listLoading.value = false
@@ -349,7 +342,7 @@ async function ensureConversationFromRoute() {
   }
 
   if (!peerUserId) {
-    setFeedback('未能确定对话对象，请从任务详情页进入站内沟通。', 'danger')
+    showToast('未能确定对话对象，请从任务详情页进入站内沟通。', { type: 'danger' })
     return null
   }
 
@@ -368,7 +361,7 @@ async function ensureConversationFromRoute() {
     conversationPage.total = Math.max(conversationPage.total, conversations.value.length)
     return conversation
   } catch (error) {
-    setFeedback(error.message || '创建会话失败，请稍后重试。', 'danger')
+    showToast(error.message || '创建会话失败，请稍后重试。', { type: 'danger' })
     return null
   }
 }
@@ -500,7 +493,7 @@ async function sendMessage() {
     await scrollMessagesToBottom()
     composerInputRef.value?.focus()
   } catch (error) {
-    setFeedback(error.message || '消息发送失败，请稍后重试。', 'danger')
+    showToast(error.message || '消息发送失败，请稍后重试。', { type: 'danger' })
   } finally {
     sending.value = false
   }
@@ -604,15 +597,6 @@ onMounted(async () => {
           label="仅站内优先"
           tone="success"
         />
-      </section>
-
-      <section
-        v-if="feedback.message"
-        class="page-feedback"
-        :class="feedback.type === 'danger' ? 'page-feedback--danger' : 'page-feedback--success'"
-        role="status"
-      >
-        <span>{{ feedback.message }}</span>
       </section>
 
       <section class="conversation-workspace">
@@ -930,8 +914,7 @@ onMounted(async () => {
 .page-title-card,
 .conversation-list-panel,
 .chat-panel,
-.task-side-panel,
-.page-feedback {
+.task-side-panel {
   border: 1px solid var(--chat-border);
   border-radius: 8px;
   background: var(--color-surface);
@@ -1007,15 +990,6 @@ onMounted(async () => {
   font-size: 0.86rem;
   font-weight: 900;
   box-shadow: var(--shadow-card);
-}
-
-.page-feedback {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 14px;
-  color: var(--color-info-text);
-  background: var(--color-info-bg);
 }
 
 .conversation-workspace {

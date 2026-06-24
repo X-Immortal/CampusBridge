@@ -8,9 +8,13 @@
       (function () {
         try {
           var theme = localStorage.getItem('cb-theme') || 'system';
+          var accent = localStorage.getItem('cb-accent') || 'purple';
+          var density = localStorage.getItem('cb-density') || 'comfortable';
           var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
           var effective = theme === 'system' ? (prefersDark ? 'dark' : 'light') : theme;
           document.documentElement.setAttribute('data-theme', effective);
+          document.documentElement.setAttribute('data-accent', accent);
+          document.documentElement.setAttribute('data-density', density);
         } catch (e) {}
       })();
     </script>

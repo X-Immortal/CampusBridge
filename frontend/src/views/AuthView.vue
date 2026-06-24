@@ -16,14 +16,14 @@ import {
 import { useRoute, useRouter } from 'vue-router'
 import api from '../services/api'
 import { useAuth } from '../stores/auth'
+import { useToast } from '../composables/useToast'
 
 const { state, login, register } = useAuth()
 const route = useRoute()
 const router = useRouter()
+const { showToast } = useToast()
 
 const mode = ref('login')
-const feedback = ref('')
-const feedbackType = ref('success')
 const showPassword = ref(false)
 const pendingAction = ref('')
 const REMEMBER_LOGIN_KEY = 'campusbridge.rememberedLogin'
@@ -71,12 +71,6 @@ const submitText = computed(() =>
 function switchMode(nextMode) {
   if (state.loading) return
   mode.value = nextMode
-  feedback.value = ''
-}
-
-function setFeedback(message, type = 'success') {
-  feedback.value = message
-  feedbackType.value = type
 }
 
 function syncRememberedLogin() {
@@ -92,14 +86,13 @@ function syncRememberedLogin() {
 
 async function handleLogin() {
   pendingAction.value = 'login'
-  feedback.value = ''
   try {
     await login(loginForm)
     syncRememberedLogin()
-    setFeedback('登录成功，正在进入认证工作台。')
+    showToast('登录成功，正在进入认证工作台。', { type: 'success' })
     await router.push(typeof route.query.redirect === 'string' ? route.query.redirect : '/home')
   } catch (error) {
-    setFeedback(error.message, 'danger')
+    showToast(error.message, { type: 'danger' })
   } finally {
     pendingAction.value = ''
   }
@@ -108,20 +101,20 @@ async function handleLogin() {
 async function sendRegisterCode() {
   const email = registerForm.email.trim()
   if (!email) {
-    setFeedback('请先填写邮箱', 'danger')
+    showToast('请先填写邮箱', { type: 'warning' })
     return
   }
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-    setFeedback('请填写有效的邮箱地址', 'danger')
+    showToast('请填写有效的邮箱地址', { type: 'warning' })
     return
   }
   registerCodeSending.value = true
   try {
     await api.sendRegistrationCode({ email })
     registerCodeSent.value = true
-    setFeedback('验证码已发送')
+    showToast('验证码已发送', { type: 'success' })
   } catch (error) {
-    setFeedback(error.message, 'danger')
+    showToast(error.message, { type: 'danger' })
   } finally {
     registerCodeSending.value = false
   }
@@ -129,38 +122,37 @@ async function sendRegisterCode() {
 
 async function handleRegister() {
   pendingAction.value = 'register'
-  feedback.value = ''
 
   if (!registerForm.username.trim()) {
-    setFeedback('请输入用户名', 'danger')
+    showToast('请输入用户名', { type: 'warning' })
     return
   }
   if (!registerForm.phone.trim()) {
-    setFeedback('请输入手机号', 'danger')
+    showToast('请输入手机号', { type: 'warning' })
     return
   }
   const email = registerForm.email.trim()
   if (!email) {
-    setFeedback('请输入邮箱', 'danger')
+    showToast('请输入邮箱', { type: 'warning' })
     return
   }
   if (!registerForm.code.trim()) {
-    setFeedback('请先发送并填写邮箱验证码', 'danger')
+    showToast('请先发送并填写邮箱验证码', { type: 'warning' })
     return
   }
   if (!registerForm.password) {
-    setFeedback('请输入密码', 'danger')
+    showToast('请输入密码', { type: 'warning' })
     return
   }
 
   try {
     await register({ ...registerForm, email, code: registerForm.code.trim() })
-    setFeedback('注册成功，请使用用户名和密码登录。')
+    showToast('注册成功，请使用用户名和密码登录。', { type: 'success' })
     mode.value = 'login'
     registerCodeSent.value = false
     registerForm.code = ''
   } catch (error) {
-    setFeedback(error.message, 'danger')
+    showToast(error.message, { type: 'danger' })
   } finally {
     pendingAction.value = ''
   }
@@ -181,19 +173,6 @@ async function handleRegister() {
         <h1>{{ formTitle }}</h1>
         <span>{{ formSubtitle }}</span>
       </div>
-    </section>
-
-    <section
-      v-if="feedback"
-      class="page-feedback"
-      :class="feedbackType === 'danger' ? 'page-feedback--danger' : 'page-feedback--success'"
-      role="status"
-    >
-      <BadgeCheck
-        :size="18"
-        aria-hidden="true"
-      />
-      <span>{{ feedback }}</span>
     </section>
 
     <section class="auth-layout">
@@ -561,27 +540,6 @@ async function handleRegister() {
 .title-copy span {
   color: var(--color-text-muted);
   line-height: 1.5;
-}
-
-.page-feedback {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 12px 14px;
-  border-radius: 8px;
-  line-height: 1.5;
-}
-
-.page-feedback--success {
-  border: 1px solid var(--color-success-soft);
-  background: var(--color-success-bg);
-  color: var(--color-success-text);
-}
-
-.page-feedback--danger {
-  border: 1px solid var(--color-danger-soft);
-  background: var(--color-danger-bg);
-  color: var(--color-danger-text);
 }
 
 .auth-layout {

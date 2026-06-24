@@ -3,7 +3,6 @@ import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   ArrowLeft,
-  BadgeCheck,
   CalendarClock,
   CheckCircle2,
   ClipboardCheck,
@@ -34,18 +33,18 @@ import StatusBadge from '../components/StatusBadge.vue'
 import { optionLabel, REWARD_TYPE_OPTIONS, TASK_CATEGORY_OPTIONS } from '../constants'
 import api from '../services/api'
 import { useAuth } from '../stores/auth'
+import { useToast } from '../composables/useToast'
 
 const DRAFT_STORAGE_KEY = 'campusbridge.taskPublishDraft.v1'
 
 const route = useRoute()
 const router = useRouter()
 const { isAuthenticated, verificationStatus, refreshSession } = useAuth()
+const { showToast } = useToast()
 
 const loadingSource = ref(false)
 const submitting = ref(false)
 const refreshing = ref(false)
-const feedback = ref('')
-const feedbackType = ref('success')
 const lastCreatedTask = ref(null)
 const sourceTask = ref(null)
 const savedDraft = ref(readSavedDraft())
@@ -266,19 +265,17 @@ function restoreSavedDraft() {
   if (!savedDraft.value?.form) return
   Object.assign(taskForm, savedDraft.value.form)
   clearErrors()
-  setFeedback('已恢复本机草稿，发布前请重新确认时间和地点。')
+  showToast('已恢复本机草稿，发布前请重新确认时间和地点。', { type: 'success' })
 }
 
 function discardSavedDraft() {
   clearSavedDraft()
-  setFeedback('本机草稿已清除。')
+  showToast('本机草稿已清除。', { type: 'success' })
 }
 
 async function handleSaveDraft() {
-  feedback.value = ''
-
   if (!hasDraftContent()) {
-    setFeedback('至少填写标题、说明、地点或完成标准中的一项后再保存草稿。', 'danger')
+    showToast('至少填写标题、说明、地点或完成标准中的一项后再保存草稿。', { type: 'warning' })
     return
   }
 
@@ -293,7 +290,7 @@ async function handleSaveDraft() {
   savedDraft.value = draft
 
   if (!canPublish.value) {
-    setFeedback('草稿已保存在本机，可在完成登录和认证后继续发布。')
+    showToast('草稿已保存在本机，可在完成登录和认证后继续发布。', { type: 'success' })
     return
   }
 
@@ -301,9 +298,9 @@ async function handleSaveDraft() {
   try {
     const serverDraft = await api.saveTaskDraft(buildDraftPayload())
     lastCreatedTask.value = normalizeTaskResult(serverDraft)
-    setFeedback('草稿已保存到任务系统，本机也保留了一份便于继续编辑。')
+    showToast('草稿已保存到任务系统，本机也保留了一份便于继续编辑。', { type: 'success' })
   } catch (error) {
-    setFeedback(error.message || '本机草稿已保存，但同步到任务系统失败。', 'danger')
+    showToast(error.message || '本机草稿已保存，但同步到任务系统失败。', { type: 'danger' })
   } finally {
     submitting.value = false
   }
@@ -353,11 +350,6 @@ function normalizeTaskResult(result) {
     isInstantTask: booleanFlag(task.isInstantTask),
     riskDisclosureConfirmed: booleanFlag(task.riskDisclosureConfirmed)
   }
-}
-
-function setFeedback(message, type = 'success') {
-  feedback.value = message
-  feedbackType.value = type
 }
 
 function clearError(field) {
@@ -462,7 +454,6 @@ async function loadSourceTask() {
   }
 
   loadingSource.value = true
-  feedback.value = ''
   try {
     const result = await api.getTaskDetail(sourceTaskId.value)
     const task = normalizeTaskResult(result)
@@ -471,7 +462,7 @@ async function loadSourceTask() {
     clearErrors()
   } catch (error) {
     sourceTask.value = null
-    setFeedback(error.message || '原任务加载失败，请返回任务详情后重试。', 'danger')
+    showToast(error.message || '原任务加载失败，请返回任务详情后重试。', { type: 'danger' })
   } finally {
     loadingSource.value = false
   }
@@ -609,38 +600,36 @@ async function handleRefreshVerification() {
   }
 
   refreshing.value = true
-  feedback.value = ''
   try {
     await refreshSession()
-    setFeedback('认证状态已刷新。')
+    showToast('认证状态已刷新。', { type: 'success' })
   } catch (error) {
-    setFeedback(error.message, 'danger')
+    showToast(error.message, { type: 'danger' })
   } finally {
     refreshing.value = false
   }
 }
 
 async function handleSubmitTask() {
-  feedback.value = ''
   lastCreatedTask.value = null
 
   if (loadingSource.value) {
-    setFeedback('原任务仍在加载，请稍后再保存。', 'danger')
+    showToast('原任务仍在加载，请稍后再保存。', { type: 'warning' })
     return
   }
 
   if ((isEditMode.value || isRepostMode.value) && !sourceTask.value) {
-    setFeedback('没有可用的原任务内容，请返回任务详情后重试。', 'danger')
+    showToast('没有可用的原任务内容，请返回任务详情后重试。', { type: 'danger' })
     return
   }
 
   if (!canPublish.value) {
-    setFeedback(publishGate.value?.title || '当前状态暂不可发布任务。', 'danger')
+    showToast(publishGate.value?.title || '当前状态暂不可发布任务。', { type: 'warning' })
     return
   }
 
   if (!validateForm()) {
-    setFeedback('请先修正表单中的提示项。', 'danger')
+    showToast('请先修正表单中的提示项。', { type: 'warning' })
     await focusFirstInvalidField()
     return
   }
@@ -651,7 +640,7 @@ async function handleSubmitTask() {
       const updatedTask = await api.updateTask(sourceTaskId.value, buildUpdatePayload())
       lastCreatedTask.value = normalizeTaskResult(updatedTask)
       clearSavedDraft()
-      setFeedback('任务修改已保存，返回详情后可以继续处理候选和状态。')
+      showToast('任务修改已保存，返回详情后可以继续处理候选和状态。', { type: 'success' })
       return
     }
 
@@ -659,16 +648,16 @@ async function handleSubmitTask() {
       const resentTask = await api.resendTask(sourceTaskId.value)
       lastCreatedTask.value = normalizeTaskResult(resentTask)
       clearSavedDraft()
-      setFeedback('任务已重新发布，新的接单流程已经开始。')
+      showToast('任务已重新发布，新的接单流程已经开始。', { type: 'success' })
       return
     }
 
     const createdTask = await api.createTask(buildPayload())
     lastCreatedTask.value = normalizeTaskResult(createdTask)
     clearSavedDraft()
-    setFeedback('任务已发布，等待合适的同学申请接单。')
+    showToast('任务已发布，等待合适的同学申请接单。', { type: 'success' })
   } catch (error) {
-    setFeedback(error.message || '任务保存失败，请稍后再试。', 'danger')
+    showToast(error.message || '任务保存失败，请稍后再试。', { type: 'danger' })
   } finally {
     submitting.value = false
   }
@@ -781,19 +770,6 @@ watch(
         >
           {{ publishGate.action }}
         </button>
-      </section>
-
-      <section
-        v-if="feedback"
-        class="page-feedback"
-        :class="feedbackType === 'danger' ? 'page-feedback--danger' : 'page-feedback--success'"
-        role="status"
-      >
-        <BadgeCheck
-          :size="18"
-          aria-hidden="true"
-        />
-        <span>{{ feedback }}</span>
       </section>
 
       <section class="publish-layout">

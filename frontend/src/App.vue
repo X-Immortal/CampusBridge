@@ -12,8 +12,13 @@
         苏 ICP备2026035146号
       </a>
     </footer>
+    <ToastContainer />
   </div>
 </template>
+
+<script setup>
+import ToastContainer from './components/ToastContainer.vue'
+</script>
 
 <style>
 .app-shell {

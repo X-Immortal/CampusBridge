@@ -10,7 +10,6 @@ import {
   ClipboardCheck,
   FileCheck2,
   Inbox,
-  Info,
   LoaderCircle,
   MessageCircle,
   RefreshCw,
@@ -22,6 +21,7 @@ import {
 import DashboardShell from '../components/DashboardShell.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import { useNotificationCenter } from '../composables/useNotificationCenter'
+import { useToast } from '../composables/useToast'
 import { optionLabel, TASK_CATEGORY_OPTIONS, TASK_STATUS_OPTIONS, statusTone } from '../constants'
 import api from '../services/api'
 import { useAuth } from '../stores/auth'
@@ -29,6 +29,7 @@ import { useAuth } from '../stores/auth'
 const route = useRoute()
 const router = useRouter()
 const { currentUserId } = useAuth()
+const { showToast } = useToast()
 const {
   markConversationRead: markConversationReadOnServer,
   markAllNotificationsRead: markAllNotificationsReadOnServer,
@@ -71,9 +72,6 @@ const selectedTaskId = ref('')
 const selectedNotificationId = ref('')
 const loadingReviews = ref(false)
 const loadingNotifications = ref(false)
-const reviewFeedback = ref('')
-const reviewFeedbackType = ref('success')
-const notificationFeedback = ref('')
 const notificationSearch = ref('')
 const notificationFilter = ref('ALL')
 
@@ -266,16 +264,10 @@ function shortText(text, length = 72) {
   return text.length > length ? `${text.slice(0, length)}...` : text
 }
 
-function setReviewFeedback(message, type = 'success') {
-  reviewFeedback.value = message
-  reviewFeedbackType.value = type
-}
-
 function resetReviewForm() {
   reviewForm.rating = 5
   reviewForm.comment = ''
   reviewForm.tags = []
-  reviewFeedback.value = ''
 }
 
 function selectTask(task) {
@@ -294,7 +286,6 @@ function toggleReviewTag(tag) {
 
 async function loadReviews() {
   loadingReviews.value = true
-  reviewFeedback.value = ''
   try {
     const [completedResult, reviewedResult] = await Promise.allSettled([
       api.getTasks({ status: 'COMPLETED', page: 1, size: 12 }),
@@ -362,16 +353,15 @@ async function submitReview() {
   if (!selectedTask.value?.id || !reviewee.value?.id || !canSubmitReview.value) return
   const comment = reviewForm.comment.trim()
   if (comment.length < 8) {
-    setReviewFeedback('请至少写 8 个字，说明本次协作是否符合预期。', 'danger')
+    showToast('请至少写 8 个字，说明本次协作是否符合预期。', { type: 'danger' })
     return
   }
   if (comment.length > 500) {
-    setReviewFeedback('文字评价最多 500 个字。', 'danger')
+    showToast('文字评价最多 500 个字。', { type: 'danger' })
     return
   }
 
   loadingReviews.value = true
-  reviewFeedback.value = ''
   const tagLine = reviewForm.tags.length ? `\n\n亮点标签：${reviewForm.tags.join('、')}` : ''
   const payload = {
     revieweeId: reviewee.value.id,
@@ -383,10 +373,10 @@ async function submitReview() {
     const result = await api.createTaskReview(selectedTask.value.id, payload)
     const review = normalizeReview(result || payload, selectedTask.value.id)
     appendReviewToTask(selectedTask.value.id, review)
-    setReviewFeedback('评价已提交，后续会参与信用记录计算。')
+    showToast('评价已提交，后续会参与信用记录计算。')
     resetReviewForm()
   } catch (error) {
-    setReviewFeedback(error.message || '评价提交失败，请稍后重试。', 'danger')
+    showToast(error.message || '评价提交失败，请稍后重试。', { type: 'danger' })
   } finally {
     loadingReviews.value = false
   }
@@ -465,7 +455,6 @@ function applyConversationRead(conversationId) {
 
 async function loadNotifications() {
   loadingNotifications.value = true
-  notificationFeedback.value = ''
   const requestId = ++notificationRequestId
 
   try {
@@ -504,9 +493,9 @@ async function markNotificationRead(notification) {
   try {
     await markConversationReadOnServer(notification.conversationId)
     applyConversationRead(notification.conversationId)
-    notificationFeedback.value = '已标记为已读。'
+    showToast('已标记为已读。')
   } catch (error) {
-    notificationFeedback.value = error.message || '标记已读失败，请稍后重试。'
+    showToast(error.message || '标记已读失败，请稍后重试。', { type: 'danger' })
   }
 }
 
@@ -520,9 +509,9 @@ async function markAllNotificationsRead() {
       readAt,
       tone: notification.tone === 'info' ? 'muted' : notification.tone
     }))
-    notificationFeedback.value = '全部通知已标记为已读。'
+    showToast('全部通知已标记为已读。')
   } catch (error) {
-    notificationFeedback.value = error.message || '全部已读失败，请稍后重试。'
+    showToast(error.message || '全部已读失败，请稍后重试。', { type: 'danger' })
   }
 }
 
@@ -810,19 +799,6 @@ onMounted(async () => {
               <small>{{ reviewForm.comment.length }} / 500</small>
             </label>
 
-            <section
-              v-if="reviewFeedback"
-              class="operation-feedback"
-              :class="reviewFeedbackType === 'danger' ? 'operation-feedback--danger' : 'operation-feedback--success'"
-              role="status"
-            >
-              <Info
-                :size="18"
-                aria-hidden="true"
-              />
-              <span>{{ reviewFeedback }}</span>
-            </section>
-
             <button
               class="primary-action"
               type="submit"
@@ -1101,18 +1077,6 @@ onMounted(async () => {
               </div>
             </dl>
 
-            <section
-              v-if="notificationFeedback"
-              class="operation-feedback operation-feedback--success"
-              role="status"
-            >
-              <Info
-                :size="18"
-                aria-hidden="true"
-              />
-              <span>{{ notificationFeedback }}</span>
-            </section>
-
             <div class="detail-actions">
               <button
                 class="primary-action"
@@ -1191,8 +1155,7 @@ onMounted(async () => {
 }
 
 .page-title-card,
-.panel-card,
-.page-feedback {
+.panel-card {
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-surface);
@@ -1370,32 +1333,6 @@ onMounted(async () => {
 .metric-tile--info,
 .notification-metric--info {
   background: var(--color-brand-soft);
-}
-
-.page-feedback,
-.operation-feedback {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 11px 13px;
-  color: var(--color-info-text);
-  line-height: 1.5;
-}
-
-.operation-feedback {
-  border-radius: 8px;
-}
-
-.operation-feedback--success {
-  border: 1px solid var(--color-success-soft);
-  background: var(--color-success-bg);
-  color: var(--color-success-text);
-}
-
-.operation-feedback--danger {
-  border: 1px solid var(--color-danger-soft);
-  background: var(--color-danger-bg);
-  color: var(--color-danger-text);
 }
 
 .review-layout {

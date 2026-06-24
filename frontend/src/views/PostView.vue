@@ -4,10 +4,8 @@ import { useRoute, useRouter } from 'vue-router'
 import {
   BookOpen,
   Bookmark,
-  CheckCircle2,
   Clock3,
   FileText,
-  Filter,
   LoaderCircle,
   MessageCircle,
   PlusCircle,
@@ -26,10 +24,12 @@ import UserProfileModal from '../components/UserProfileModal.vue'
 import { optionLabel, POST_CATEGORY_OPTIONS, POST_STATUS_OPTIONS } from '../constants'
 import api from '../services/api'
 import { useAuth } from '../stores/auth'
+import { useToast } from '../composables/useToast'
 
 const route = useRoute()
 const router = useRouter()
 const { isAuthenticated, currentUserId } = useAuth()
+const { showToast } = useToast()
 
 const DEFAULT_PAGE_SIZE = 8
 
@@ -53,8 +53,6 @@ const listLoading = ref(false)
 const detailLoading = ref(false)
 const listError = ref('')
 const detailError = ref('')
-const feedback = ref('')
-const feedbackType = ref('success')
 const publishDialogOpen = ref(false)
 const publishing = ref(false)
 const publishErrors = reactive({})
@@ -332,11 +330,6 @@ async function changePage(nextPage) {
   await refreshPosts()
 }
 
-function setFeedback(message, type = 'success') {
-  feedback.value = message
-  feedbackType.value = type
-}
-
 function resetPostForm() {
   Object.assign(postForm, createDefaultPostForm(), {
     category: filters.category || 'INQUIRY_HELP'
@@ -346,7 +339,6 @@ function resetPostForm() {
 
 function openPublishDialog() {
   resetPostForm()
-  feedback.value = ''
   publishDialogOpen.value = true
   nextTick(() => {
     const titleInput = document.getElementById('post-title-input')
@@ -413,8 +405,6 @@ function buildCreatePostPayload() {
 }
 
 async function handlePublishPost() {
-  feedback.value = ''
-
   if (!validatePostForm()) {
     await focusFirstInvalidField()
     return
@@ -423,7 +413,7 @@ async function handlePublishPost() {
   publishing.value = true
   try {
     const createdPost = normalizePost(await api.createPost(buildCreatePostPayload()))
-    setFeedback(`帖子 #${createdPost.id || ''} 已发布。`)
+    showToast(`帖子 #${createdPost.id || ''} 已发布。`)
     publishDialogOpen.value = false
 
     Object.assign(filters, {
@@ -440,7 +430,7 @@ async function handlePublishPost() {
       await loadPostDetail(createdPost.id)
     }
   } catch (error) {
-    setFeedback(error.message || '帖子发布失败', 'danger')
+    showToast(error.message || '帖子发布失败', { type: 'danger' })
   } finally {
     publishing.value = false
   }
@@ -682,24 +672,6 @@ onMounted(() => {
           发布帖子
         </button>
       </section>
-
-      <div
-        v-if="feedback"
-        class="page-feedback"
-        :class="`page-feedback--${feedbackType}`"
-      >
-        <CheckCircle2
-          v-if="feedbackType === 'success'"
-          :size="18"
-          aria-hidden="true"
-        />
-        <Filter
-          v-else
-          :size="18"
-          aria-hidden="true"
-        />
-        <span>{{ feedback }}</span>
-      </div>
 
       <section class="metric-strip">
         <div class="metric-tile metric-tile--posts">

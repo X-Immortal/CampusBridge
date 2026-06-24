@@ -25,8 +25,10 @@ import {
 } from '../constants'
 import api from '../services/api'
 import { useAuth } from '../stores/auth'
+import { useToast } from '../composables/useToast'
 
 const { state } = useAuth()
+const { showToast } = useToast()
 
 const sections = [
   { key: 'verifications', label: '认证审核', icon: IdCard },
@@ -40,8 +42,6 @@ const verificationPage = reactive({
 const verificationTotal = ref(0)
 const verifications = ref([])
 const verificationsLoading = ref(false)
-const verificationFeedback = ref('')
-const verificationFeedbackType = ref('success')
 const verificationRejectDrafts = reactive({})
 const verificationActionLoading = ref('')
 
@@ -66,8 +66,6 @@ const visibleVerificationPages = computed(() => {
 
 const reports = ref([])
 const reportsLoading = ref(false)
-const reportFeedback = ref('')
-const reportFeedbackType = ref('success')
 const reportFilters = reactive({
   status: '',
   page: 1,
@@ -92,16 +90,6 @@ const pendingVerificationCount = computed(() => verificationTotal.value)
 const reportCount = computed(() => reports.value.length)
 function switchSection(sectionKey) {
   activeSection.value = sectionKey
-}
-
-function setVerificationFeedback(message, type = 'success') {
-  verificationFeedback.value = message
-  verificationFeedbackType.value = type
-}
-
-function setReportFeedback(message, type = 'success') {
-  reportFeedback.value = message
-  reportFeedbackType.value = type
 }
 
 function normalizeItems(result) {
@@ -188,7 +176,6 @@ function extractTotal(result) {
 
 async function loadVerifications() {
   verificationsLoading.value = true
-  verificationFeedback.value = ''
   try {
     const result = await api.getPendingVerifications({
       page: verificationPage.page,
@@ -197,7 +184,7 @@ async function loadVerifications() {
     verificationTotal.value = extractTotal(result)
     verifications.value = normalizeItems(result).map(normalizeVerification)
   } catch (error) {
-    setVerificationFeedback(error.message, 'danger')
+    showToast(error.message, { type: 'danger' })
   } finally {
     verificationsLoading.value = false
   }
@@ -214,13 +201,12 @@ async function approveVerification(record) {
   if (!record?.id) return
   const loadingKey = `approve:${record.id}`
   verificationActionLoading.value = loadingKey
-  verificationFeedback.value = ''
   try {
     await api.approveVerification(record.id)
     verifications.value = verifications.value.filter((item) => String(item.id) !== String(record.id))
-    setVerificationFeedback(`认证 #${record.id} 已通过。`)
+    showToast(`认证 #${record.id} 已通过。`)
   } catch (error) {
-    setVerificationFeedback(error.message, 'danger')
+    showToast(error.message, { type: 'danger' })
   } finally {
     verificationActionLoading.value = ''
   }
@@ -231,14 +217,13 @@ async function rejectVerification(record) {
   const reason = String(verificationRejectDrafts[record.id] || '').trim()
   const loadingKey = `reject:${record.id}`
   verificationActionLoading.value = loadingKey
-  verificationFeedback.value = ''
   try {
     await api.rejectVerification(record.id, reason ? { reason } : {})
     verifications.value = verifications.value.filter((item) => String(item.id) !== String(record.id))
     delete verificationRejectDrafts[record.id]
-    setVerificationFeedback(`认证 #${record.id} 已驳回。`)
+    showToast(`认证 #${record.id} 已驳回。`)
   } catch (error) {
-    setVerificationFeedback(error.message, 'danger')
+    showToast(error.message, { type: 'danger' })
   } finally {
     verificationActionLoading.value = ''
   }
@@ -246,12 +231,11 @@ async function rejectVerification(record) {
 
 async function loadReports() {
   reportsLoading.value = true
-  reportFeedback.value = ''
   try {
     const result = await api.getAdminReports(reportFilters)
     applyReportResult(result)
   } catch (error) {
-    setReportFeedback(error.message, 'danger')
+    showToast(error.message, { type: 'danger' })
   } finally {
     reportsLoading.value = false
   }
@@ -266,7 +250,7 @@ function useReportForResolution(report) {
   if (report.targetType === 'TASK') {
     reportForm.markTaskDisputed = true
   }
-  setReportFeedback(`已载入举报 #${report.id} 到裁决表单。`)
+  showToast(`已载入举报 #${report.id} 到裁决表单。`)
 }
 
 function clearActiveReport() {
@@ -302,12 +286,11 @@ function buildResolvePayload() {
 
 async function submitReportResolution() {
   if (!validateReportForm()) {
-    setReportFeedback('请检查举报裁决表单中标出的内容。', 'danger')
+    showToast('请检查举报裁决表单中标出的内容。', { type: 'danger' })
     return
   }
 
   reportSubmitting.value = true
-  reportFeedback.value = ''
   try {
     const record = await api.resolveReport(reportForm.reportId, buildResolvePayload())
     lastModerationRecord.value = record || {
@@ -320,9 +303,9 @@ async function submitReportResolution() {
         ? { ...report, status: reportForm.status }
         : report
     )
-    setReportFeedback(`举报 #${reportForm.reportId} 已裁决。`)
+    showToast(`举报 #${reportForm.reportId} 已裁决。`)
   } catch (error) {
-    setReportFeedback(error.message, 'danger')
+    showToast(error.message, { type: 'danger' })
   } finally {
     reportSubmitting.value = false
   }
@@ -421,16 +404,6 @@ onMounted(async () => {
                 待审核校园身份
               </h2>
             </div>
-          </div>
-
-          <div class="inline-controls">
-            <span
-              v-if="verificationFeedback"
-              class="report-sync-hint"
-              :class="verificationFeedbackType === 'danger' ? 'report-sync-hint--error' : ''"
-            >
-              {{ verificationFeedback }}
-            </span>
           </div>
 
           <div
@@ -651,13 +624,6 @@ onMounted(async () => {
                 </option>
               </select>
             </label>
-            <span
-              v-if="reportFeedback"
-              class="report-sync-hint"
-              :class="reportFeedbackType === 'danger' ? 'report-sync-hint--error' : ''"
-            >
-              {{ reportFeedback }}
-            </span>
           </div>
 
           <div
@@ -915,8 +881,7 @@ onMounted(async () => {
   line-height: 1.6;
 }
 
-.page-feedback,
-.operation-feedback {
+.page-feedback {
   display: flex;
   align-items: flex-start;
   gap: 10px;
@@ -925,21 +890,10 @@ onMounted(async () => {
   line-height: 1.5;
 }
 
-.page-feedback--danger,
-.operation-feedback--danger {
+.page-feedback--danger {
   border-color: var(--color-danger-soft);
   background: var(--color-danger-bg);
   color: var(--color-danger-text);
-}
-
-.operation-feedback {
-  border-radius: 8px;
-}
-
-.operation-feedback--success {
-  border: 1px solid var(--color-success-soft);
-  background: var(--color-success-bg);
-  color: var(--color-success-text);
 }
 
 .admin-metric-strip {
@@ -1354,18 +1308,6 @@ onMounted(async () => {
 .readonly-id-row .ghost-action {
   flex-shrink: 0;
   font-size: 0.82rem;
-}
-
-.report-sync-hint {
-  margin-left: auto;
-  font-size: 0.83rem;
-  color: var(--color-success);
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.report-sync-hint--error {
-  color: var(--color-danger);
 }
 
 .record-meta-grid {
