@@ -24,6 +24,7 @@ import {
 import { useDashboardSidebar } from '../composables/useDashboardSidebar'
 import { useNotificationCenter } from '../composables/useNotificationCenter'
 import { useAuth } from '../stores/auth'
+import ThemeToggle from './ThemeToggle.vue'
 
 const props = defineProps({
   activeLabel: {
@@ -238,6 +239,7 @@ onBeforeUnmount(() => {
           />
           <span v-if="notificationBadgeCount > 0">{{ notificationBadgeLabel }}</span>
         </RouterLink>
+        <ThemeToggle />
         <div class="topbar-divider" />
         <div
           ref="accountMenuRef"
@@ -371,8 +373,8 @@ onBeforeUnmount(() => {
   --sidebar-width: 293px;
   --topbar-height: 76px;
   min-height: 100vh;
-  background: #fbfafc;
-  color: #202033;
+  background: var(--color-bg);
+  color: var(--color-text);
   font-family:
     "PingFang SC",
     "Microsoft YaHei",
@@ -404,9 +406,9 @@ onBeforeUnmount(() => {
   width: var(--sidebar-width);
   height: 100vh;
   padding: 36px 18px 24px;
-  border-right: 1px solid #e4e1ea;
-  background: rgba(255, 255, 255, 0.97);
-  box-shadow: 14px 0 42px rgba(92, 82, 125, 0.045);
+  border-right: 1px solid var(--color-border);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
 }
 
 .collapse-button {
@@ -418,10 +420,10 @@ onBeforeUnmount(() => {
   justify-content: center;
   width: 34px;
   height: 34px;
-  border: 1px solid #e2def0;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
-  background: #ffffff;
-  color: #4f46e5;
+  background: var(--color-surface);
+  color: var(--color-brand);
   transition:
     background-color 180ms ease,
     border-color 180ms ease,
@@ -429,8 +431,8 @@ onBeforeUnmount(() => {
 }
 
 .collapse-button:hover {
-  border-color: #c7d2fe;
-  background: #f5f3ff;
+  border-color: var(--color-brand-border);
+  background: var(--color-brand-soft);
 }
 
 .brand {
@@ -439,7 +441,7 @@ onBeforeUnmount(() => {
   gap: 10px;
   min-height: 58px;
   padding: 0 10px;
-  color: #4f46e5;
+  color: var(--color-brand);
   text-decoration: none;
 }
 
@@ -452,7 +454,7 @@ onBeforeUnmount(() => {
 
 .brand-text {
   max-width: 190px;
-  color: #4338ca;
+  color: var(--color-brand-hover);
   font-family: Georgia, "Times New Roman", "Noto Serif", serif;
   font-size: 1.08rem;
   font-weight: 900;
@@ -479,7 +481,7 @@ onBeforeUnmount(() => {
   min-height: 50px;
   padding: 0 18px;
   border-radius: 8px;
-  color: #78738a;
+  color: var(--color-text-muted);
   font-size: 1rem;
   font-weight: 800;
   letter-spacing: 0;
@@ -494,9 +496,9 @@ onBeforeUnmount(() => {
 
 .nav-item:hover,
 .nav-item.active {
-  background: linear-gradient(90deg, #eef2ff 0%, #f8f7ff 100%);
-  color: #4f46e5;
-  box-shadow: 0 14px 30px rgba(79, 70, 229, 0.085);
+  background: linear-gradient(90deg, var(--color-brand-soft) 0%, var(--color-brand-soft) 100%);
+  color: var(--color-brand);
+  box-shadow: var(--shadow-card);
 }
 
 .nav-item.active::before {
@@ -507,7 +509,7 @@ onBeforeUnmount(() => {
   bottom: 10px;
   width: 3px;
   border-radius: 999px;
-  background: #4f46e5;
+  background: var(--color-brand);
 }
 
 .is-collapsed .dashboard-sidebar {
@@ -548,8 +550,8 @@ onBeforeUnmount(() => {
   align-items: center;
   height: var(--topbar-height);
   padding: 0 30px 0 34px;
-  border-bottom: 1px solid #e4e7ef;
-  background: rgba(255, 255, 255, 0.96);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
   backdrop-filter: blur(18px);
 }
 
@@ -559,18 +561,18 @@ onBeforeUnmount(() => {
   gap: 12px;
   height: 46px;
   padding: 0 16px;
-  border: 1px solid #dbe1ee;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
-  background: #ffffff;
-  color: #667085;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
   transition:
     border-color 180ms ease,
     box-shadow 180ms ease;
 }
 
 .search-box:focus-within {
-  border-color: #818cf8;
-  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
+  border-color: var(--color-brand-border-hover);
+  box-shadow: var(--shadow-focus);
 }
 
 .search-box input {
@@ -578,12 +580,12 @@ onBeforeUnmount(() => {
   border: 0;
   outline: 0;
   background: transparent;
-  color: #111827;
+  color: var(--color-text);
   font-size: 0.92rem;
 }
 
 .search-box input::placeholder {
-  color: #667085;
+  color: var(--color-text-muted);
 }
 
 .topbar-account {
@@ -599,7 +601,7 @@ onBeforeUnmount(() => {
 .account-menu-item {
   border: 0;
   background: transparent;
-  color: #202033;
+  color: var(--color-text);
 }
 
 .notice-button {
@@ -615,8 +617,8 @@ onBeforeUnmount(() => {
 .notice-button:hover,
 .account-button:hover,
 .account-button.active {
-  background: #f5f3ff;
-  color: #4f46e5;
+  background: var(--color-brand-soft);
+  color: var(--color-brand);
 }
 
 .notice-button span {
@@ -627,8 +629,8 @@ onBeforeUnmount(() => {
   height: 20px;
   padding: 0 6px;
   border-radius: 999px;
-  background: #4f46e5;
-  color: #ffffff;
+  background: var(--color-brand);
+  color: var(--color-surface);
   font-size: 0.78rem;
   font-weight: 800;
   line-height: 20px;
@@ -637,7 +639,7 @@ onBeforeUnmount(() => {
 .topbar-divider {
   width: 1px;
   height: 34px;
-  background: #e4e7ef;
+  background: var(--color-border);
 }
 
 .account-menu {
@@ -674,8 +676,8 @@ onBeforeUnmount(() => {
   width: 42px;
   height: 42px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #e0e7ff, #f5f3ff);
-  color: #4f46e5;
+  background: linear-gradient(135deg, var(--color-brand-soft), var(--color-brand-soft));
+  color: var(--color-brand);
   font-weight: 900;
   overflow: hidden;
 }
@@ -700,10 +702,10 @@ onBeforeUnmount(() => {
   gap: 6px;
   width: min(260px, calc(100vw - 32px));
   padding: 10px;
-  border: 1px solid #e4e7ef;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.98);
-  box-shadow: 0 18px 40px rgba(42, 38, 61, 0.14);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-dropdown);
 }
 
 .account-dropdown-head {
@@ -712,7 +714,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 10px;
   padding: 8px 9px 12px;
-  border-bottom: 1px solid #eef0f6;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .account-dropdown-head div {
@@ -721,13 +723,13 @@ onBeforeUnmount(() => {
 }
 
 .account-dropdown-head strong {
-  color: #111827;
+  color: var(--color-text);
   font-size: 0.98rem;
   line-height: 1.25;
 }
 
 .account-dropdown-head small {
-  color: #667085;
+  color: var(--color-text-muted);
   line-height: 1.35;
 }
 
@@ -739,7 +741,7 @@ onBeforeUnmount(() => {
   min-height: 40px;
   padding: 0 10px;
   border-radius: 8px;
-  color: #374151;
+  color: var(--color-text-secondary);
   font-size: 0.96rem;
   font-weight: 900;
   text-align: left;
@@ -751,19 +753,19 @@ onBeforeUnmount(() => {
 
 .account-menu-item:hover,
 .account-menu-item:focus-visible {
-  background: #f5f3ff;
-  color: #4f46e5;
+  background: var(--color-brand-soft);
+  color: var(--color-brand);
   outline: 0;
 }
 
 .account-menu-item--danger {
-  color: #b91c1c;
+  color: var(--color-danger);
 }
 
 .account-menu-item--danger:hover,
 .account-menu-item--danger:focus-visible {
-  background: #fef2f2;
-  color: #991b1b;
+  background: var(--color-danger-bg);
+  color: var(--color-danger-text);
 }
 
 .dashboard-main {
@@ -775,7 +777,7 @@ onBeforeUnmount(() => {
 .dashboard-shell--publish {
   --sidebar-width: 0px;
   --topbar-height: 68px;
-  background: #ffffff;
+  background: var(--color-surface);
 }
 
 .dashboard-shell--publish .dashboard-topbar {
@@ -834,7 +836,7 @@ onBeforeUnmount(() => {
     height: auto;
     padding: 20px 16px;
     border-right: 0;
-    border-bottom: 1px solid #e4e7ef;
+    border-bottom: 1px solid var(--color-border);
   }
 
   .collapse-button {

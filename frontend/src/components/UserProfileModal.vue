@@ -231,7 +231,7 @@ function close() {
   z-index: 1000;
   display: grid;
   place-items: center;
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(4px);
 }
 
@@ -244,8 +244,8 @@ function close() {
   gap: 20px;
   padding: 28px;
   border-radius: 16px;
-  background: #ffffff;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-elevated);
 }
 
 .profile-modal-close {
@@ -259,14 +259,14 @@ function close() {
   height: 36px;
   border: none;
   border-radius: 50%;
-  background: #f3f1f7;
-  color: #5c5869;
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
   cursor: pointer;
   transition: background 180ms ease;
 }
 
 .profile-modal-close:hover {
-  background: #e5e2ec;
+  background: var(--color-surface-hover);
 }
 
 .profile-modal-loading {
@@ -274,12 +274,12 @@ function close() {
   place-items: center;
   gap: 12px;
   padding: 48px 0;
-  color: #746f7a;
+  color: var(--color-text-muted);
 }
 
 .profile-modal-error {
   text-align: center;
-  color: #ef4444;
+  color: var(--color-danger-soft);
   padding: 32px 0;
 }
 
@@ -294,11 +294,11 @@ function close() {
   height: 80px;
   border-radius: 50%;
   overflow: hidden;
-  background: #f3f1f7;
+  background: var(--color-surface-muted);
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  color: #b0abc0;
+  color: var(--color-text-muted);
 }
 
 .profile-modal-avatar img {
@@ -310,7 +310,7 @@ function close() {
 .profile-modal-hero h2 {
   margin: 0 0 8px;
   font-size: 1.25rem;
-  color: #1f1c27;
+  color: var(--color-text);
 }
 
 .profile-modal-chips {
@@ -327,18 +327,18 @@ function close() {
   border-radius: 999px;
   font-size: 0.82rem;
   font-weight: 600;
-  background: #f3f1f7;
-  color: #5c5869;
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
 }
 
 .profile-chip--verified {
-  background: #dcfce7;
-  color: #166534;
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
 }
 
 .profile-chip--level {
-  background: #ede9fe;
-  color: #5b21b6;
+  background: var(--color-brand-soft);
+  color: var(--color-brand-text);
 }
 
 .profile-modal-section {
@@ -349,7 +349,7 @@ function close() {
 .profile-modal-section h3 {
   margin: 0;
   font-size: 0.95rem;
-  color: #3c3543;
+  color: var(--color-text);
   display: flex;
   align-items: baseline;
   gap: 8px;
@@ -358,7 +358,7 @@ function close() {
 .profile-modal-review-count {
   font-weight: 400;
   font-size: 0.85rem;
-  color: #8a8792;
+  color: var(--color-text-muted);
 }
 
 .profile-modal-dl {
@@ -379,13 +379,13 @@ function close() {
   gap: 4px;
   font-weight: 600;
   font-size: 0.88rem;
-  color: #5c5869;
+  color: var(--color-text-secondary);
 }
 
 .profile-modal-dl dd {
   margin: 0;
   font-size: 0.92rem;
-  color: #1f1c27;
+  color: var(--color-text);
   word-break: break-word;
 }
 
@@ -404,21 +404,21 @@ function close() {
 }
 
 .profile-modal-tag--interest {
-  background: #dbeafe;
-  color: #1e40af;
+  background: var(--color-info-bg);
+  color: var(--color-info-text);
 }
 
 .profile-modal-tag--skill {
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--color-warning-bg);
+  color: var(--color-warning-text);
 }
 
 .profile-modal-empty {
   padding: 14px;
-  border: 1px dashed #d7d1e5;
+  border: 1px dashed var(--color-border-dashed);
   border-radius: 8px;
-  background: #fbf9fc;
-  color: #667085;
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
   text-align: center;
   font-size: 0.9rem;
 }
@@ -432,9 +432,9 @@ function close() {
   display: grid;
   gap: 6px;
   padding: 12px;
-  border: 1px solid #e4e7ef;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
-  background: #fafafa;
+  background: var(--color-surface-muted);
 }
 
 .profile-modal-review-top {
@@ -451,28 +451,28 @@ function close() {
 }
 
 .profile-modal-review-rating svg {
-  color: #d4d1e0;
+  color: var(--color-border);
 }
 
 .profile-modal-review-rating svg.filled {
-  color: #f59e0b;
+  color: var(--color-warning);
 }
 
 .profile-modal-review-rating strong {
   margin-left: 4px;
   font-size: 0.88rem;
-  color: #3c3543;
+  color: var(--color-text);
 }
 
 .profile-modal-review-top small {
-  color: #8a8792;
+  color: var(--color-text-muted);
   font-size: 0.82rem;
 }
 
 .profile-modal-review-card p {
   margin: 0;
   font-size: 0.9rem;
-  color: #4a4552;
+  color: var(--color-text-secondary);
   line-height: 1.55;
 }
 

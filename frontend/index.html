@@ -4,6 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CampusBridge 校园互助服务平台</title>
+    <script>
+      (function () {
+        try {
+          var theme = localStorage.getItem('cb-theme') || 'system';
+          var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var effective = theme === 'system' ? (prefersDark ? 'dark' : 'light') : theme;
+          document.documentElement.setAttribute('data-theme', effective);
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="app"></div>

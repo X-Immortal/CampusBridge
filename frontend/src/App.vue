@@ -28,10 +28,10 @@
   text-align: center;
   padding: 12px 0;
   font-size: 0.82rem;
-  color: #9b8f98;
+  color: var(--color-text-muted);
 }
 .app-footer a {
-  color: #9b8f98;
+  color: var(--color-text-muted);
   text-decoration: none;
 }
 .app-footer a:hover {

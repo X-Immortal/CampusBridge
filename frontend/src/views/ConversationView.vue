@@ -916,12 +916,12 @@ onMounted(async () => {
 
 <style scoped>
 .conversation-page {
-  --chat-primary: #3035ff;
-  --chat-primary-dark: #2529d6;
-  --chat-text: #17172d;
-  --chat-muted: #596070;
-  --chat-border: #dfe5f4;
-  --chat-soft: #f5f7ff;
+  --chat-primary: var(--color-brand);
+  --chat-primary-dark: var(--color-brand-hover);
+  --chat-text: var(--color-text);
+  --chat-muted: var(--color-text-muted);
+  --chat-border: var(--color-border);
+  --chat-soft: var(--color-brand-soft);
   display: grid;
   gap: 18px;
   color: var(--chat-text);
@@ -934,8 +934,8 @@ onMounted(async () => {
 .page-feedback {
   border: 1px solid var(--chat-border);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.98);
-  box-shadow: 0 18px 36px rgba(40, 46, 92, 0.06);
+  background: var(--color-surface);
+  box-shadow: 0 18px 36px var(--shadow-card);
 }
 
 .page-title-card {
@@ -959,8 +959,8 @@ onMounted(async () => {
   width: 78px;
   height: 82px;
   border-radius: 8px;
-  background: linear-gradient(135deg, #eeeaff, #f9f7ff);
-  color: #746dc3;
+  background: linear-gradient(135deg, var(--color-brand-soft), var(--color-brand-soft));
+  color: var(--color-brand-text);
 }
 
 .title-copy {
@@ -971,7 +971,7 @@ onMounted(async () => {
 .title-copy p,
 .panel-heading p {
   margin: 0;
-  color: #746dc3;
+  color: var(--color-brand-text);
   font-size: 0.92rem;
   font-weight: 900;
 }
@@ -1001,12 +1001,12 @@ onMounted(async () => {
 .page-title-card :deep(.status-badge--success) {
   min-height: 32px;
   padding: 0 13px;
-  border: 1px solid #86efac;
-  background: #dcfce7;
-  color: #047857;
+  border: 1px solid var(--color-success-soft);
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
   font-size: 0.86rem;
   font-weight: 900;
-  box-shadow: 0 8px 18px rgba(22, 163, 74, 0.14);
+  box-shadow: var(--shadow-card);
 }
 
 .page-feedback {
@@ -1014,8 +1014,8 @@ onMounted(async () => {
   align-items: center;
   gap: 10px;
   padding: 12px 14px;
-  color: #075985;
-  background: #f0f9ff;
+  color: var(--color-info-text);
+  background: var(--color-info-bg);
 }
 
 .conversation-workspace {
@@ -1062,7 +1062,7 @@ onMounted(async () => {
   justify-content: center;
   border: 1px solid var(--chat-border);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--color-surface);
   color: var(--chat-primary);
   transition:
     border-color 180ms ease,
@@ -1079,9 +1079,9 @@ onMounted(async () => {
 .icon-button:hover:not(:disabled),
 .pager-button:hover:not(:disabled),
 .image-button:hover:not(:disabled) {
-  border-color: #aab5ff;
-  background: #f6f7ff;
-  box-shadow: 0 10px 20px rgba(48, 53, 255, 0.08);
+  border-color: var(--color-brand-border);
+  background: var(--color-brand-soft);
+  box-shadow: 0 10px 20px var(--shadow-card);
 }
 
 .icon-button:disabled,
@@ -1099,8 +1099,8 @@ onMounted(async () => {
   padding: 0 12px;
   border: 1px solid var(--chat-border);
   border-radius: 8px;
-  background: #ffffff;
-  color: #475569;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
 }
 
 .conversation-search:focus-within,
@@ -1110,8 +1110,8 @@ onMounted(async () => {
 .conversation-card:focus-visible,
 .image-button:focus-visible,
 .send-button:focus-visible {
-  border-color: #7c83ff;
-  box-shadow: 0 0 0 4px rgba(48, 53, 255, 0.12);
+  border-color: var(--color-brand-border);
+  box-shadow: 0 0 0 4px var(--shadow-focus);
   outline: 0;
 }
 
@@ -1126,11 +1126,11 @@ onMounted(async () => {
 
 .conversation-search input::placeholder,
 .message-composer input::placeholder {
-  color: #697386;
+  color: var(--color-text-muted);
 }
 
 .composer-input--system::placeholder {
-  color: #111827;
+  color: var(--color-text);
 }
 
 .conversation-list {
@@ -1148,7 +1148,7 @@ onMounted(async () => {
   padding: 14px 13px;
   border: 1px solid var(--chat-border);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--color-surface);
   color: inherit;
   text-align: left;
   transition:
@@ -1159,9 +1159,9 @@ onMounted(async () => {
 
 .conversation-card:hover,
 .conversation-card.active {
-  border-color: #8f98ff;
-  background: linear-gradient(135deg, #f9faff, #ffffff);
-  box-shadow: 0 14px 30px rgba(48, 53, 255, 0.08);
+  border-color: var(--color-brand-border);
+  background: linear-gradient(135deg, var(--color-brand-soft), var(--color-surface));
+  box-shadow: 0 14px 30px var(--shadow-card);
 }
 
 .conversation-card.active::before {
@@ -1180,18 +1180,18 @@ onMounted(async () => {
 }
 
 .task-icon--blue {
-  background: #eef2ff;
+  background: var(--color-brand-soft);
   color: var(--chat-primary);
 }
 
 .task-icon--orange {
-  background: #fff4e6;
-  color: #f97316;
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
 }
 
 .task-icon--green {
-  background: #e9fbeF;
-  color: #16a34a;
+  background: var(--color-success-bg);
+  color: var(--color-success);
 }
 
 .conversation-card-body {
@@ -1217,7 +1217,7 @@ onMounted(async () => {
 }
 
 .conversation-meta {
-  color: #4b5563;
+  color: var(--color-text-secondary);
 }
 
 .unread-dot {
@@ -1228,7 +1228,7 @@ onMounted(async () => {
   height: 10px;
   border-radius: 999px;
   background: var(--chat-primary);
-  box-shadow: 0 0 0 3px #eef2ff;
+  box-shadow: 0 0 0 3px var(--color-brand-soft);
 }
 
 .pagination-bar {
@@ -1271,7 +1271,7 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 12px;
-  color: #334155;
+  color: var(--color-text-secondary);
   font-size: 0.9rem;
 }
 
@@ -1286,7 +1286,7 @@ onMounted(async () => {
 .date-divider span {
   padding: 6px 14px;
   border-radius: 999px;
-  background: #f1f4fb;
+  background: var(--color-surface-muted);
 }
 
 .message-thread {
@@ -1314,17 +1314,17 @@ onMounted(async () => {
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #eef2ff, #dbe0ff);
-  color: #6b73ff;
+  background: linear-gradient(135deg, var(--color-brand-soft), var(--color-brand-soft));
+  color: var(--color-brand-text);
 }
 
 .message-avatar--mine {
-  background: linear-gradient(135deg, #818cf8, #6d5dfc);
-  color: #ffffff;
+  background: linear-gradient(135deg, var(--color-brand-border-hover), var(--color-brand-hover));
+  color: var(--color-surface);
 }
 
 .message-row time {
-  color: #475569;
+  color: var(--color-text-muted);
   font-size: 0.88rem;
 }
 
@@ -1347,13 +1347,13 @@ onMounted(async () => {
   padding: 12px 16px;
   border: 1px solid var(--chat-border);
   border-radius: 8px;
-  background: #ffffff;
-  box-shadow: 0 10px 22px rgba(30, 41, 59, 0.05);
+  background: var(--color-surface);
+  box-shadow: 0 10px 22px var(--shadow-card);
 }
 
 .message-row--mine .message-bubble {
-  border-color: #dfe3ff;
-  background: #eef0ff;
+  border-color: var(--color-border);
+  background: var(--color-brand-soft);
 }
 
 .message-bubble p {
@@ -1368,7 +1368,7 @@ onMounted(async () => {
   overflow: hidden;
   width: min(300px, 100%);
   border-radius: 8px;
-  background: #f8fafc;
+  background: var(--color-bg);
 }
 
 .message-image img {
@@ -1385,7 +1385,7 @@ onMounted(async () => {
   padding: 12px;
   border: 1px solid var(--chat-border);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--color-surface);
 }
 
 .message-composer input {
@@ -1402,8 +1402,8 @@ onMounted(async () => {
 .send-button {
   border-color: var(--chat-primary);
   background: var(--chat-primary);
-  color: #ffffff;
-  box-shadow: 0 14px 24px rgba(48, 53, 255, 0.18);
+  color: var(--color-surface);
+  box-shadow: 0 14px 24px var(--shadow-button-hover);
 }
 
 .send-button:hover:not(:disabled) {
@@ -1426,7 +1426,7 @@ onMounted(async () => {
   padding: 12px;
   border: 1px solid var(--chat-border);
   border-radius: 8px;
-  background: #fbfcff;
+  background: var(--color-surface);
 }
 
 .task-detail-list dd {
@@ -1441,10 +1441,10 @@ onMounted(async () => {
   align-items: center;
   gap: 8px;
   padding: 11px 12px;
-  border: 1px solid #bbf7d0;
+  border: 1px solid var(--color-success-soft);
   border-radius: 8px;
-  background: #f0fdf4;
-  color: #166534;
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
   font-weight: 900;
   line-height: 1.45;
 }
