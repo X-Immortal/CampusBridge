@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
@@ -12,12 +12,12 @@ import {
   Home,
   LogIn,
   LogOut,
+  Palette,
   Shield,
   MessageCircle,
   PlusCircle,
   School,
   Search,
-  Settings,
   ShieldCheck,
   Star,
   UserRound
@@ -27,7 +27,6 @@ import { useNotificationCenter } from '../composables/useNotificationCenter'
 import { useAuth } from '../stores/auth'
 import { usePreferences } from '../composables/usePreferences'
 import BackToTop from './BackToTop.vue'
-import ThemeToggle from './ThemeToggle.vue'
 import ThemePreferences from './ThemePreferences.vue'
 
 const props = defineProps({
@@ -263,7 +262,6 @@ onBeforeUnmount(() => {
           />
           <span v-if="notificationBadgeCount > 0">{{ notificationBadgeLabel }}</span>
         </RouterLink>
-        <ThemeToggle />
         <div
           ref="preferencesRef"
           class="topbar-preferences"
@@ -271,12 +269,13 @@ onBeforeUnmount(() => {
           <button
             class="preferences-toggle"
             type="button"
-            aria-label="主题偏好"
+            aria-label="外观设置"
+            title="外观设置"
             aria-haspopup="dialog"
             :aria-expanded="preferencesOpen"
             @click="togglePreferences"
           >
-            <Settings
+            <Palette
               :size="20"
               aria-hidden="true"
             />

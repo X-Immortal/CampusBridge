@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
@@ -1620,19 +1620,19 @@ onMounted(() => {
 }
 
 .metric-tile--likes {
-  --metric-bg: var(--color-success-bg);
-  --metric-border: var(--color-success-soft);
-  --metric-icon: var(--color-success);
-  --metric-label: var(--color-success-text);
-  --metric-value: var(--color-success-text);
+  --metric-bg: var(--color-brand-soft);
+  --metric-border: var(--color-brand-border);
+  --metric-icon: var(--color-brand);
+  --metric-label: var(--color-brand-hover);
+  --metric-value: var(--color-brand-text);
 }
 
 .metric-tile--mine {
-  --metric-bg: var(--color-warning-bg);
-  --metric-border: var(--color-warning-soft);
-  --metric-icon: var(--color-warning);
-  --metric-label: var(--color-warning-text);
-  --metric-value: var(--color-warning-text);
+  --metric-bg: var(--color-brand-soft);
+  --metric-border: var(--color-brand-border);
+  --metric-icon: var(--color-brand);
+  --metric-label: var(--color-brand-hover);
+  --metric-value: var(--color-brand-text);
 }
 
 .metric-strip svg {
@@ -2020,6 +2020,11 @@ onMounted(() => {
   font-weight: 700;
 }
 
+.like-action--active svg {
+  color: var(--color-brand);
+  fill: var(--color-brand-soft);
+}
+
 .detail-like {
   font-size: 0.92rem;
   font-weight: 600;
@@ -2055,7 +2060,7 @@ onMounted(() => {
 }
 
 .mark-filter-toggle input[type="checkbox"] {
-  accent-color: var(--color-brand-text);
+  accent-color: var(--color-brand);
   width: 16px;
   height: 16px;
   cursor: pointer;
@@ -2438,3 +2443,4 @@ onMounted(() => {
   }
 }
 </style>
+

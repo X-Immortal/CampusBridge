@@ -1,4 +1,4 @@
-@font-face {
+﻿@font-face {
   font-family: "CampusBridgeSans";
   src: local("Fira Sans"), local("Segoe UI");
   font-display: swap;
@@ -87,6 +87,16 @@
 
   /* 间距 */
   --spacing-unit: 4px;
+  --density-page-padding-y: 28px;
+  --density-page-padding-x: 24px;
+  --density-page-padding-bottom: 56px;
+  --density-panel-padding: 20px;
+  --density-card-padding: 18px;
+  --density-section-gap: 16px;
+  --density-control-height: 40px;
+  --density-control-padding-x: 14px;
+  --density-field-padding-y: 11px;
+  --density-field-padding-x: 12px;
 
   /* 字体 */
   --font-size-xs: 0.75rem;
@@ -244,6 +254,16 @@ html[data-theme="dark"][data-accent="green"] {
 /* 密度变量 */
 html[data-density="compact"] {
   --spacing-unit: 3px;
+  --density-page-padding-y: 20px;
+  --density-page-padding-x: 16px;
+  --density-page-padding-bottom: 40px;
+  --density-panel-padding: 14px;
+  --density-card-padding: 12px;
+  --density-section-gap: 10px;
+  --density-control-height: 34px;
+  --density-control-padding-x: 10px;
+  --density-field-padding-y: 8px;
+  --density-field-padding-x: 10px;
   --font-size-base: 0.85rem;
   --radius-card: 6px;
   --radius-control: 6px;
@@ -251,93 +271,105 @@ html[data-density="compact"] {
 
 html[data-density="spacious"] {
   --spacing-unit: 6px;
+  --density-page-padding-y: 36px;
+  --density-page-padding-x: 32px;
+  --density-page-padding-bottom: 72px;
+  --density-panel-padding: 28px;
+  --density-card-padding: 24px;
+  --density-section-gap: 24px;
+  --density-control-height: 46px;
+  --density-control-padding-x: 18px;
+  --density-field-padding-y: 14px;
+  --density-field-padding-x: 16px;
   --font-size-base: 1rem;
   --radius-card: 12px;
   --radius-control: 10px;
 }
 
-html[data-density="compact"] .page {
-  padding: 20px 16px 40px;
+html[data-density] .page {
+  padding: var(--density-page-padding-y) var(--density-page-padding-x) var(--density-page-padding-bottom);
 }
 
-html[data-density="spacious"] .page {
-  padding: 36px 32px 72px;
-}
-
-html[data-density="compact"] .card,
-html[data-density="compact"] .metric-card {
-  gap: 8px;
-  padding: 12px;
+html[data-density] .card,
+html[data-density] .metric-card,
+html[data-density] .panel-card,
+html[data-density] .page-title-card,
+html[data-density] .metric-tile,
+html[data-density] .post-card,
+html[data-density] .reply-card,
+html[data-density] .detail-facts div,
+html[data-density] .record-grid div,
+html[data-density] .profile-meta-grid div,
+html[data-density] .identity-row-list div,
+html[data-density] .visibility-split div,
+html[data-density] .profile-progress-block,
+html[data-density] .reply-form,
+html[data-density] .post-preview,
+html[data-density] .empty-state {
+  gap: var(--density-section-gap);
+  padding: var(--density-card-padding);
   border-radius: var(--radius-card);
 }
 
-html[data-density="spacious"] .card,
-html[data-density="spacious"] .metric-card {
-  gap: 16px;
-  padding: 24px;
+html[data-density] .panel {
+  padding: var(--density-panel-padding);
   border-radius: var(--radius-card);
 }
 
-html[data-density="compact"] .panel {
-  padding: 14px;
-  border-radius: var(--radius-card);
+html[data-density] .button,
+html[data-density] .primary-action,
+html[data-density] .ghost-action,
+html[data-density] .page-button,
+html[data-density] .account-menu-item,
+html[data-density] .nav-item {
+  min-height: var(--density-control-height);
+  padding-inline: var(--density-control-padding-x);
 }
 
-html[data-density="spacious"] .panel {
-  padding: 28px;
-  border-radius: var(--radius-card);
+html[data-density] .icon-button,
+html[data-density] .theme-toggle,
+html[data-density] .preferences-toggle,
+html[data-density] .notice-button {
+  width: var(--density-control-height);
+  height: var(--density-control-height);
 }
 
-html[data-density="compact"] .button {
-  min-height: 34px;
-  padding: 0 10px;
+html[data-density] .field,
+html[data-density] .filter-field,
+html[data-density] .publish-field,
+html[data-density] .profile-form,
+html[data-density] .verification-form {
+  gap: var(--density-section-gap);
 }
 
-html[data-density="spacious"] .button {
-  min-height: 46px;
-  padding: 0 18px;
+html[data-density] .field input,
+html[data-density] .field select,
+html[data-density] .field textarea,
+html[data-density] .filter-field input,
+html[data-density] .filter-field select,
+html[data-density] .publish-field input,
+html[data-density] .publish-field textarea,
+html[data-density] .search-field,
+html[data-density] .search-box {
+  min-height: var(--density-control-height);
+  padding: var(--density-field-padding-y) var(--density-field-padding-x);
 }
 
-html[data-density="compact"] .icon-button {
-  width: 34px;
-  height: 34px;
+html[data-density] .search-field input,
+html[data-density] .search-box input {
+  min-height: 0;
+  padding: 0;
 }
 
-html[data-density="spacious"] .icon-button {
-  width: 46px;
-  height: 46px;
+html[data-density] .stack,
+html[data-density] .grid,
+html[data-density] .content-grid,
+html[data-density] .posts-page,
+html[data-density] .posts-layout,
+html[data-density] .post-list,
+html[data-density] .metric-strip {
+  gap: var(--density-section-gap);
 }
-
-html[data-density="compact"] .field {
-  gap: 5px;
-}
-
-html[data-density="compact"] .field input,
-html[data-density="compact"] .field select,
-html[data-density="compact"] .field textarea {
-  padding: 8px 10px;
-}
-
-html[data-density="spacious"] .field {
-  gap: 10px;
-}
-
-html[data-density="spacious"] .field input,
-html[data-density="spacious"] .field select,
-html[data-density="spacious"] .field textarea {
-  padding: 14px 16px;
-}
-
-html[data-density="compact"] .stack,
-html[data-density="compact"] .grid {
-  gap: 10px;
-}
-
-html[data-density="spacious"] .stack,
-html[data-density="spacious"] .grid {
-  gap: 24px;
-}
-
 * {
   box-sizing: border-box;
   min-width: 0;
@@ -895,3 +927,4 @@ textarea:focus-visible {
 .fade-leave-to {
   opacity: 0;
 }
+

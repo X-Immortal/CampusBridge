@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { Check, LayoutGrid, Monitor, Moon, Palette, Sun, X } from '@lucide/vue'
 import { useTheme } from '../composables/useTheme'
@@ -75,7 +75,7 @@ onBeforeUnmount(() => {
         v-if="isOpen"
         class="preferences-dropdown"
         role="dialog"
-        aria-label="主题偏好"
+        aria-label="外观设置"
         @click.stop
       >
         <div class="preferences-head">
@@ -83,7 +83,7 @@ onBeforeUnmount(() => {
             :size="18"
             aria-hidden="true"
           />
-          <span>主题偏好</span>
+          <span>外观设置</span>
           <button
             class="preferences-close"
             type="button"
