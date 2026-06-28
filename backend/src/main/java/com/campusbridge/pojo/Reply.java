@@ -17,4 +17,5 @@ public class Reply {
     private String status;
     private Integer likeCount;
     private LocalDateTime createdAt;
+    private String authorNickname;
 }

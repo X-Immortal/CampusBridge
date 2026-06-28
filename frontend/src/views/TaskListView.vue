@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
@@ -303,7 +303,7 @@ const pageSubtitle = computed(() =>
 const listRouteName = computed(() => (isMineView.value ? 'my-tasks' : 'task-list'))
 const detailRouteName = computed(() => (isMineView.value ? 'my-task-detail' : 'task-detail'))
 const editableStatuses = new Set(['DRAFT', 'OPEN'])
-const cancelableStatuses = new Set(['OPEN', 'ACCEPTED', 'IN_PROGRESS'])
+const cancelableStatuses = new Set(['DRAFT', 'OPEN', 'ACCEPTED', 'IN_PROGRESS'])
 const repostableStatuses = new Set(['CANCELLED', 'DRAFT'])
 const isDetailOwner = computed(() => {
   const requesterId = detailTask.value?.requesterId
@@ -747,7 +747,7 @@ function paginateTasks(items, page, size) {
 }
 
 function applyTaskResult(result) {
-  const items = normalizePagedTasks(result).map(normalizeTask)
+  let items = normalizePagedTasks(result).map(normalizeTask)
 
   if (isMineView.value) {
     const mineItems = items.filter(isRequesterTask)
@@ -761,6 +761,14 @@ function applyTaskResult(result) {
     filters.size = pagination.size
     return
   }
+
+  // Filter out tasks with expired deadlines in public task plaza
+  const now = new Date()
+  items = items.filter((task) => {
+    if (!task.deadline) return true
+    const deadline = new Date(task.deadline)
+    return !Number.isNaN(deadline.getTime()) && deadline > now
+  })
 
   const page = Number(result?.page || filters.page || 1)
   const size = Number(result?.size || filters.size || currentDefaultFilters().size)
@@ -1348,11 +1356,27 @@ async function submitReport() {
   }
 }
 
+async function quickDeleteDraft(task) {
+  if (!task?.id || task.status !== 'DRAFT') return
+  if (!confirm('确认删除这个草稿？')) return
+  operationLoading.value = 'delete-draft'
+  try {
+    await api.cancelTask(task.id, '删除草稿')
+    setOperationFeedback('草稿已删除。')
+    await refreshTasks()
+  } catch (error) {
+    setOperationFeedback(error.message || '删除草稿失败，请稍后重试。', 'danger')
+  } finally {
+    operationLoading.value = ''
+  }
+}
+
 async function submitCancelTask() {
   if (!detailTask.value?.id || !canCancelDetailTask.value) return
 
+  const isDraft = detailTask.value.status === 'DRAFT'
   const reason = cancelReason.value.trim()
-  if (reason.length < 4) {
+  if (!isDraft && reason.length < 4) {
     cancelReasonError.value = '请用至少 4 个字说明取消原因，方便后续追溯。'
     return
   }
@@ -1361,11 +1385,11 @@ async function submitCancelTask() {
   cancelReasonError.value = ''
   try {
     await api.cancelTask(detailTask.value.id, reason)
-    setOperationFeedback('任务已取消，状态记录会保留在任务历史中。')
+    setOperationFeedback(isDraft ? '草稿已删除。' : '任务已取消，状态记录会保留在任务历史中。')
     closeCancelPanel()
     await refreshTasks()
   } catch (error) {
-    setOperationFeedback(error.message || '取消任务失败，请稍后重试。', 'danger')
+    setOperationFeedback(error.message || (isDraft ? '删除草稿失败' : '取消任务失败') + '，请稍后重试。', 'danger')
   } finally {
     operationLoading.value = ''
   }
@@ -2374,6 +2398,19 @@ onMounted(async () => {
                 <span class="task-card-footer">
                   <span>{{ taskCategoryLabel(task) }}</span>
                   <span>发布于 {{ formatCreatedAt(task.createdAt) }}</span>
+                  <button
+                    v-if="isMineView && task.status === 'DRAFT'"
+                    class="card-delete-btn"
+                    type="button"
+                    aria-label="删除草稿"
+                    @click.stop="quickDeleteDraft(task)"
+                  >
+                    <Trash2
+                      :size="15"
+                      aria-hidden="true"
+                    />
+                    删除
+                  </button>
                 </span>
               </button>
             </div>
@@ -4987,6 +5024,27 @@ onMounted(async () => {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.card-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+  margin-left: auto;
+  transition: border-color 150ms ease, background 150ms ease;
+}
+
+.card-delete-btn:hover {
+  border-color: #f87171;
+  background: #fee2e2;
 }
 
 .operation-feedback {

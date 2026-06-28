@@ -117,6 +117,7 @@ export default {
     request('/verifications/email/confirm', { method: 'POST', body }),
   getVerification: () => request('/verifications'),
   getContent: (params) => request(`/content${buildQuery(params)}`),
+  getHomeRecommendations: () => request('/home/recommendations'),
   createPost: (body) => request('/posts', { method: 'POST', body }),
   getPosts: (params) => request(`/posts${buildQuery(params)}`),
   getPostDetail: (postId) => request(`/posts/${postId}`),
@@ -192,7 +193,11 @@ export default {
     const formData = new FormData()
     formData.append('file', file)
     return request('/users/me/avatar', { method: 'POST', body: formData, timeoutMs: 15000 })
-  }
+  },
+  blockUser: (userId) => request(`/blocks/${userId}`, { method: 'POST' }),
+  unblockUser: (userId) => request(`/blocks/${userId}`, { method: 'DELETE' }),
+  getBlockedUsers: () => request('/blocks'),
+  checkBlock: (userId) => request(`/blocks/check/${userId}`)
 }
 
 export { API_BASE_URL, AUTH_STORAGE_KEY }

@@ -108,6 +108,7 @@ public final class RequestDtos {
         public String description;
         public String campus;
         public String location;
+        public String deliveryLocation;
         public LocalDateTime deadline;
         public ApiEnums.RewardType rewardType;
         public String rewardDescription;

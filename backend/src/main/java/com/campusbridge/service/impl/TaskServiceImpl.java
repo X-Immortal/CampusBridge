@@ -407,6 +407,7 @@ public class TaskServiceImpl implements TaskService {
         task.setDescription(request.getDescription());
         task.setCampus(request.getCampus());
         task.setLocation(request.getLocation());
+        task.setDeliveryLocation(request.getDeliveryLocation());
         task.setDeadline(request.getDeadline());
         task.setRewardType(request.getRewardType().name());
         task.setRewardDescription(request.getRewardDescription());

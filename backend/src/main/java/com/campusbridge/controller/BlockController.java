@@ -1,0 +1,76 @@
+package com.campusbridge.controller;
+
+import com.campusbridge.common.CurrentUserResolver;
+import com.campusbridge.mapper.UserBlockMapper;
+import com.campusbridge.pojo.Result;
+import com.campusbridge.pojo.UserBlock;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/v1/blocks")
+public class BlockController {
+    private final CurrentUserResolver currentUserResolver;
+    private final UserBlockMapper userBlockMapper;
+
+    public BlockController(CurrentUserResolver currentUserResolver, UserBlockMapper userBlockMapper) {
+        this.currentUserResolver = currentUserResolver;
+        this.userBlockMapper = userBlockMapper;
+    }
+
+    @PostMapping("/{blockedUserId}")
+    public Result blockUser(
+            HttpServletRequest servletRequest,
+            @PathVariable Long blockedUserId) {
+        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        if (currentUserId.equals(blockedUserId)) {
+            return Result.error("400", "不能拉黑自己");
+        }
+        if (userBlockMapper.exists(currentUserId, blockedUserId)) {
+            return Result.success("已经拉黑该用户");
+        }
+        UserBlock block = new UserBlock();
+        block.setBlockerId(currentUserId);
+        block.setBlockedId(blockedUserId);
+        block.setCreatedAt(LocalDateTime.now());
+        userBlockMapper.insert(block);
+        return Result.success("已拉黑该用户");
+    }
+
+    @DeleteMapping("/{blockedUserId}")
+    public Result unblockUser(
+            HttpServletRequest servletRequest,
+            @PathVariable Long blockedUserId) {
+        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        userBlockMapper.delete(currentUserId, blockedUserId);
+        return Result.success("已取消拉黑");
+    }
+
+    @GetMapping
+    public Result getBlockedUsers(HttpServletRequest servletRequest) {
+        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        List<UserBlock> blocks = userBlockMapper.selectBlockedIds(currentUserId);
+        return Result.success(blocks);
+    }
+
+    @GetMapping("/check/{targetUserId}")
+    public Result checkBlock(
+            HttpServletRequest servletRequest,
+            @PathVariable Long targetUserId) {
+        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        boolean blocked = userBlockMapper.exists(currentUserId, targetUserId);
+        Map<String, Object> data = new HashMap<>();
+        data.put("blocked", blocked);
+        return Result.success(data);
+    }
+}

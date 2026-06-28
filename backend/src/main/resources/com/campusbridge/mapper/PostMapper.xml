@@ -8,8 +8,10 @@
   </insert>
 
   <select id="selectById" resultType="com.campusbridge.pojo.Post">
-    SELECT * FROM posts
-    WHERE id = #{id}
+    SELECT p.*, up.nickname AS author_nickname
+    FROM posts p
+    LEFT JOIN user_profiles up ON p.author_id = up.user_id
+    WHERE p.id = #{id}
   </select>
 
   <select id="selectAll" resultType="com.campusbridge.pojo.Post">
@@ -17,19 +19,21 @@
   </select>
 
   <select id="selectWithFilters" resultType="com.campusbridge.pojo.Post">
-    SELECT * FROM posts
+    SELECT p.*, up.nickname AS author_nickname
+    FROM posts p
+    LEFT JOIN user_profiles up ON p.author_id = up.user_id
     <where>
       <if test="category != null and category != ''">
-        AND category = #{category}
+        AND p.category = #{category}
       </if>
       <if test="status != null and status != ''">
-        AND status = #{status}
+        AND p.status = #{status}
       </if>
       <if test="keyword != null and keyword != ''">
-        AND (title LIKE CONCAT('%', #{keyword}, '%') OR content LIKE CONCAT('%', #{keyword}, '%'))
+        AND (p.title LIKE CONCAT('%', #{keyword}, '%') OR p.content LIKE CONCAT('%', #{keyword}, '%'))
       </if>
     </where>
-    ORDER BY created_at DESC, id DESC
+    ORDER BY p.created_at DESC, p.id DESC
     LIMIT #{size} OFFSET #{offset}
   </select>
 
@@ -68,5 +72,16 @@
     DELETE FROM posts
     WHERE id = #{id}
   </delete>
+
+  <select id="selectHotPosts" resultType="com.campusbridge.pojo.Post">
+    SELECT p.*, up.nickname AS author_nickname
+    FROM posts p
+    LEFT JOIN user_profiles up ON p.author_id = up.user_id
+    WHERE p.status = 'PUBLISHED'
+    ORDER BY (COALESCE(p.reply_count, 0) + COALESCE(p.like_count, 0) + COALESCE(p.mark_count, 0) + 1)
+      / GREATEST(TIMESTAMPDIFF(HOUR, p.created_at, NOW()) + 2, 2) DESC,
+      p.created_at DESC
+    LIMIT #{size}
+  </select>
 
 </mapper>

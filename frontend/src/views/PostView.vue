@@ -12,6 +12,7 @@ import {
   MessageCircle,
   PlusCircle,
   RefreshCw,
+  Reply as ReplyIcon,
   Search,
   Send,
   Star,
@@ -22,6 +23,7 @@ import {
 } from '@lucide/vue'
 import DashboardShell from '../components/DashboardShell.vue'
 import StatusBadge from '../components/StatusBadge.vue'
+import UserProfilePopup from '../components/UserProfilePopup.vue'
 import { optionLabel, POST_CATEGORY_OPTIONS, POST_STATUS_OPTIONS } from '../constants'
 import api from '../services/api'
 import { useAuth } from '../stores/auth'
@@ -58,6 +60,20 @@ const publishDialogOpen = ref(false)
 const publishing = ref(false)
 const publishErrors = reactive({})
 const postForm = reactive(createDefaultPostForm())
+const postDetailModalOpen = ref(false)
+const liking = ref(false)
+const profileUserId = ref(null)
+const profilePopupOpen = ref(false)
+
+function openUserProfile(userId) {
+  if (userId == null) return
+  profileUserId.value = userId
+  profilePopupOpen.value = true
+}
+
+function closeUserProfile() {
+  profilePopupOpen.value = false
+}
 
 let listRequestId = 0
 let detailRequestId = 0
@@ -106,6 +122,68 @@ const previewContent = computed(() =>
   postForm.content.trim() || '正文可以说明背景、你想获得的帮助、可提供的信息或希望大家讨论的方向。'
 )
 
+// --- Nested reply state ---
+const replyingToId = ref(null) // which reply is being replied to (null = top-level)
+const replyContent = ref('')
+const replySubmitting = ref(false)
+
+const threadedReplies = computed(() => {
+  const all = detailReplies.value
+  const topLevel = []
+  const childrenMap = new Map()
+  for (const reply of all) {
+    if (reply.parentReplyId == null) {
+      topLevel.push(reply)
+    } else {
+      const key = String(reply.parentReplyId)
+      if (!childrenMap.has(key)) childrenMap.set(key, [])
+      childrenMap.get(key).push(reply)
+    }
+  }
+  return topLevel.map((r) => ({
+    ...r,
+    children: childrenMap.get(String(r.id)) || []
+  }))
+})
+
+function startReply(replyId) {
+  replyingToId.value = replyId
+  replyContent.value = ''
+  nextTick(() => {
+    const el = document.getElementById('nested-reply-input')
+    if (el) el.focus()
+  })
+}
+
+function cancelReply() {
+  replyingToId.value = null
+  replyContent.value = ''
+}
+
+async function submitReply() {
+  const content = replyContent.value.trim()
+  if (!content) return
+  if (!detailPost.value?.id) return
+
+  replySubmitting.value = true
+  try {
+    const body = { content }
+    if (replyingToId.value != null) {
+      body.parentReplyId = Number(replyingToId.value)
+    }
+    await api.createPostReply(detailPost.value.id, body)
+    replyContent.value = ''
+    replyingToId.value = null
+    // reload detail
+    await loadPostDetail(detailPost.value.id)
+    setFeedback('回复已发布')
+  } catch (error) {
+    setFeedback(error.message || '回复发布失败', 'danger')
+  } finally {
+    replySubmitting.value = false
+  }
+}
+
 function firstValue(value) {
   return Array.isArray(value) ? value[0] : value
 }
@@ -149,6 +227,7 @@ function normalizePost(post = {}) {
     ...post,
     id,
     authorId: post.authorId ?? post.userId,
+    authorNickname: post.authorNickname || null,
     category: post.category || 'INQUIRY_HELP',
     status: post.status || 'PUBLISHED',
     replyCount: numericValue(post.replyCount),
@@ -162,6 +241,8 @@ function normalizeReply(reply = {}) {
     ...reply,
     id: reply.id ?? reply.replyId,
     authorId: reply.authorId ?? reply.userId,
+    authorNickname: reply.authorNickname || null,
+    parentReplyId: reply.parentReplyId ?? null,
     likeCount: numericValue(reply.likeCount)
   }
 }
@@ -285,9 +366,39 @@ async function loadPostDetail(postId) {
 }
 
 function selectPost(post) {
-  if (!post?.id || String(post.id) === selectedPostId.value) return
+  if (!post?.id) return
   selectedPostId.value = String(post.id)
+  postDetailModalOpen.value = true
   loadPostDetail(post.id)
+}
+
+function closePostModal() {
+  postDetailModalOpen.value = false
+}
+
+async function toggleLike() {
+  if (!detailPost.value?.id || liking.value) return
+  liking.value = true
+  try {
+    const isLiked = postDetail.value?.likedByCurrentUser
+    if (isLiked) {
+      await api.cancelPostInteraction(detailPost.value.id, 'LIKE')
+      if (postDetail.value) {
+        postDetail.value.likedByCurrentUser = false
+        postDetail.value.post.likeCount = Math.max(0, (postDetail.value.post.likeCount || 0) - 1)
+      }
+    } else {
+      await api.createPostInteraction(detailPost.value.id, { type: 'LIKE' })
+      if (postDetail.value) {
+        postDetail.value.likedByCurrentUser = true
+        postDetail.value.post.likeCount = (postDetail.value.post.likeCount || 0) + 1
+      }
+    }
+  } catch (error) {
+    setFeedback(error.message || '操作失败', 'danger')
+  } finally {
+    liking.value = false
+  }
 }
 
 async function applyFilters() {
@@ -468,11 +579,12 @@ function compactContent(value, maxLength = 118) {
   return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text
 }
 
-function authorCopy(authorId) {
+function authorCopy(authorId, nickname = null) {
   if (authorId === undefined || authorId === null) return '发布者未记录'
   if (currentUserId.value !== undefined && currentUserId.value !== null && String(authorId) === String(currentUserId.value)) {
-    return '我发布'
+    return '我'
   }
+  if (nickname) return nickname
   return `同学 ${authorId}`
 }
 
@@ -795,7 +907,7 @@ onMounted(() => {
                 <span class="post-card-heading">
                   <span>
                     <strong>{{ post.title || '未命名帖子' }}</strong>
-                    <small>{{ categoryLabel(post.category) }} · {{ authorCopy(post.authorId) }}</small>
+                    <small>{{ categoryLabel(post.category) }} · <button class="author-link" type="button" @click.stop="openUserProfile(post.authorId)">{{ authorCopy(post.authorId, post.authorNickname) }}</button></small>
                   </span>
                   <StatusBadge
                     :status="post.status"
@@ -861,8 +973,38 @@ onMounted(() => {
             </button>
           </div>
         </section>
+      </div>
 
-        <aside class="panel-card detail-panel">
+      <!-- Post detail modal -->
+      <div
+        v-if="postDetailModalOpen"
+        class="workflow-modal-layer post-detail-layer"
+        @click.self="closePostModal"
+      >
+        <section
+          class="panel-card post-detail-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="post-detail-title"
+        >
+          <header class="dialog-header">
+            <div>
+              <span class="section-kicker">帖子详情</span>
+              <h2 id="post-detail-title">{{ detailPost?.title || '帖子详情' }}</h2>
+            </div>
+            <button
+              class="icon-action"
+              type="button"
+              aria-label="关闭帖子详情"
+              @click="closePostModal"
+            >
+              <X
+                :size="22"
+                aria-hidden="true"
+              />
+            </button>
+          </header>
+
           <div
             v-if="detailLoading"
             class="loading-state detail-loading"
@@ -898,7 +1040,7 @@ onMounted(() => {
             <dl class="detail-facts">
               <div>
                 <dt>发布者</dt>
-                <dd>{{ authorCopy(detailPost.authorId) }}</dd>
+                <dd><button class="author-link" type="button" @click="openUserProfile(detailPost.authorId)">{{ authorCopy(detailPost.authorId, detailPost.authorNickname) }}</button></dd>
               </div>
               <div>
                 <dt>发布时间</dt>
@@ -914,9 +1056,39 @@ onMounted(() => {
               </div>
             </dl>
 
+            <!-- Like button -->
+            <div class="modal-interaction-bar">
+              <button
+                class="like-button"
+                :class="{ 'like-button--active': postDetail?.likedByCurrentUser }"
+                type="button"
+                :disabled="liking || !isAuthenticated"
+                @click="toggleLike"
+              >
+                <ThumbsUp
+                  :size="18"
+                  aria-hidden="true"
+                />
+                {{ postDetail?.likedByCurrentUser ? '已赞' : '点赞' }}
+                <span class="like-count">{{ detailPost.likeCount || 0 }}</span>
+              </button>
+              <button
+                class="like-button"
+                type="button"
+                @click="cancelReply"
+              >
+                <MessageCircle
+                  :size="18"
+                  aria-hidden="true"
+                />
+                回复
+                <span class="like-count">{{ detailReplies.length }}</span>
+              </button>
+            </div>
+
             <section class="detail-section">
               <h3>正文</h3>
-              <p>{{ detailPost.content || '暂无正文' }}</p>
+              <p class="detail-content-text">{{ detailPost.content || '暂无正文' }}</p>
             </section>
 
             <section class="detail-section">
@@ -935,7 +1107,7 @@ onMounted(() => {
                 class="reply-list"
               >
                 <article
-                  v-for="reply in detailReplies"
+                  v-for="reply in threadedReplies"
                   :key="reply.id"
                   class="reply-card"
                   :class="{ accepted: String(reply.id) === String(postDetail?.acceptedReplyId) }"
@@ -946,19 +1118,152 @@ onMounted(() => {
                         :size="16"
                         aria-hidden="true"
                       />
-                      {{ authorCopy(reply.authorId) }}
+                      {{ authorCopy(reply.authorId, reply.authorNickname) }}
                     </span>
                     <small>{{ formatDateTime(reply.createdAt) }}</small>
                   </div>
                   <p>{{ reply.content }}</p>
-                  <span
-                    v-if="String(reply.id) === String(postDetail?.acceptedReplyId)"
-                    class="accepted-tag"
+                  <div class="reply-card-actions">
+                    <span
+                      v-if="String(reply.id) === String(postDetail?.acceptedReplyId)"
+                      class="accepted-tag"
+                    >
+                      已采纳
+                    </span>
+                    <button
+                      class="reply-btn"
+                      type="button"
+                      @click="startReply(reply.id)"
+                    >
+                      <ReplyIcon
+                        :size="14"
+                        aria-hidden="true"
+                      />
+                      回复
+                    </button>
+                  </div>
+                  <!-- Nested children -->
+                  <div
+                    v-if="reply.children?.length"
+                    class="nested-replies"
                   >
-                    已采纳
-                  </span>
+                    <article
+                      v-for="child in reply.children"
+                      :key="child.id"
+                      class="reply-card reply-card--nested"
+                      :class="{ accepted: String(child.id) === String(postDetail?.acceptedReplyId) }"
+                    >
+                      <div class="reply-card-top">
+                        <span>
+                          <UserRound
+                            :size="14"
+                            aria-hidden="true"
+                          />
+                          {{ authorCopy(child.authorId, child.authorNickname) }}
+                        </span>
+                        <small>{{ formatDateTime(child.createdAt) }}</small>
+                      </div>
+                      <p>{{ child.content }}</p>
+                      <div class="reply-card-actions">
+                        <span
+                          v-if="String(child.id) === String(postDetail?.acceptedReplyId)"
+                          class="accepted-tag"
+                        >
+                          已采纳
+                        </span>
+                        <button
+                          class="reply-btn"
+                          type="button"
+                          @click="startReply(child.id)"
+                        >
+                          <ReplyIcon
+                            :size="13"
+                            aria-hidden="true"
+                          />
+                          回复
+                        </button>
+                      </div>
+                    </article>
+                  </div>
+                  <!-- Inline reply input for this reply -->
+                  <div
+                    v-if="replyingToId != null && String(replyingToId) === String(reply.id)"
+                    class="inline-reply-form"
+                  >
+                    <textarea
+                      id="nested-reply-input"
+                      v-model="replyContent"
+                      class="inline-reply-input"
+                      placeholder="写下你的回复..."
+                      rows="2"
+                    />
+                    <div class="inline-reply-actions">
+                      <button
+                        class="reply-cancel-btn"
+                        type="button"
+                        @click="cancelReply"
+                      >
+                        取消
+                      </button>
+                      <button
+                        class="reply-submit-btn"
+                        type="button"
+                        :disabled="replySubmitting || !replyContent.trim()"
+                        @click="submitReply"
+                      >
+                        <Send
+                          :size="14"
+                          aria-hidden="true"
+                        />
+                        发布回复
+                      </button>
+                    </div>
+                  </div>
                 </article>
               </div>
+
+              <!-- Top-level reply form -->
+              <div
+                v-if="replyingToId == null && isAuthenticated"
+                class="top-reply-form"
+              >
+                <textarea
+                  v-model="replyContent"
+                  class="inline-reply-input"
+                  placeholder="写下你的回复..."
+                  rows="3"
+                />
+                <div class="inline-reply-actions">
+                  <button
+                    class="reply-submit-btn"
+                    type="button"
+                    :disabled="replySubmitting || !replyContent.trim()"
+                    @click="submitReply"
+                  >
+                    <Send
+                      :size="14"
+                      aria-hidden="true"
+                    />
+                    发布回复
+                  </button>
+                </div>
+              </div>
+              <button
+                v-if="replyingToId != null && isAuthenticated"
+                class="start-top-reply-btn"
+                type="button"
+                @click="cancelReply"
+              >
+                写回复
+              </button>
+              <button
+                v-if="replyingToId == null && !replyContent && isAuthenticated && detailReplies.length > 0"
+                class="start-top-reply-btn"
+                type="button"
+                @click="startReply(null)"
+              >
+                写回复
+              </button>
             </section>
           </template>
 
@@ -970,10 +1275,10 @@ onMounted(() => {
               :size="40"
               aria-hidden="true"
             />
-            <h3>选择一个帖子查看详情</h3>
-            <p>帖子正文、回复和互动计数会显示在这里。</p>
+            <h3>帖子加载失败</h3>
+            <p>请关闭弹窗后重新尝试。</p>
           </div>
-        </aside>
+        </section>
       </div>
 
       <div
@@ -1141,6 +1446,12 @@ onMounted(() => {
       </div>
     </main>
   </DashboardShell>
+
+  <UserProfilePopup
+    :user-id="profileUserId"
+    :open="profilePopupOpen"
+    @close="closeUserProfile"
+  />
 </template>
 
 <style scoped>
@@ -1493,16 +1804,85 @@ onMounted(() => {
 
 .posts-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(360px, 0.85fr);
+  grid-template-columns: 1fr;
   gap: 18px;
   align-items: start;
 }
 
-.detail-panel {
-  position: sticky;
-  top: 98px;
-  max-height: calc(100vh - 122px);
-  overflow: auto;
+.post-detail-layer {
+  z-index: 95;
+}
+
+.post-detail-modal {
+  width: min(720px, 92vw);
+  max-height: 88vh;
+  overflow-y: auto;
+  display: grid;
+  gap: 16px;
+}
+
+.modal-interaction-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.like-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  border: 1px solid #e4e7ef;
+  border-radius: 8px;
+  background: #f9fafb;
+  color: #6b7280;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.like-button:hover {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+  color: #6366f1;
+}
+
+.like-button--active {
+  background: #eef2ff;
+  border-color: #6366f1;
+  color: #6366f1;
+}
+
+.like-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.like-count {
+  font-weight: 900;
+  color: inherit;
+}
+
+.detail-content-text {
+  white-space: pre-wrap;
+  line-height: 1.7;
+}
+
+.author-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #6366f1;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.author-link:hover {
+  text-decoration: underline;
 }
 
 .post-list {
@@ -1792,6 +2172,133 @@ onMounted(() => {
   font-weight: 900;
 }
 
+.reply-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.reply-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: 1px solid #e4e7ef;
+  border-radius: 6px;
+  background: #f9fafb;
+  color: #6366f1;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.reply-btn:hover {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+}
+
+.nested-replies {
+  display: grid;
+  gap: 8px;
+  margin-top: 4px;
+  padding-left: 16px;
+  border-left: 2px solid #e4e7ef;
+}
+
+.reply-card--nested {
+  padding: 10px;
+  background: #f9fafb;
+  border-color: #e4e7ef;
+}
+
+.inline-reply-form {
+  display: grid;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 10px;
+  border: 1px solid #c7d2fe;
+  border-radius: 8px;
+  background: #f5f3ff;
+}
+
+.inline-reply-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.inline-reply-input:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+}
+
+.inline-reply-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.reply-cancel-btn {
+  padding: 5px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  color: #6b7280;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.reply-submit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 14px;
+  border: none;
+  border-radius: 6px;
+  background: #6366f1;
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.reply-submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.top-reply-form {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid #e4e7ef;
+  border-radius: 8px;
+  background: #f9fafb;
+}
+
+.start-top-reply-btn {
+  margin-top: 10px;
+  padding: 6px 14px;
+  border: 1px dashed #c7d2fe;
+  border-radius: 6px;
+  background: #f5f3ff;
+  color: #6366f1;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  width: 100%;
+}
+
 .workflow-modal-layer {
   position: fixed;
   inset: 0;
@@ -1958,11 +2465,6 @@ onMounted(() => {
 @media (max-width: 1120px) {
   .posts-layout {
     grid-template-columns: 1fr;
-  }
-
-  .detail-panel {
-    position: static;
-    max-height: none;
   }
 }
 

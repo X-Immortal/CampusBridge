@@ -16,7 +16,6 @@ import {
   MessageCircle,
   PlusCircle,
   School,
-  Search,
   ShieldCheck,
   Star,
   UserRound
@@ -43,26 +42,13 @@ const { unreadCount: notificationUnreadCount, refreshNotificationSummary } = use
 const accountMenuOpen = ref(false)
 const accountMenuRef = ref(null)
 const avatarLoadFailed = ref(false)
-const searchKeyword = ref('')
 const activeLabel = computed(() => props.activeLabel)
 const publishMode = computed(() => props.publishMode)
-const searchPlaceholder = computed(() =>
-  activeLabel.value === '帖子广场' ? '搜索帖子标题、内容或关键词' : '搜索任务、技能、地点或关键词'
-)
-
-function handleSearch() {
-  const keyword = searchKeyword.value.trim()
-  if (!keyword) return
-  router.push({
-    name: activeLabel.value === '帖子广场' ? 'post-list' : 'task-list',
-    query: { keyword }
-  })
-  searchKeyword.value = ''
-}
 
 const isAdmin = computed(() => String(state.user?.role || '').toUpperCase() === 'ADMIN')
 
 const navItems = computed(() => [
+  { label: '首页推荐', icon: Home, to: '/' },
   { label: '个人主页', icon: Home, to: '/home' },
   { label: '帖子广场', icon: BookOpen, to: '/posts' },
   { label: '任务广场', icon: Grid2X2, to: '/tasks' },
@@ -210,21 +196,9 @@ onBeforeUnmount(() => {
     </aside>
 
     <header class="dashboard-topbar">
-      <form
-        class="search-box"
-        @submit.prevent="handleSearch"
-      >
-        <Search
-          :size="22"
-          aria-hidden="true"
-        />
-        <input
-          v-model.trim="searchKeyword"
-          type="search"
-          :placeholder="searchPlaceholder"
-          :aria-label="searchPlaceholder"
-        >
-      </form>
+      <div class="topbar-title">
+        <h1>{{ activeLabel }}</h1>
+      </div>
 
       <div class="topbar-account">
         <RouterLink
@@ -554,37 +528,16 @@ onBeforeUnmount(() => {
   backdrop-filter: blur(18px);
 }
 
-.search-box {
+.topbar-title {
   display: flex;
   align-items: center;
-  gap: 12px;
-  height: 46px;
-  padding: 0 16px;
-  border: 1px solid #dbe1ee;
-  border-radius: 8px;
-  background: #ffffff;
-  color: #667085;
-  transition:
-    border-color 180ms ease,
-    box-shadow 180ms ease;
 }
 
-.search-box:focus-within {
-  border-color: #818cf8;
-  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
-}
-
-.search-box input {
-  width: 100%;
-  border: 0;
-  outline: 0;
-  background: transparent;
+.topbar-title h1 {
+  margin: 0;
   color: #111827;
-  font-size: 0.92rem;
-}
-
-.search-box input::placeholder {
-  color: #667085;
+  font-size: 1.15rem;
+  font-weight: 900;
 }
 
 .topbar-account {
@@ -789,10 +742,6 @@ onBeforeUnmount(() => {
 .dashboard-shell--publish .dashboard-main {
   margin-left: 0;
   padding: 76px 28px 20px;
-}
-
-.dashboard-shell--publish .search-box {
-  height: 44px;
 }
 
 @media (max-width: 1100px) {

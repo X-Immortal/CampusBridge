@@ -126,10 +126,8 @@ public class CompletionServiceImpl implements CompletionService {
                 requesterId,
                 "COMPLETION_CONFIRMED");
 
-        // 积分报酬结算（使用 CreditService）
         settlePointsReward(task);
 
-        // 奖励结算记录（使用 RewardSettlementService）
         try {
             rewardSettlementService.settleTaskReward(taskId, requesterId, task.getProviderId());
         } catch (Exception e) {

@@ -17,9 +17,11 @@
   </select>
 
   <select id="selectByPostId" resultType="com.campusbridge.pojo.Reply">
-    SELECT * FROM replies
-    WHERE post_id = #{postId}
-    ORDER BY created_at ASC, id ASC
+    SELECT r.*, up.nickname AS author_nickname
+    FROM replies r
+    LEFT JOIN user_profiles up ON r.author_id = up.user_id
+    WHERE r.post_id = #{postId}
+    ORDER BY r.created_at ASC, r.id ASC
     LIMIT #{size} OFFSET #{offset}
   </select>
 

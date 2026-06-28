@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
@@ -50,6 +50,7 @@ const lastCreatedTask = ref(null)
 const sourceTask = ref(null)
 const savedDraft = ref(readSavedDraft())
 const previewCardRef = ref(null)
+const feedbackRef = ref(null)
 const errors = reactive({})
 
 const taskForm = reactive({
@@ -58,6 +59,7 @@ const taskForm = reactive({
   description: '',
   campus: '',
   location: '',
+  deliveryLocation: '',
   deadline: defaultDeadline(),
   rewardType: 'FREE',
   rewardDescription: '',
@@ -179,6 +181,10 @@ const previewTitle = computed(() => taskForm.title.trim() || '代取菜鸟驿站
 const previewLocation = computed(() => {
   const campus = taskForm.campus.trim() || '仙林校区'
   const location = taskForm.location.trim() || '快递站 3 号架'
+  if (taskForm.category === 'ERRAND') {
+    const delivery = taskForm.deliveryLocation.trim() || '送达地点未填'
+    return `${campus} · ${location} → ${delivery}`
+  }
   return `${campus} · ${location}`
 })
 const previewReward = computed(() => {
@@ -545,6 +551,7 @@ function buildPayload() {
     description: taskForm.description.trim(),
     campus: taskForm.campus.trim(),
     location: taskForm.location.trim(),
+    deliveryLocation: taskForm.category === 'ERRAND' ? taskForm.deliveryLocation.trim() || undefined : undefined,
     deadline: normalizeDeadline(taskForm.deadline),
     rewardType: taskForm.rewardType,
     rewardDescription: optionalText(taskForm.rewardDescription),
@@ -568,6 +575,7 @@ function buildDraftPayload() {
     description: optionalText(taskForm.description),
     campus: optionalText(taskForm.campus),
     location: optionalText(taskForm.location),
+    deliveryLocation: taskForm.category === 'ERRAND' ? optionalText(taskForm.deliveryLocation) : undefined,
     deadline: taskForm.deadline ? normalizeDeadline(taskForm.deadline) : undefined,
     rewardType: taskForm.rewardType || undefined,
     rewardDescription: optionalText(taskForm.rewardDescription),
@@ -647,7 +655,9 @@ async function handleSubmitTask() {
       const updatedTask = await api.updateTask(sourceTaskId.value, buildUpdatePayload())
       lastCreatedTask.value = normalizeTaskResult(updatedTask)
       clearSavedDraft()
-      setFeedback('任务修改已保存，返回详情后可以继续处理候选和状态。')
+      setFeedback('任务修改已保存，3 秒后返回任务详情。')
+      scrollToFeedback()
+      scheduleRedirectToTask(sourceTaskId.value)
       return
     }
 
@@ -655,19 +665,41 @@ async function handleSubmitTask() {
       const resentTask = await api.resendTask(sourceTaskId.value)
       lastCreatedTask.value = normalizeTaskResult(resentTask)
       clearSavedDraft()
-      setFeedback('任务已重新发布，新的接单流程已经开始。')
+      setFeedback('任务已重新发布，3 秒后返回任务详情。')
+      scrollToFeedback()
+      scheduleRedirectToTask(sourceTaskId.value)
       return
     }
 
     const createdTask = await api.createTask(buildPayload())
     lastCreatedTask.value = normalizeTaskResult(createdTask)
     clearSavedDraft()
-    setFeedback('任务已发布，等待合适的同学申请接单。')
+    const newTaskId = createdTask?.id || createdTask?.taskId
+    setFeedback(`任务已发布，等待合适的同学申请接单。${newTaskId ? '3 秒后查看任务详情。' : ''}`)
+    scrollToFeedback()
+    if (newTaskId) {
+      scheduleRedirectToTask(newTaskId)
+    }
   } catch (error) {
     setFeedback(error.message || '任务保存失败，请稍后再试。', 'danger')
   } finally {
     submitting.value = false
   }
+}
+
+let redirectTimer = null
+
+function scrollToFeedback() {
+  nextTick(() => {
+    feedbackRef.value?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  })
+}
+
+function scheduleRedirectToTask(taskId) {
+  if (redirectTimer) clearTimeout(redirectTimer)
+  redirectTimer = setTimeout(() => {
+    router.push({ name: 'task-detail', params: { taskId: String(taskId) } })
+  }, 3000)
 }
 
 watch(
@@ -781,6 +813,7 @@ watch(
 
       <section
         v-if="feedback"
+        ref="feedbackRef"
         class="page-feedback"
         :class="feedbackType === 'danger' ? 'page-feedback--danger' : 'page-feedback--success'"
         role="status"
@@ -936,12 +969,12 @@ watch(
                 class="publish-field"
                 for="task-location"
               >
-                <span>具体地点</span>
+                <span>{{ taskForm.category === 'ERRAND' ? '取件地点' : '具体地点' }}</span>
                 <input
                   id="task-location"
                   v-model.trim="taskForm.location"
                   maxlength="120"
-                  placeholder="例如：快递站 3 号架 / 教学楼 A208"
+                  :placeholder="taskForm.category === 'ERRAND' ? '例如：快递站 3 号架' : '例如：教学楼 A208'"
                   required
                   :disabled="!canChangeFixedFields"
                   :aria-invalid="Boolean(errors.location)"
@@ -954,6 +987,31 @@ watch(
                   class="field-error"
                 >
                   {{ errors.location }}
+                </small>
+              </label>
+
+              <label
+                v-if="taskForm.category === 'ERRAND'"
+                class="publish-field"
+                for="task-delivery-location"
+              >
+                <span>送达地点</span>
+                <input
+                  id="task-delivery-location"
+                  v-model.trim="taskForm.deliveryLocation"
+                  maxlength="120"
+                  placeholder="例如：宿舍楼 5 号楼 302"
+                  :disabled="!canChangeFixedFields"
+                  :aria-invalid="Boolean(errors.deliveryLocation)"
+                  :aria-describedby="describedBy('deliveryLocation')"
+                  @input="clearError('deliveryLocation')"
+                >
+                <small
+                  v-if="errors.deliveryLocation"
+                  id="deliveryLocation-error"
+                  class="field-error"
+                >
+                  {{ errors.deliveryLocation }}
                 </small>
               </label>
             </div>
