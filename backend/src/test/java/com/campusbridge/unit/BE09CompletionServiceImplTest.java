@@ -8,6 +8,7 @@ import com.campusbridge.mapper.TaskMapper;
 import com.campusbridge.pojo.CompletionProof;
 import com.campusbridge.pojo.Task;
 import com.campusbridge.service.CreditService;
+import com.campusbridge.service.RewardSettlementService;
 import com.campusbridge.service.TaskHistoryService;
 import com.campusbridge.service.impl.CompletionServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,12 +47,15 @@ class BE09CompletionServiceImplTest {
     @Mock
     private CreditService creditService;
 
+    @Mock
+    private RewardSettlementService rewardSettlementService;
+
     private CompletionServiceImpl completionService;
 
     @BeforeEach
     void setUp() {
         completionService = new CompletionServiceImpl(
-                completionProofMapper, taskMapper, taskHistoryService, creditService);
+                completionProofMapper, taskMapper, taskHistoryService, creditService, rewardSettlementService);
     }
 
     // ---- submitCompletionProof ----

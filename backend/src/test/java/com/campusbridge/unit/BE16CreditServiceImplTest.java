@@ -39,12 +39,12 @@ class BE16CreditServiceImplTest {
 
     @Test
     void adjustCreditUpdatesExistingCreditAndWritesRecord() {
-        UserCredit existingCredit = new UserCredit(
-                1L,
-                USER_ID,
-                86,
-                3,
-                LocalDateTime.now().minusDays(1));
+        UserCredit existingCredit = new UserCredit();
+        existingCredit.setId(1L);
+        existingCredit.setUserId(USER_ID);
+        existingCredit.setPoints(86);
+        existingCredit.setLevel(3);
+        existingCredit.setCreatedAt(LocalDateTime.now().minusDays(1));
         when(userCreditMapper.selectByUserId(USER_ID)).thenReturn(existingCredit);
         when(userCreditMapper.updateById(any(UserCredit.class))).thenReturn(1);
         when(creditRecordMapper.insert(any(CreditRecord.class))).thenReturn(1);
