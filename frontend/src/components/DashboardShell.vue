@@ -56,7 +56,6 @@ const navItems = computed(() => [
   { label: '我的任务', icon: ClipboardList, to: '/tasks/mine' },
   { label: '站内沟通', icon: MessageCircle, to: '/conversations' },
   { label: '评价中心', icon: Star, to: '/reviews' },
-  { label: '消息中心', icon: Bell, to: '/notifications' },
   ...(isAdmin.value ? [{ label: '管理后台', icon: Shield, to: '/admin' }] : [])
 ])
 
@@ -203,7 +202,7 @@ onBeforeUnmount(() => {
       <div class="topbar-account">
         <RouterLink
           class="notice-button"
-          to="/notifications"
+          to="/conversations"
           :aria-label="notificationBadgeCount ? `消息通知，${notificationBadgeCount} 条未读` : '消息通知'"
         >
           <Bell

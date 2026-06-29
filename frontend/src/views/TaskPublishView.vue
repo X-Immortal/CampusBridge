@@ -315,10 +315,6 @@ async function handleSaveDraft() {
   }
 }
 
-function handlePreviewTask() {
-  previewCardRef.value?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-}
-
 function normalizeDeadline(value) {
   if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) {
     return `${value}:00`
@@ -674,6 +670,8 @@ async function handleSubmitTask() {
     const createdTask = await api.createTask(buildPayload())
     lastCreatedTask.value = normalizeTaskResult(createdTask)
     clearSavedDraft()
+    resetForm()
+    clearErrors()
     const newTaskId = createdTask?.id || createdTask?.taskId
     setFeedback(`任务已发布，等待合适的同学申请接单。${newTaskId ? '3 秒后查看任务详情。' : ''}`)
     scrollToFeedback()
@@ -1279,17 +1277,6 @@ watch(
                 aria-hidden="true"
               />
               保存草稿
-            </button>
-            <button
-              class="ghost-action"
-              type="button"
-              @click="handlePreviewTask"
-            >
-              <Eye
-                :size="17"
-                aria-hidden="true"
-              />
-              预览任务
             </button>
             <button
               v-if="publishGate"

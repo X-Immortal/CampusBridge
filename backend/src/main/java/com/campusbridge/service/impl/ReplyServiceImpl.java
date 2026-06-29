@@ -7,6 +7,7 @@ import com.campusbridge.mapper.PostMapper;
 import com.campusbridge.mapper.ReplyMapper;
 import com.campusbridge.pojo.Post;
 import com.campusbridge.pojo.Reply;
+import com.campusbridge.service.NotificationService;
 import com.campusbridge.service.ReplyService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,10 +19,13 @@ import java.time.LocalDateTime;
 public class ReplyServiceImpl implements ReplyService {
     private final ReplyMapper replyMapper;
     private final PostMapper postMapper;
+    private final NotificationService notificationService;
 
-    public ReplyServiceImpl(ReplyMapper replyMapper, PostMapper postMapper) {
+    public ReplyServiceImpl(ReplyMapper replyMapper, PostMapper postMapper,
+                            NotificationService notificationService) {
         this.replyMapper = replyMapper;
         this.postMapper = postMapper;
+        this.notificationService = notificationService;
     }
 
     @Override
@@ -48,6 +52,8 @@ public class ReplyServiceImpl implements ReplyService {
 
         post.setReplyCount((post.getReplyCount() == null ? 0 : post.getReplyCount()) + 1);
         postMapper.updateById(post);
+
+        notificationService.notifyPostReplied(post, reply, userId);
 
         return reply;
     }

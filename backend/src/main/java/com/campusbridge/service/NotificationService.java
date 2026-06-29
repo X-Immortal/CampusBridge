@@ -1,5 +1,7 @@
 package com.campusbridge.service;
 
+import com.campusbridge.pojo.Post;
+import com.campusbridge.pojo.Reply;
 import com.campusbridge.pojo.Task;
 import com.campusbridge.pojo.TaskApplication;
 
@@ -26,4 +28,9 @@ public interface NotificationService {
             Long recipientId,
             Long operatorId,
             String reminderType);
+
+    void notifyPostReplied(
+            Post post,
+            Reply reply,
+            Long operatorId);
 }

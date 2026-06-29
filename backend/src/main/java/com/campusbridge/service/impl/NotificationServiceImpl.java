@@ -7,6 +7,8 @@ import com.campusbridge.mapper.MessageMapper;
 import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.pojo.Conversation;
 import com.campusbridge.pojo.Message;
+import com.campusbridge.pojo.Post;
+import com.campusbridge.pojo.Reply;
 import com.campusbridge.pojo.Task;
 import com.campusbridge.pojo.TaskApplication;
 import com.campusbridge.pojo.User;
@@ -23,8 +25,10 @@ public class NotificationServiceImpl implements NotificationService {
 
     private static final String CONVERSATION_TYPE_SYSTEM = "SYSTEM";
     private static final String RELATED_TYPE_TASK = "TASK";
+    private static final String RELATED_TYPE_POST = "POST";
     private static final String MESSAGE_TYPE_SYSTEM_NOTIFICATION = "SYSTEM_NOTIFICATION";
     private static final String TITLE_TASK_NOTIFICATION = "任务通知";
+    private static final String TITLE_POST_NOTIFICATION = "帖子通知";
     private static final String STATUS_DISPUTED = "DISPUTED";
     private static final String REMINDER_OPEN_TIMEOUT = "TIMEOUT_REMINDER_OPEN";
     private static final String REMINDER_PENDING_CONFIRMATION =
@@ -98,6 +102,104 @@ public class NotificationServiceImpl implements NotificationService {
         }
         String content = buildTimeoutReminderContent(task, reminderType);
         sendTaskNotification(recipientId, operatorId, task, content);
+    }
+
+    @Override
+    public void notifyPostReplied(
+            Post post,
+            Reply reply,
+            Long operatorId) {
+        if (post == null || reply == null || post.getId() == null) {
+            return;
+        }
+        String content = "帖子 " + postLabel(post) + " 收到了新回复。";
+        // Notify post author
+        sendPostNotification(post.getAuthorId(), operatorId, post, content);
+        // Notify parent reply author for nested replies
+        if (reply.getParentReplyId() != null) {
+            sendPostNotification(reply.getAuthorId(), operatorId, post,
+                    "你的回复收到了新的嵌套回复。");
+        }
+    }
+
+    private void sendPostNotification(
+            Long recipientId,
+            Long operatorId,
+            Post post,
+            String content) {
+        if (recipientId == null || post == null || post.getId() == null || isBlank(content)) {
+            return;
+        }
+        if (operatorId != null && operatorId.equals(recipientId)) {
+            return;
+        }
+
+        Conversation conversation = conversationMapper.selectByOwnerAndRelated(
+                recipientId,
+                CONVERSATION_TYPE_SYSTEM,
+                RELATED_TYPE_POST,
+                post.getId());
+        LocalDateTime now = LocalDateTime.now();
+        if (conversation == null) {
+            conversation = createPostNotificationConversation(recipientId, operatorId, post, now);
+        }
+
+        int duplicateCount = messageMapper.countByConversationTypeAndContent(
+                conversation.getId(),
+                MESSAGE_TYPE_SYSTEM_NOTIFICATION,
+                content);
+        if (duplicateCount > 0) {
+            return;
+        }
+
+        Message message = new Message();
+        message.setConversationId(conversation.getId());
+        message.setSenderId(operatorId);
+        message.setType(MESSAGE_TYPE_SYSTEM_NOTIFICATION);
+        message.setContent(content);
+        message.setReadAt(null);
+        message.setCreatedAt(now);
+
+        int affectedRows = messageMapper.insert(message);
+        if (affectedRows != 1) {
+            throw new BusinessException(
+                    ErrorCode.COMMON_999_INTERNAL_ERROR,
+                    "Failed to create notification");
+        }
+        conversationMapper.updateLastMessageAt(conversation.getId(), operatorId, now);
+    }
+
+    private Conversation createPostNotificationConversation(
+            Long recipientId,
+            Long operatorId,
+            Post post,
+            LocalDateTime createdAt) {
+        Conversation conversation = new Conversation();
+        conversation.setType(CONVERSATION_TYPE_SYSTEM);
+        conversation.setTitle(TITLE_POST_NOTIFICATION);
+        conversation.setOwnerId(recipientId);
+        conversation.setPeerUserId(operatorId);
+        conversation.setRelatedType(RELATED_TYPE_POST);
+        conversation.setRelatedId(post.getId());
+        conversation.setReplyable(0);
+        conversation.setLastMessageAt(createdAt);
+        conversation.setCreatedAt(createdAt);
+
+        int affectedRows = conversationMapper.insert(conversation);
+        if (affectedRows != 1) {
+            throw new BusinessException(
+                    ErrorCode.COMMON_999_INTERNAL_ERROR,
+                    "Failed to create notification conversation");
+        }
+        return conversation;
+    }
+
+    private String postLabel(Post post) {
+        String label = "#" + post.getId();
+        if (isBlank(post.getTitle())) {
+            return label;
+        }
+        return label + " “" + abbreviate(post.getTitle().trim()) + "”";
     }
 
     private void sendTaskNotification(

@@ -48,4 +48,12 @@
     WHERE id = #{id}
   </delete>
 
+  <select id="selectTargetIdsByUserAndType" resultType="java.lang.Long">
+    SELECT target_id FROM post_interactions
+    WHERE user_id = #{userId}
+      AND target_type = #{targetType}
+      AND type = #{type}
+    ORDER BY created_at DESC
+  </select>
+
 </mapper>

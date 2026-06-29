@@ -31,4 +31,6 @@ public interface PostMapper {
     int deleteById(Long id);
 
     List<Post> selectHotPosts(@Param("size") Integer size);
+
+    List<Post> selectByIds(@Param("ids") List<Long> ids);
 }

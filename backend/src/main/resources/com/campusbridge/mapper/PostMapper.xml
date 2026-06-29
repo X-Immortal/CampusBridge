@@ -84,4 +84,15 @@
     LIMIT #{size}
   </select>
 
+  <select id="selectByIds" resultType="com.campusbridge.pojo.Post">
+    SELECT p.*, up.nickname AS author_nickname
+    FROM posts p
+    LEFT JOIN user_profiles up ON p.author_id = up.user_id
+    WHERE p.id IN
+    <foreach collection="ids" item="id" open="(" separator="," close=")">
+      #{id}
+    </foreach>
+    ORDER BY p.created_at DESC
+  </select>
+
 </mapper>

@@ -94,22 +94,6 @@ const selectedListPost = computed(
 )
 const detailPost = computed(() => postDetail.value?.post || selectedListPost.value || null)
 const detailReplies = computed(() => postDetail.value?.replies || [])
-const visibleReplyCount = computed(() =>
-  posts.value.reduce((sum, post) => sum + numericValue(post.replyCount), 0)
-)
-const visibleLikeCount = computed(() =>
-  posts.value.reduce((sum, post) => sum + numericValue(post.likeCount), 0)
-)
-const myVisiblePostCount = computed(() =>
-  posts.value.filter(
-    (post) =>
-      post.authorId !== undefined &&
-      post.authorId !== null &&
-      currentUserId.value !== undefined &&
-      currentUserId.value !== null &&
-      String(post.authorId) === String(currentUserId.value)
-  ).length
-)
 const resultRange = computed(() => {
   if (!pagination.total) return '0'
   const start = (pagination.page - 1) * pagination.size + 1
@@ -407,6 +391,11 @@ async function applyFilters() {
   await refreshPosts()
 }
 
+function selectCategoryTab(category) {
+  filters.category = category
+  applyFilters()
+}
+
 async function resetFilters() {
   Object.assign(filters, {
     keyword: '',
@@ -651,48 +640,26 @@ onMounted(() => {
         <span>{{ feedback }}</span>
       </div>
 
-      <section class="metric-strip">
-        <div class="metric-tile metric-tile--posts">
-          <FileText
-            :size="20"
-            aria-hidden="true"
-          />
-          <span>
-            <strong>{{ posts.length }}</strong>
-            当前页帖子
-          </span>
-        </div>
-        <div class="metric-tile metric-tile--replies">
-          <MessageCircle
-            :size="20"
-            aria-hidden="true"
-          />
-          <span>
-            <strong>{{ visibleReplyCount }}</strong>
-            当前页回复
-          </span>
-        </div>
-        <div class="metric-tile metric-tile--likes">
-          <ThumbsUp
-            :size="20"
-            aria-hidden="true"
-          />
-          <span>
-            <strong>{{ visibleLikeCount }}</strong>
-            当前页点赞
-          </span>
-        </div>
-        <div class="metric-tile metric-tile--mine">
-          <UserRound
-            :size="20"
-            aria-hidden="true"
-          />
-          <span>
-            <strong>{{ myVisiblePostCount }}</strong>
-            当前页我的发布
-          </span>
-        </div>
-      </section>
+      <nav class="category-tabs">
+        <button
+          class="category-tab"
+          :class="{ 'category-tab--active': !filters.category }"
+          type="button"
+          @click="selectCategoryTab('')"
+        >
+          全部
+        </button>
+        <button
+          v-for="cat in POST_CATEGORY_OPTIONS"
+          :key="cat.value"
+          class="category-tab"
+          :class="{ 'category-tab--active': filters.category === cat.value }"
+          type="button"
+          @click="selectCategoryTab(cat.value)"
+        >
+          {{ cat.label }}
+        </button>
+      </nav>
 
       <form
         class="panel-card filter-panel"
@@ -1631,81 +1598,45 @@ onMounted(() => {
   box-shadow: none;
 }
 
-.metric-strip {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.metric-tile {
-  --metric-bg: #ffffff;
-  --metric-border: #e4e7ef;
-  --metric-icon: #4f46e5;
-  --metric-label: #667085;
-  --metric-value: #111827;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: 12px;
-  min-height: 72px;
-  padding: 14px 16px;
-  border: 1px solid var(--metric-border);
-  border-radius: 8px;
-  background: var(--metric-bg);
-}
-
-.metric-tile--posts {
-  --metric-bg: #eef2ff;
-  --metric-border: #c7d2fe;
-  --metric-icon: #4f46e5;
-  --metric-label: #4338ca;
-  --metric-value: #312e81;
-}
-
-.metric-tile--replies {
-  --metric-bg: #eff6ff;
-  --metric-border: #bfdbfe;
-  --metric-icon: #2563eb;
-  --metric-label: #1d4ed8;
-  --metric-value: #1e3a8a;
-}
-
-.metric-tile--likes {
-  --metric-bg: #ecfdf5;
-  --metric-border: #bbf7d0;
-  --metric-icon: #059669;
-  --metric-label: #047857;
-  --metric-value: #064e3b;
-}
-
-.metric-tile--mine {
-  --metric-bg: #fff7ed;
-  --metric-border: #fed7aa;
-  --metric-icon: #ea580c;
-  --metric-label: #c2410c;
-  --metric-value: #7c2d12;
-}
-
-.metric-strip svg {
-  color: var(--metric-icon);
-}
-
-.metric-strip span {
-  display: grid;
-  gap: 2px;
-  color: var(--metric-label);
-  font-size: 0.88rem;
-  font-weight: 800;
-}
-
-.metric-strip strong {
-  color: var(--metric-value);
-  font-size: 1.36rem;
-  line-height: 1;
-}
-
 .filter-panel {
   gap: 14px;
+}
+
+.category-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 0 4px;
+}
+
+.category-tab {
+  padding: 7px 18px;
+  border: 1px solid #e4e7ef;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #6b7280;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.category-tab:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+  color: #374151;
+}
+
+.category-tab--active {
+  background: #6366f1;
+  border-color: #6366f1;
+  color: #ffffff;
+}
+
+.category-tab--active:hover {
+  background: #4f46e5;
+  border-color: #4f46e5;
+  color: #ffffff;
 }
 
 .filter-heading,
@@ -2470,7 +2401,6 @@ onMounted(() => {
 
 @media (max-width: 900px) {
   .page-title-card,
-  .metric-strip,
   .filter-grid,
   .detail-facts,
   .category-selector {
