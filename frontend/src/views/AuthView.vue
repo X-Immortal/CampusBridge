@@ -84,6 +84,11 @@ function syncRememberedLogin() {
   localStorage.removeItem(REMEMBER_LOGIN_KEY)
 }
 
+async function enterAsGuest() {
+  if (state.loading) return
+  await router.push(typeof route.query.redirect === 'string' ? route.query.redirect : '/')
+}
+
 async function handleLogin() {
   pendingAction.value = 'login'
   try {
@@ -334,6 +339,14 @@ async function handleRegister() {
               :size="20"
               aria-hidden="true"
             />
+          </button>
+          <button
+            class="guest-entry"
+            type="button"
+            :disabled="state.loading"
+            @click="enterAsGuest"
+          >
+            先以游客身份浏览
           </button>
         </form>
 
@@ -752,6 +765,31 @@ async function handleRegister() {
 
 .primary-action--loading {
   background: var(--color-brand-hover);
+}
+
+.guest-entry {
+  min-height: 44px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: 0.95rem;
+  font-weight: 800;
+  transition:
+    border-color 180ms ease,
+    background-color 180ms ease,
+    color 180ms ease;
+}
+
+.guest-entry:hover:not(:disabled) {
+  border-color: var(--color-brand-border-hover);
+  background: var(--color-brand-soft);
+  color: var(--color-brand-hover);
+}
+
+.guest-entry:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
 }
 
 .switch-hint {

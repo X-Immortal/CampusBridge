@@ -99,7 +99,7 @@ const router = createRouter({
 
 router.beforeEach((to) => {
   const { isAuthenticated } = useAuth()
-  const publicRouteNames = new Set(['homepage', 'auth'])
+  const publicRouteNames = new Set(['homepage', 'auth', 'task-list', 'task-detail', 'post-list'])
 
   if (to.name === 'auth' && isAuthenticated.value) {
     return { name: 'home' }
