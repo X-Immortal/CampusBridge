@@ -84,17 +84,25 @@ const markedPostsLoaded = ref(false)
 
 const isAdmin = computed(() => String(state.user?.role || '').toUpperCase() === 'ADMIN')
 
-const navItems = computed(() => [
-  { label: '首页推荐', icon: Home, to: '/' },
-  { label: '个人主页', icon: Home, active: true, to: '/home' },
-  { label: '帖子广场', icon: BookOpen, to: '/posts' },
-  { label: '任务广场', icon: Grid2X2, to: '/tasks' },
-  { label: '发布任务', icon: PlusCircle, to: '/tasks/new' },
-  { label: '我的任务', icon: ClipboardList, to: '/tasks/mine' },
-  { label: '消息通知', icon: MessageCircle, to: '/notifications' },
-  { label: '评价中心', icon: Star, to: '/reviews' },
-  ...(isAdmin.value ? [{ label: '管理后台', icon: Shield, to: '/admin' }] : [])
-])
+const navItems = computed(() => {
+  const browseItems = [
+    { label: '首页推荐', icon: Home, to: '/' },
+    { label: '帖子广场', icon: BookOpen, to: '/posts' },
+    { label: '任务广场', icon: Grid2X2, to: '/tasks' }
+  ]
+
+  if (!isAuthenticated.value) return browseItems
+
+  return [
+    ...browseItems,
+    { label: '个人主页', icon: Home, active: true, to: '/home' },
+    { label: '发布任务', icon: PlusCircle, to: '/tasks/new' },
+    { label: '我的任务', icon: ClipboardList, to: '/tasks/mine' },
+    { label: '消息通知', icon: MessageCircle, to: '/notifications' },
+    { label: '评价中心', icon: Star, to: '/reviews' },
+    ...(isAdmin.value ? [{ label: '管理后台', icon: Shield, to: '/admin' }] : [])
+  ]
+})
 
 const verificationForm = reactive({
   method: 'STUDENT_CARD_IMAGE',
