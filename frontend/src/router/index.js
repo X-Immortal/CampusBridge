@@ -87,7 +87,7 @@ const router = createRouter({
     {
       path: '/notifications',
       name: 'notifications',
-      component: ReviewNotificationView
+      component: ConversationView
     },
     {
       path: '/admin',

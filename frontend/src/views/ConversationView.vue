@@ -2,6 +2,7 @@
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
+  Bell,
   CalendarClock,
   ChevronLeft,
   ChevronRight,
@@ -9,7 +10,6 @@ import {
   Image,
   LoaderCircle,
   MessageCircle,
-  MoreVertical,
   RefreshCw,
   Search,
   Send,
@@ -25,24 +25,27 @@ import { useAuth } from '../stores/auth'
 
 const route = useRoute()
 const router = useRouter()
-const { currentUserId } = useAuth()
+const { currentUserId, state } = useAuth()
 const { refreshNotificationSummary } = useNotificationCenter()
 const { showToast } = useToast()
+const SYNTHETIC_SYSTEM_ID = 'system-notifications'
 
 const categoryMeta = {
   ERRAND: {
     icon: CalendarClock,
-    tone: 'blue'
+    tone: 'blue',
+    label: '跑腿代取'
   },
   AGENCY: {
     icon: ClipboardCheck,
-    tone: 'orange'
+    tone: 'orange',
+    label: '委托代办'
+  },
+  SYSTEM: {
+    icon: Bell,
+    tone: 'slate',
+    label: '系统通知'
   }
-}
-
-const taskCategoryLabels = {
-  ERRAND: '跑腿代取',
-  AGENCY: '委托代办'
 }
 
 const taskStatusLabels = {
@@ -55,7 +58,7 @@ const taskStatusLabels = {
 const rewardTypeLabels = {
   FREE: '免费互助',
   POINTS: '积分奖励',
-  CASH: '小额酬谢',
+  CASH: '现金酬谢',
   NEGOTIABLE: '双方协商'
 }
 
@@ -66,11 +69,15 @@ const listLoading = ref(false)
 const messagesLoading = ref(false)
 const sending = ref(false)
 const conversationSearch = ref('')
+const conversationProfiles = ref({})
+const failedAvatarKeys = ref({})
 const threadRef = ref(null)
+const composerInputRef = ref(null)
+const composerImageInputRef = ref(null)
 
 const conversationPage = reactive({
   page: 1,
-  size: 4,
+  size: 8,
   total: 0
 })
 
@@ -83,46 +90,43 @@ const messagePage = reactive({
 const composer = reactive({
   text: ''
 })
-const composerInputRef = ref(null)
 
 let listRequestId = 0
 let messagesRequestId = 0
 
-const selectedConversationId = computed(() =>
-  route.params.conversationId ? String(route.params.conversationId) : ''
-)
+const selectedConversationId = computed(() => (route.params.conversationId ? String(route.params.conversationId) : ''))
 const routeRelatedType = computed(() => normalizeRelatedType(firstQueryValue(route.query.relatedType)))
 const routeRelatedId = computed(() => normalizePositiveId(firstQueryValue(route.query.relatedId)))
 const routePeerUserId = computed(() => normalizePositiveId(firstQueryValue(route.query.peerUserId)))
-
-const activeConversation = computed(
-  () => {
-    if (selectedConversationId.value) {
-      return (
-        conversations.value.find((conversation) => String(conversation.id) === selectedConversationId.value) ||
-        null
-      )
-    }
-    return conversations.value[0] || null
-  }
-)
-
 const currentUser = computed(() => currentUserId.value)
+
+const activeConversation = computed(() => {
+  if (selectedConversationId.value) {
+    return conversations.value.find((conversation) => String(conversation.id) === selectedConversationId.value) || null
+  }
+  return conversations.value[0] || null
+})
+
+const activeConversationMeta = computed(() => getConversationMeta(activeConversation.value))
 const conversationReplyable = computed(() => activeConversation.value?.replyable ?? true)
 const isSystemConversation = computed(() => activeConversation.value?.type === 'SYSTEM')
 const onlyInAppActive = computed(() => Boolean(relatedTask.value?.onlyInAppContact))
-const totalConversationPages = computed(() =>
-  Math.max(1, Math.ceil(conversationPage.total / conversationPage.size))
+const totalConversationPages = computed(() => Math.max(1, Math.ceil(conversationPage.total / conversationPage.size)))
+const currentUserProfile = computed(() => ({
+  nickname: state.profile?.nickname || state.user?.username || '我',
+  avatarUrl: state.profile?.avatarUrl || ''
+}))
+const unreadConversationCount = computed(() =>
+  conversations.value.reduce((sum, conversation) => sum + Number(conversation.unreadCount || 0), 0)
 )
 
 const filteredConversations = computed(() => {
   const keyword = conversationSearch.value.trim().toLowerCase()
-  if (!keyword) return conversations.value
+  if (!keyword) return sortConversationsForDisplay(conversations.value)
 
-  return conversations.value.filter((conversation) => {
-    return [
+  const matchedConversations = conversations.value.filter((conversation) =>
+    [
       conversation.title,
-      conversation.type,
       conversation.relatedType,
       conversation.relatedId,
       conversation.lastMessagePreview,
@@ -132,21 +136,11 @@ const filteredConversations = computed(() => {
       .join(' ')
       .toLowerCase()
       .includes(keyword)
-  })
+  )
+  return sortConversationsForDisplay(matchedConversations)
 })
 
-const chatDateLabel = computed(() => {
-  const firstMessage = messages.value[0]
-  if (!firstMessage?.createdAt) return '今天'
-  return formatDateDivider(firstMessage.createdAt)
-})
-
-const activeIcon = computed(() => getCategoryMeta(activeConversation.value?.category).icon)
-const activeIconTone = computed(() => `task-icon--${getCategoryMeta(activeConversation.value?.category).tone}`)
-
-function getCategoryMeta(category) {
-  return categoryMeta[category] || categoryMeta.ERRAND
-}
+const renderedMessages = computed(() => buildRenderedMessages(messages.value))
 
 function firstQueryValue(value) {
   return Array.isArray(value) ? value[0] : value
@@ -166,26 +160,21 @@ function hasRouteConversationHint() {
   return Boolean(routeRelatedType.value && routeRelatedId.value)
 }
 
+function normalizeBoolean(value, fallback = false) {
+  if (value === undefined || value === null || value === '') return fallback
+  return value === true || value === 1 || value === '1' || String(value).toLowerCase() === 'true'
+}
+
 function normalizePagedResult(result, fallbackSize) {
   if (Array.isArray(result)) {
-    return {
-      items: result,
-      page: 1,
-      size: fallbackSize,
-      total: result.length
-    }
+    return { items: result, page: 1, size: fallbackSize, total: result.length }
   }
 
   if (!result || typeof result !== 'object') {
-    return {
-      items: [],
-      page: 1,
-      size: fallbackSize,
-      total: 0
-    }
+    return { items: [], page: 1, size: fallbackSize, total: 0 }
   }
 
-  const items = result.items || result.records || result.content || result.list || []
+  const items = result.items || result.records || result.content || result.list || result.tasks || []
   return {
     items: Array.isArray(items) ? items : [],
     page: Number(result.page || result.current || 1),
@@ -194,16 +183,134 @@ function normalizePagedResult(result, fallbackSize) {
   }
 }
 
-function normalizeBoolean(value, fallback = false) {
-  if (value === undefined || value === null || value === '') return fallback
-  return value === true || value === 1 || value === '1' || String(value).toLowerCase() === 'true'
+function getConversationMeta(conversation) {
+  if (conversation?.type === 'SYSTEM') return categoryMeta.SYSTEM
+  return categoryMeta[conversation?.category] || categoryMeta.ERRAND
+}
+
+function normalizeProfile(result = {}) {
+  const source = result?.userProfile || result?.profile || result || {}
+  return {
+    nickname: source.nickname || source.username || '',
+    avatarUrl: source.avatarUrl || ''
+  }
+}
+
+function profileInitial(name) {
+  const normalized = String(name || '').trim()
+  return normalized ? normalized.slice(0, 1) : '友'
+}
+
+function buildAvatarKey(scope, value, avatarUrl = '') {
+  return `${scope}:${String(value || '')}:${String(avatarUrl || '')}`
+}
+
+function hasBrokenAvatar(scope, value, avatarUrl = '') {
+  return Boolean(failedAvatarKeys.value[buildAvatarKey(scope, value, avatarUrl)])
+}
+
+function markAvatarBroken(scope, value, avatarUrl = '') {
+  failedAvatarKeys.value = {
+    ...failedAvatarKeys.value,
+    [buildAvatarKey(scope, value, avatarUrl)]: true
+  }
+}
+
+function peerProfile(conversation) {
+  if (!conversation?.peerUserId) return null
+  return conversationProfiles.value[String(conversation.peerUserId)] || null
+}
+
+function conversationDisplayName(conversation) {
+  if (!conversation) return ''
+  if (conversation.type === 'SYSTEM') return '系统通知'
+  return peerProfile(conversation)?.nickname || `同学 ${conversation.peerUserId || ''}`.trim()
+}
+
+function conversationDisplayTitle(conversation) {
+  if (!conversation) return ''
+  if (conversation.type === 'SYSTEM') return conversation.title || '系统通知'
+  return `和${conversationDisplayName(conversation)}的对话`
+}
+
+function conversationAvatarUrl(conversation) {
+  if (!conversation || conversation.type === 'SYSTEM') return ''
+  const avatarUrl = peerProfile(conversation)?.avatarUrl || ''
+  if (!avatarUrl || hasBrokenAvatar('conversation', conversation.peerUserId || conversation.id, avatarUrl)) return ''
+  return avatarUrl
+}
+
+function messageSenderProfile(message) {
+  if (isOwnMessage(message)) return currentUserProfile.value
+  return peerProfile(activeConversation.value) || { nickname: conversationDisplayName(activeConversation.value), avatarUrl: '' }
+}
+
+function messageAvatarUrl(message) {
+  const profile = messageSenderProfile(message)
+  const scope = isOwnMessage(message) ? 'message-self' : 'message-peer'
+  const identity = isOwnMessage(message) ? currentUser.value : activeConversation.value?.peerUserId || activeConversation.value?.id
+  if (!profile.avatarUrl || hasBrokenAvatar(scope, identity, profile.avatarUrl)) return ''
+  return profile.avatarUrl
+}
+
+async function ensureConversationProfiles(items = []) {
+  const peerIds = [...new Set(items.map((conversation) => conversation?.peerUserId).filter(Boolean).map(String))]
+  const missingIds = peerIds.filter((peerUserId) => !conversationProfiles.value[peerUserId])
+  if (!missingIds.length) return
+
+  const settled = await Promise.allSettled(
+    missingIds.map(async (peerUserId) => [peerUserId, normalizeProfile(await api.getUserProfile(peerUserId))])
+  )
+
+  const nextProfiles = { ...conversationProfiles.value }
+  settled.forEach((result) => {
+    if (result.status !== 'fulfilled') return
+    const [peerUserId, profile] = result.value
+    nextProfiles[String(peerUserId)] = profile
+  })
+  conversationProfiles.value = nextProfiles
+}
+
+function createPinnedSystemConversation(baseConversation = {}) {
+  const normalized = normalizeConversation({
+    ...baseConversation,
+    id: baseConversation.id ?? SYNTHETIC_SYSTEM_ID,
+    type: 'SYSTEM',
+    relatedType: 'SYSTEM',
+    title: baseConversation.title || '系统通知',
+    category: 'SYSTEM',
+    replyable: false,
+    peerUserId: null
+  })
+
+  return {
+    ...normalized,
+    pinned: true,
+    lastMessagePreview: normalized.lastMessagePreview || '暂无新的系统通知'
+  }
+}
+
+function mergePinnedSystemConversation(items = []) {
+  const normalizedItems = items.map(normalizeConversation).filter((conversation) => conversation.id)
+  const systemConversation = normalizedItems.find((conversation) => conversation.type === 'SYSTEM')
+  const remainingConversations = normalizedItems.filter((conversation) => conversation.type !== 'SYSTEM')
+  return [createPinnedSystemConversation(systemConversation), ...remainingConversations]
+}
+
+function sortConversationsForDisplay(items = []) {
+  return [...items].sort((current, next) => {
+    const currentPinned = current?.type === 'SYSTEM' || String(current?.id) === SYNTHETIC_SYSTEM_ID
+    const nextPinned = next?.type === 'SYSTEM' || String(next?.id) === SYNTHETIC_SYSTEM_ID
+    if (currentPinned !== nextPinned) return currentPinned ? -1 : 1
+    return 0
+  })
 }
 
 function normalizeConversation(conversation = {}) {
   const id = conversation.id ?? conversation.conversationId
   const relatedId = conversation.relatedId
   const type = conversation.type || 'TASK'
-  const relatedType = conversation.relatedType || (type === 'TASK' ? 'TASK' : type === 'SYSTEM' ? 'SYSTEM' : 'POST')
+  const relatedType = conversation.relatedType || (type === 'SYSTEM' ? 'SYSTEM' : 'TASK')
   const lastMessageAt = conversation.lastMessageAt || conversation.updatedAt || conversation.createdAt || ''
   const lastMessagePreview =
     conversation.lastMessagePreview ||
@@ -226,14 +333,8 @@ function normalizeConversation(conversation = {}) {
     lastMessagePreview,
     category: conversation.category || 'ERRAND',
     unreadCount: Number(conversation.unreadCount || 0),
-    timeLabel: conversation.timeLabel || formatConversationTime(lastMessageAt)
+    timeLabel: formatConversationTime(lastMessageAt)
   }
-}
-
-function formatConversationTitle(relatedType, relatedId, type) {
-  if (type === 'SYSTEM' || relatedType === 'SYSTEM') return '系统通知'
-  if (relatedType === 'POST') return relatedId ? `帖子 #${relatedId} 私聊` : '帖子私聊'
-  return relatedId ? `任务 #${relatedId} 沟通` : '站内会话'
 }
 
 function normalizeMessage(message = {}) {
@@ -243,63 +344,30 @@ function normalizeMessage(message = {}) {
     senderId: message.senderId,
     type: message.type || 'TEXT',
     content: message.content || '',
-    readAt: message.readAt || null,
     createdAt: message.createdAt || new Date().toISOString()
   }
 }
 
-function selectInitialConversation() {
-  if (!conversations.value.length) return null
-  if (selectedConversationId.value) {
-    return conversations.value.find(
-      (conversation) => String(conversation.id) === selectedConversationId.value
-    )
-  }
-  if (hasRouteConversationHint()) {
-    return findConversationByRouteHint()
-  }
-  return conversations.value[0]
+function formatConversationTitle(relatedType, relatedId, type) {
+  if (type === 'SYSTEM' || relatedType === 'SYSTEM') return '系统通知'
+  if (relatedType === 'POST') return relatedId ? `帖子 #${relatedId} 私聊` : '帖子私聊'
+  return relatedId ? `任务 #${relatedId}` : '站内会话'
 }
 
-async function loadConversations() {
-  listLoading.value = true
-  const requestId = ++listRequestId
+function resolvePeerUserIdFromTask(task) {
+  if (routePeerUserId.value) return routePeerUserId.value
+  if (!task || !currentUser.value) return ''
 
-  try {
-    const result = await api.getConversations({
-      page: conversationPage.page,
-      size: conversationPage.size
-    })
-    if (requestId !== listRequestId) return
+  const requesterId = task.requesterId ?? task.ownerId
+  const providerId = task.providerId ?? task.helperId ?? task.acceptedApplicantId
 
-    const paged = normalizePagedResult(result, conversationPage.size)
-    await applyConversationPage(paged)
-  } catch (error) {
-    if (requestId !== listRequestId) return
-    showToast(error.message || '会话列表加载失败，请稍后重试。', { type: 'danger' })
-    await applyConversationPage({ items: [], page: 1, size: conversationPage.size, total: 0 })
-  } finally {
-    if (requestId === listRequestId) listLoading.value = false
+  if (requesterId !== undefined && String(requesterId) === String(currentUser.value)) {
+    return normalizePositiveId(providerId)
   }
-}
-
-async function applyConversationPage(paged) {
-  conversations.value = paged.items.map(normalizeConversation).filter((conversation) => conversation.id)
-  conversationPage.page = paged.page || 1
-  conversationPage.size = paged.size || conversationPage.size
-  conversationPage.total = paged.total || conversations.value.length
-
-  let target = selectInitialConversation()
-  if (!target && hasRouteConversationHint()) {
-    target = await ensureConversationFromRoute()
+  if (providerId !== undefined && String(providerId) === String(currentUser.value)) {
+    return normalizePositiveId(requesterId)
   }
-  if (!selectedConversationId.value && target?.id) {
-    router.replace({
-      name: 'conversation-detail',
-      params: { conversationId: target.id },
-      query: route.query
-    })
-  }
+  return ''
 }
 
 function findConversationByRouteHint() {
@@ -312,20 +380,16 @@ function findConversationByRouteHint() {
   )
 }
 
-function resolvePeerUserIdFromTask(task) {
-  if (routePeerUserId.value) return routePeerUserId.value
-  if (!task || !currentUser.value) return ''
-
-  const requesterId = task.requesterId ?? task.ownerId
-  const providerId = task.providerId ?? task.helperId ?? task.acceptedApplicantId
-
-  if (requesterId !== undefined && requesterId !== null && String(requesterId) === String(currentUser.value)) {
-    return normalizePositiveId(providerId)
+function selectInitialConversation() {
+  if (!conversations.value.length) return null
+  if (route.name === 'notifications') {
+    return conversations.value.find((conversation) => conversation.type === 'SYSTEM') || conversations.value[0]
   }
-  if (providerId !== undefined && providerId !== null && String(providerId) === String(currentUser.value)) {
-    return normalizePositiveId(requesterId)
+  if (selectedConversationId.value) {
+    return conversations.value.find((conversation) => String(conversation.id) === selectedConversationId.value) || null
   }
-  return ''
+  if (hasRouteConversationHint()) return findConversationByRouteHint()
+  return conversations.value[0]
 }
 
 async function ensureConversationFromRoute() {
@@ -347,7 +411,7 @@ async function ensureConversationFromRoute() {
   }
 
   try {
-    const conversation = normalizeConversation(
+    const createdConversation = normalizeConversation(
       await api.createConversation({
         relatedType: routeRelatedType.value,
         relatedId: Number(routeRelatedId.value),
@@ -355,41 +419,55 @@ async function ensureConversationFromRoute() {
         initialMessage: 'hello'
       })
     )
-    if (!conversation.id) return null
+    if (!createdConversation.id) return null
 
-    conversations.value = [conversation, ...conversations.value]
+    conversations.value = [createdConversation, ...conversations.value]
     conversationPage.total = Math.max(conversationPage.total, conversations.value.length)
-    return conversation
+    return createdConversation
   } catch (error) {
     showToast(error.message || '创建会话失败，请稍后重试。', { type: 'danger' })
     return null
   }
 }
 
-async function loadMessages() {
-  messages.value = []
-  if (!activeConversation.value?.id) return
+async function applyConversationPage(paged) {
+  conversations.value = mergePinnedSystemConversation(paged.items)
+  await ensureConversationProfiles(conversations.value)
+  conversationPage.page = paged.page || 1
+  conversationPage.size = paged.size || conversationPage.size
+  conversationPage.total = Math.max(paged.total || 0, conversations.value.length)
 
-  messagesLoading.value = true
-  const requestId = ++messagesRequestId
-  const conversationId = activeConversation.value.id
+  let target = selectInitialConversation()
+  if (!target && hasRouteConversationHint()) {
+    target = await ensureConversationFromRoute()
+  }
+
+  if (!selectedConversationId.value && target?.id) {
+    await router.replace({
+      name: 'conversation-detail',
+      params: { conversationId: target.id },
+      query: route.query
+    })
+  }
+}
+
+async function loadConversations() {
+  listLoading.value = true
+  const requestId = ++listRequestId
 
   try {
-    const result = await api.getConversationMessages(conversationId, {
-      page: messagePage.page,
-      size: messagePage.size
+    const result = await api.getConversations({
+      page: conversationPage.page,
+      size: conversationPage.size
     })
-    if (requestId !== messagesRequestId) return
-
-    const paged = normalizePagedResult(result, messagePage.size)
-    applyMessagePage(paged)
-    markConversationLocallyRead(conversationId)
-    refreshNotificationSummary()
-  } catch {
-    if (requestId !== messagesRequestId) return
-    applyMessagePage({ items: [], page: 1, size: messagePage.size, total: 0 })
+    if (requestId !== listRequestId) return
+    await applyConversationPage(normalizePagedResult(result, conversationPage.size))
+  } catch (error) {
+    if (requestId !== listRequestId) return
+    showToast(error.message || '会话列表加载失败，请稍后重试。', { type: 'danger' })
+    await applyConversationPage({ items: [], page: 1, size: conversationPage.size, total: 0 })
   } finally {
-    if (requestId === messagesRequestId) messagesLoading.value = false
+    if (requestId === listRequestId) listLoading.value = false
   }
 }
 
@@ -414,9 +492,38 @@ function markConversationLocallyRead(conversationId) {
   )
 }
 
+async function loadMessages() {
+  messages.value = []
+  if (!activeConversation.value?.id) return
+  if (String(activeConversation.value.id) === SYNTHETIC_SYSTEM_ID) {
+    relatedTask.value = null
+    return
+  }
+
+  messagesLoading.value = true
+  const requestId = ++messagesRequestId
+  const conversationId = activeConversation.value.id
+
+  try {
+    const result = await api.getConversationMessages(conversationId, {
+      page: messagePage.page,
+      size: messagePage.size
+    })
+    if (requestId !== messagesRequestId) return
+    applyMessagePage(normalizePagedResult(result, messagePage.size))
+    markConversationLocallyRead(conversationId)
+    await refreshNotificationSummary()
+  } catch {
+    if (requestId !== messagesRequestId) return
+    applyMessagePage({ items: [], page: 1, size: messagePage.size, total: 0 })
+  } finally {
+    if (requestId === messagesRequestId) messagesLoading.value = false
+  }
+}
+
 async function loadRelatedTask() {
   const relatedId = activeConversation.value?.relatedId
-  if (!relatedId) {
+  if (!relatedId || activeConversation.value?.relatedType !== 'TASK') {
     relatedTask.value = null
     return
   }
@@ -442,6 +549,10 @@ async function changeConversationPage(page) {
 
 async function selectConversation(conversation) {
   if (!conversation?.id) return
+  if (String(conversation.id) === SYNTHETIC_SYSTEM_ID) {
+    await router.push({ name: 'notifications' })
+    return
+  }
   await router.push({
     name: 'conversation-detail',
     params: { conversationId: conversation.id }
@@ -468,7 +579,7 @@ function syncConversationAfterSend(message, payload) {
   conversations.value[index] = {
     ...conversations.value[index],
     lastMessageAt: message.createdAt,
-    lastMessagePreview: payload.content,
+    lastMessagePreview: payload.type === 'IMAGE' ? '[图片]' : payload.content,
     timeLabel: formatConversationTime(message.createdAt),
     unreadCount: 0
   }
@@ -499,9 +610,6 @@ async function sendMessage() {
   }
 }
 
-// --- Image upload ---
-const composerImageInputRef = ref(null)
-
 function triggerImageUpload() {
   if (isSystemConversation.value || !conversationReplyable.value) return
   composerImageInputRef.value?.click()
@@ -510,12 +618,9 @@ function triggerImageUpload() {
 async function handleImageSelected(event) {
   const file = event.target.files?.[0]
   if (!file) return
-  // reset input so same file can be selected again
   event.target.value = ''
 
   if (!activeConversation.value?.id) return
-
-  // validate file
   if (!file.type.startsWith('image/')) {
     showToast('请选择图片文件。', { type: 'danger' })
     return
@@ -527,14 +632,12 @@ async function handleImageSelected(event) {
 
   sending.value = true
   try {
-    // upload attachment
     const attachment = await api.uploadAttachment({
       file,
       expectedOwnerType: 'MESSAGE',
       type: 'IMAGE'
     })
     const attachmentId = attachment?.id || attachment?.attachmentId
-    // send image message
     const payload = {
       type: 'IMAGE',
       content: attachment?.url || attachment?.fileUrl || '',
@@ -581,29 +684,65 @@ function formatMessageTime(value) {
 
 function formatDateDivider(value) {
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '今天'
-  return `今天 ${date.toLocaleTimeString('zh-CN', {
-    hour: '2-digit',
-    minute: '2-digit'
-  })}`
+  if (Number.isNaN(date.getTime())) return ''
+
+  const now = new Date()
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const targetStart = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  const diffDays = Math.round((todayStart - targetStart) / 86400000)
+  const timeText = formatMessageTime(value)
+
+  if (diffDays === 0) return `今天 ${timeText}`
+  if (diffDays === 1) return `昨天 ${timeText}`
+  return `${date.getMonth() + 1}月${date.getDate()}日 ${timeText}`
 }
 
-function isOwnMessage(message) {
-  return String(message.senderId) === String(currentUser.value)
+function shouldInsertDateDivider(previousMessage, currentMessage) {
+  if (!currentMessage?.createdAt) return false
+  if (!previousMessage?.createdAt) return true
+
+  const previousDate = new Date(previousMessage.createdAt)
+  const currentDate = new Date(currentMessage.createdAt)
+  if (Number.isNaN(previousDate.getTime()) || Number.isNaN(currentDate.getTime())) return false
+
+  const previousDay = new Date(previousDate.getFullYear(), previousDate.getMonth(), previousDate.getDate()).getTime()
+  const currentDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate()).getTime()
+  if (previousDay !== currentDay) return true
+
+  return currentDate.getTime() - previousDate.getTime() >= 5 * 60 * 1000
 }
 
-function isImageMessage(message) {
-  return message.type === 'IMAGE'
+function buildRenderedMessages(items = []) {
+  const rendered = []
+
+  items.forEach((message, index) => {
+    const previousMessage = index > 0 ? items[index - 1] : null
+    if (shouldInsertDateDivider(previousMessage, message)) {
+      rendered.push({
+        id: `divider-${message.id}`,
+        type: 'divider',
+        label: formatDateDivider(message.createdAt)
+      })
+    }
+
+    rendered.push({
+      id: `message-${message.id}`,
+      type: 'message',
+      payload: message
+    })
+  })
+
+  return rendered
 }
 
 function conversationSubtitle(conversation) {
   if (!conversation) return ''
-  const taskNo = conversation.relatedId ? `任务 #${conversation.relatedId}` : '站内沟通'
-  return `${taskNo} · 围绕任务的站内沟通留痕`
+  if (conversation.type === 'SYSTEM') return conversation.pinned ? '置顶通知' : '系统通知'
+  return conversation.relatedId ? `任务 #${conversation.relatedId}` : '站内会话'
 }
 
 function categoryLabel(category) {
-  return taskCategoryLabels[category] || '任务会话'
+  return categoryMeta[category]?.label || categoryMeta.ERRAND.label
 }
 
 function taskStatusLabel(status) {
@@ -614,53 +753,51 @@ function rewardTypeLabel(type) {
   return rewardTypeLabels[type] || type || '未设置'
 }
 
+function shortText(text, length = 54) {
+  if (!text) return '暂无内容'
+  return text.length > length ? `${text.slice(0, length)}...` : text
+}
+
+function isOwnMessage(message) {
+  return String(message.senderId) === String(currentUser.value)
+}
+
+function isImageMessage(message) {
+  return message.type === 'IMAGE'
+}
+
 watch(
   () => route.params.conversationId,
   async () => {
-    loadRelatedTask()
+    await loadRelatedTask()
     await loadMessages()
   }
 )
 
-watch(activeConversation, loadRelatedTask)
+watch(activeConversation, async () => {
+  await loadRelatedTask()
+})
+
+watch(currentUser, () => {
+  refreshNotificationSummary()
+})
 
 onMounted(async () => {
   await loadConversations()
-  loadRelatedTask()
+  await loadRelatedTask()
   await loadMessages()
 })
 </script>
 
 <template>
-  <DashboardShell active-label="站内沟通">
-    <main class="conversation-page">
-      <section class="page-title-card">
-        <div class="title-icon">
-          <MessageCircle
-            :size="34"
-            aria-hidden="true"
-          />
-        </div>
-        <div class="title-copy">
-          <p>站内沟通</p>
-          <h1>把协作细节留在平台内</h1>
-          <span>围绕已确认的任务会话，完成文字澄清、图片补充和可追溯沟通。</span>
-        </div>
-        <StatusBadge
-          label="仅站内优先"
-          tone="success"
-        />
-      </section>
-
-      <section class="conversation-workspace">
-        <aside class="conversation-list-panel">
-          <div class="panel-heading">
-            <div>
-              <p>会话列表</p>
-              <h2>正在协作</h2>
-            </div>
+  <DashboardShell active-label="消息通知">
+    <main class="message-page">
+      <section class="message-shell">
+        <aside class="conversation-list-panel panel-card">
+          <div class="panel-heading panel-heading--tight">
+            <h1>消息通知</h1>
             <button
-              class="icon-button"
+              class="icon-action"
               type="button"
               aria-label="刷新会话"
               :disabled="listLoading"
@@ -668,13 +805,13 @@ onMounted(async () => {
             >
               <RefreshCw
                 :class="{ spinning: listLoading }"
-                :size="20"
+                :size="18"
                 aria-hidden="true"
               />
             </button>
           </div>
 
-          <label class="conversation-search">
+          <label class="search-box">
             <Search
               :size="18"
               aria-hidden="true"
@@ -682,37 +819,14 @@ onMounted(async () => {
             <input
               v-model="conversationSearch"
               type="search"
-              placeholder="搜索任务标题、内容或关键词"
-              aria-label="搜索会话、任务编号"
+              placeholder="搜索会话"
+              aria-label="搜索会话"
             >
           </label>
 
-          <div class="pagination-bar">
-            <button
-              class="pager-button"
-              type="button"
-              :disabled="conversationPage.page <= 1"
-              @click="changeConversationPage(conversationPage.page - 1)"
-            >
-              <ChevronLeft
-                :size="16"
-                aria-hidden="true"
-              />
-              上一页
-            </button>
-            <span>{{ conversationPage.page }} / {{ totalConversationPages }}</span>
-            <button
-              class="pager-button"
-              type="button"
-              :disabled="conversationPage.page >= totalConversationPages"
-              @click="changeConversationPage(conversationPage.page + 1)"
-            >
-              下一页
-              <ChevronRight
-                :size="16"
-                aria-hidden="true"
-              />
-            </button>
+          <div class="list-meta">
+            <span>{{ conversations.length }} 个会话</span>
+            <span v-if="unreadConversationCount">{{ unreadConversationCount }} 条未读</span>
           </div>
 
           <div
@@ -725,7 +839,16 @@ onMounted(async () => {
               :size="24"
               aria-hidden="true"
             />
-            <span>正在加载会话...</span>
+          </div>
+
+          <div
+            v-else-if="!filteredConversations.length"
+            class="empty-state empty-state--compact"
+          >
+            <MessageCircle
+              :size="28"
+              aria-hidden="true"
+            />
           </div>
 
           <div
@@ -741,22 +864,33 @@ onMounted(async () => {
               @click="selectConversation(conversation)"
             >
               <span
-                class="task-icon"
-                :class="`task-icon--${getCategoryMeta(conversation.category).tone}`"
+                class="task-icon conversation-avatar"
+                :class="`task-icon--${getConversationMeta(conversation).tone}`"
               >
+                <img
+                  v-if="conversationAvatarUrl(conversation)"
+                  :src="conversationAvatarUrl(conversation)"
+                  :alt="`${conversationDisplayName(conversation)}头像`"
+                  @error="markAvatarBroken('conversation', conversation.peerUserId || conversation.id, conversationAvatarUrl(conversation))"
+                >
                 <component
-                  :is="getCategoryMeta(conversation.category).icon"
-                  :size="24"
+                  v-else-if="conversation.type === 'SYSTEM'"
+                  :is="getConversationMeta(conversation).icon"
+                  :size="20"
                   aria-hidden="true"
                 />
+                <span v-else>{{ profileInitial(conversationDisplayName(conversation)) }}</span>
               </span>
               <span class="conversation-card-body">
                 <span class="conversation-card-top">
-                  <strong>{{ conversation.title }}</strong>
+                  <strong>
+                    {{ conversationDisplayTitle(conversation) }}
+                    <em v-if="conversation.type === 'SYSTEM'">置顶</em>
+                  </strong>
                   <small>{{ conversation.timeLabel || formatConversationTime(conversation.lastMessageAt) }}</small>
                 </span>
-                <span class="conversation-preview">{{ conversation.lastMessagePreview }}</span>
-                <span class="conversation-meta">任务 #{{ conversation.relatedId }}</span>
+                <span class="conversation-preview">{{ shortText(conversation.lastMessagePreview) }}</span>
+                <span class="conversation-meta">{{ conversationSubtitle(conversation) }}</span>
               </span>
               <span
                 v-if="conversation.unreadCount"
@@ -765,44 +899,70 @@ onMounted(async () => {
               />
             </button>
           </div>
+
+          <div class="pagination-bar">
+            <button
+              class="pager-button"
+              type="button"
+              :disabled="conversationPage.page <= 1"
+              @click="changeConversationPage(conversationPage.page - 1)"
+            >
+              <ChevronLeft
+                :size="16"
+                aria-hidden="true"
+              />
+            </button>
+            <span>{{ conversationPage.page }} / {{ totalConversationPages }}</span>
+            <button
+              class="pager-button"
+              type="button"
+              :disabled="conversationPage.page >= totalConversationPages"
+              @click="changeConversationPage(conversationPage.page + 1)"
+            >
+              <ChevronRight
+                :size="16"
+                aria-hidden="true"
+              />
+            </button>
+          </div>
         </aside>
 
         <section
           v-if="activeConversation"
-          class="chat-panel"
+          class="chat-panel panel-card"
         >
           <header class="chat-header">
             <div class="chat-title">
               <span
-                class="task-icon"
-                :class="activeIconTone"
+                class="task-icon conversation-avatar"
+                :class="`task-icon--${activeConversationMeta.tone}`"
               >
+                <img
+                  v-if="conversationAvatarUrl(activeConversation)"
+                  :src="conversationAvatarUrl(activeConversation)"
+                  :alt="`${conversationDisplayName(activeConversation)}头像`"
+                  @error="markAvatarBroken('conversation', activeConversation.peerUserId || activeConversation.id, conversationAvatarUrl(activeConversation))"
+                >
                 <component
-                  :is="activeIcon"
-                  :size="25"
+                  v-else-if="activeConversation.type === 'SYSTEM'"
+                  :is="activeConversationMeta.icon"
+                  :size="22"
                   aria-hidden="true"
                 />
+                <span v-else>
+                  {{ profileInitial(conversationDisplayName(activeConversation)) }}
+                </span>
               </span>
               <div>
-                <h2>{{ activeConversation.title }}</h2>
+                <h2>{{ conversationDisplayTitle(activeConversation) }}</h2>
                 <p>{{ conversationSubtitle(activeConversation) }}</p>
               </div>
             </div>
-            <button
-              class="icon-button"
-              type="button"
-              aria-label="更多会话操作"
-            >
-              <MoreVertical
-                :size="22"
-                aria-hidden="true"
-              />
-            </button>
+            <StatusBadge
+              :label="isSystemConversation ? '系统' : '会话'"
+              :tone="isSystemConversation ? 'warning' : 'success'"
+            />
           </header>
-
-          <div class="date-divider">
-            <span>{{ chatDateLabel }}</span>
-          </div>
 
           <div
             ref="threadRef"
@@ -819,56 +979,81 @@ onMounted(async () => {
                 :size="24"
                 aria-hidden="true"
               />
-              <span>正在加载消息...</span>
             </div>
 
-            <article
-              v-for="message in messages"
-              v-else
-              :key="message.id"
-              class="message-row"
-              :class="{ 'message-row--mine': isOwnMessage(message) }"
-            >
-              <span
-                v-if="!isOwnMessage(message)"
-                class="message-avatar"
+            <template v-else-if="messages.length">
+              <template
+                v-for="entry in renderedMessages"
+                :key="entry.id"
               >
-                <UserRound
-                  :size="24"
-                  aria-hidden="true"
-                />
-              </span>
-              <time>{{ formatMessageTime(message.createdAt) }}</time>
-              <div class="message-bubble">
-                <a
-                  v-if="isImageMessage(message)"
-                  class="message-image"
-                  :href="message.content"
-                  target="_blank"
-                  rel="noreferrer"
+                <div
+                  v-if="entry.type === 'divider'"
+                  class="date-divider"
                 >
-                  <img
-                    :src="message.content"
-                    alt="消息图片"
+                  <span>{{ entry.label }}</span>
+                </div>
+
+                <article
+                  v-else
+                  class="message-row"
+                  :class="{ 'message-row--mine': isOwnMessage(entry.payload) }"
+                >
+                  <span
+                    v-if="!isOwnMessage(entry.payload)"
+                    class="message-avatar"
                   >
-                </a>
-                <p v-else>
-                  {{ message.content }}
-                </p>
-              </div>
-              <span
-                v-if="isOwnMessage(message)"
-                class="message-avatar message-avatar--mine"
-              >
-                <UserRound
-                  :size="24"
-                  aria-hidden="true"
-                />
-              </span>
-            </article>
+                    <img
+                      v-if="messageAvatarUrl(entry.payload)"
+                      :src="messageAvatarUrl(entry.payload)"
+                      :alt="`${messageSenderProfile(entry.payload).nickname}头像`"
+                      @error="markAvatarBroken('message-peer', activeConversation?.peerUserId || activeConversation?.id, messageAvatarUrl(entry.payload))"
+                    >
+                    <span v-else>{{ profileInitial(messageSenderProfile(entry.payload).nickname) }}</span>
+                  </span>
+                  <div class="message-bubble">
+                    <a
+                      v-if="isImageMessage(entry.payload)"
+                      class="message-image"
+                      :href="entry.payload.content"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <img
+                        :src="entry.payload.content"
+                        alt="消息图片"
+                      >
+                    </a>
+                    <p v-else>{{ entry.payload.content }}</p>
+                  </div>
+                  <span
+                    v-if="isOwnMessage(entry.payload)"
+                    class="message-avatar message-avatar--mine"
+                  >
+                    <img
+                      v-if="messageAvatarUrl(entry.payload)"
+                      :src="messageAvatarUrl(entry.payload)"
+                      :alt="`${messageSenderProfile(entry.payload).nickname}头像`"
+                      @error="markAvatarBroken('message-self', currentUser, messageAvatarUrl(entry.payload))"
+                    >
+                    <span v-else>{{ profileInitial(messageSenderProfile(entry.payload).nickname) }}</span>
+                  </span>
+                </article>
+              </template>
+            </template>
+
+            <div
+              v-else
+              class="empty-state empty-state--compact"
+            >
+              <MessageCircle
+                :size="28"
+                aria-hidden="true"
+              />
+            </div>
           </div>
 
           <form
+            v-if="!isSystemConversation"
             class="message-composer"
             @submit.prevent="sendMessage"
           >
@@ -876,27 +1061,26 @@ onMounted(async () => {
               ref="composerInputRef"
               v-model="composer.text"
               type="text"
-              :placeholder="isSystemConversation ? '系统消息无需回复' : '输入消息...'"
+              placeholder="输入消息"
               aria-label="输入消息"
-              :disabled="sending || !conversationReplyable || isSystemConversation"
-              :class="{ 'composer-input--system': isSystemConversation }"
+              :disabled="sending || !conversationReplyable"
             >
             <input
               ref="composerImageInputRef"
               type="file"
               accept="image/*"
-              style="display: none;"
+              class="hidden-input"
               @change="handleImageSelected"
             >
             <button
               class="image-button"
               type="button"
               aria-label="发送图片"
-              :disabled="sending || isSystemConversation || !conversationReplyable"
+              :disabled="sending || !conversationReplyable"
               @click="triggerImageUpload"
             >
               <Image
-                :size="24"
+                :size="20"
                 aria-hidden="true"
               />
             </button>
@@ -904,54 +1088,65 @@ onMounted(async () => {
               class="send-button"
               type="submit"
               aria-label="发送消息"
-              :disabled="sending || !composer.text.trim() || !conversationReplyable || isSystemConversation"
+              :disabled="sending || !composer.text.trim() || !conversationReplyable"
             >
               <Send
-                :size="25"
+                :size="20"
                 aria-hidden="true"
               />
             </button>
           </form>
         </section>
 
-        <aside
-          v-if="relatedTask"
-          class="task-side-panel"
+        <section
+          v-else
+          class="chat-panel panel-card"
         >
-          <div class="panel-heading">
-            <div>
-              <p>关联任务</p>
-              <h2>{{ relatedTask.title }}</h2>
-            </div>
+          <div class="empty-state">
+            <MessageCircle
+              :size="30"
+              aria-hidden="true"
+            />
+          </div>
+        </section>
+
+        <aside
+          v-if="relatedTask && !isSystemConversation"
+          class="task-side-panel panel-card"
+        >
+          <div class="panel-heading panel-heading--tight">
+            <h2>{{ relatedTask.title }}</h2>
             <StatusBadge
               :label="taskStatusLabel(relatedTask.status)"
               tone="info"
             />
           </div>
+
           <dl class="task-detail-list">
             <div>
-              <dt>任务类型</dt>
+              <dt>类型</dt>
               <dd>{{ categoryLabel(relatedTask.category) }}</dd>
             </div>
             <div>
-              <dt>校区地点</dt>
-              <dd>{{ relatedTask.campus }} · {{ relatedTask.location }}</dd>
+              <dt>地点</dt>
+              <dd>{{ relatedTask.campus || '未设置' }} · {{ relatedTask.location || '未设置' }}</dd>
             </div>
             <div>
-              <dt>奖励方式</dt>
+              <dt>奖励</dt>
               <dd>{{ rewardTypeLabel(relatedTask.rewardType) }}</dd>
             </div>
             <div>
               <dt>完成标准</dt>
-              <dd>{{ relatedTask.completionStandard }}</dd>
+              <dd>{{ relatedTask.completionStandard || '未填写' }}</dd>
             </div>
           </dl>
+
           <div class="mode-note">
             <ShieldCheck
               :size="18"
               aria-hidden="true"
             />
-            <span>{{ onlyInAppActive ? '当前任务开启仅站内沟通' : '当前任务允许按偏好协商沟通方式' }}</span>
+            <span>{{ onlyInAppActive ? '仅站内沟通' : '可协商其他沟通方式' }}</span>
           </div>
         </aside>
       </section>
@@ -960,541 +1155,406 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.conversation-page {
-  --chat-primary: var(--color-brand);
-  --chat-primary-dark: var(--color-brand-hover);
-  --chat-text: var(--color-text);
-  --chat-muted: var(--color-text-muted);
-  --chat-border: var(--color-border);
-  --chat-soft: var(--color-brand-soft);
+.message-page {
   display: grid;
-  gap: 18px;
-  color: var(--chat-text);
 }
 
-.page-title-card,
-.conversation-list-panel,
-.chat-panel,
-.task-side-panel {
-  border: 1px solid var(--chat-border);
+.message-shell {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.92fr) minmax(420px, 1.35fr) minmax(260px, 0.78fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.panel-card {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-surface);
   box-shadow: 0 18px 36px var(--shadow-card);
 }
 
-.page-title-card {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  min-height: 132px;
-  gap: 28px;
-  padding: 26px 38px;
-}
-
-.title-icon,
-.task-icon,
-.message-avatar {
-  display: inline-grid;
-  place-items: center;
-  flex: 0 0 auto;
-}
-
-.title-icon {
-  width: 78px;
-  height: 82px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, var(--color-brand-soft), var(--color-brand-soft));
-  color: var(--color-brand-text);
-}
-
-.title-copy {
-  display: grid;
-  gap: 8px;
-}
-
-.title-copy p,
-.panel-heading p {
-  margin: 0;
-  color: var(--color-brand-text);
-  font-size: 0.92rem;
-  font-weight: 900;
-}
-
-.title-copy h1,
-.panel-heading h2,
-.chat-title h2 {
-  margin: 0;
-  color: var(--chat-text);
-  font-weight: 900;
-  line-height: 1.16;
-}
-
-.title-copy h1 {
-  font-size: 1.9rem;
-}
-
-.title-copy span,
-.chat-title p,
-.conversation-preview,
-.conversation-meta,
-.task-detail-list dt {
-  color: var(--chat-muted);
-  line-height: 1.5;
-}
-
-.page-title-card :deep(.status-badge--success) {
-  min-height: 32px;
-  padding: 0 13px;
-  border: 1px solid var(--color-success-soft);
-  background: var(--color-success-bg);
-  color: var(--color-success-text);
-  font-size: 0.86rem;
-  font-weight: 900;
-  box-shadow: var(--shadow-card);
-}
-
-.conversation-workspace {
-  display: grid;
-  grid-template-columns: minmax(300px, 0.34fr) minmax(520px, 1fr);
-  gap: 14px;
-  align-items: stretch;
-}
-
-.conversation-list-panel,
-.chat-panel,
-.task-side-panel {
-  display: grid;
-  align-content: start;
-  gap: 16px;
-  padding: 18px;
-}
-
 .conversation-list-panel {
-  min-height: 660px;
+  min-height: 720px;
 }
 
-.panel-heading,
-.chat-header,
-.conversation-card-top,
-.pagination-bar {
+.chat-panel {
+  min-height: 720px;
+}
+
+.panel-heading {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
 }
 
-.panel-heading h2 {
-  margin-top: 3px;
-  font-size: 1.2rem;
+.panel-heading--tight {
+  align-items: center;
 }
 
-.icon-button,
+.panel-heading h1,
+.panel-heading h2,
+.chat-title h2 {
+  margin: 0;
+  color: var(--color-text);
+}
+
+.icon-action,
+.pager-button,
+.image-button,
+.send-button,
+.conversation-card {
+  transition:
+    border-color 180ms ease,
+    background-color 180ms ease,
+    box-shadow 180ms ease,
+    color 180ms ease;
+}
+
+.icon-action,
 .pager-button,
 .image-button,
 .send-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--chat-border);
+  min-height: 38px;
+  border: 1px solid var(--color-divider);
   border-radius: 8px;
   background: var(--color-surface);
-  color: var(--chat-primary);
-  transition:
-    border-color 180ms ease,
-    background-color 180ms ease,
-    color 180ms ease,
-    box-shadow 180ms ease;
+  color: var(--color-text-secondary);
 }
 
-.icon-button {
-  width: 42px;
-  height: 42px;
+.icon-action {
+  width: 38px;
 }
 
-.icon-button:hover:not(:disabled),
-.pager-button:hover:not(:disabled),
-.image-button:hover:not(:disabled) {
-  border-color: var(--color-brand-border);
-  background: var(--color-brand-soft);
-  box-shadow: 0 10px 20px var(--shadow-card);
-}
-
-.icon-button:disabled,
-.pager-button:disabled,
-.send-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.58;
-}
-
-.conversation-search {
+.search-box {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 48px;
+  min-height: 42px;
   padding: 0 12px;
-  border: 1px solid var(--chat-border);
+  border: 1px solid var(--color-divider);
   border-radius: 8px;
   background: var(--color-surface);
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
 }
 
-.conversation-search:focus-within,
-.message-composer input:focus,
-.icon-button:focus-visible,
-.pager-button:focus-visible,
-.conversation-card:focus-visible,
-.image-button:focus-visible,
-.send-button:focus-visible {
-  border-color: var(--color-brand-border);
-  box-shadow: 0 0 0 4px var(--shadow-focus);
-  outline: 0;
-}
-
-.conversation-search input,
-.message-composer input {
-  width: 100%;
+.search-box input {
+  flex: 1;
   border: 0;
-  outline: 0;
+  outline: none;
   background: transparent;
-  color: var(--chat-text);
-}
-
-.conversation-search input::placeholder,
-.message-composer input::placeholder {
-  color: var(--color-text-muted);
-}
-
-.composer-input--system::placeholder {
   color: var(--color-text);
+}
+
+.list-meta {
+  display: flex;
+  justify-content: space-between;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
 }
 
 .conversation-list {
   display: grid;
-  gap: 11px;
+  gap: 10px;
+  align-content: start;
 }
 
 .conversation-card {
-  position: relative;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 12px;
   width: 100%;
-  min-height: 104px;
-  padding: 14px 13px;
-  border: 1px solid var(--chat-border);
+  padding: 13px;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-surface);
-  color: inherit;
+  color: var(--color-text);
   text-align: left;
-  transition:
-    border-color 180ms ease,
-    background-color 180ms ease,
-    box-shadow 180ms ease;
 }
 
 .conversation-card:hover,
 .conversation-card.active {
-  border-color: var(--color-brand-border);
-  background: linear-gradient(135deg, var(--color-brand-soft), var(--color-surface));
-  box-shadow: 0 14px 30px var(--shadow-card);
-}
-
-.conversation-card.active::before {
-  content: "";
-  position: absolute;
-  inset: 14px auto 14px 0;
-  width: 3px;
-  border-radius: 999px;
-  background: var(--chat-primary);
-}
-
-.task-icon {
-  width: 52px;
-  height: 52px;
-  border-radius: 8px;
-}
-
-.task-icon--blue {
-  background: var(--color-brand-soft);
-  color: var(--chat-primary);
-}
-
-.task-icon--orange {
-  background: var(--color-warning-bg);
-  color: var(--color-warning);
-}
-
-.task-icon--green {
-  background: var(--color-success-bg);
-  color: var(--color-success);
+  border-color: var(--color-brand-border-hover);
+  box-shadow: var(--shadow-card);
 }
 
 .conversation-card-body {
   display: grid;
-  gap: 7px;
+  gap: 4px;
+  min-width: 0;
+}
+
+.conversation-card-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 .conversation-card-top strong {
-  color: var(--chat-text);
-  font-size: 1rem;
-  line-height: 1.3;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.conversation-card-top small {
-  flex: 0 0 auto;
-  color: var(--chat-primary);
-  font-size: 0.88rem;
+.conversation-card-top em {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(100, 116, 139, 0.12);
+  color: #475569;
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.conversation-card-top small,
+.conversation-preview,
+.conversation-meta,
+.chat-title p,
+.task-detail-list dt {
+  color: var(--color-text-muted);
 }
 
 .conversation-preview,
-.conversation-meta {
-  font-size: 0.9rem;
+.conversation-meta,
+.message-bubble p,
+.task-detail-list dd {
+  line-height: 1.55;
+  word-break: break-word;
 }
 
-.conversation-meta {
-  color: var(--color-text-secondary);
+.task-icon,
+.message-avatar {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.conversation-avatar img,
+.message-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.message-avatar span {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.task-icon--blue {
+  background: rgba(59, 130, 246, 0.12);
+  color: #2563eb;
+}
+
+.task-icon--orange {
+  background: rgba(249, 115, 22, 0.12);
+  color: #ea580c;
+}
+
+.task-icon--slate {
+  background: rgba(100, 116, 139, 0.12);
+  color: #475569;
 }
 
 .unread-dot {
-  position: absolute;
-  right: 14px;
-  bottom: 18px;
   width: 10px;
   height: 10px;
+  margin-top: 6px;
   border-radius: 999px;
-  background: var(--chat-primary);
-  box-shadow: 0 0 0 3px var(--color-brand-soft);
+  background: var(--color-danger);
 }
 
 .pagination-bar {
-  color: var(--chat-text);
-  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: auto;
 }
 
-.pager-button {
-  gap: 6px;
-  min-height: 40px;
-  padding: 0 14px;
-  font-weight: 900;
-}
-
-.chat-panel {
-  min-height: 660px;
+.pager-button,
+.image-button,
+.send-button {
+  width: 38px;
 }
 
 .chat-header {
-  padding: 5px 0 12px;
-  border-bottom: 1px dashed var(--chat-border);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .chat-title {
   display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.chat-title h2 {
-  font-size: 1.2rem;
+  gap: 12px;
 }
 
 .chat-title p {
-  margin: 5px 0 0;
-  font-size: 0.92rem;
+  margin: 4px 0 0;
 }
 
 .date-divider {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  color: var(--color-text-secondary);
-  font-size: 0.9rem;
-}
-
-.date-divider::before,
-.date-divider::after {
-  content: "";
-  height: 1px;
-  flex: 1;
-  border-top: 1px dashed var(--chat-border);
+  justify-content: center;
 }
 
 .date-divider span {
-  padding: 6px 14px;
+  padding: 6px 12px;
   border-radius: 999px;
-  background: var(--color-surface-muted);
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  font-size: 0.84rem;
+  font-weight: 700;
 }
 
 .message-thread {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  min-height: 430px;
-  max-height: 52vh;
-  padding: 12px 4px;
+  display: grid;
+  align-content: start;
+  grid-auto-rows: max-content;
+  gap: 8px;
+  height: 560px;
+  min-height: 0;
   overflow-y: auto;
+  padding-right: 4px;
 }
 
 .message-row {
   display: grid;
-  grid-template-columns: 52px auto minmax(0, 1fr);
-  align-items: center;
-  gap: 12px;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: end;
+  gap: 8px;
 }
 
 .message-row--mine {
-  grid-template-columns: minmax(0, 1fr) auto 52px;
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 
 .message-avatar {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--color-brand-soft), var(--color-brand-soft));
-  color: var(--color-brand-text);
+  background: var(--color-brand-soft);
+  color: var(--color-brand);
 }
 
 .message-avatar--mine {
-  background: linear-gradient(135deg, var(--color-brand-border-hover), var(--color-brand-hover));
-  color: var(--color-surface);
-}
-
-.message-row time {
-  color: var(--color-text-muted);
-  font-size: 0.88rem;
-}
-
-.message-row--mine .message-bubble {
-  order: 1;
-  justify-self: end;
-}
-
-.message-row--mine time {
-  order: 2;
-}
-
-.message-row--mine .message-avatar {
-  order: 3;
+  background: var(--color-accent-bg);
+  color: var(--color-accent);
 }
 
 .message-bubble {
+  justify-self: start;
   width: fit-content;
-  max-width: min(520px, 100%);
-  padding: 12px 16px;
-  border: 1px solid var(--chat-border);
-  border-radius: 8px;
-  background: var(--color-surface);
-  box-shadow: 0 10px 22px var(--shadow-card);
+  max-width: min(100%, 520px);
+  padding: 7px 12px;
+  border-radius: 16px;
+  background: var(--color-bg);
+  color: var(--color-text);
 }
 
 .message-row--mine .message-bubble {
-  border-color: var(--color-border);
+  justify-self: end;
   background: var(--color-brand-soft);
 }
 
 .message-bubble p {
   margin: 0;
-  color: var(--chat-text);
-  line-height: 1.65;
-  white-space: pre-wrap;
 }
 
-.message-image {
+.message-image,
+.message-image img {
   display: block;
-  overflow: hidden;
-  width: min(300px, 100%);
-  border-radius: 8px;
-  background: var(--color-bg);
 }
 
 .message-image img {
-  display: block;
-  width: 100%;
-  height: 126px;
-  object-fit: cover;
+  max-width: 220px;
+  border-radius: 12px;
 }
 
 .message-composer {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 58px 66px;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 10px;
-  padding: 12px;
-  border: 1px solid var(--chat-border);
+}
+
+.message-composer input[type='text'] {
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--color-divider);
   border-radius: 8px;
+  outline: none;
   background: var(--color-surface);
-}
-
-.message-composer input {
-  min-height: 48px;
-  padding: 0 2px;
-  font-size: 0.96rem;
-}
-
-.image-button,
-.send-button {
-  height: 48px;
+  color: var(--color-text);
 }
 
 .send-button {
-  border-color: var(--chat-primary);
-  background: var(--chat-primary);
-  color: var(--color-surface);
-  box-shadow: 0 14px 24px var(--shadow-button-hover);
-}
-
-.send-button:hover:not(:disabled) {
-  background: var(--chat-primary-dark);
-}
-
-.task-side-panel {
-  display: none;
+  border-color: var(--color-brand);
+  background: var(--color-brand);
+  color: #fff;
 }
 
 .task-detail-list {
   display: grid;
-  gap: 10px;
-  margin: 0;
+  gap: 12px;
 }
 
 .task-detail-list div {
   display: grid;
-  gap: 5px;
-  padding: 12px;
-  border: 1px solid var(--chat-border);
-  border-radius: 8px;
-  background: var(--color-surface);
+  gap: 4px;
 }
 
 .task-detail-list dd {
   margin: 0;
-  color: var(--chat-text);
-  font-weight: 900;
-  line-height: 1.45;
+  color: var(--color-text);
 }
 
 .mode-note {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 11px 12px;
-  border: 1px solid var(--color-success-soft);
+  gap: 10px;
+  padding: 12px 14px;
   border-radius: 8px;
-  background: var(--color-success-bg);
-  color: var(--color-success-text);
-  font-weight: 900;
-  line-height: 1.45;
+  background: var(--color-brand-soft);
+  color: var(--color-text-secondary);
 }
 
-.loading-state {
+.loading-state,
+.empty-state {
   display: grid;
   place-items: center;
-  gap: 10px;
-  min-height: 160px;
-  color: var(--chat-primary);
-  font-weight: 900;
+  gap: 8px;
+  min-height: 180px;
+  border: 1px dashed var(--color-border-dashed);
+  border-radius: 8px;
+  background: var(--color-bg);
+  color: var(--color-text-muted);
 }
 
-.message-loading {
-  min-height: 360px;
+.empty-state--compact {
+  min-height: 120px;
+}
+
+.hidden-input {
+  display: none;
+}
+
+.icon-action:hover,
+.pager-button:hover:not(:disabled),
+.image-button:hover:not(:disabled),
+.send-button:hover:not(:disabled) {
+  border-color: var(--color-brand-border-hover);
+  box-shadow: var(--shadow-button);
 }
 
 .spinning {
@@ -1502,82 +1562,23 @@ onMounted(async () => {
 }
 
 @keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
   to {
     transform: rotate(360deg);
   }
 }
 
-@media (min-width: 1440px) {
-  .conversation-workspace {
-    grid-template-columns: minmax(310px, 370px) minmax(0, 1fr);
-  }
-}
-
-@media (max-width: 1280px) {
-  .conversation-workspace {
-    grid-template-columns: minmax(280px, 0.4fr) minmax(0, 1fr);
-  }
-}
-
-@media (max-width: 1020px) {
-  .conversation-workspace {
+@media (max-width: 1200px) {
+  .message-shell {
     grid-template-columns: 1fr;
   }
 
   .conversation-list-panel,
   .chat-panel {
     min-height: auto;
-  }
-
-  .conversation-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .task-side-panel {
-    display: grid;
-  }
-}
-
-@media (max-width: 720px) {
-  .page-title-card {
-    grid-template-columns: 1fr;
-    padding: 20px;
-  }
-
-  .conversation-list {
-    grid-template-columns: 1fr;
-  }
-
-  .message-row,
-  .message-row--mine {
-    grid-template-columns: 44px minmax(0, 1fr);
-    align-items: end;
-  }
-
-  .message-row time,
-  .message-row--mine time {
-    grid-column: 2;
-    order: initial;
-  }
-
-  .message-row--mine .message-avatar {
-    grid-column: 1;
-    grid-row: 1 / span 2;
-    order: initial;
-  }
-
-  .message-row--mine .message-bubble {
-    grid-column: 2;
-    justify-self: start;
-    order: initial;
-  }
-
-  .message-composer {
-    grid-template-columns: minmax(0, 1fr) 50px 54px;
-  }
-
-  .pager-button {
-    padding-inline: 10px;
   }
 }
 </style>
