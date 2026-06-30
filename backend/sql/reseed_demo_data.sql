@@ -1,6 +1,23 @@
 SET SQL_SAFE_UPDATES = 0;
 USE campusbridge;
 SET NAMES utf8mb4;
+
+ALTER TABLE tasks
+  ADD COLUMN IF NOT EXISTS delivery_location VARCHAR(120) NULL
+  AFTER location;
+
+CREATE TABLE IF NOT EXISTS user_blocks (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  blocker_id BIGINT UNSIGNED NOT NULL,
+  blocked_id BIGINT UNSIGNED NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_user_blocks_pair (blocker_id, blocked_id),
+  KEY idx_user_blocks_blocked (blocked_id),
+  CONSTRAINT fk_user_blocks_blocker FOREIGN KEY (blocker_id) REFERENCES users (id),
+  CONSTRAINT fk_user_blocks_blocked FOREIGN KEY (blocked_id) REFERENCES users (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 SET FOREIGN_KEY_CHECKS = 0;
 
 -- clear old data
