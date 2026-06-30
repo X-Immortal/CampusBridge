@@ -62,6 +62,7 @@ const {
   submitVerification,
   resendEmailVerificationCode,
   confirmEmailVerification,
+  cancelCurrentVerification,
   updateMyProfile
 } = useAuth()
 
@@ -117,6 +118,7 @@ const verificationEvidenceFileName = ref('')
 const emailVerificationCode = ref('')
 const emailCodeSubmitting = ref(false)
 const emailCodeResending = ref(false)
+const verificationCancelling = ref(false)
 const searchKeyword = ref('')
 
 async function loadMarkedPosts(force = false) {
@@ -546,6 +548,14 @@ function triggerVerificationEvidenceUpload() {
   verificationEvidenceFileInput.value?.click()
 }
 
+function clearVerificationEvidence() {
+  verificationForm.evidenceUrl = ''
+  verificationEvidenceFileName.value = ''
+  if (verificationEvidenceFileInput.value) {
+    verificationEvidenceFileInput.value.value = ''
+  }
+}
+
 async function handleVerificationEvidenceFileChange(event) {
   const file = event.target.files?.[0]
   if (!file) return
@@ -690,6 +700,20 @@ async function handleResendEmailCode() {
   }
 }
 
+async function handleCancelVerification() {
+  verificationCancelling.value = true
+  try {
+    await cancelCurrentVerification()
+    emailVerificationCode.value = ''
+    clearVerificationEvidence()
+    showToast('已取消本次认证，你可以重新填写资料。')
+  } catch (error) {
+    showToast(error.message || '取消认证失败，请稍后重试。', { type: 'danger' })
+  } finally {
+    verificationCancelling.value = false
+  }
+}
+
 watch(
   () => state.profile,
   (profile) => {
@@ -705,8 +729,7 @@ watch(avatarPreviewUrl, () => {
 watch(
   () => verificationForm.method,
   () => {
-    verificationForm.evidenceUrl = ''
-    verificationEvidenceFileName.value = ''
+    clearVerificationEvidence()
     emailVerificationCode.value = ''
   }
 )
@@ -1407,6 +1430,27 @@ onBeforeUnmount(() => {
           <p class="panel-copy">
             你的认证资料已提交，正在等待管理员审核，请耐心等待。
           </p>
+          <div class="pending-verification-actions">
+            <button
+              class="ghost-action"
+              type="button"
+              :disabled="verificationCancelling"
+              @click="handleCancelVerification"
+            >
+              <LoaderCircle
+                v-if="verificationCancelling"
+                class="spinning"
+                :size="17"
+                aria-hidden="true"
+              />
+              <X
+                v-else
+                :size="17"
+                aria-hidden="true"
+              />
+              撤回认证
+            </button>
+          </div>
           <div class="step-list">
             <div
               v-for="step in stepItems"
@@ -1670,6 +1714,19 @@ onBeforeUnmount(() => {
               >
                 查看已上传照片
               </a>
+              <button
+                v-if="verificationForm.evidenceUrl"
+                class="ghost-action evidence-remove-button"
+                type="button"
+                :disabled="verificationEvidenceUploading || submitting"
+                @click="clearVerificationEvidence"
+              >
+                <X
+                  :size="16"
+                  aria-hidden="true"
+                />
+                移除照片
+              </button>
             </div>
 
             <button
@@ -1747,6 +1804,25 @@ onBeforeUnmount(() => {
                   aria-hidden="true"
                 />
                 重发验证码
+              </button>
+              <button
+                class="ghost-action"
+                type="button"
+                :disabled="verificationCancelling"
+                @click="handleCancelVerification"
+              >
+                <LoaderCircle
+                  v-if="verificationCancelling"
+                  class="spinning"
+                  :size="17"
+                  aria-hidden="true"
+                />
+                <X
+                  v-else
+                  :size="17"
+                  aria-hidden="true"
+                />
+                取消本次认证
               </button>
             </div>
           </div>
@@ -3069,6 +3145,10 @@ onBeforeUnmount(() => {
   color: var(--color-brand-hover);
 }
 
+.evidence-remove-button {
+  width: fit-content;
+}
+
 .email-code-panel {
   display: grid;
   gap: 16px;
@@ -3105,6 +3185,12 @@ onBeforeUnmount(() => {
 }
 
 .email-code-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.pending-verification-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;

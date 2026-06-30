@@ -125,6 +125,13 @@ async function confirmEmailVerification(payload) {
   return result
 }
 
+async function cancelCurrentVerification() {
+  const result = await api.cancelCurrentVerification()
+  authState.verification = null
+  persistAuth()
+  return result
+}
+
 async function updateMyProfile(payload) {
   const result = await api.updateMyProfile(payload)
   authState.profile = result
@@ -155,6 +162,7 @@ export function useAuth() {
     submitVerification,
     resendEmailVerificationCode,
     confirmEmailVerification,
+    cancelCurrentVerification,
     updateMyProfile
   }
 }

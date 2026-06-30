@@ -121,6 +121,7 @@ export default {
     request('/verifications/email/code', { method: 'POST' }),
   confirmEmailVerification: (body) =>
     request('/verifications/email/confirm', { method: 'POST', body }),
+  cancelCurrentVerification: () => request('/verifications/current', { method: 'DELETE' }),
   getVerification: () => request('/verifications'),
   getContent: (params) => request(`/content${buildQuery(params)}`),
   getHomeRecommendations: () => request('/home/recommendations'),

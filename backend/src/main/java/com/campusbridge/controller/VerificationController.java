@@ -6,6 +6,7 @@ import com.campusbridge.pojo.Result;
 import com.campusbridge.service.VerificationService;
 import com.campusbridge.utils.AuthContextUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -91,6 +92,25 @@ public class VerificationController {
                 return Result.error("VERIFY_008_EMAIL_CODE_MISMATCH", "Verification code is incorrect");
             }
             return Result.error("VERIFY_003_SUBMIT_FAILED", "Failed to submit verification");
+        }
+        return Result.success(result);
+    }
+
+    @DeleteMapping("/current")
+    public Result cancelCurrentVerification() {
+        Long userId = authContextUtil.getCurrentUserId();
+        Object result = verificationService.cancelLatestPending(userId);
+        if (result == null) {
+            return Result.error("VERIFY_001_INVALID_INPUT", "Invalid verification request");
+        }
+        if (result instanceof Long code) {
+            if (code == -1L) {
+                return Result.error("VERIFY_004_NOT_FOUND", "Verification record not found");
+            }
+            if (code == -2L) {
+                return Result.error("VERIFY_009_CANNOT_CANCEL", "Only pending verification can be cancelled");
+            }
+            return Result.error("VERIFY_003_SUBMIT_FAILED", "Failed to cancel verification");
         }
         return Result.success(result);
     }

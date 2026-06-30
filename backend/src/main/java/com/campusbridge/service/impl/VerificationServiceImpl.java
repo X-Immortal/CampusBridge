@@ -148,6 +148,31 @@ public class VerificationServiceImpl implements VerificationService {
     }
 
     @Override
+    public Object cancelLatestPending(Long userId) {
+        if (userId == null) {
+            return null;
+        }
+
+        CampusVerification latest = campusVerificationMapper.selectLatestByUserId(userId);
+        if (latest == null) {
+            return -1L;
+        }
+        if (!STATUS_PENDING.equals(latest.getStatus())) {
+            return -2L;
+        }
+
+        int affected = campusVerificationMapper.deleteById(latest.getId());
+        if (affected <= 0) {
+            return -3L;
+        }
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("cancelled", true);
+        payload.put("id", latest.getId());
+        return payload;
+    }
+
+    @Override
     public CampusVerification getMyLatest(Long userId) {
         if (userId == null) {
             return null;

@@ -12,6 +12,8 @@ public interface VerificationService {
 
     Object resendEmailCode(Long userId);
 
+    Object cancelLatestPending(Long userId);
+
     CampusVerification getMyLatest(Long userId);
 
     ResponseDtos.PagedResult<CampusVerification> listPending(int page, int size);
