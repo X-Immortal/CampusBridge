@@ -325,7 +325,9 @@ onMounted(loadReviews)
         <aside class="panel-card task-review-list">
           <div class="panel-heading">
             <div>
-              <p class="section-kicker">互评任务</p>
+              <p class="section-kicker">
+                互评任务
+              </p>
               <h2>选择一次已完成协作</h2>
             </div>
             <button
@@ -402,7 +404,9 @@ onMounted(loadReviews)
         <section class="panel-card review-form-panel">
           <div class="panel-heading">
             <div>
-              <p class="section-kicker">评分评价</p>
+              <p class="section-kicker">
+                评分评价
+              </p>
               <h2>{{ selectedTask?.title || '选择任务后填写评价' }}</h2>
             </div>
             <StatusBadge
@@ -540,7 +544,9 @@ onMounted(loadReviews)
         <section class="panel-card review-history-panel">
           <div class="panel-heading">
             <div>
-              <p class="section-kicker">评价记录</p>
+              <p class="section-kicker">
+                评价记录
+              </p>
               <h2>当前任务的互评历史</h2>
             </div>
           </div>

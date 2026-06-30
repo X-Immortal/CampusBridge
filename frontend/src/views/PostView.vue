@@ -1128,7 +1128,9 @@ onMounted(() => {
             <div class="detail-card-header">
               <div>
                 <span class="section-kicker">{{ categoryLabel(detailPost.category) }}</span>
-                <h2 id="post-detail-title">{{ detailPost.title || '未命名帖子' }}</h2>
+                <h2 id="post-detail-title">
+                  {{ detailPost.title || '未命名帖子' }}
+                </h2>
               </div>
               <div class="detail-header-actions">
                 <StatusBadge
@@ -1218,7 +1220,9 @@ onMounted(() => {
 
             <section class="detail-section">
               <h3>正文</h3>
-              <p class="detail-content-text">{{ detailPost.content || '暂无正文' }}</p>
+              <p class="detail-content-text">
+                {{ detailPost.content || '暂无正文' }}
+              </p>
             </section>
 
             <section class="detail-section">

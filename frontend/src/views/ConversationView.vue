@@ -13,8 +13,7 @@ import {
   RefreshCw,
   Search,
   Send,
-  ShieldCheck,
-  UserRound
+  ShieldCheck
 } from '@lucide/vue'
 import DashboardShell from '../components/DashboardShell.vue'
 import StatusBadge from '../components/StatusBadge.vue'
@@ -874,8 +873,8 @@ onMounted(async () => {
                   @error="markAvatarBroken('conversation', conversation.peerUserId || conversation.id, conversationAvatarUrl(conversation))"
                 >
                 <component
-                  v-else-if="conversation.type === 'SYSTEM'"
                   :is="getConversationMeta(conversation).icon"
+                  v-else-if="conversation.type === 'SYSTEM'"
                   :size="20"
                   aria-hidden="true"
                 />
@@ -944,8 +943,8 @@ onMounted(async () => {
                   @error="markAvatarBroken('conversation', activeConversation.peerUserId || activeConversation.id, conversationAvatarUrl(activeConversation))"
                 >
                 <component
-                  v-else-if="activeConversation.type === 'SYSTEM'"
                   :is="activeConversationMeta.icon"
+                  v-else-if="activeConversation.type === 'SYSTEM'"
                   :size="22"
                   aria-hidden="true"
                 />
@@ -1023,7 +1022,9 @@ onMounted(async () => {
                         alt="消息图片"
                       >
                     </a>
-                    <p v-else>{{ entry.payload.content }}</p>
+                    <p v-else>
+                      {{ entry.payload.content }}
+                    </p>
                   </div>
                   <span
                     v-if="isOwnMessage(entry.payload)"
