@@ -19,7 +19,9 @@ import { useAuth } from '../stores/auth'
 
 const props = defineProps({
   userId: { type: [Number, String], default: null },
-  visible: { type: Boolean, default: false }
+  visible: { type: Boolean, default: false },
+  relatedType: { type: String, default: '' },
+  relatedId: { type: [Number, String], default: null }
 })
 
 const emit = defineEmits(['close'])
@@ -108,8 +110,19 @@ async function toggleBlock() {
 }
 
 function startConversation() {
+  if (!props.relatedType || props.relatedId == null) {
+    actionError.value = '当前页面缺少会话上下文，暂时无法发起私信。'
+    return
+  }
   close()
-  router.push({ name: 'conversation-list', query: { peerId: String(props.userId) } })
+  router.push({
+    name: 'conversation-list',
+    query: {
+      peerUserId: String(props.userId),
+      relatedType: props.relatedType,
+      relatedId: String(props.relatedId)
+    }
+  })
 }
 </script>
 
@@ -190,6 +203,7 @@ function startConversation() {
           <button
             class="profile-message-action"
             type="button"
+            :disabled="isBlocked"
             @click="startConversation"
           >
             <Mail :size="16" />

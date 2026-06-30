@@ -16,4 +16,6 @@ public interface TaskHistoryMapper {
     int updateById(TaskHistory entity);
 
     int deleteById(Long id);
+
+    int deleteByTaskId(Long taskId);
 }

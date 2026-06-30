@@ -66,10 +66,12 @@ const replyingToId = ref(null)
 
 const profileUserId = ref(null)
 const showProfileModal = ref(false)
+const profileRelatedId = ref(null)
 
-function openProfileModal(userId) {
+function openProfileModal(userId, postId) {
   if (!userId) return
   profileUserId.value = userId
+  profileRelatedId.value = postId
   showProfileModal.value = true
 }
 
@@ -276,6 +278,13 @@ async function refreshPosts() {
     if (requestId !== listRequestId) return
 
     applyPostResult(result || {})
+
+    const requestedPostId = readQuery('postId', '')
+    if (requestedPostId) {
+      selectedPostId.value = requestedPostId
+      await loadPostDetail(requestedPostId)
+      return
+    }
 
     const nextSelected =
       posts.value.find((post) => String(post.id) === selectedPostId.value) || posts.value[0] || null
@@ -1040,7 +1049,7 @@ onMounted(() => {
                   <button
                     class="inline-profile-btn"
                     type="button"
-                    @click.stop="openProfileModal(post.authorId)"
+                    @click.stop="openProfileModal(post.authorId, post.id)"
                   >
                     <UserRound :size="13" /> 查看
                   </button>
@@ -1114,7 +1123,7 @@ onMounted(() => {
                   <button
                     class="inline-profile-btn"
                     type="button"
-                    @click="openProfileModal(detailPost.authorId)"
+                    @click="openProfileModal(detailPost.authorId, detailPost.id)"
                   >
                     <UserRound :size="14" /> 查看
                   </button>
@@ -1496,6 +1505,8 @@ onMounted(() => {
     <UserProfileModal
       :user-id="profileUserId"
       :visible="showProfileModal"
+      related-type="POST"
+      :related-id="profileRelatedId"
       @close="showProfileModal = false"
     />
   </DashboardShell>

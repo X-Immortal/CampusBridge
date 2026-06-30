@@ -14,6 +14,8 @@ public interface UserBlockMapper {
 
     boolean exists(@Param("blockerId") Long blockerId, @Param("blockedId") Long blockedId);
 
+    boolean existsEitherDirection(@Param("firstUserId") Long firstUserId, @Param("secondUserId") Long secondUserId);
+
     List<UserBlock> selectBlockedIds(@Param("blockerId") Long blockerId);
 
     List<UserBlock> selectBlockerIds(@Param("blockedId") Long blockedId);

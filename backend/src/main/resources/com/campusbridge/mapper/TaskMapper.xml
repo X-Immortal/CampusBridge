@@ -101,6 +101,9 @@
       <if test="requiresProof != null">
         AND t.requires_proof = #{requiresProof}
       </if>
+      <if test="excludeExpired == true">
+        AND t.deadline &gt; NOW()
+      </if>
     </where>
     <choose>
       <when test="sortBy == 'DEADLINE_ASC'">

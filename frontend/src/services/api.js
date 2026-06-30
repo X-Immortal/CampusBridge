@@ -142,6 +142,7 @@ export default {
   updateTask: (taskId, body) => request(`/tasks/${taskId}`, { method: 'PUT', body }),
   cancelTask: (taskId, reason) =>
     request(`/tasks/${taskId}${buildQuery({ reason })}`, { method: 'DELETE' }),
+  deleteTaskDraft: (taskId) => request(`/tasks/${taskId}/draft`, { method: 'DELETE' }),
   resendTask: (taskId) => request(`/tasks/${taskId}/resend`, { method: 'POST' }),
   transitionTaskStatus: (taskId, body) =>
     request(`/tasks/${taskId}/status-transitions`, { method: 'POST', body }),

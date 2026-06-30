@@ -17,6 +17,12 @@
     WHERE blocker_id = #{blockerId} AND blocked_id = #{blockedId}
   </select>
 
+  <select id="existsEitherDirection" resultType="boolean">
+    SELECT COUNT(*) > 0 FROM user_blocks
+    WHERE (blocker_id = #{firstUserId} AND blocked_id = #{secondUserId})
+       OR (blocker_id = #{secondUserId} AND blocked_id = #{firstUserId})
+  </select>
+
   <select id="selectBlockedIds" resultType="com.campusbridge.pojo.UserBlock">
     SELECT * FROM user_blocks
     WHERE blocker_id = #{blockerId}

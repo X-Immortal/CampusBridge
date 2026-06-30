@@ -5,9 +5,12 @@ import com.campusbridge.common.ErrorCode;
 import com.campusbridge.dto.enums.ApiEnums;
 import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.dto.response.ResponseDtos;
+import com.campusbridge.mapper.AttachmentMapper;
 import com.campusbridge.mapper.ConversationMapper;
 import com.campusbridge.mapper.MessageMapper;
+import com.campusbridge.mapper.UserBlockMapper;
 import com.campusbridge.mapper.UserMapper;
+import com.campusbridge.pojo.Attachment;
 import com.campusbridge.pojo.Conversation;
 import com.campusbridge.pojo.Message;
 import com.campusbridge.pojo.User;
@@ -17,8 +20,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 @Transactional
 @Service
@@ -38,14 +43,20 @@ public class ConversationServiceImpl implements ConversationService {
     private final ConversationMapper conversationMapper;
     private final MessageMapper messageMapper;
     private final UserMapper userMapper;
+    private final UserBlockMapper userBlockMapper;
+    private final AttachmentMapper attachmentMapper;
 
     public ConversationServiceImpl(
             ConversationMapper conversationMapper,
             MessageMapper messageMapper,
-            UserMapper userMapper) {
+            UserMapper userMapper,
+            UserBlockMapper userBlockMapper,
+            AttachmentMapper attachmentMapper) {
         this.conversationMapper = conversationMapper;
         this.messageMapper = messageMapper;
         this.userMapper = userMapper;
+        this.userBlockMapper = userBlockMapper;
+        this.attachmentMapper = attachmentMapper;
     }
 
     @Override
@@ -71,6 +82,7 @@ public class ConversationServiceImpl implements ConversationService {
             RequestDtos.CreateConversationRequest request) {
         requireUserId(ownerId);
         validateCreateConversationRequest(ownerId, request);
+        requireCommunicationAllowed(ownerId, request.getPeerUserId());
 
         LocalDateTime now = LocalDateTime.now();
         String relatedType = normalizeRelatedType(request.getRelatedType());
@@ -142,11 +154,13 @@ public class ConversationServiceImpl implements ConversationService {
             RequestDtos.SendMessageRequest request) {
         requireUserId(senderId);
         validateSendMessageRequest(request);
+        List<Attachment> attachments = validateMessageAttachments(senderId, request);
 
         Conversation conversation = requireOwnedConversation(senderId, conversationId);
         if (!Integer.valueOf(1).equals(conversation.getReplyable())) {
             throw new BusinessException(ErrorCode.CONV_002_NOT_REPLYABLE);
         }
+        requireCommunicationAllowed(senderId, conversation.getPeerUserId());
 
         LocalDateTime now = LocalDateTime.now();
         Message message = buildMessage(
@@ -157,6 +171,7 @@ public class ConversationServiceImpl implements ConversationService {
                 now,
                 now);
         insertMessage(message);
+        bindMessageAttachments(message.getId(), attachments);
 
         Conversation peerConversation = ensureConversation(
                 conversation.getPeerUserId(),
@@ -252,6 +267,52 @@ public class ConversationServiceImpl implements ConversationService {
         }
     }
 
+    private List<Attachment> validateMessageAttachments(
+            Long senderId,
+            RequestDtos.SendMessageRequest request) {
+        List<Long> attachmentIds = request.getAttachmentIds();
+        if (request.getType() != ApiEnums.MessageType.IMAGE) {
+            if (attachmentIds != null && !attachmentIds.isEmpty()) {
+                throw new BusinessException(ErrorCode.FILE_004_INVALID_ATTACHMENT);
+            }
+            return List.of();
+        }
+        if (attachmentIds == null || attachmentIds.size() != 1) {
+            throw new BusinessException(ErrorCode.FILE_004_INVALID_ATTACHMENT);
+        }
+
+        Set<Long> uniqueIds = new HashSet<>();
+        List<Attachment> attachments = attachmentIds.stream().map(id -> {
+            if (id == null || !uniqueIds.add(id)) {
+                throw new BusinessException(ErrorCode.FILE_004_INVALID_ATTACHMENT);
+            }
+            Attachment attachment = attachmentMapper.selectById(id);
+            if (attachment == null
+                    || !senderId.equals(attachment.getUploaderId())
+                    || !ApiEnums.AttachmentStatus.TEMPORARY.name().equals(attachment.getStatus())
+                    || !ApiEnums.AttachmentOwnerType.MESSAGE.name().equals(attachment.getOwnerType())
+                    || !ApiEnums.AttachmentType.IMAGE.name().equals(attachment.getType())) {
+                throw new BusinessException(ErrorCode.FILE_004_INVALID_ATTACHMENT);
+            }
+            return attachment;
+        }).toList();
+
+        if (attachments.stream().noneMatch(item -> request.getContent().equals(item.getFileUrl()))) {
+            throw new BusinessException(ErrorCode.FILE_004_INVALID_ATTACHMENT);
+        }
+        return attachments;
+    }
+
+    private void bindMessageAttachments(Long messageId, List<Attachment> attachments) {
+        for (Attachment attachment : attachments) {
+            attachment.setOwnerId(messageId);
+            attachment.setStatus(ApiEnums.AttachmentStatus.BOUND.name());
+            if (attachmentMapper.updateById(attachment) != 1) {
+                throw new BusinessException(ErrorCode.COMMON_999_INTERNAL_ERROR, "Failed to bind message attachment");
+            }
+        }
+    }
+
     private Conversation requireOwnedConversation(Long ownerId, Long conversationId) {
         if (conversationId == null) {
             throwValidation("conversationId is required");
@@ -261,6 +322,12 @@ public class ConversationServiceImpl implements ConversationService {
             throw new BusinessException(ErrorCode.CONV_001_NOT_FOUND);
         }
         return conversation;
+    }
+
+    private void requireCommunicationAllowed(Long firstUserId, Long secondUserId) {
+        if (userBlockMapper.existsEitherDirection(firstUserId, secondUserId)) {
+            throw new BusinessException(ErrorCode.CONV_003_BLOCKED);
+        }
     }
 
     private Message buildMessage(

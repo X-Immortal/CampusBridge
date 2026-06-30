@@ -20,6 +20,7 @@ public interface TaskService {
             String status,
             String rewardType,
             Boolean requiresProof,
+            Boolean excludeExpired,
             String sortBy,
             Integer page,
             Integer size);
@@ -29,6 +30,8 @@ public interface TaskService {
     Task updateTask(Long operatorId, Long taskId, RequestDtos.UpdateTaskRequest request);
 
     Task cancelTask(Long operatorId, Long taskId, String reason);
+
+    void deleteDraft(Long operatorId, Long taskId);
 
     Task saveDraft(Long requesterId, RequestDtos.CreateTaskRequest request);
 

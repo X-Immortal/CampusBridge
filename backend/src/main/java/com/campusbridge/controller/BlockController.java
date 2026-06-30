@@ -1,7 +1,10 @@
 package com.campusbridge.controller;
 
+import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.CurrentUserResolver;
+import com.campusbridge.common.ErrorCode;
 import com.campusbridge.mapper.UserBlockMapper;
+import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.pojo.Result;
 import com.campusbridge.pojo.UserBlock;
 import jakarta.servlet.http.HttpServletRequest;
@@ -11,6 +14,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.dao.DuplicateKeyException;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -22,10 +26,15 @@ import java.util.Map;
 public class BlockController {
     private final CurrentUserResolver currentUserResolver;
     private final UserBlockMapper userBlockMapper;
+    private final UserMapper userMapper;
 
-    public BlockController(CurrentUserResolver currentUserResolver, UserBlockMapper userBlockMapper) {
+    public BlockController(
+            CurrentUserResolver currentUserResolver,
+            UserBlockMapper userBlockMapper,
+            UserMapper userMapper) {
         this.currentUserResolver = currentUserResolver;
         this.userBlockMapper = userBlockMapper;
+        this.userMapper = userMapper;
     }
 
     @PostMapping("/{blockedUserId}")
@@ -34,7 +43,10 @@ public class BlockController {
             @PathVariable Long blockedUserId) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
         if (currentUserId.equals(blockedUserId)) {
-            return Result.error("400", "不能拉黑自己");
+            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "不能拉黑自己");
+        }
+        if (userMapper.selectById(blockedUserId) == null) {
+            throw new BusinessException(ErrorCode.USER_001_NOT_FOUND);
         }
         if (userBlockMapper.exists(currentUserId, blockedUserId)) {
             return Result.success("已经拉黑该用户");
@@ -43,7 +55,11 @@ public class BlockController {
         block.setBlockerId(currentUserId);
         block.setBlockedId(blockedUserId);
         block.setCreatedAt(LocalDateTime.now());
-        userBlockMapper.insert(block);
+        try {
+            userBlockMapper.insert(block);
+        } catch (DuplicateKeyException ignored) {
+            return Result.success("已经拉黑该用户");
+        }
         return Result.success("已拉黑该用户");
     }
 

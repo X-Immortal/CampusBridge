@@ -65,6 +65,7 @@ public class TaskController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String rewardType,
             @RequestParam(required = false) Boolean requiresProof,
+            @RequestParam(required = false, defaultValue = "false") Boolean excludeExpired,
             @RequestParam(required = false, defaultValue = "CREATED_AT_DESC") String sortBy,
             @RequestParam(required = false, defaultValue = "1") Integer page,
             @RequestParam(required = false, defaultValue = "20") Integer size) {
@@ -75,6 +76,7 @@ public class TaskController {
                 status,
                 rewardType,
                 requiresProof,
+                excludeExpired,
                 sortBy,
                 page,
                 size);
@@ -107,6 +109,16 @@ public class TaskController {
             @RequestParam(required = false) String reason) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
         return Result.success(taskService.cancelTask(currentUserId, taskId, reason));
+    }
+
+    @DeleteMapping("/{taskId}/draft")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public Result deleteDraft(
+            HttpServletRequest servletRequest,
+            @PathVariable Long taskId) {
+        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        taskService.deleteDraft(currentUserId, taskId);
+        return Result.success();
     }
 
     @PostMapping("/{taskId}/resend")

@@ -77,6 +77,7 @@ class BE04BE08TaskServiceImplTest {
         assertThat(created.getStatus()).isEqualTo("OPEN");
         assertThat(created.getOnlyInAppContact()).isEqualTo(1);
         assertThat(created.getAllowOfflineContact()).isEqualTo(0);
+        assertThat(created.getDeliveryLocation()).isEqualTo("5号宿舍楼");
         verify(contentModerationService)
                 .assertTaskPublishAllowed(eq(REQUESTER_ID), any(RequestDtos.CreateTaskRequest.class));
         verify(taskHistoryService)
@@ -175,6 +176,34 @@ class BE04BE08TaskServiceImplTest {
                                 .isEqualTo(ErrorCode.COMMON_001_VALIDATION_ERROR));
     }
 
+    @Test
+    void saveDraftKeepsDeliveryLocation() {
+        when(campusVerificationMapper.selectLatestByUserId(REQUESTER_ID))
+                .thenReturn(verifiedRecord());
+        when(taskMapper.insert(any(Task.class))).thenAnswer(invocation -> {
+            Task draft = invocation.getArgument(0);
+            draft.setId(TASK_ID);
+            return 1;
+        });
+
+        Task draft = taskService.saveDraft(REQUESTER_ID, normalCreateRequest());
+
+        assertThat(draft.getStatus()).isEqualTo("DRAFT");
+        assertThat(draft.getDeliveryLocation()).isEqualTo("5号宿舍楼");
+    }
+
+    @Test
+    void deleteDraftRemovesHistoryBeforeTask() {
+        Task draft = task("DRAFT");
+        when(taskMapper.selectById(TASK_ID)).thenReturn(draft);
+        when(taskMapper.deleteById(TASK_ID)).thenReturn(1);
+
+        taskService.deleteDraft(REQUESTER_ID, TASK_ID);
+
+        verify(taskHistoryService).deleteByTaskId(TASK_ID);
+        verify(taskMapper).deleteById(TASK_ID);
+    }
+
     private RequestDtos.CreateTaskRequest normalCreateRequest() {
         RequestDtos.CreateTaskRequest request = new RequestDtos.CreateTaskRequest();
         request.setCategory(ApiEnums.TaskCategory.ERRAND);
@@ -182,6 +211,7 @@ class BE04BE08TaskServiceImplTest {
         request.setDescription("从校门口快递点取一个小包裹。");
         request.setCampus("仙林校区");
         request.setLocation("南门快递点");
+        request.setDeliveryLocation("5号宿舍楼");
         request.setDeadline(LocalDateTime.now().plusDays(1));
         request.setRewardType(ApiEnums.RewardType.POINTS);
         request.setRewardDescription("10 积分");

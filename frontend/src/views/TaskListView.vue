@@ -146,10 +146,12 @@ const detailError = ref('')
 const operationLoading = ref('')
 const profileUserId = ref(null)
 const showProfileModal = ref(false)
+const profileRelatedId = ref(null)
 
-function openProfileModal(userId) {
+function openProfileModal(userId, taskId) {
   if (!userId) return
   profileUserId.value = userId
+  profileRelatedId.value = taskId
   showProfileModal.value = true
 }
 
@@ -799,14 +801,6 @@ function applyTaskResult(result) {
     return
   }
 
-  // Filter out tasks with expired deadlines in public task plaza
-  const now = new Date()
-  items = items.filter((task) => {
-    if (!task.deadline) return true
-    const deadline = new Date(task.deadline)
-    return !Number.isNaN(deadline.getTime()) && deadline > now
-  })
-
   const page = Number(result?.page || filters.page || 1)
   const size = Number(result?.size || filters.size || currentDefaultFilters().size)
   const explicitTotal = Number(result?.total ?? result?.totalElements ?? result?.totalCount ?? result?.count)
@@ -1009,6 +1003,7 @@ function buildTaskQuery() {
     status: filters.status,
     rewardType: filters.rewardType,
     requiresProof: filters.requiresProof === '' ? undefined : filters.requiresProof === 'true',
+    excludeExpired: !isMineView.value,
     sortBy: filters.sortBy,
     page: filters.page,
     size: filters.size
@@ -1460,7 +1455,7 @@ async function quickDeleteDraft(task) {
   if (!confirm('确认删除这个草稿？')) return
   operationLoading.value = 'delete-draft'
   try {
-    await api.cancelTask(task.id, '删除草稿')
+    await api.deleteTaskDraft(task.id)
     showToast('草稿已删除。', { type: 'success' })
     await refreshTasks()
   } catch (error) {
@@ -1483,7 +1478,11 @@ async function submitCancelTask() {
   operationLoading.value = 'cancel'
   cancelReasonError.value = ''
   try {
-    await api.cancelTask(detailTask.value.id, reason)
+    if (isDraft) {
+      await api.deleteTaskDraft(detailTask.value.id)
+    } else {
+      await api.cancelTask(detailTask.value.id, reason)
+    }
     showToast(isDraft ? '草稿已删除。' : '任务已取消，状态记录会保留在任务历史中。', { type: 'success' })
     closeCancelPanel()
     await refreshTasks()
@@ -2460,6 +2459,9 @@ onMounted(async () => {
                             aria-hidden="true"
                           />
                           {{ task.campus || '未填校区' }} · {{ task.location || '未填地点' }}
+                          <template v-if="task.category === 'ERRAND' && task.deliveryLocation">
+                            → {{ task.deliveryLocation }}
+                          </template>
                         </span>
                         <span>
                           <CalendarClock
@@ -2553,6 +2555,8 @@ onMounted(async () => {
     <UserProfileModal
       :user-id="profileUserId"
       :visible="showProfileModal"
+      related-type="TASK"
+      :related-id="profileRelatedId"
       @close="showProfileModal = false"
     />
   </DashboardShell>
@@ -2675,7 +2679,7 @@ onMounted(async () => {
                     v-if="detailTask.requesterId"
                     class="inline-profile-btn"
                     type="button"
-                    @click="openProfileModal(detailTask.requesterId)"
+                    @click="openProfileModal(detailTask.requesterId, detailTask.id)"
                   >
                     <UserRound :size="14" /> 查看
                   </button>
@@ -2689,7 +2693,12 @@ onMounted(async () => {
                   />
                   任务地点
                 </dt>
-                <dd>{{ detailTask.campus || '未填校区' }} · {{ detailTask.location || '未填地点' }}</dd>
+                <dd>
+                  {{ detailTask.campus || '未填校区' }} · {{ detailTask.location || '未填地点' }}
+                  <template v-if="detailTask.category === 'ERRAND' && detailTask.deliveryLocation">
+                    → {{ detailTask.deliveryLocation }}
+                  </template>
+                </dd>
               </div>
               <div>
                 <dt>

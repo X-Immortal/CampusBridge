@@ -4,8 +4,13 @@ import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
 import com.campusbridge.dto.response.ResponseDtos;
 import com.campusbridge.mapper.ConversationMapper;
+import com.campusbridge.mapper.AttachmentMapper;
 import com.campusbridge.mapper.MessageMapper;
+import com.campusbridge.mapper.UserBlockMapper;
 import com.campusbridge.mapper.UserMapper;
+import com.campusbridge.dto.enums.ApiEnums;
+import com.campusbridge.dto.request.RequestDtos;
+import com.campusbridge.pojo.Attachment;
 import com.campusbridge.pojo.Conversation;
 import com.campusbridge.pojo.Message;
 import com.campusbridge.service.impl.ConversationServiceImpl;
@@ -40,6 +45,12 @@ class BE13ConversationReadServiceImplTest {
     @Mock
     private UserMapper userMapper;
 
+    @Mock
+    private UserBlockMapper userBlockMapper;
+
+    @Mock
+    private AttachmentMapper attachmentMapper;
+
     private ConversationServiceImpl conversationService;
 
     @BeforeEach
@@ -47,7 +58,9 @@ class BE13ConversationReadServiceImplTest {
         conversationService = new ConversationServiceImpl(
                 conversationMapper,
                 messageMapper,
-                userMapper);
+                userMapper,
+                userBlockMapper,
+                attachmentMapper);
     }
 
     @Test
@@ -109,6 +122,62 @@ class BE13ConversationReadServiceImplTest {
                         assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.CONV_001_NOT_FOUND));
     }
 
+    @Test
+    void sendMessageRejectsConversationWhenEitherUserHasBlockedTheOther() {
+        when(conversationMapper.selectOwnedById(CONVERSATION_ID, OWNER_ID))
+                .thenReturn(conversationWithUnread(0));
+        when(userBlockMapper.existsEitherDirection(OWNER_ID, 2L)).thenReturn(true);
+
+        RequestDtos.SendMessageRequest request = new RequestDtos.SendMessageRequest();
+        request.setType(ApiEnums.MessageType.TEXT);
+        request.setContent("hello");
+
+        assertThatThrownBy(() -> conversationService.sendMessage(OWNER_ID, CONVERSATION_ID, request))
+                .isInstanceOfSatisfying(BusinessException.class, ex ->
+                        assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.CONV_003_BLOCKED));
+    }
+
+    @Test
+    void imageMessageBindsOwnedTemporaryAttachmentToCreatedMessage() {
+        Conversation ownerConversation = conversationWithUnread(0);
+        Conversation peerConversation = conversationWithUnread(0);
+        peerConversation.setId(11L);
+        peerConversation.setOwnerId(2L);
+        peerConversation.setPeerUserId(OWNER_ID);
+
+        Attachment attachment = new Attachment();
+        attachment.setId(30L);
+        attachment.setUploaderId(OWNER_ID);
+        attachment.setOwnerType("MESSAGE");
+        attachment.setType("IMAGE");
+        attachment.setStatus("TEMPORARY");
+        attachment.setFileUrl("https://cdn.example/image.png");
+
+        when(conversationMapper.selectOwnedById(CONVERSATION_ID, OWNER_ID)).thenReturn(ownerConversation);
+        when(conversationMapper.selectByOwnerPeerAndRelated(2L, OWNER_ID, "TASK", "TASK", 20L))
+                .thenReturn(peerConversation);
+        when(attachmentMapper.selectById(30L)).thenReturn(attachment);
+        when(attachmentMapper.updateById(attachment)).thenReturn(1);
+        when(messageMapper.insert(any(Message.class))).thenAnswer(invocation -> {
+            Message inserted = invocation.getArgument(0);
+            if (inserted.getId() == null) {
+                inserted.setId(inserted.getConversationId().equals(CONVERSATION_ID) ? 100L : 101L);
+            }
+            return 1;
+        });
+
+        RequestDtos.SendMessageRequest request = new RequestDtos.SendMessageRequest();
+        request.setType(ApiEnums.MessageType.IMAGE);
+        request.setContent(attachment.getFileUrl());
+        request.setAttachmentIds(List.of(30L));
+
+        conversationService.sendMessage(OWNER_ID, CONVERSATION_ID, request);
+
+        assertThat(attachment.getOwnerId()).isEqualTo(100L);
+        assertThat(attachment.getStatus()).isEqualTo("BOUND");
+        verify(attachmentMapper).updateById(attachment);
+    }
+
     private Conversation conversationWithUnread(int unreadCount) {
         Conversation conversation = new Conversation();
         conversation.setId(CONVERSATION_ID);
@@ -117,6 +186,7 @@ class BE13ConversationReadServiceImplTest {
         conversation.setType("TASK");
         conversation.setRelatedType("TASK");
         conversation.setRelatedId(20L);
+        conversation.setReplyable(1);
         conversation.setUnreadCount(unreadCount);
         return conversation;
     }

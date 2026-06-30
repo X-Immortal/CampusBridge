@@ -109,6 +109,7 @@ public class TaskServiceImpl implements TaskService {
             String status,
             String rewardType,
             Boolean requiresProof,
+            Boolean excludeExpired,
             String sortBy,
             Integer page,
             Integer size) {
@@ -123,6 +124,7 @@ public class TaskServiceImpl implements TaskService {
         params.put("status", status);
         params.put("rewardType", rewardType);
         params.put("requiresProof", requiresProof);
+        params.put("excludeExpired", Boolean.TRUE.equals(excludeExpired));
         params.put("sortBy", sortBy);
         params.put("offset", offset);
         params.put("limit", pageSize);
@@ -229,6 +231,30 @@ public class TaskServiceImpl implements TaskService {
         task.setStatus(STATUS_CANCELLED);
         task.setUpdatedAt(now);
         return task;
+    }
+
+    @Override
+    public void deleteDraft(Long operatorId, Long taskId) {
+        requireOperatorId(operatorId);
+        if (taskId == null) {
+            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "taskId must not be null");
+        }
+
+        Task task = taskMapper.selectById(taskId);
+        if (task == null) {
+            throw new BusinessException(ErrorCode.TASK_001_NOT_FOUND);
+        }
+        if (!operatorId.equals(task.getRequesterId())) {
+            throw new BusinessException(ErrorCode.TASK_003_PERMISSION_DENIED);
+        }
+        if (!STATUS_DRAFT.equals(task.getStatus())) {
+            throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
+        }
+
+        taskHistoryService.deleteByTaskId(taskId);
+        if (taskMapper.deleteById(taskId) != 1) {
+            throw new BusinessException(ErrorCode.COMMON_999_INTERNAL_ERROR, "Failed to delete draft");
+        }
     }
 
     @Override
@@ -372,6 +398,7 @@ public class TaskServiceImpl implements TaskService {
         validateLength(request.getDescription(), MAX_DESCRIPTION_LENGTH, "description is too long");
         validateLength(request.getCampus(), MAX_CAMPUS_LENGTH, "campus is too long");
         validateLength(request.getLocation(), MAX_LOCATION_LENGTH, "location is too long");
+        validateLength(request.getDeliveryLocation(), MAX_LOCATION_LENGTH, "deliveryLocation is too long");
         validateLength(
                 request.getRewardDescription(),
                 MAX_REWARD_DESCRIPTION_LENGTH,
@@ -696,6 +723,7 @@ public class TaskServiceImpl implements TaskService {
         if (request.getDescription() != null) {
             validateLength(request.getDescription(), MAX_DESCRIPTION_LENGTH, "description is too long");
         }
+        validateLength(request.getDeliveryLocation(), MAX_LOCATION_LENGTH, "deliveryLocation is too long");
         validateRewardAmount(request.getRewardType(), request.getRewardAmount());
     }
 
@@ -709,6 +737,7 @@ public class TaskServiceImpl implements TaskService {
         task.setDescription(request.getDescription());
         task.setCampus(request.getCampus());
         task.setLocation(request.getLocation());
+        task.setDeliveryLocation(request.getDeliveryLocation());
         task.setDeadline(request.getDeadline());
         task.setRewardType(request.getRewardType() != null ? request.getRewardType().name() : null);
         task.setRewardDescription(request.getRewardDescription());
@@ -734,6 +763,7 @@ public class TaskServiceImpl implements TaskService {
         request.setDescription(task.getDescription());
         request.setCampus(task.getCampus());
         request.setLocation(task.getLocation());
+        request.setDeliveryLocation(task.getDeliveryLocation());
         request.setDeadline(task.getDeadline());
         request.setRewardType(ApiEnums.RewardType.valueOf(task.getRewardType()));
         request.setRewardDescription(task.getRewardDescription());

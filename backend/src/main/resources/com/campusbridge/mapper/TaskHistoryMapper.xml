@@ -32,4 +32,9 @@
     WHERE id = #{id}
   </delete>
 
+  <delete id="deleteByTaskId">
+    DELETE FROM task_histories
+    WHERE task_id = #{taskId}
+  </delete>
+
 </mapper>

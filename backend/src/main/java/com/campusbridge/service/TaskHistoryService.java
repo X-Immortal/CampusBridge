@@ -8,4 +8,6 @@ public interface TaskHistoryService {
             Long operatorId,
             String note
     );
+
+    void deleteByTaskId(Long taskId);
 }

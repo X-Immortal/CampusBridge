@@ -41,4 +41,12 @@ public class TaskHistoryServiceImpl implements TaskHistoryService {
             throw new BusinessException(ErrorCode.COMMON_999_INTERNAL_ERROR, "任务历史记录写入失败");
         }
     }
+
+    @Override
+    public void deleteByTaskId(Long taskId) {
+        if (taskId == null) {
+            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "taskId must not be null");
+        }
+        taskHistoryMapper.deleteByTaskId(taskId);
+    }
 }

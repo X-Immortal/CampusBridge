@@ -61,7 +61,7 @@ function compactContent(value, maxLength = 80) {
 }
 
 function goPost(postId) {
-  router.push({ name: 'post-list', query: { selected: String(postId) } })
+  router.push({ name: 'post-list', query: { postId: String(postId) } })
 }
 
 function goTask(taskId) {
@@ -270,7 +270,7 @@ onMounted(async () => {
                 {{ compactContent(post.content) }}
               </p>
               <div class="home-card-footer">
-                <span>{{ authorCopy(post.authorId, post.authorNickname) }}</span>
+                <span>{{ authorCopy(post.authorId, post.authorName) }}</span>
                 <span>
                   <Clock3
                     :size="13"
