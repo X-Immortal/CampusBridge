@@ -63,3 +63,15 @@ test('用户资料私信入口传递完整会话上下文', async () => {
   assert.match(profileSource, /relatedType:\s*props\.relatedType/)
   assert.match(profileSource, /relatedId:\s*String\(props\.relatedId\)/)
 })
+
+test('个人主页支持加载已标记帖子并跳转到帖子详情', async () => {
+  const [apiSource, homeViewSource] = await Promise.all([
+    source('src/services/api.js'),
+    source('src/views/HomeView.vue')
+  ])
+
+  assert.match(apiSource, /getMarkedPosts:\s*\(\)\s*=>\s*request\('\/posts\/marked'\)/)
+  assert.match(homeViewSource, /await api\.getMarkedPosts\(\)/)
+  assert.match(homeViewSource, /router\.push\(\{\s*name:\s*'post-list',\s*query:\s*\{\s*postId:\s*String\(postId\)\s*\}\s*\}\)/)
+  assert.match(homeViewSource, /被标记的帖子/)
+})

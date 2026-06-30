@@ -584,3 +584,11 @@ test('后端返回的 0/1 任务字段会转换为前端 checkbox 使用的布�
   assert.equal(task.isInstantTask, false)
   assert.equal(task.riskDisclosureConfirmed, true)
 })
+
+test('publish success resets form state', async () => {
+  const source = await readFile(new URL('../src/views/TaskPublishView.vue', import.meta.url), 'utf8')
+
+  assert.match(source, /const createdTask = await api\.createTask\(buildPayload\(\)\)/)
+  assert.match(source, /lastCreatedTask\.value = normalizeTaskResult\(createdTask\)/)
+  assert.match(source, /clearSavedDraft\(\)\s*[\r\n]+\s*resetForm\(\)\s*[\r\n]+\s*clearErrors\(\)/)
+})

@@ -5,6 +5,7 @@ import {
   AtSign,
   BadgeCheck,
   Bell,
+  Bookmark,
   BookOpen,
   Briefcase,
   Building2,
@@ -76,6 +77,9 @@ const preferencesRef = ref(null)
 const loading = ref(false)
 const submitting = ref(false)
 const avatarLoadFailed = ref(false)
+const markedPosts = ref([])
+const markedPostsLoading = ref(false)
+const markedPostsLoaded = ref(false)
 
 const isAdmin = computed(() => String(state.user?.role || '').toUpperCase() === 'ADMIN')
 
@@ -115,6 +119,24 @@ const emailVerificationCode = ref('')
 const emailCodeSubmitting = ref(false)
 const emailCodeResending = ref(false)
 const searchKeyword = ref('')
+
+async function loadMarkedPosts(force = false) {
+  if ((!force && markedPostsLoaded.value) || markedPostsLoading.value || !isAuthenticated.value) return
+  markedPostsLoading.value = true
+  try {
+    const result = await api.getMarkedPosts()
+    markedPosts.value = Array.isArray(result) ? result : []
+    markedPostsLoaded.value = true
+  } catch {
+    markedPosts.value = []
+  } finally {
+    markedPostsLoading.value = false
+  }
+}
+
+function goToPost(postId) {
+  router.push({ name: 'post-list', query: { postId: String(postId) } })
+}
 
 function handleSearch() {
   const keyword = searchKeyword.value.trim()
@@ -705,6 +727,7 @@ onMounted(async () => {
   loading.value = true
   try {
     await refreshSession()
+    await loadMarkedPosts()
   } finally {
     loading.value = false
   }
@@ -1777,6 +1800,63 @@ onBeforeUnmount(() => {
           <strong>驳回原因</strong>
           <span>{{ verification.rejectReason }}</span>
         </div>
+
+        <section class="marked-posts-section">
+          <div class="marked-posts-header">
+            <div>
+              <p class="section-kicker">
+                我的收藏
+              </p>
+              <h2>被标记的帖子</h2>
+            </div>
+            <Bookmark
+              :size="22"
+              aria-hidden="true"
+            />
+          </div>
+          <div
+            v-if="markedPostsLoading"
+            class="marked-posts-loading"
+          >
+            <LoaderCircle
+              class="spinning"
+              :size="20"
+              aria-hidden="true"
+            />
+            加载中...
+          </div>
+          <div
+            v-else-if="!markedPosts.length"
+            class="marked-posts-empty"
+          >
+            <p>还没有标记任何帖子。</p>
+            <button
+              class="ghost-action ghost-action--compact"
+              type="button"
+              @click="loadMarkedPosts(true)"
+            >
+              刷新收藏
+            </button>
+          </div>
+          <div
+            v-else
+            class="marked-posts-grid"
+          >
+            <article
+              v-for="post in markedPosts"
+              :key="post.id"
+              class="panel-card marked-post-card"
+              @click="goToPost(post.id)"
+            >
+              <div class="marked-post-card-header">
+                <span class="marked-post-category">{{ post.category }}</span>
+                <span class="marked-post-stats">{{ post.replyCount || 0 }} 回复 · {{ post.likeCount || 0 }} 赞</span>
+              </div>
+              <h3>{{ post.title || '无标题' }}</h3>
+              <p>{{ (post.content || '').slice(0, 100) }}{{ (post.content || '').length > 100 ? '...' : '' }}</p>
+            </article>
+          </div>
+        </section>
       </section>
     </main>
   </section>
@@ -3122,6 +3202,100 @@ onBeforeUnmount(() => {
   border-radius: 8px;
   background: var(--color-danger-bg);
   color: var(--color-danger-text);
+}
+
+.marked-posts-section {
+  display: grid;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.marked-posts-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--color-brand);
+}
+
+.marked-posts-header h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: var(--color-text);
+}
+
+.marked-posts-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 24px;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.marked-posts-empty {
+  padding: 32px;
+  text-align: center;
+  border: 1px dashed var(--color-border);
+  border-radius: 12px;
+  color: var(--color-text-muted);
+}
+
+.marked-posts-empty p {
+  margin: 0 0 12px;
+}
+
+.marked-posts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.marked-post-card {
+  cursor: pointer;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.marked-post-card:hover {
+  border-color: var(--color-brand-border);
+  box-shadow: var(--shadow-card);
+}
+
+.marked-post-card h3 {
+  margin: 8px 0 6px;
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--color-text);
+}
+
+.marked-post-card p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.marked-post-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.marked-post-category {
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--color-brand-soft);
+  color: var(--color-brand-hover);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.marked-post-stats {
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+  font-weight: 700;
 }
 
 .spinning {

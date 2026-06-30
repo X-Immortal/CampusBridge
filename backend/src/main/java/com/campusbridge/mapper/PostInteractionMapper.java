@@ -28,5 +28,10 @@ public interface PostInteractionMapper {
             @Param("targetId") Long targetId,
             @Param("type") String type);
 
+    List<Long> selectTargetIdsByUserAndType(
+            @Param("userId") Long userId,
+            @Param("targetType") String targetType,
+            @Param("type") String type);
+
     int deleteById(Long id);
 }

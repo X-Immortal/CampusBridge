@@ -669,6 +669,8 @@ async function handleSubmitTask() {
     const createdTask = await api.createTask(buildPayload())
     lastCreatedTask.value = normalizeTaskResult(createdTask)
     clearSavedDraft()
+    resetForm()
+    clearErrors()
     const newTaskId = createdTask?.id || createdTask?.taskId
     showToast(`任务已发布，等待合适的同学申请接单。${newTaskId ? '3 秒后查看任务详情。' : ''}`, { type: 'success' })
     if (newTaskId) {

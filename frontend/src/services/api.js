@@ -137,6 +137,7 @@ export default {
     request(`/posts/${postId}/interactions${buildQuery({ type })}`, { method: 'DELETE' }),
   acceptPostReply: (postId, replyId) =>
     request(`/posts/${postId}/replies/${replyId}/accept`, { method: 'POST' }),
+  getMarkedPosts: () => request('/posts/marked'),
   createTask: (body) => request('/tasks', { method: 'POST', body }),
   saveTaskDraft: (body) => request('/tasks/drafts', { method: 'POST', body }),
   updateTask: (taskId, body) => request(`/tasks/${taskId}`, { method: 'PUT', body }),
