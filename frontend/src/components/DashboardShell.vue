@@ -70,6 +70,7 @@ function handleSearch() {
 const isAdmin = computed(() => String(state.user?.role || '').toUpperCase() === 'ADMIN')
 
 const navItems = computed(() => [
+  { label: '首页推荐', icon: Home, to: '/' },
   { label: '个人主页', icon: Home, to: '/home' },
   { label: '帖子广场', icon: BookOpen, to: '/posts' },
   { label: '任务广场', icon: Grid2X2, to: '/tasks' },
@@ -199,7 +200,7 @@ onBeforeUnmount(() => {
 
       <RouterLink
         class="brand"
-        to="/home"
+        to="/"
         aria-label="CampusBridge"
       >
         <span class="brand-mark">

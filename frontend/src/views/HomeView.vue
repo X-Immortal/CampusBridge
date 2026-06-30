@@ -1604,7 +1604,10 @@ onBeforeUnmount(() => {
                 accept="image/*"
                 @change="handleVerificationEvidenceFileChange"
               >
-              <div class="evidence-upload-box">
+              <div
+                class="evidence-upload-box"
+                :class="{ 'evidence-upload-box--empty': requiresVerificationEvidence && !verificationForm.evidenceUrl }"
+              >
                 <button
                   class="ghost-action upload-evidence-button"
                   type="button"
@@ -1629,6 +1632,12 @@ onBeforeUnmount(() => {
                   <small>{{ verificationEvidenceHint }}</small>
                 </div>
               </div>
+              <p
+                v-if="requiresVerificationEvidence && !verificationForm.evidenceUrl"
+                class="evidence-required-hint"
+              >
+                请先上传{{ verificationEvidenceLabel }}，否则无法提交认证。
+              </p>
               <a
                 v-if="verificationForm.evidenceUrl"
                 class="evidence-link"
@@ -2961,6 +2970,19 @@ onBeforeUnmount(() => {
   border: 1px dashed var(--color-border-dashed);
   border-radius: 8px;
   background: var(--color-surface-muted);
+}
+
+.evidence-upload-box--empty {
+  border-color: var(--color-danger-soft);
+  background: var(--color-danger-bg);
+}
+
+.evidence-required-hint {
+  margin: 0;
+  color: var(--color-danger-text);
+  font-size: 0.88rem;
+  font-weight: 800;
+  line-height: 1.45;
 }
 
 .evidence-upload-box div {

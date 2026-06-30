@@ -499,6 +499,59 @@ async function sendMessage() {
   }
 }
 
+// --- Image upload ---
+const composerImageInputRef = ref(null)
+
+function triggerImageUpload() {
+  if (isSystemConversation.value || !conversationReplyable.value) return
+  composerImageInputRef.value?.click()
+}
+
+async function handleImageSelected(event) {
+  const file = event.target.files?.[0]
+  if (!file) return
+  // reset input so same file can be selected again
+  event.target.value = ''
+
+  if (!activeConversation.value?.id) return
+
+  // validate file
+  if (!file.type.startsWith('image/')) {
+    showToast('请选择图片文件。', { type: 'danger' })
+    return
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    showToast('图片大小不能超过 10MB。', { type: 'danger' })
+    return
+  }
+
+  sending.value = true
+  try {
+    // upload attachment
+    const attachment = await api.uploadAttachment({
+      file,
+      expectedOwnerType: 'MESSAGE',
+      type: 'IMAGE'
+    })
+    const attachmentId = attachment?.id || attachment?.attachmentId
+    // send image message
+    const payload = {
+      type: 'IMAGE',
+      content: attachment?.url || attachment?.fileUrl || '',
+      attachmentIds: attachmentId ? [attachmentId] : []
+    }
+    const result = await api.sendConversationMessage(activeConversation.value.id, payload)
+    const message = result ? normalizeMessage(result) : buildOptimisticMessage(payload)
+    messages.value = [...messages.value, message]
+    syncConversationAfterSend(message, payload)
+    await scrollMessagesToBottom()
+  } catch (error) {
+    showToast(error.message || '图片发送失败，请稍后重试。', { type: 'danger' })
+  } finally {
+    sending.value = false
+  }
+}
+
 async function scrollMessagesToBottom() {
   await nextTick()
   if (threadRef.value) {
@@ -828,11 +881,19 @@ onMounted(async () => {
               :disabled="sending || !conversationReplyable || isSystemConversation"
               :class="{ 'composer-input--system': isSystemConversation }"
             >
+            <input
+              ref="composerImageInputRef"
+              type="file"
+              accept="image/*"
+              style="display: none;"
+              @change="handleImageSelected"
+            >
             <button
               class="image-button"
               type="button"
               aria-label="发送图片"
-              :disabled="isSystemConversation"
+              :disabled="sending || isSystemConversation || !conversationReplyable"
+              @click="triggerImageUpload"
             >
               <Image
                 :size="24"

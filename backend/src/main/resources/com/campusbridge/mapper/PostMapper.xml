@@ -75,4 +75,15 @@
     WHERE id = #{id}
   </delete>
 
+  <select id="selectHotPosts" resultType="com.campusbridge.pojo.Post">
+    SELECT p.*, up.nickname AS author_name
+    FROM posts p
+    LEFT JOIN user_profiles up ON up.user_id = p.author_id
+    WHERE p.status = 'PUBLISHED'
+    ORDER BY (COALESCE(p.reply_count, 0) + COALESCE(p.like_count, 0) + COALESCE(p.mark_count, 0) + 1)
+      / GREATEST(TIMESTAMPDIFF(HOUR, p.created_at, NOW()) + 2, 2) DESC,
+      p.created_at DESC
+    LIMIT #{size}
+  </select>
+
 </mapper>

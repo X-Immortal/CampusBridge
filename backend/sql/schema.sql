@@ -148,6 +148,7 @@ CREATE TABLE `tasks` (
   `description` TEXT NOT NULL,
   `campus` VARCHAR(50) NOT NULL,
   `location` VARCHAR(120) NOT NULL,
+  `delivery_location` VARCHAR(120) NULL COMMENT '送达地点，仅跑腿代取使用',
   `deadline` DATETIME NOT NULL,
   `reward_type` ENUM('FREE','POINTS','CASH','NEGOTIABLE') NOT NULL,
   `reward_description` VARCHAR(200) NULL,
@@ -320,5 +321,17 @@ CREATE TABLE `moderation_records` (
   CONSTRAINT `fk_moderation_records_report` FOREIGN KEY (`report_id`) REFERENCES `reports` (`id`),
   CONSTRAINT `fk_moderation_records_handler` FOREIGN KEY (`handler_id`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='治理处理记录';
+
+CREATE TABLE `user_blocks` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `blocker_id` BIGINT UNSIGNED NOT NULL COMMENT '拉人者用户ID',
+  `blocked_id` BIGINT UNSIGNED NOT NULL COMMENT '被拉者用户ID',
+  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_user_blocks_pair` (`blocker_id`, `blocked_id`),
+  KEY `idx_user_blocks_blocked` (`blocked_id`),
+  CONSTRAINT `fk_user_blocks_blocker` FOREIGN KEY (`blocker_id`) REFERENCES `users` (`id`),
+  CONSTRAINT `fk_user_blocks_blocked` FOREIGN KEY (`blocked_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户拉黑关系';
 
 

@@ -1,5 +1,5 @@
-﻿<script setup>
-import { computed, nextTick, reactive, ref, watch } from 'vue'
+<script setup>
+import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   ArrowLeft,
@@ -57,6 +57,7 @@ const taskForm = reactive({
   description: '',
   campus: '',
   location: '',
+  deliveryLocation: '',
   deadline: defaultDeadline(),
   rewardType: 'FREE',
   rewardDescription: '',
@@ -178,6 +179,10 @@ const previewTitle = computed(() => taskForm.title.trim() || '代取菜鸟驿站
 const previewLocation = computed(() => {
   const campus = taskForm.campus.trim() || '仙林校区'
   const location = taskForm.location.trim() || '快递站 3 号架'
+  if (taskForm.category === 'ERRAND') {
+    const delivery = taskForm.deliveryLocation.trim() || '送达地点未填'
+    return `${campus} · ${location} → ${delivery}`
+  }
   return `${campus} · ${location}`
 })
 const previewReward = computed(() => {
@@ -233,6 +238,7 @@ function cloneForm() {
     description: taskForm.description,
     campus: taskForm.campus,
     location: taskForm.location,
+    deliveryLocation: taskForm.deliveryLocation,
     deadline: taskForm.deadline,
     rewardType: taskForm.rewardType,
     rewardDescription: taskForm.rewardDescription,
@@ -254,6 +260,7 @@ function hasDraftContent() {
     taskForm.description,
     taskForm.campus,
     taskForm.location,
+    taskForm.deliveryLocation,
     taskForm.rewardDescription,
     taskForm.completionStandard,
     taskForm.routeHint,
@@ -395,6 +402,7 @@ function resetForm() {
     description: '',
     campus: '',
     location: '',
+    deliveryLocation: '',
     deadline: defaultDeadline(),
     rewardType: 'FREE',
     rewardDescription: '',
@@ -432,6 +440,7 @@ function applyTaskToForm(task) {
     description: task.description || '',
     campus: task.campus || '',
     location: task.location || '',
+    deliveryLocation: task.deliveryLocation || '',
     deadline: isRepostMode.value && isPastDateTime(nextDeadline) ? defaultDeadline() : nextDeadline,
     rewardType: task.rewardType || 'FREE',
     rewardDescription: task.rewardDescription || '',
@@ -508,6 +517,7 @@ function validateForm() {
   validateTextLength('description', taskForm.description, 2000, '任务说明最多 2000 个字。')
   validateTextLength('campus', taskForm.campus, 50, '校区最多 50 个字。')
   validateTextLength('location', taskForm.location, 120, '地点最多 120 个字。')
+  validateTextLength('deliveryLocation', taskForm.deliveryLocation, 120, '送达地点最多 120 个字。')
   validateTextLength('rewardDescription', taskForm.rewardDescription, 200, '奖励说明最多 200 个字。')
   validateRewardAmount()
   validateTextLength('completionStandard', taskForm.completionStandard, 500, '完成标准最多 500 个字。')
@@ -540,6 +550,7 @@ function buildPayload() {
     description: taskForm.description.trim(),
     campus: taskForm.campus.trim(),
     location: taskForm.location.trim(),
+    deliveryLocation: taskForm.category === 'ERRAND' ? taskForm.deliveryLocation.trim() || undefined : undefined,
     deadline: normalizeDeadline(taskForm.deadline),
     rewardType: taskForm.rewardType,
     rewardDescription: optionalText(taskForm.rewardDescription),
@@ -563,6 +574,7 @@ function buildDraftPayload() {
     description: optionalText(taskForm.description),
     campus: optionalText(taskForm.campus),
     location: optionalText(taskForm.location),
+    deliveryLocation: taskForm.category === 'ERRAND' ? optionalText(taskForm.deliveryLocation) : undefined,
     deadline: taskForm.deadline ? normalizeDeadline(taskForm.deadline) : undefined,
     rewardType: taskForm.rewardType || undefined,
     rewardDescription: optionalText(taskForm.rewardDescription),
@@ -640,7 +652,8 @@ async function handleSubmitTask() {
       const updatedTask = await api.updateTask(sourceTaskId.value, buildUpdatePayload())
       lastCreatedTask.value = normalizeTaskResult(updatedTask)
       clearSavedDraft()
-      showToast('任务修改已保存，返回详情后可以继续处理候选和状态。', { type: 'success' })
+      showToast('任务修改已保存，3 秒后返回任务详情。', { type: 'success' })
+      scheduleRedirectToTask(sourceTaskId.value)
       return
     }
 
@@ -648,20 +661,38 @@ async function handleSubmitTask() {
       const resentTask = await api.resendTask(sourceTaskId.value)
       lastCreatedTask.value = normalizeTaskResult(resentTask)
       clearSavedDraft()
-      showToast('任务已重新发布，新的接单流程已经开始。', { type: 'success' })
+      showToast('任务已重新发布，3 秒后返回任务详情。', { type: 'success' })
+      scheduleRedirectToTask(sourceTaskId.value)
       return
     }
 
     const createdTask = await api.createTask(buildPayload())
     lastCreatedTask.value = normalizeTaskResult(createdTask)
     clearSavedDraft()
-    showToast('任务已发布，等待合适的同学申请接单。', { type: 'success' })
+    const newTaskId = createdTask?.id || createdTask?.taskId
+    showToast(`任务已发布，等待合适的同学申请接单。${newTaskId ? '3 秒后查看任务详情。' : ''}`, { type: 'success' })
+    if (newTaskId) {
+      scheduleRedirectToTask(newTaskId)
+    }
   } catch (error) {
     showToast(error.message || '任务保存失败，请稍后再试。', { type: 'danger' })
   } finally {
     submitting.value = false
   }
 }
+
+let redirectTimer = null
+
+function scheduleRedirectToTask(taskId) {
+  if (redirectTimer) clearTimeout(redirectTimer)
+  redirectTimer = setTimeout(() => {
+    router.push({ name: 'task-detail', params: { taskId: String(taskId) } })
+  }, 3000)
+}
+
+onBeforeUnmount(() => {
+  if (redirectTimer) clearTimeout(redirectTimer)
+})
 
 watch(
   () => [route.name, route.params.taskId],
@@ -916,12 +947,12 @@ watch(
                 class="publish-field"
                 for="task-location"
               >
-                <span>具体地点</span>
+                <span>{{ taskForm.category === 'ERRAND' ? '取件地点' : '具体地点' }}</span>
                 <input
                   id="task-location"
                   v-model.trim="taskForm.location"
                   maxlength="120"
-                  placeholder="例如：快递站 3 号架 / 教学楼 A208"
+                  :placeholder="taskForm.category === 'ERRAND' ? '例如：快递站 3 号架' : '例如：教学楼 A208'"
                   required
                   :disabled="!canChangeFixedFields"
                   :aria-invalid="Boolean(errors.location)"
@@ -934,6 +965,31 @@ watch(
                   class="field-error"
                 >
                   {{ errors.location }}
+                </small>
+              </label>
+
+              <label
+                v-if="taskForm.category === 'ERRAND'"
+                class="publish-field"
+                for="task-delivery-location"
+              >
+                <span>送达地点</span>
+                <input
+                  id="task-delivery-location"
+                  v-model.trim="taskForm.deliveryLocation"
+                  maxlength="120"
+                  placeholder="例如：宿舍楼 5 号楼 302"
+                  :disabled="!canChangeFixedFields"
+                  :aria-invalid="Boolean(errors.deliveryLocation)"
+                  :aria-describedby="describedBy('deliveryLocation')"
+                  @input="clearError('deliveryLocation')"
+                >
+                <small
+                  v-if="errors.deliveryLocation"
+                  id="deliveryLocation-error"
+                  class="field-error"
+                >
+                  {{ errors.deliveryLocation }}
                 </small>
               </label>
             </div>

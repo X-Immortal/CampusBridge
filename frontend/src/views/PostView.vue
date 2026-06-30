@@ -10,6 +10,7 @@ import {
   MessageCircle,
   PlusCircle,
   RefreshCw,
+  Reply as ReplyIcon,
   Search,
   Send,
   Star,
@@ -61,6 +62,7 @@ const postForm = reactive(createDefaultPostForm())
 const replyContent = ref('')
 const replySubmitting = ref(false)
 const replyError = ref('')
+const replyingToId = ref(null)
 
 const profileUserId = ref(null)
 const showProfileModal = ref(false)
@@ -90,6 +92,28 @@ const selectedListPost = computed(
 )
 const detailPost = computed(() => postDetail.value?.post || selectedListPost.value || null)
 const detailReplies = computed(() => postDetail.value?.replies || [])
+const threadedReplies = computed(() => {
+  const replies = detailReplies.value.map((reply) => ({ ...reply, children: [] }))
+  const byId = new Map(replies.map((reply) => [String(reply.id), reply]))
+  const roots = []
+
+  for (const reply of replies) {
+    if (reply.parentReplyId == null || !byId.has(String(reply.parentReplyId))) {
+      roots.push(reply)
+      continue
+    }
+
+    let root = byId.get(String(reply.parentReplyId))
+    const visited = new Set([String(reply.id)])
+    while (root?.parentReplyId != null && byId.has(String(root.parentReplyId)) && !visited.has(String(root.id))) {
+      visited.add(String(root.id))
+      root = byId.get(String(root.parentReplyId))
+    }
+    root?.children.push(reply)
+  }
+
+  return roots
+})
 const visibleReplyCount = computed(() =>
   posts.value.reduce((sum, post) => sum + numericValue(post.replyCount), 0)
 )
@@ -174,6 +198,8 @@ function normalizeReply(reply = {}) {
     ...reply,
     id: reply.id ?? reply.replyId,
     authorId: reply.authorId ?? reply.userId,
+    authorName: reply.authorName || reply.authorNickname || null,
+    parentReplyId: reply.parentReplyId ?? null,
     likeCount: numericValue(reply.likeCount)
   }
 }
@@ -501,14 +527,31 @@ async function submitReply() {
   replyError.value = ''
   replySubmitting.value = true
   try {
-    await api.createPostReply(detailPost.value.id, { content })
+    await api.createPostReply(detailPost.value.id, {
+      content,
+      ...(replyingToId.value == null ? {} : { parentReplyId: Number(replyingToId.value) })
+    })
     replyContent.value = ''
+    replyingToId.value = null
     await loadPostDetail(detailPost.value.id)
   } catch (error) {
     replyError.value = error.message || '回复发送失败，请稍后重试。'
   } finally {
     replySubmitting.value = false
   }
+}
+
+function startReply(replyId) {
+  replyingToId.value = replyId
+  replyContent.value = ''
+  replyError.value = ''
+  nextTick(() => document.querySelector('.reply-form textarea')?.focus())
+}
+
+function cancelNestedReply() {
+  replyingToId.value = null
+  replyContent.value = ''
+  replyError.value = ''
 }
 
 async function togglePostLike(post) {
@@ -1136,6 +1179,18 @@ onMounted(() => {
                 class="reply-form"
                 @submit.prevent="submitReply"
               >
+                <div
+                  v-if="replyingToId != null"
+                  class="reply-target"
+                >
+                  <span>正在回复 #{{ replyingToId }}</span>
+                  <button
+                    type="button"
+                    @click="cancelNestedReply"
+                  >
+                    取消
+                  </button>
+                </div>
                 <textarea
                   v-model="replyContent"
                   :disabled="replySubmitting"
@@ -1189,7 +1244,7 @@ onMounted(() => {
                 class="reply-list"
               >
                 <article
-                  v-for="reply in detailReplies"
+                  v-for="reply in threadedReplies"
                   :key="reply.id"
                   class="reply-card"
                   :class="{ accepted: String(reply.id) === String(postDetail?.acceptedReplyId) }"
@@ -1200,17 +1255,60 @@ onMounted(() => {
                         :size="16"
                         aria-hidden="true"
                       />
-                      {{ authorCopy(reply.authorId) }}
+                      {{ authorCopy(reply) }}
                     </span>
                     <small>{{ formatDateTime(reply.createdAt) }}</small>
                   </div>
                   <p>{{ reply.content }}</p>
-                  <span
-                    v-if="String(reply.id) === String(postDetail?.acceptedReplyId)"
-                    class="accepted-tag"
+                  <div class="reply-actions">
+                    <span
+                      v-if="String(reply.id) === String(postDetail?.acceptedReplyId)"
+                      class="accepted-tag"
+                    >
+                      已采纳
+                    </span>
+                    <button
+                      v-if="isAuthenticated"
+                      class="reply-action"
+                      type="button"
+                      @click="startReply(reply.id)"
+                    >
+                      <ReplyIcon :size="14" />
+                      回复
+                    </button>
+                  </div>
+
+                  <div
+                    v-if="reply.children.length"
+                    class="nested-replies"
                   >
-                    已采纳
-                  </span>
+                    <article
+                      v-for="child in reply.children"
+                      :key="child.id"
+                      class="nested-reply"
+                    >
+                      <div class="reply-card-top">
+                        <span>
+                          <UserRound
+                            :size="14"
+                            aria-hidden="true"
+                          />
+                          {{ authorCopy(child) }}
+                        </span>
+                        <small>{{ formatDateTime(child.createdAt) }}</small>
+                      </div>
+                      <p>{{ child.content }}</p>
+                      <button
+                        v-if="isAuthenticated"
+                        class="reply-action"
+                        type="button"
+                        @click="startReply(child.id)"
+                      >
+                        <ReplyIcon :size="13" />
+                        回复
+                      </button>
+                    </article>
+                  </div>
                 </article>
               </div>
             </section>
@@ -2094,6 +2192,37 @@ onMounted(() => {
   background: var(--color-surface-muted);
 }
 
+.reply-target,
+.reply-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.reply-target {
+  color: var(--color-brand-text);
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.reply-target button,
+.reply-action {
+  border: 0;
+  background: transparent;
+  color: var(--color-brand-text);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+}
+
+.reply-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: fit-content;
+}
+
 .reply-form textarea {
   width: 100%;
   min-height: 88px;
@@ -2201,6 +2330,28 @@ onMounted(() => {
   color: var(--color-success-text);
   font-size: 0.8rem;
   font-weight: 900;
+}
+
+.nested-replies {
+  display: grid;
+  gap: 8px;
+  margin-top: 4px;
+  padding-left: 14px;
+  border-left: 2px solid var(--color-border);
+}
+
+.nested-reply {
+  display: grid;
+  gap: 7px;
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--color-surface-muted);
+}
+
+.nested-reply p {
+  margin: 0;
+  color: var(--color-text-muted);
+  line-height: 1.55;
 }
 
 .workflow-modal-layer {

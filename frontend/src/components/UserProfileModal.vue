@@ -1,16 +1,21 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import {
   Award,
   BadgeCheck,
   LoaderCircle,
+  Mail,
   MapPin,
   School,
+  ShieldBan,
+  ShieldCheck,
   Star,
   UserRound,
   X
 } from '@lucide/vue'
 import api from '../services/api'
+import { useAuth } from '../stores/auth'
 
 const props = defineProps({
   userId: { type: [Number, String], default: null },
@@ -18,12 +23,20 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close'])
+const router = useRouter()
+const { currentUserId } = useAuth()
 
 const profile = ref(null)
 const reviews = ref([])
 const loading = ref(false)
 const error = ref('')
 const avatarFailed = ref(false)
+const isBlocked = ref(false)
+const blockLoading = ref(false)
+const actionError = ref('')
+const isSelf = computed(() =>
+  props.userId != null && currentUserId.value != null && String(props.userId) === String(currentUserId.value)
+)
 
 const levelLabels = ['', '新手上路', '靠谱帮手', '校园达人', '互助之星']
 const reviewLabels = { 1: '体验很差', 2: '低于预期', 3: '基本完成', 4: '值得信任', 5: '非常可靠' }
@@ -46,16 +59,20 @@ async function load() {
   if (!props.userId) return
   loading.value = true
   error.value = ''
+  actionError.value = ''
   try {
-    const [profileResult, reviewsResult] = await Promise.allSettled([
+    const requests = [
       api.getUserProfile(props.userId),
       api.getUserReviews(props.userId)
-    ])
+    ]
+    if (!isSelf.value) requests.push(api.checkBlock(props.userId))
+    const [profileResult, reviewsResult, blockResult] = await Promise.allSettled(requests)
     avatarFailed.value = false
     profile.value = profileResult.status === 'fulfilled' ? profileResult.value : null
     reviews.value = reviewsResult.status === 'fulfilled' && Array.isArray(reviewsResult.value)
       ? reviewsResult.value
       : []
+    isBlocked.value = blockResult?.status === 'fulfilled' && Boolean(blockResult.value?.blocked)
   } catch {
     error.value = '加载用户信息失败'
   } finally {
@@ -69,6 +86,30 @@ watch(() => [props.userId, props.visible], ([uid, vis]) => {
 
 function close() {
   emit('close')
+}
+
+async function toggleBlock() {
+  if (isSelf.value || blockLoading.value) return
+  blockLoading.value = true
+  actionError.value = ''
+  try {
+    if (isBlocked.value) {
+      await api.unblockUser(props.userId)
+      isBlocked.value = false
+    } else {
+      await api.blockUser(props.userId)
+      isBlocked.value = true
+    }
+  } catch (err) {
+    actionError.value = err.message || '操作失败，请稍后重试。'
+  } finally {
+    blockLoading.value = false
+  }
+}
+
+function startConversation() {
+  close()
+  router.push({ name: 'conversation-list', query: { peerId: String(props.userId) } })
 }
 </script>
 
@@ -141,6 +182,38 @@ function close() {
             </div>
           </div>
         </header>
+
+        <div
+          v-if="!isSelf"
+          class="profile-modal-actions"
+        >
+          <button
+            class="profile-message-action"
+            type="button"
+            @click="startConversation"
+          >
+            <Mail :size="16" />
+            私信
+          </button>
+          <button
+            class="profile-block-action"
+            :class="{ active: isBlocked }"
+            type="button"
+            :disabled="blockLoading"
+            @click="toggleBlock"
+          >
+            <ShieldCheck
+              v-if="isBlocked"
+              :size="16"
+            />
+            <ShieldBan
+              v-else
+              :size="16"
+            />
+            {{ isBlocked ? '取消拉黑' : '拉黑' }}
+          </button>
+          <span v-if="actionError">{{ actionError }}</span>
+        </div>
 
         <section class="profile-modal-section">
           <h3>基本信息</h3>
@@ -317,6 +390,45 @@ function close() {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+.profile-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.profile-modal-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+}
+
+.profile-message-action {
+  background: var(--color-brand);
+  color: #fff;
+}
+
+.profile-block-action {
+  background: var(--color-surface-muted);
+  color: var(--color-danger-text);
+}
+
+.profile-block-action.active {
+  background: var(--color-danger-bg);
+}
+
+.profile-modal-actions span {
+  color: var(--color-danger-text);
+  font-size: 0.85rem;
 }
 
 .profile-chip {

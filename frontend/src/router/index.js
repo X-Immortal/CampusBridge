@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
+import HomePageView from '../views/HomePageView.vue'
 import AuthView from '../views/AuthView.vue'
 import TaskPublishView from '../views/TaskPublishView.vue'
 import TaskListView from '../views/TaskListView.vue'
@@ -9,18 +10,13 @@ import ReviewNotificationView from '../views/ReviewNotificationView.vue'
 import AdminView from '../views/AdminView.vue'
 import { useAuth } from '../stores/auth'
 
-function redirectByAuth() {
-  const { isAuthenticated } = useAuth()
-  return isAuthenticated.value ? { name: 'home' } : { name: 'auth' }
-}
-
 const router = createRouter({
   history: createWebHistory(),
   routes: [
     {
       path: '/',
-      name: 'root',
-      redirect: redirectByAuth
+      name: 'homepage',
+      component: HomePageView
     },
     {
       path: '/home',
@@ -103,7 +99,7 @@ const router = createRouter({
 
 router.beforeEach((to) => {
   const { isAuthenticated } = useAuth()
-  const publicRouteNames = new Set(['root', 'auth'])
+  const publicRouteNames = new Set(['homepage', 'auth'])
 
   if (to.name === 'auth' && isAuthenticated.value) {
     return { name: 'home' }

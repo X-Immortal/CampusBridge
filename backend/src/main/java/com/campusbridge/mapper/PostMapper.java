@@ -29,4 +29,6 @@ public interface PostMapper {
     int updateById(Post entity);
 
     int deleteById(Long id);
+
+    List<Post> selectHotPosts(@Param("size") Integer size);
 }

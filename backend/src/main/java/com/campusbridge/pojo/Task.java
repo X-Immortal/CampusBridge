@@ -19,6 +19,7 @@ public class Task {
     private String description;
     private String campus;
     private String location;
+    private String deliveryLocation;
     private LocalDateTime deadline;
     private String rewardType;
     private String rewardDescription;

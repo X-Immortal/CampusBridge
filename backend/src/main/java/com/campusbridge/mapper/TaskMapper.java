@@ -45,4 +45,8 @@ public interface TaskMapper {
             @Param("reminderNote") String reminderNote,
             @Param("reminderCreatedBefore") LocalDateTime reminderCreatedBefore,
             @Param("limit") Integer limit);
+
+    List<Task> selectRecommendedTasks(
+            @Param("status") String status,
+            @Param("size") Integer size);
 }
