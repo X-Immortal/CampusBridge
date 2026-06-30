@@ -2,7 +2,6 @@ package com.campusbridge.controller;
 
 import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.pojo.Result;
-import com.campusbridge.pojo.Task;
 import com.campusbridge.common.CurrentUserResolver;
 import com.campusbridge.service.TaskService;
 import com.campusbridge.service.CompletionService;
@@ -19,8 +18,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 @RestController
