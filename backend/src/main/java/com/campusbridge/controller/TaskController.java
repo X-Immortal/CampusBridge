@@ -69,7 +69,7 @@ public class TaskController {
             @RequestParam(required = false, defaultValue = "CREATED_AT_DESC") String sortBy,
             @RequestParam(required = false, defaultValue = "1") Integer page,
             @RequestParam(required = false, defaultValue = "20") Integer size) {
-        List<Task> tasks = taskService.listTasks(
+        Map<String, Object> result = taskService.listTasks(
                 keyword,
                 category,
                 campus,
@@ -80,11 +80,7 @@ public class TaskController {
                 sortBy,
                 page,
                 size);
-        Map<String, Object> response = new HashMap<>();
-        response.put("tasks", tasks);
-        response.put("page", page);
-        response.put("size", size);
-        return Result.success(response);
+        return Result.success(result);
     }
 
     @GetMapping("/{taskId}")

@@ -34,6 +34,8 @@ public interface TaskMapper {
 
     List<Task> selectWithFilters(Map<String, Object> params);
 
+    long countWithFilters(Map<String, Object> params);
+
     List<Task> selectTasksNeedingTimeoutReminder(
             @Param("status") String status,
             @Param("referenceTime") LocalDateTime referenceTime,

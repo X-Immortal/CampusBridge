@@ -4,6 +4,7 @@ import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.pojo.Task;
 
 import java.util.List;
+import java.util.Map;
 
 public interface TaskService {
     Task createTask(Long requesterId, RequestDtos.CreateTaskRequest request);
@@ -13,7 +14,7 @@ public interface TaskService {
             Long taskId,
             RequestDtos.TaskStatusTransitionRequest request);
 
-    List<Task> listTasks(
+    Map<String, Object> listTasks(
             String keyword,
             String category,
             String campus,

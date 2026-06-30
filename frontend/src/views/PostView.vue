@@ -62,7 +62,9 @@ const postForm = reactive(createDefaultPostForm())
 const replyContent = ref('')
 const replySubmitting = ref(false)
 const replyError = ref('')
+const replyComposerOpen = ref(false)
 const replyingToId = ref(null)
+const postDetailModalOpen = ref(false)
 
 const profileUserId = ref(null)
 const showProfileModal = ref(false)
@@ -282,6 +284,7 @@ async function refreshPosts() {
     const requestedPostId = readQuery('postId', '')
     if (requestedPostId) {
       selectedPostId.value = requestedPostId
+      postDetailModalOpen.value = true
       await loadPostDetail(requestedPostId)
       return
     }
@@ -334,9 +337,16 @@ async function loadPostDetail(postId) {
 }
 
 function selectPost(post) {
-  if (!post?.id || String(post.id) === selectedPostId.value) return
+  if (!post?.id) return
+  postDetailModalOpen.value = true
+  if (String(post.id) === selectedPostId.value) return
   selectedPostId.value = String(post.id)
   loadPostDetail(post.id)
+}
+
+function closePostModal() {
+  postDetailModalOpen.value = false
+  cancelReply()
 }
 
 async function applyFilters() {
@@ -462,6 +472,7 @@ async function handlePublishPost() {
 
     if (createdPost.id) {
       selectedPostId.value = String(createdPost.id)
+      postDetailModalOpen.value = true
       await loadPostDetail(createdPost.id)
     }
   } catch (error) {
@@ -541,8 +552,10 @@ async function submitReply() {
       ...(replyingToId.value == null ? {} : { parentReplyId: Number(replyingToId.value) })
     })
     replyContent.value = ''
+    replyComposerOpen.value = false
     replyingToId.value = null
     await loadPostDetail(detailPost.value.id)
+    showToast('回复已发布。')
   } catch (error) {
     replyError.value = error.message || '回复发送失败，请稍后重试。'
   } finally {
@@ -551,13 +564,18 @@ async function submitReply() {
 }
 
 function startReply(replyId) {
+  replyComposerOpen.value = true
   replyingToId.value = replyId
   replyContent.value = ''
   replyError.value = ''
-  nextTick(() => document.querySelector('.reply-form textarea')?.focus())
+  nextTick(() => {
+    const targetId = replyId == null ? 'top-reply-input' : 'nested-reply-input'
+    document.getElementById(targetId)?.focus()
+  })
 }
 
-function cancelNestedReply() {
+function cancelReply() {
+  replyComposerOpen.value = false
   replyingToId.value = null
   replyContent.value = ''
   replyError.value = ''
@@ -1081,8 +1099,19 @@ onMounted(() => {
             </button>
           </div>
         </section>
+      </div>
 
-        <aside class="panel-card detail-panel">
+      <div
+        v-if="postDetailModalOpen"
+        class="workflow-modal-layer post-detail-layer"
+        @click.self="closePostModal"
+      >
+        <section
+          class="panel-card post-detail-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="post-detail-title"
+        >
           <div
             v-if="detailLoading"
             class="loading-state detail-loading"
@@ -1099,13 +1128,26 @@ onMounted(() => {
             <div class="detail-card-header">
               <div>
                 <span class="section-kicker">{{ categoryLabel(detailPost.category) }}</span>
-                <h2>{{ detailPost.title || '未命名帖子' }}</h2>
+                <h2 id="post-detail-title">{{ detailPost.title || '未命名帖子' }}</h2>
               </div>
-              <StatusBadge
-                :status="detailPost.status"
-                :label="postStatusMeta(detailPost.status).label"
-                :tone="postStatusMeta(detailPost.status).tone"
-              />
+              <div class="detail-header-actions">
+                <StatusBadge
+                  :status="detailPost.status"
+                  :label="postStatusMeta(detailPost.status).label"
+                  :tone="postStatusMeta(detailPost.status).tone"
+                />
+                <button
+                  class="icon-action"
+                  type="button"
+                  aria-label="关闭帖子详情"
+                  @click="closePostModal"
+                >
+                  <X
+                    :size="18"
+                    aria-hidden="true"
+                  />
+                </button>
+              </div>
             </div>
 
             <div
@@ -1139,42 +1181,44 @@ onMounted(() => {
               </div>
               <div>
                 <dt>互动</dt>
-                <dd>
-                  <button
-                    class="like-action detail-like"
-                    :class="{ 'like-action--active': postDetail?.likedByCurrentUser }"
-                    type="button"
-                    :aria-label="postDetail?.likedByCurrentUser ? '取消点赞' : '点赞'"
-                    @click="toggleDetailLike"
-                  >
-                    <ThumbsUp
-                      :size="17"
-                      :fill="postDetail?.likedByCurrentUser ? 'currentColor' : 'none'"
-                      aria-hidden="true"
-                    />
-                    {{ detailPost.likeCount || 0 }} 赞
-                  </button>
-                  <button
-                    class="like-action detail-like"
-                    :class="{ 'like-action--active': postDetail?.markedByCurrentUser }"
-                    type="button"
-                    :aria-label="postDetail?.markedByCurrentUser ? '取消标记' : '标记'"
-                    @click="toggleDetailMark"
-                  >
-                    <Bookmark
-                      :size="17"
-                      :fill="postDetail?.markedByCurrentUser ? 'currentColor' : 'none'"
-                      aria-hidden="true"
-                    />
-                    {{ detailPost.markCount || 0 }} 标记
-                  </button>
-                </dd>
+                <dd>{{ (detailPost.likeCount || 0) + (detailPost.markCount || 0) }}</dd>
               </div>
             </dl>
 
+            <div class="modal-interaction-bar">
+              <button
+                class="like-button"
+                :class="{ 'like-button--active': postDetail?.likedByCurrentUser }"
+                type="button"
+                :aria-label="postDetail?.likedByCurrentUser ? '取消点赞' : '点赞'"
+                @click="toggleDetailLike"
+              >
+                <ThumbsUp
+                  :size="17"
+                  :fill="postDetail?.likedByCurrentUser ? 'currentColor' : 'none'"
+                  aria-hidden="true"
+                />
+                <span class="like-count">{{ detailPost.likeCount || 0 }}</span>
+              </button>
+              <button
+                class="like-button"
+                :class="{ 'like-button--active': postDetail?.markedByCurrentUser }"
+                type="button"
+                :aria-label="postDetail?.markedByCurrentUser ? '取消标记' : '标记'"
+                @click="toggleDetailMark"
+              >
+                <Bookmark
+                  :size="17"
+                  :fill="postDetail?.markedByCurrentUser ? 'currentColor' : 'none'"
+                  aria-hidden="true"
+                />
+                <span class="like-count">{{ detailPost.markCount || 0 }}</span>
+              </button>
+            </div>
+
             <section class="detail-section">
               <h3>正文</h3>
-              <p>{{ detailPost.content || '暂无正文' }}</p>
+              <p class="detail-content-text">{{ detailPost.content || '暂无正文' }}</p>
             </section>
 
             <section class="detail-section">
@@ -1183,60 +1227,8 @@ onMounted(() => {
                 <span>{{ detailReplies.length }} 条</span>
               </div>
 
-              <form
-                v-if="isAuthenticated"
-                class="reply-form"
-                @submit.prevent="submitReply"
-              >
-                <div
-                  v-if="replyingToId != null"
-                  class="reply-target"
-                >
-                  <span>正在回复 #{{ replyingToId }}</span>
-                  <button
-                    type="button"
-                    @click="cancelNestedReply"
-                  >
-                    取消
-                  </button>
-                </div>
-                <textarea
-                  v-model="replyContent"
-                  :disabled="replySubmitting"
-                  maxlength="2000"
-                  placeholder="写下你的回复，帮助楼主或参与讨论..."
-                  :aria-invalid="Boolean(replyError)"
-                />
-                <div class="reply-form-footer">
-                  <small>{{ replyContent.length }}/2000</small>
-                  <p
-                    v-if="replyError"
-                    class="reply-form-error"
-                  >
-                    {{ replyError }}
-                  </p>
-                  <button
-                    class="primary-action"
-                    type="submit"
-                    :disabled="replySubmitting || !replyContent.trim()"
-                  >
-                    <LoaderCircle
-                      v-if="replySubmitting"
-                      class="spinning"
-                      :size="16"
-                      aria-hidden="true"
-                    />
-                    <Send
-                      v-else
-                      :size="16"
-                      aria-hidden="true"
-                    />
-                    发送回复
-                  </button>
-                </div>
-              </form>
               <p
-                v-else
+                v-if="!isAuthenticated"
                 class="reply-login-hint"
               >
                 请先登录后再参与回复。
@@ -1278,7 +1270,7 @@ onMounted(() => {
                     </span>
                     <button
                       v-if="isAuthenticated"
-                      class="reply-action"
+                      class="reply-btn"
                       type="button"
                       @click="startReply(reply.id)"
                     >
@@ -1287,6 +1279,57 @@ onMounted(() => {
                     </button>
                   </div>
 
+                  <form
+                    v-if="isAuthenticated && replyComposerOpen && replyingToId === reply.id"
+                    class="inline-reply-form"
+                    @submit.prevent="submitReply"
+                  >
+                    <textarea
+                      id="nested-reply-input"
+                      v-model="replyContent"
+                      class="inline-reply-input"
+                      :disabled="replySubmitting"
+                      maxlength="2000"
+                      placeholder="回复这条评论..."
+                      :aria-invalid="Boolean(replyError)"
+                    />
+                    <div class="inline-reply-actions">
+                      <small>{{ replyContent.length }}/2000</small>
+                      <p
+                        v-if="replyError"
+                        class="reply-form-error"
+                      >
+                        {{ replyError }}
+                      </p>
+                      <button
+                        class="reply-cancel-btn"
+                        type="button"
+                        :disabled="replySubmitting"
+                        @click="cancelReply"
+                      >
+                        取消
+                      </button>
+                      <button
+                        class="reply-submit-btn"
+                        type="submit"
+                        :disabled="replySubmitting || !replyContent.trim()"
+                      >
+                        <LoaderCircle
+                          v-if="replySubmitting"
+                          class="spinning"
+                          :size="15"
+                          aria-hidden="true"
+                        />
+                        <Send
+                          v-else
+                          :size="15"
+                          aria-hidden="true"
+                        />
+                        回复
+                      </button>
+                    </div>
+                  </form>
+
                   <div
                     v-if="reply.children.length"
                     class="nested-replies"
@@ -1294,7 +1337,7 @@ onMounted(() => {
                     <article
                       v-for="child in reply.children"
                       :key="child.id"
-                      class="nested-reply"
+                      class="reply-card reply-card--nested"
                     >
                       <div class="reply-card-top">
                         <span>
@@ -1309,17 +1352,129 @@ onMounted(() => {
                       <p>{{ child.content }}</p>
                       <button
                         v-if="isAuthenticated"
-                        class="reply-action"
+                        class="reply-btn"
                         type="button"
                         @click="startReply(child.id)"
                       >
                         <ReplyIcon :size="13" />
                         回复
                       </button>
+
+                      <form
+                        v-if="isAuthenticated && replyComposerOpen && replyingToId === child.id"
+                        class="inline-reply-form"
+                        @submit.prevent="submitReply"
+                      >
+                        <textarea
+                          id="nested-reply-input"
+                          v-model="replyContent"
+                          class="inline-reply-input"
+                          :disabled="replySubmitting"
+                          maxlength="2000"
+                          placeholder="继续回复..."
+                          :aria-invalid="Boolean(replyError)"
+                        />
+                        <div class="inline-reply-actions">
+                          <small>{{ replyContent.length }}/2000</small>
+                          <p
+                            v-if="replyError"
+                            class="reply-form-error"
+                          >
+                            {{ replyError }}
+                          </p>
+                          <button
+                            class="reply-cancel-btn"
+                            type="button"
+                            :disabled="replySubmitting"
+                            @click="cancelReply"
+                          >
+                            取消
+                          </button>
+                          <button
+                            class="reply-submit-btn"
+                            type="submit"
+                            :disabled="replySubmitting || !replyContent.trim()"
+                          >
+                            <LoaderCircle
+                              v-if="replySubmitting"
+                              class="spinning"
+                              :size="15"
+                              aria-hidden="true"
+                            />
+                            <Send
+                              v-else
+                              :size="15"
+                              aria-hidden="true"
+                            />
+                            回复
+                          </button>
+                        </div>
+                      </form>
                     </article>
                   </div>
                 </article>
               </div>
+
+              <form
+                v-if="isAuthenticated && replyComposerOpen && replyingToId == null"
+                class="top-reply-form"
+                @submit.prevent="submitReply"
+              >
+                <textarea
+                  id="top-reply-input"
+                  v-model="replyContent"
+                  class="inline-reply-input"
+                  :disabled="replySubmitting"
+                  maxlength="2000"
+                  placeholder="写下你的回复，帮助楼主或参与讨论..."
+                  :aria-invalid="Boolean(replyError)"
+                />
+                <div class="inline-reply-actions">
+                  <small>{{ replyContent.length }}/2000</small>
+                  <p
+                    v-if="replyError"
+                    class="reply-form-error"
+                  >
+                    {{ replyError }}
+                  </p>
+                  <button
+                    class="reply-cancel-btn"
+                    type="button"
+                    :disabled="replySubmitting"
+                    @click="cancelReply"
+                  >
+                    取消
+                  </button>
+                  <button
+                    class="reply-submit-btn"
+                    type="submit"
+                    :disabled="replySubmitting || !replyContent.trim()"
+                  >
+                    <LoaderCircle
+                      v-if="replySubmitting"
+                      class="spinning"
+                      :size="15"
+                      aria-hidden="true"
+                    />
+                    <Send
+                      v-else
+                      :size="15"
+                      aria-hidden="true"
+                    />
+                    发布回复
+                  </button>
+                </div>
+              </form>
+
+              <button
+                v-else-if="isAuthenticated"
+                class="start-top-reply-btn"
+                type="button"
+                @click="startReply(null)"
+              >
+                <ReplyIcon :size="15" />
+                发表回复
+              </button>
             </section>
           </template>
 
@@ -1331,10 +1486,10 @@ onMounted(() => {
               :size="40"
               aria-hidden="true"
             />
-            <h3>选择一个帖子查看详情</h3>
-            <p>帖子正文、回复和互动计数会显示在这里。</p>
+            <h3>帖子详情暂不可用</h3>
+            <p>可以先关闭弹层，稍后重新打开试试。</p>
           </div>
-        </aside>
+        </section>
       </div>
 
       <div
@@ -1862,16 +2017,79 @@ onMounted(() => {
 
 .posts-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(360px, 0.85fr);
+  grid-template-columns: 1fr;
   gap: 18px;
   align-items: start;
 }
 
-.detail-panel {
-  position: sticky;
-  top: 98px;
-  max-height: calc(100vh - 122px);
-  overflow: auto;
+.post-detail-layer {
+  z-index: 95;
+}
+
+.post-detail-modal {
+  width: min(720px, 92vw);
+  max-height: 88vh;
+  overflow-y: auto;
+  display: grid;
+  gap: 16px;
+}
+
+.detail-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.modal-interaction-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.like-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
+}
+
+.like-button:hover {
+  background: var(--color-brand-soft);
+  border-color: var(--color-brand-border);
+  color: var(--color-brand);
+}
+
+.like-button--active {
+  background: var(--color-brand-soft);
+  border-color: var(--color-brand-border);
+  color: var(--color-brand);
+}
+
+.like-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.like-count {
+  font-weight: 900;
+  color: inherit;
+}
+
+.detail-content-text {
+  white-space: pre-wrap;
+  line-height: 1.7;
 }
 
 .post-list {
@@ -2194,16 +2412,6 @@ onMounted(() => {
   font-weight: 900;
 }
 
-.reply-form {
-  display: grid;
-  gap: 8px;
-  padding: 13px;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-surface-muted);
-}
-
-.reply-target,
 .reply-actions {
   display: flex;
   align-items: center;
@@ -2211,68 +2419,26 @@ onMounted(() => {
   gap: 10px;
 }
 
-.reply-target {
-  color: var(--color-brand-text);
-  font-size: 0.86rem;
-  font-weight: 800;
-}
-
-.reply-target button,
-.reply-action {
-  border: 0;
-  background: transparent;
-  color: var(--color-brand-text);
-  cursor: pointer;
-  font: inherit;
-  font-weight: 800;
-}
-
-.reply-action {
+.reply-btn {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  width: fit-content;
+  padding: 4px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface-muted);
+  color: var(--color-brand-text);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background 150ms ease,
+    border-color 150ms ease;
 }
 
-.reply-form textarea {
-  width: 100%;
-  min-height: 88px;
-  padding: 10px 12px;
-  border: 1px solid var(--color-border-dashed);
-  border-radius: 8px;
-  background: var(--color-surface);
-  color: var(--color-text);
-  line-height: 1.55;
-  outline: 0;
-  resize: vertical;
-  transition: border-color 180ms ease, box-shadow 180ms ease;
-}
-
-.reply-form textarea:focus {
-  border-color: var(--color-brand-border-hover);
-  box-shadow: var(--shadow-focus);
-}
-
-.reply-form textarea[aria-invalid="true"] {
-  border-color: var(--color-danger-soft);
-}
-
-.reply-form-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.reply-form-footer small {
-  color: var(--color-text-muted);
-}
-
-.reply-form-error {
-  color: var(--color-danger-soft);
-  margin: 0;
-  font-size: 0.88rem;
+.reply-btn:hover {
+  background: var(--color-brand-soft);
+  border-color: var(--color-brand-border);
 }
 
 .reply-login-hint {
@@ -2347,22 +2513,121 @@ onMounted(() => {
   display: grid;
   gap: 8px;
   margin-top: 4px;
-  padding-left: 14px;
+  padding-left: 16px;
   border-left: 2px solid var(--color-border);
 }
 
-.nested-reply {
-  display: grid;
-  gap: 7px;
+.reply-card--nested {
   padding: 10px;
+  background: var(--color-surface-muted);
+  border-color: var(--color-border);
+}
+
+.inline-reply-form {
+  display: grid;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 10px;
+  border: 1px solid var(--color-brand-border);
+  border-radius: 8px;
+  background: var(--color-brand-soft);
+}
+
+.inline-reply-input {
+  width: 100%;
+  min-height: 88px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  line-height: 1.55;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.inline-reply-input:focus {
+  outline: none;
+  border-color: var(--color-brand-border-hover);
+  box-shadow: var(--shadow-focus);
+}
+
+.inline-reply-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.inline-reply-actions small {
+  margin-right: auto;
+  color: var(--color-text-muted);
+}
+
+.reply-form-error {
+  color: var(--color-danger-soft);
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+.reply-cancel-btn {
+  padding: 5px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.reply-submit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 14px;
+  border: none;
+  border-radius: 6px;
+  background: var(--color-brand);
+  color: var(--color-surface);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.reply-submit-btn:disabled,
+.reply-cancel-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.top-reply-form {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-surface-muted);
 }
 
-.nested-reply p {
-  margin: 0;
-  color: var(--color-text-muted);
-  line-height: 1.55;
+.start-top-reply-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px 14px;
+  border: 1px dashed var(--color-brand-border);
+  border-radius: 6px;
+  background: var(--color-brand-soft);
+  color: var(--color-brand-text);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .workflow-modal-layer {
@@ -2528,17 +2793,6 @@ onMounted(() => {
   }
 }
 
-@media (max-width: 1120px) {
-  .posts-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .detail-panel {
-    position: static;
-    max-height: none;
-  }
-}
-
 @media (max-width: 900px) {
   .page-title-card,
   .metric-strip,
@@ -2556,6 +2810,7 @@ onMounted(() => {
   .filter-heading,
   .list-toolbar,
   .detail-card-header,
+  .detail-header-actions,
   .post-card-heading,
   .dialog-header,
   .post-preview-heading,
@@ -2597,6 +2852,11 @@ onMounted(() => {
 
   .workflow-modal-layer {
     padding: 12px;
+  }
+
+  .post-detail-modal {
+    width: calc(100vw - 24px);
+    max-height: calc(100vh - 24px);
   }
 
   .publish-dialog {

@@ -80,6 +80,7 @@ const avatarLoadFailed = ref(false)
 const isAdmin = computed(() => String(state.user?.role || '').toUpperCase() === 'ADMIN')
 
 const navItems = computed(() => [
+  { label: '首页推荐', icon: Home, to: '/' },
   { label: '个人主页', icon: Home, active: true, to: '/home' },
   { label: '帖子广场', icon: BookOpen, to: '/posts' },
   { label: '任务广场', icon: Grid2X2, to: '/tasks' },
@@ -1791,11 +1792,8 @@ onBeforeUnmount(() => {
   --sidebar-width: 293px;
   --topbar-height: 76px;
   min-height: 100vh;
-  background:
-    linear-gradient(180deg, var(--color-surface), var(--color-bg)),
-    var(--color-bg);
+  background: var(--color-bg);
   color: var(--color-text);
-  font-size: 15px;
   font-family:
     "PingFang SC",
     "Microsoft YaHei",
@@ -1842,10 +1840,9 @@ onBeforeUnmount(() => {
   width: 34px;
   height: 34px;
   border: 1px solid var(--color-border);
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--color-surface);
   color: var(--color-brand);
-  box-shadow: var(--shadow-card);
   transition:
     background-color 180ms ease,
     border-color 180ms ease,
@@ -1907,7 +1904,7 @@ onBeforeUnmount(() => {
   color: var(--color-text-muted);
   font-size: 1rem;
   font-weight: 800;
-  letter-spacing: 0.02em;
+  letter-spacing: 0;
   text-decoration: none;
   white-space: nowrap;
   transition:
@@ -1935,12 +1932,6 @@ onBeforeUnmount(() => {
   background: var(--color-brand);
 }
 
-.nav-item span {
-  transition:
-    opacity 160ms ease,
-    max-width 180ms ease;
-}
-
 .is-collapsed .dashboard-sidebar {
   padding-inline: 12px;
 }
@@ -1948,27 +1939,13 @@ onBeforeUnmount(() => {
 .is-collapsed .collapse-button {
   bottom: 42px;
   right: 50%;
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
   transform: translateX(50%);
-}
-
-.is-collapsed .collapse-button svg {
-  width: 16px;
-  height: 16px;
 }
 
 .is-collapsed .brand {
   justify-content: center;
-  min-height: 46px;
   padding-inline: 0;
   gap: 0;
-}
-
-.is-collapsed .brand-mark svg {
-  width: 30px;
-  height: 30px;
 }
 
 .is-collapsed .brand-text,
@@ -1976,15 +1953,9 @@ onBeforeUnmount(() => {
   display: none;
 }
 
-.is-collapsed .sidebar-nav {
-  gap: 8px;
-  margin-top: 18px;
-}
-
 .is-collapsed .nav-item {
   justify-content: center;
   gap: 0;
-  min-height: 46px;
   padding: 0;
 }
 
@@ -3165,23 +3136,11 @@ onBeforeUnmount(() => {
 
 @media (max-width: 1100px) {
   .dashboard-shell {
-    --sidebar-width: 279px;
+    --sidebar-width: 252px;
   }
 
   .dashboard-shell.is-collapsed {
-    --sidebar-width: 84px;
-  }
-
-  .dashboard-sidebar {
-    padding-inline: 14px;
-  }
-
-  .brand-text {
-    font-size: 1.08rem;
-  }
-
-  .nav-item {
-    font-size: 1.06rem;
+    --sidebar-width: 78px;
   }
 
   .dashboard-topbar {

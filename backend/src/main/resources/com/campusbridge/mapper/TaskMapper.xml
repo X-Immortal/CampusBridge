@@ -122,6 +122,37 @@
     LIMIT #{limit} OFFSET #{offset}
   </select>
 
+  <select id="countWithFilters" resultType="long">
+    SELECT COUNT(*)
+    FROM tasks t
+    <where>
+      <if test="keyword != null and keyword != ''">
+        AND (t.title LIKE CONCAT('%', #{keyword}, '%') OR t.description LIKE CONCAT('%', #{keyword}, '%'))
+      </if>
+      <if test="category != null and category != ''">
+        AND t.category = #{category}
+      </if>
+      <if test="campus != null and campus != ''">
+        AND t.campus = #{campus}
+      </if>
+      <if test="status != null and status != ''">
+        AND t.status = #{status}
+      </if>
+      <if test="status == null or status == ''">
+        AND t.status NOT IN ('DISPUTED', 'CANCELLED')
+      </if>
+      <if test="rewardType != null and rewardType != ''">
+        AND t.reward_type = #{rewardType}
+      </if>
+      <if test="requiresProof != null">
+        AND t.requires_proof = #{requiresProof}
+      </if>
+      <if test="excludeExpired == true">
+        AND t.deadline &gt; NOW()
+      </if>
+    </where>
+  </select>
+
   <select id="selectTasksNeedingTimeoutReminder" resultType="com.campusbridge.pojo.Task">
     SELECT * FROM tasks t
     WHERE t.status = #{status}

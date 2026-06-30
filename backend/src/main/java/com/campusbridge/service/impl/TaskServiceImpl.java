@@ -102,7 +102,7 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
-    public List<Task> listTasks(
+    public Map<String, Object> listTasks(
             String keyword,
             String category,
             String campus,
@@ -129,7 +129,15 @@ public class TaskServiceImpl implements TaskService {
         params.put("offset", offset);
         params.put("limit", pageSize);
 
-        return taskMapper.selectWithFilters(params);
+        List<Task> tasks = taskMapper.selectWithFilters(params);
+        long total = taskMapper.countWithFilters(params);
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("tasks", tasks);
+        result.put("total", total);
+        result.put("page", pageNum);
+        result.put("size", pageSize);
+        return result;
     }
 
     @Override
