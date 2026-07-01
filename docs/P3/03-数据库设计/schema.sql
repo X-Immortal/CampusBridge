@@ -240,6 +240,12 @@ CREATE TABLE `conversations` (
   `title` VARCHAR(100) NULL,
   `owner_id` BIGINT UNSIGNED NOT NULL COMMENT '当前用户视角下的会话拥有者',
   `peer_user_id` BIGINT UNSIGNED NULL,
+  `private_peer_id` BIGINT UNSIGNED GENERATED ALWAYS AS (
+    CASE
+      WHEN `type` = 'PRIVATE' AND `replyable` = 1 THEN `peer_user_id`
+      ELSE NULL
+    END
+  ) STORED,
   `related_type` ENUM('POST','TASK','SYSTEM') NULL,
   `related_id` BIGINT UNSIGNED NULL,
   `replyable` TINYINT(1) NOT NULL DEFAULT 1,
@@ -249,6 +255,7 @@ CREATE TABLE `conversations` (
   KEY `idx_conversations_owner_last` (`owner_id`,`last_message_at`),
   KEY `idx_conversations_peer` (`peer_user_id`),
   KEY `idx_conversations_related` (`related_type`,`related_id`),
+  UNIQUE KEY `uk_conversations_private_peer` (`owner_id`,`private_peer_id`),
   CONSTRAINT `fk_conversations_owner` FOREIGN KEY (`owner_id`) REFERENCES `users` (`id`),
   CONSTRAINT `fk_conversations_peer` FOREIGN KEY (`peer_user_id`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='站内会话';
