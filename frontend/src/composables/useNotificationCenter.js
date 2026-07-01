@@ -2,8 +2,6 @@ import { ref } from 'vue'
 import api from '../services/api'
 import { useAuth } from '../stores/auth'
 
-const SUMMARY_PAGE_SIZE = 20
-
 const notificationSummaries = ref([])
 const unreadCount = ref(0)
 const summaryLoading = ref(false)
@@ -30,6 +28,7 @@ function normalizeNotificationFromConversation(conversation = {}) {
 
 function replaceNotificationSummary(conversations = []) {
   notificationSummaries.value = conversations
+    .filter((conversation) => conversation?.type === 'SYSTEM')
     .map(normalizeNotificationFromConversation)
     .filter(Boolean)
   updateUnreadCountFromSummaries()
@@ -65,18 +64,10 @@ async function refreshNotificationSummary() {
 
   summaryLoading.value = true
   refreshPromise = api
-    .getConversations({ page: 1, size: SUMMARY_PAGE_SIZE })
+    .getConversations({ page: 1, size: 100 })
     .then((result) => {
-      const conversations = normalizePagedItems(result)
+      const conversations = normalizePagedItems(result).filter((conversation) => conversation?.type === 'SYSTEM')
       replaceNotificationSummary(conversations)
-      return conversations
-    })
-    .then(async (conversations) => {
-      try {
-        await refreshUnreadCount()
-      } catch {
-        updateUnreadCountFromSummaries()
-      }
       return conversations
     })
     .catch(() => {
@@ -91,34 +82,25 @@ async function refreshNotificationSummary() {
   return refreshPromise
 }
 
-async function refreshUnreadCount() {
-  const result = await api.getConversationUnreadCount()
-  unreadCount.value = Number(result?.unreadCount || 0)
-  return unreadCount.value
-}
-
 async function markConversationRead(conversationId) {
   if (!conversationId) return null
   const conversation = await api.markConversationRead(conversationId)
   updateConversationSummary(conversation)
-  try {
-    await refreshUnreadCount()
-  } catch {
-    updateUnreadCountFromSummaries()
-  }
+  updateUnreadCountFromSummaries()
   return conversation
 }
 
 async function markAllNotificationsRead() {
-  const result = await api.markAllConversationsRead()
-  unreadCount.value = Number(result?.unreadCount || 0)
+  const ids = notificationSummaries.value.map((notification) => notification.conversationId).filter(Boolean)
+  await Promise.all(ids.map((conversationId) => api.markConversationRead(conversationId)))
+  unreadCount.value = 0
   notificationSummaries.value = notificationSummaries.value.map((notification) => ({
     ...notification,
     unreadCount: 0,
     read: true,
     readAt: notification.readAt || new Date().toISOString()
   }))
-  return result
+  return { updatedCount: ids.length, unreadCount: 0 }
 }
 
 export function useNotificationCenter() {

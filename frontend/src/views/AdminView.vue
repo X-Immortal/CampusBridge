@@ -1,11 +1,13 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import {
   BadgeCheck,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
   FileWarning,
+  GaugeCircle,
   IdCard,
   LoaderCircle,
   RefreshCw,
@@ -15,7 +17,13 @@ import {
   XCircle
 } from '@lucide/vue'
 import DashboardShell from '../components/DashboardShell.vue'
+import SectionNav from '../components/layout/SectionNav.vue'
 import StatusBadge from '../components/StatusBadge.vue'
+import AdminMetricGrid from '../components/admin/AdminMetricGrid.vue'
+import AdminTrendChart from '../components/admin/AdminTrendChart.vue'
+import AdminDistributionChart from '../components/admin/AdminDistributionChart.vue'
+import AdminTodoSummary from '../components/admin/AdminTodoSummary.vue'
+import { adminNavItems } from '../app/navigation'
 import {
   MODERATION_DECISION_OPTIONS,
   MODERATION_STATUS_OPTIONS,
@@ -29,11 +37,15 @@ import { useToast } from '../composables/useToast'
 
 const { state } = useAuth()
 const { showToast } = useToast()
+const route = useRoute()
 
 const sections = [
+  { key: 'dashboard', label: '数据概览', icon: GaugeCircle },
   { key: 'verifications', label: '认证审核', icon: IdCard },
   { key: 'reports', label: '举报裁决', icon: Scale }
 ]
+
+const allowedSectionKeys = new Set(sections.map((section) => section.key))
 
 const verificationPage = reactive({
   page: 1,
@@ -82,15 +94,44 @@ const reportSubmitting = ref(false)
 const activeReportId = ref('')
 const lastModerationRecord = ref(null)
 
+const dashboardLoading = ref(false)
+const dashboardError = ref('')
+const dashboardSummary = ref(null)
+const dashboardTrends = ref(null)
+const taskStatusStats = ref([])
+const reportStatusStats = ref([])
+const reportTargetTypeStats = ref([])
+const dashboardTodos = ref([])
+const dashboardUpdatedAt = ref('')
+const dashboardTrendDays = ref(7)
 
-const activeSection = ref('verifications')
+const DEFAULT_SECTION = 'dashboard'
+const initialSection = (() => {
+  const metaSection = String(route.meta?.subSection || '').toLowerCase()
+  const querySection = String(route.query?.section || '').toLowerCase()
+  if (allowedSectionKeys.has(metaSection)) return metaSection
+  if (allowedSectionKeys.has(querySection)) return querySection
+  return DEFAULT_SECTION
+})()
+
+const activeSection = ref(initialSection)
 
 const isAdmin = computed(() => String(state.user?.role || '').toUpperCase() === 'ADMIN')
 const pendingVerificationCount = computed(() => verificationTotal.value)
 const reportCount = computed(() => reports.value.length)
-function switchSection(sectionKey) {
-  activeSection.value = sectionKey
-}
+watch(
+  () => route.meta?.subSection || route.query?.section,
+  (section) => {
+    const next = String(section || '').toLowerCase()
+    if (!next) {
+      if (activeSection.value !== DEFAULT_SECTION) activeSection.value = DEFAULT_SECTION
+      return
+    }
+    if (allowedSectionKeys.has(next) && activeSection.value !== next) {
+      activeSection.value = next
+    }
+  }
+)
 
 function normalizeItems(result) {
   if (Array.isArray(result)) return result
@@ -312,15 +353,58 @@ async function submitReportResolution() {
 }
 
 onMounted(async () => {
-  await Promise.allSettled([loadVerifications(), loadReports()])
+  await Promise.allSettled([loadVerifications(), loadReports(), loadDashboard()])
 })
+
+async function loadDashboard() {
+  dashboardLoading.value = true
+  dashboardError.value = ''
+  try {
+    const [summary, trends, taskStatus, reportStatus, reportTargetType, todos] = await Promise.all([
+      api.getAdminDashboardSummary(),
+      api.getAdminDashboardTrends({ days: dashboardTrendDays.value }),
+      api.getAdminTaskStatusStats(),
+      api.getAdminReportStatusStats(),
+      api.getAdminReportTargetTypeStats(),
+      api.getAdminDashboardTodos()
+    ])
+    dashboardSummary.value = summary || null
+    dashboardTrends.value = trends || null
+    taskStatusStats.value = Array.isArray(taskStatus) ? taskStatus : []
+    reportStatusStats.value = Array.isArray(reportStatus) ? reportStatus : []
+    reportTargetTypeStats.value = Array.isArray(reportTargetType) ? reportTargetType : []
+    dashboardTodos.value = Array.isArray(todos) ? todos : []
+    dashboardUpdatedAt.value = summary?.updatedAt || new Date().toISOString()
+  } catch (error) {
+    dashboardError.value = error?.message || '后台数据加载失败'
+  } finally {
+    dashboardLoading.value = false
+  }
+}
+
+function formatDashboardUpdatedAt(value) {
+  if (!value) return '尚未刷新'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return String(value)
+  return date.toLocaleString('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+function handleTodoNavigate(item) {
+  if (!item?.route) return
+  showToast(`已跳转到「${item.label}」入口。`)
+}
 </script>
 
 <template>
-  <DashboardShell active-label="管理后台">
+  <DashboardShell>
     <main
       class="admin-page"
-      :aria-busy="verificationsLoading || reportsLoading"
+      :aria-busy="verificationsLoading || reportsLoading || dashboardLoading"
     >
       <section class="page-title-card admin-title-card">
         <div class="title-icon">
@@ -331,13 +415,37 @@ onMounted(async () => {
         </div>
         <div class="title-copy">
           <p>管理员工作台</p>
-          <h1>审核认证、裁决举报与处理任务</h1>
-          <span>面向管理员角色的集中处理台，直接对接管理员 API 文档中的专属端点。</span>
+          <h1>{{ activeSection === 'dashboard' ? '平台运行总览与数据仪表盘' : '审核认证、裁决举报与处理任务' }}</h1>
+          <span>
+            <template v-if="activeSection === 'dashboard'">
+              实时统计平台核心指标，最近更新于 {{ formatDashboardUpdatedAt(dashboardUpdatedAt) }}。
+            </template>
+            <template v-else>
+              面向管理员角色的集中处理台，直接对接管理员 API 文档中的专属端点。
+            </template>
+          </span>
         </div>
-        <StatusBadge
-          :label="isAdmin ? '管理员权限' : '非管理员账号'"
-          :tone="isAdmin ? 'success' : 'danger'"
-        />
+        <div class="admin-title-card__actions">
+          <button
+            v-if="activeSection === 'dashboard'"
+            class="icon-action"
+            type="button"
+            :disabled="dashboardLoading"
+            :aria-label="dashboardLoading ? '正在刷新数据' : '刷新数据总览'"
+            @click="loadDashboard"
+          >
+            <RefreshCw
+              :class="{ spinning: dashboardLoading }"
+              :size="18"
+              aria-hidden="true"
+            />
+            <span>{{ dashboardLoading ? '刷新中' : '刷新' }}</span>
+          </button>
+          <StatusBadge
+            :label="isAdmin ? '管理员权限' : '非管理员账号'"
+            :tone="isAdmin ? 'success' : 'danger'"
+          />
+        </div>
       </section>
 
       <section
@@ -366,27 +474,94 @@ onMounted(async () => {
         </article>
       </section>
 
-      <section
-        class="admin-section-switch"
-        role="tablist"
+      <SectionNav
+        class="admin-section-nav"
+        :items="adminNavItems"
+        :active-key="activeSection"
+        variant="tabs"
         aria-label="管理员功能切换"
+      />
+
+      <section
+        v-if="activeSection === 'dashboard'"
+        class="admin-dashboard"
+        aria-labelledby="admin-dashboard-title"
       >
-        <button
-          v-for="section in sections"
-          :key="section.key"
-          type="button"
-          role="tab"
-          :aria-selected="activeSection === section.key"
-          :class="{ active: activeSection === section.key }"
-          @click="switchSection(section.key)"
+        <div
+          v-if="dashboardError"
+          class="page-feedback page-feedback--danger"
+          role="alert"
         >
-          <component
-            :is="section.icon"
-            :size="17"
+          <ShieldAlert
+            :size="18"
             aria-hidden="true"
           />
-          {{ section.label }}
-        </button>
+          <div class="admin-dashboard__feedback">
+            <span>后台数据加载失败：{{ dashboardError }}</span>
+            <button
+              class="ghost-action"
+              type="button"
+              :disabled="dashboardLoading"
+              @click="loadDashboard"
+            >
+              <RefreshCw
+                :class="{ spinning: dashboardLoading }"
+                :size="16"
+                aria-hidden="true"
+              />
+              重试
+            </button>
+          </div>
+        </div>
+
+        <h2
+          id="admin-dashboard-title"
+          class="visually-hidden"
+        >
+          数据总览仪表盘
+        </h2>
+
+        <AdminMetricGrid
+          :summary="dashboardSummary"
+          :loading="dashboardLoading"
+        />
+
+        <div class="admin-dashboard__charts">
+          <AdminTrendChart
+            :trends="dashboardTrends"
+            :loading="dashboardLoading"
+          />
+          <AdminDistributionChart
+            kicker="任务状态分布"
+            title="当前任务状态占比"
+            :data="taskStatusStats"
+            :loading="dashboardLoading"
+            empty-hint="任务状态数据为空"
+          />
+        </div>
+
+        <div class="admin-dashboard__charts">
+          <AdminDistributionChart
+            kicker="举报状态分布"
+            title="举报处理进度"
+            :data="reportStatusStats"
+            :loading="dashboardLoading"
+            empty-hint="举报数据为空"
+          />
+          <AdminDistributionChart
+            kicker="举报对象分布"
+            title="高风险对象来源"
+            :data="reportTargetTypeStats"
+            :loading="dashboardLoading"
+            empty-hint="暂无举报对象分布"
+          />
+        </div>
+
+        <AdminTodoSummary
+          :todos="dashboardTodos"
+          :loading="dashboardLoading && !dashboardTodos.length"
+          @navigate="handleTodoNavigate"
+        />
       </section>
 
       <section
@@ -1421,6 +1596,62 @@ onMounted(async () => {
 
   .pagination-bar {
     flex-wrap: wrap;
+  }
+}
+
+.admin-title-card__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-title-card__actions .icon-action {
+  gap: 6px;
+  width: auto;
+  padding: 0 12px;
+  color: var(--color-brand);
+}
+
+.admin-dashboard {
+  display: grid;
+  gap: 16px;
+}
+
+.admin-dashboard__charts {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+}
+
+.admin-dashboard__feedback {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-dashboard .visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 1100px) {
+  .admin-dashboard__charts {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .admin-title-card__actions {
+    width: 100%;
+    justify-content: flex-end;
   }
 }
 </style>

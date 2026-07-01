@@ -177,13 +177,15 @@ class TaskWorkflowIntegrationTest {
     // ==================== Abnormal Flow 1 ====================
 
     @Test
-    void unauthenticatedReadOnlyAccessToTasksIsAllowedButWriteStillReturns401() throws Exception {
-        mockMvc.perform(get("/api/v1/tasks"))
-                .andExpect(status().isOk());
-
+    void unauthenticatedAccessToProtectedEndpointsReturns401() throws Exception {
         mockMvc.perform(post("/api/v1/tasks")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(mapOf("title", "test"))))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(post("/api/v1/tasks/" + TASK_ID + "/applications")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(mapOf("message", "x"))))
                 .andExpect(status().isUnauthorized());
     }
 

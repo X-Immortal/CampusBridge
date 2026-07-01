@@ -7,6 +7,7 @@ import com.campusbridge.mapper.PostMapper;
 import com.campusbridge.mapper.ReplyMapper;
 import com.campusbridge.pojo.Post;
 import com.campusbridge.pojo.Reply;
+import com.campusbridge.service.NotificationService;
 import com.campusbridge.service.ReplyService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,10 +19,15 @@ import java.time.LocalDateTime;
 public class ReplyServiceImpl implements ReplyService {
     private final ReplyMapper replyMapper;
     private final PostMapper postMapper;
+    private final NotificationService notificationService;
 
-    public ReplyServiceImpl(ReplyMapper replyMapper, PostMapper postMapper) {
+    public ReplyServiceImpl(
+            ReplyMapper replyMapper,
+            PostMapper postMapper,
+            NotificationService notificationService) {
         this.replyMapper = replyMapper;
         this.postMapper = postMapper;
+        this.notificationService = notificationService;
     }
 
     @Override
@@ -29,6 +35,16 @@ public class ReplyServiceImpl implements ReplyService {
         Post post = postMapper.selectById(postId);
         if (post == null) {
             throw new BusinessException(ErrorCode.POST_001_NOT_FOUND);
+        }
+
+        Reply parentReply = null;
+        if (request.getParentReplyId() != null) {
+            parentReply = replyMapper.selectById(request.getParentReplyId());
+            if (parentReply == null || !postId.equals(parentReply.getPostId())) {
+                throw new BusinessException(
+                        ErrorCode.COMMON_001_VALIDATION_ERROR,
+                        "parent reply does not belong to this post");
+            }
         }
 
         LocalDateTime now = LocalDateTime.now();
@@ -48,6 +64,7 @@ public class ReplyServiceImpl implements ReplyService {
 
         post.setReplyCount((post.getReplyCount() == null ? 0 : post.getReplyCount()) + 1);
         postMapper.updateById(post);
+        notificationService.notifyPostReplyCreated(post, reply, parentReply, userId);
 
         return reply;
     }

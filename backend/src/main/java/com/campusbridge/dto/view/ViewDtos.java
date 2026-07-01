@@ -152,4 +152,49 @@ public final class ViewDtos {
         private Integer creditLevel;
         private Integer points;
     }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class DashboardSummary {
+        private Long userTotal;
+        private Long verifiedUserTotal;
+        private Long taskTotal;
+        private Long activeTaskTotal;
+        private Long completedTaskTotal;
+        private Long postTotal;
+        private Long pendingVerificationTotal;
+        private Long pendingReportTotal;
+        private Long disputedTaskTotal;
+        private LocalDateTime updatedAt;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class DashboardTrend {
+        private List<String> days;
+        private List<Long> newUsers;
+        private List<Long> newTasks;
+        private List<Long> newPosts;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class DashboardDistributionItem {
+        private String status;
+        private String label;
+        private Long count;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class DashboardTodo {
+        private String type;
+        private String label;
+        private Long count;
+        private String route;
+    }
 }

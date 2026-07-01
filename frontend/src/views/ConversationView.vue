@@ -2,7 +2,6 @@
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
-  Bell,
   CalendarClock,
   ChevronLeft,
   ChevronRight,
@@ -15,7 +14,9 @@ import {
   Send,
   ShieldCheck
 } from '@lucide/vue'
+import { workspaceNavItems } from '../app/navigation'
 import DashboardShell from '../components/DashboardShell.vue'
+import SectionNav from '../components/layout/SectionNav.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import { useNotificationCenter } from '../composables/useNotificationCenter'
 import { useToast } from '../composables/useToast'
@@ -27,7 +28,6 @@ const router = useRouter()
 const { currentUserId, state } = useAuth()
 const { refreshNotificationSummary } = useNotificationCenter()
 const { showToast } = useToast()
-const SYNTHETIC_SYSTEM_ID = 'system-notifications'
 
 const categoryMeta = {
   ERRAND: {
@@ -40,11 +40,6 @@ const categoryMeta = {
     tone: 'orange',
     label: '委托代办'
   },
-  SYSTEM: {
-    icon: Bell,
-    tone: 'slate',
-    label: '系统通知'
-  }
 }
 
 const taskStatusLabels = {
@@ -183,7 +178,6 @@ function normalizePagedResult(result, fallbackSize) {
 }
 
 function getConversationMeta(conversation) {
-  if (conversation?.type === 'SYSTEM') return categoryMeta.SYSTEM
   return categoryMeta[conversation?.category] || categoryMeta.ERRAND
 }
 
@@ -270,39 +264,10 @@ async function ensureConversationProfiles(items = []) {
   conversationProfiles.value = nextProfiles
 }
 
-function createPinnedSystemConversation(baseConversation = {}) {
-  const normalized = normalizeConversation({
-    ...baseConversation,
-    id: baseConversation.id ?? SYNTHETIC_SYSTEM_ID,
-    type: 'SYSTEM',
-    relatedType: 'SYSTEM',
-    title: baseConversation.title || '系统通知',
-    category: 'SYSTEM',
-    replyable: false,
-    peerUserId: null
-  })
-
-  return {
-    ...normalized,
-    pinned: true,
-    lastMessagePreview: normalized.lastMessagePreview || '暂无新的系统通知'
-  }
-}
-
-function mergePinnedSystemConversation(items = []) {
-  const normalizedItems = items.map(normalizeConversation).filter((conversation) => conversation.id)
-  const systemConversation = normalizedItems.find((conversation) => conversation.type === 'SYSTEM')
-  const remainingConversations = normalizedItems.filter((conversation) => conversation.type !== 'SYSTEM')
-  return [createPinnedSystemConversation(systemConversation), ...remainingConversations]
-}
-
 function sortConversationsForDisplay(items = []) {
-  return [...items].sort((current, next) => {
-    const currentPinned = current?.type === 'SYSTEM' || String(current?.id) === SYNTHETIC_SYSTEM_ID
-    const nextPinned = next?.type === 'SYSTEM' || String(next?.id) === SYNTHETIC_SYSTEM_ID
-    if (currentPinned !== nextPinned) return currentPinned ? -1 : 1
-    return 0
-  })
+  return [...items].sort(
+    (current, next) => new Date(next.lastMessageAt || 0) - new Date(current.lastMessageAt || 0)
+  )
 }
 
 function normalizeConversation(conversation = {}) {
@@ -381,9 +346,6 @@ function findConversationByRouteHint() {
 
 function selectInitialConversation() {
   if (!conversations.value.length) return null
-  if (route.name === 'notifications') {
-    return conversations.value.find((conversation) => conversation.type === 'SYSTEM') || conversations.value[0]
-  }
   if (selectedConversationId.value) {
     return conversations.value.find((conversation) => String(conversation.id) === selectedConversationId.value) || null
   }
@@ -430,11 +392,13 @@ async function ensureConversationFromRoute() {
 }
 
 async function applyConversationPage(paged) {
-  conversations.value = mergePinnedSystemConversation(paged.items)
+  conversations.value = paged.items
+    .map(normalizeConversation)
+    .filter((conversation) => conversation.id && conversation.type !== 'SYSTEM')
   await ensureConversationProfiles(conversations.value)
   conversationPage.page = paged.page || 1
   conversationPage.size = paged.size || conversationPage.size
-  conversationPage.total = Math.max(paged.total || 0, conversations.value.length)
+  conversationPage.total = conversations.value.length
 
   let target = selectInitialConversation()
   if (!target && hasRouteConversationHint()) {
@@ -494,11 +458,6 @@ function markConversationLocallyRead(conversationId) {
 async function loadMessages() {
   messages.value = []
   if (!activeConversation.value?.id) return
-  if (String(activeConversation.value.id) === SYNTHETIC_SYSTEM_ID) {
-    relatedTask.value = null
-    return
-  }
-
   messagesLoading.value = true
   const requestId = ++messagesRequestId
   const conversationId = activeConversation.value.id
@@ -548,10 +507,6 @@ async function changeConversationPage(page) {
 
 async function selectConversation(conversation) {
   if (!conversation?.id) return
-  if (String(conversation.id) === SYNTHETIC_SYSTEM_ID) {
-    await router.push({ name: 'notifications' })
-    return
-  }
   await router.push({
     name: 'conversation-detail',
     params: { conversationId: conversation.id }
@@ -791,6 +746,14 @@ onMounted(async () => {
 <template>
   <DashboardShell active-label="消息通知">
     <main class="message-page">
+      <SectionNav
+        class="conversation-section-nav"
+        :items="workspaceNavItems"
+        :active-key="route.meta?.subSection"
+        variant="rail"
+        aria-label="工作台二级导航"
+      />
+
       <section class="message-shell">
         <aside class="conversation-list-panel panel-card">
           <div class="panel-heading panel-heading--tight">
@@ -1158,6 +1121,14 @@ onMounted(async () => {
 <style scoped>
 .message-page {
   display: grid;
+  grid-template-columns: minmax(220px, 270px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.conversation-section-nav {
+  position: sticky;
+  top: 18px;
 }
 
 .message-shell {
@@ -1573,6 +1544,14 @@ onMounted(async () => {
 }
 
 @media (max-width: 1200px) {
+  .message-page {
+    grid-template-columns: 1fr;
+  }
+
+  .conversation-section-nav {
+    position: static;
+  }
+
   .message-shell {
     grid-template-columns: 1fr;
   }

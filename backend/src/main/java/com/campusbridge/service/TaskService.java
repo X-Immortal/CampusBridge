@@ -25,7 +25,11 @@ public interface TaskService {
             Integer page,
             Integer size);
 
-    Task getTaskDetail(Long taskId);
+    default Task getTaskDetail(Long taskId) {
+        return getTaskDetail(taskId, null);
+    }
+
+    Task getTaskDetail(Long taskId, Long currentUserId);
 
     Task updateTask(Long operatorId, Long taskId, RequestDtos.UpdateTaskRequest request);
 

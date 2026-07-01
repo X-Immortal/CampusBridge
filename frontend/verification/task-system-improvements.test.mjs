@@ -19,23 +19,22 @@ test('首页推荐使用可直达的 postId 参数', async () => {
   assert.match(postSource, /readQuery\('postId'/)
 })
 
-test('个人主页侧边栏保留首页推荐入口', async () => {
-  const homeViewSource = await source('src/views/HomeView.vue')
+test('共享导航保留首页推荐入口并使用四个一级模块', async () => {
+  const navigationSource = await source('src/app/navigation.js')
 
-  assert.match(homeViewSource, /\{\s*label:\s*'首页推荐',\s*icon:\s*Home,\s*to:\s*'\/'/)
-  assert.match(homeViewSource, /\{\s*label:\s*'个人主页',\s*icon:\s*Home,\s*active:\s*true,\s*to:\s*'\/home'/)
+  assert.match(navigationSource, /key:\s*'discover'[\s\S]*?to:\s*'\/'/)
+  assert.match(navigationSource, /export const primaryNavItems/)
+  assert.match(navigationSource, /key:\s*'tasks'/)
+  assert.match(navigationSource, /key:\s*'posts'/)
+  assert.match(navigationSource, /key:\s*'workspace'/)
 })
 
-test('个人主页壳层尺寸与共享侧边栏保持一致，避免切页时轻微缩放', async () => {
+test('个人主页复用共享 DashboardShell 和工作台二级导航', async () => {
   const homeViewSource = await source('src/views/HomeView.vue')
 
-  assert.match(homeViewSource, /--sidebar-width:\s*293px/)
-  assert.match(homeViewSource, /--topbar-height:\s*76px/)
-  assert.match(homeViewSource, /background:\s*var\(--color-bg\)/)
-  assert.match(homeViewSource, /@media\s*\(max-width:\s*1100px\)\s*\{\s*\.dashboard-shell\s*\{\s*--sidebar-width:\s*252px;/)
-  assert.match(homeViewSource, /\.dashboard-shell\.is-collapsed\s*\{\s*--sidebar-width:\s*78px;/)
-  assert.doesNotMatch(homeViewSource, /font-size:\s*15px/)
-  assert.doesNotMatch(homeViewSource, /letter-spacing:\s*0\.02em/)
+  assert.match(homeViewSource, /<DashboardShell/)
+  assert.match(homeViewSource, /:items="workspaceNavItems"/)
+  assert.match(homeViewSource, /:active-key="currentSubSection"/)
 })
 
 test('草稿删除使用专用接口，任务广场请求服务端排除过期任务', async () => {
@@ -64,14 +63,17 @@ test('用户资料私信入口传递完整会话上下文', async () => {
   assert.match(profileSource, /relatedId:\s*String\(props\.relatedId\)/)
 })
 
-test('个人主页支持加载已标记帖子并跳转到帖子详情', async () => {
-  const [apiSource, homeViewSource] = await Promise.all([
+test('社区模块支持加载我的标价并跳转到帖子详情', async () => {
+  const [apiSource, postViewSource, navigationSource, routerSource] = await Promise.all([
     source('src/services/api.js'),
-    source('src/views/HomeView.vue')
+    source('src/views/PostView.vue'),
+    source('src/app/navigation.js'),
+    source('src/router/index.js')
   ])
 
   assert.match(apiSource, /getMarkedPosts:\s*\(\)\s*=>\s*request\('\/posts\/marked'\)/)
-  assert.match(homeViewSource, /await api\.getMarkedPosts\(\)/)
-  assert.match(homeViewSource, /router\.push\(\{\s*name:\s*'post-list',\s*query:\s*\{\s*postId:\s*String\(postId\)\s*\}\s*\}\)/)
-  assert.match(homeViewSource, /被标记的帖子/)
+  assert.match(postViewSource, /await api\.getMarkedPosts\(\)/)
+  assert.match(navigationSource, /key:\s*'marked'[\s\S]*?label:\s*'我的标价'/)
+  assert.match(routerSource, /path:\s*'\/workspace\/marked-posts'[\s\S]*?subSection:\s*'marked'/)
+  assert.match(postViewSource, /readQuery\('postId'/)
 })

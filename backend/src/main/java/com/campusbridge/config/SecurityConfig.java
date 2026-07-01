@@ -4,8 +4,8 @@ import com.campusbridge.filter.JwtAuthFilter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -43,6 +43,9 @@ public class SecurityConfig {
                     auth.requestMatchers(
                             "/api/v1/auth/**",
                             "/api/v1/home/**",
+                            "/api/v1/content/**",
+                            "/api/v1/home/recommendations",
+                            "/api/v1/content",
                             "/error",
                             "/",
                             "/index.html",
@@ -56,12 +59,10 @@ public class SecurityConfig {
                             "/*.jpg"
                     ).permitAll();
                     auth.requestMatchers(HttpMethod.GET,
-                            "/api/v1/content",
-                            "/api/v1/posts",
-                            "/api/v1/posts/*",
                             "/api/v1/tasks",
                             "/api/v1/tasks/*",
-                            "/api/v1/tasks/*/reviews",
+                            "/api/v1/posts",
+                            "/api/v1/posts/*",
                             "/api/v1/users/*/profile",
                             "/api/v1/users/*/reviews"
                     ).permitAll();

@@ -7,6 +7,8 @@ import com.campusbridge.mapper.MessageMapper;
 import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.pojo.Conversation;
 import com.campusbridge.pojo.Message;
+import com.campusbridge.pojo.Post;
+import com.campusbridge.pojo.Reply;
 import com.campusbridge.pojo.Task;
 import com.campusbridge.pojo.TaskApplication;
 import com.campusbridge.pojo.User;
@@ -23,8 +25,10 @@ public class NotificationServiceImpl implements NotificationService {
 
     private static final String CONVERSATION_TYPE_SYSTEM = "SYSTEM";
     private static final String RELATED_TYPE_TASK = "TASK";
+    private static final String RELATED_TYPE_POST = "POST";
     private static final String MESSAGE_TYPE_SYSTEM_NOTIFICATION = "SYSTEM_NOTIFICATION";
     private static final String TITLE_TASK_NOTIFICATION = "任务通知";
+    private static final String TITLE_POST_NOTIFICATION = "帖子通知";
     private static final String STATUS_DISPUTED = "DISPUTED";
     private static final String REMINDER_OPEN_TIMEOUT = "TIMEOUT_REMINDER_OPEN";
     private static final String REMINDER_PENDING_CONFIRMATION =
@@ -41,6 +45,25 @@ public class NotificationServiceImpl implements NotificationService {
         this.conversationMapper = conversationMapper;
         this.messageMapper = messageMapper;
         this.userMapper = userMapper;
+    }
+
+    @Override
+    public void notifyPostReplyCreated(
+            Post post,
+            Reply reply,
+            Reply parentReply,
+            Long operatorId) {
+        if (post == null || post.getId() == null || reply == null || reply.getId() == null) {
+            return;
+        }
+
+        Long recipientId = parentReply == null ? post.getAuthorId() : parentReply.getAuthorId();
+        String action = parentReply == null ? "收到新回复" : "中的回复收到二级回复";
+        String content = postLabel(post)
+                + action
+                + "："
+                + abbreviate(reply.getContent() == null ? "" : reply.getContent().trim());
+        sendPostNotification(recipientId, operatorId, post, content);
     }
 
     @Override
@@ -147,6 +170,57 @@ public class NotificationServiceImpl implements NotificationService {
         conversationMapper.updateLastMessageAt(conversation.getId(), operatorId, now);
     }
 
+    private void sendPostNotification(
+            Long recipientId,
+            Long operatorId,
+            Post post,
+            String content) {
+        if (recipientId == null || post == null || post.getId() == null || isBlank(content)) {
+            return;
+        }
+        if (operatorId != null && operatorId.equals(recipientId)) {
+            return;
+        }
+
+        Conversation conversation = conversationMapper.selectByOwnerAndRelated(
+                recipientId,
+                CONVERSATION_TYPE_SYSTEM,
+                RELATED_TYPE_POST,
+                post.getId());
+        LocalDateTime now = LocalDateTime.now();
+        if (conversation == null) {
+            conversation = new Conversation();
+            conversation.setType(CONVERSATION_TYPE_SYSTEM);
+            conversation.setTitle(TITLE_POST_NOTIFICATION);
+            conversation.setOwnerId(recipientId);
+            conversation.setPeerUserId(operatorId);
+            conversation.setRelatedType(RELATED_TYPE_POST);
+            conversation.setRelatedId(post.getId());
+            conversation.setReplyable(0);
+            conversation.setLastMessageAt(now);
+            conversation.setCreatedAt(now);
+            if (conversationMapper.insert(conversation) != 1) {
+                throw new BusinessException(
+                        ErrorCode.COMMON_999_INTERNAL_ERROR,
+                        "Failed to create post notification conversation");
+            }
+        }
+
+        Message message = new Message();
+        message.setConversationId(conversation.getId());
+        message.setSenderId(operatorId);
+        message.setType(MESSAGE_TYPE_SYSTEM_NOTIFICATION);
+        message.setContent(content);
+        message.setReadAt(null);
+        message.setCreatedAt(now);
+        if (messageMapper.insert(message) != 1) {
+            throw new BusinessException(
+                    ErrorCode.COMMON_999_INTERNAL_ERROR,
+                    "Failed to create post notification");
+        }
+        conversationMapper.updateLastMessageAt(conversation.getId(), operatorId, now);
+    }
+
     private Conversation createTaskNotificationConversation(
             Long recipientId,
             Long operatorId,
@@ -217,6 +291,14 @@ public class NotificationServiceImpl implements NotificationService {
             return label;
         }
         return label + "“" + abbreviate(task.getTitle().trim()) + "”";
+    }
+
+    private String postLabel(Post post) {
+        String label = "帖子 #" + post.getId();
+        if (isBlank(post.getTitle())) {
+            return label;
+        }
+        return label + "「" + abbreviate(post.getTitle().trim()) + "」";
     }
 
     private String userLabel(Long userId) {

@@ -3,6 +3,7 @@ import { computed, reactive, ref } from 'vue'
 import {
   ArrowRight,
   BadgeCheck,
+  Compass,
   Eye,
   EyeOff,
   LoaderCircle,
@@ -18,7 +19,7 @@ import api from '../services/api'
 import { useAuth } from '../stores/auth'
 import { useToast } from '../composables/useToast'
 
-const { state, login, register } = useAuth()
+const { state, login, register, enterGuestMode } = useAuth()
 const route = useRoute()
 const router = useRouter()
 const { showToast } = useToast()
@@ -161,6 +162,17 @@ async function handleRegister() {
   } finally {
     pendingAction.value = ''
   }
+}
+
+function continueAsGuest() {
+  if (state.loading) return
+  enterGuestMode()
+  const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : null
+  const target = redirect && router.resolve(redirect).meta?.publicAccess
+    ? redirect
+    : { name: 'task-list' }
+  router.push(target)
+  showToast('已进入游客模式，发布、接单等操作需要先登录。', { type: 'info' })
 }
 </script>
 
@@ -491,6 +503,27 @@ async function handleRegister() {
             {{ mode === 'login' ? '立即注册' : '返回登录' }}
           </button>
         </div>
+
+        <div class="guest-entry">
+          <span class="guest-entry__divider">
+            <span />
+            <em>或</em>
+            <span />
+          </span>
+          <button
+            class="guest-entry__action"
+            type="button"
+            :disabled="state.loading"
+            @click="continueAsGuest"
+          >
+            <Compass
+              :size="18"
+              aria-hidden="true"
+            />
+            继续以游客身份浏览
+          </button>
+          <small>无需注册即可查看任务广场、帖子列表和公开资料。</small>
+        </div>
       </article>
     </section>
   </main>
@@ -811,6 +844,68 @@ async function handleRegister() {
 .switch-hint button:disabled {
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+.guest-entry {
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+  padding-top: 4px;
+}
+
+.guest-entry__divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  letter-spacing: 0.1em;
+}
+
+.guest-entry__divider span {
+  flex: 1;
+  height: 1px;
+  background: var(--color-border);
+}
+
+.guest-entry__divider em {
+  font-style: normal;
+  color: var(--color-text-muted);
+}
+
+.guest-entry__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1px dashed var(--color-brand-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-brand-text);
+  font-size: 0.95rem;
+  font-weight: 800;
+  transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+}
+
+.guest-entry__action:hover:not(:disabled) {
+  background: var(--color-brand-soft);
+  border-color: var(--color-brand-border-hover);
+  color: var(--color-brand-hover);
+}
+
+.guest-entry__action:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.guest-entry small {
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  text-align: center;
 }
 
 .auth-side-card {

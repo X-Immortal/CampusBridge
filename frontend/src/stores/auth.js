@@ -17,11 +17,13 @@ const authState = reactive({
   user: initialAuth.user || null,
   profile: initialAuth.profile || null,
   verification: initialAuth.verification || null,
+  visitorMode: Boolean(initialAuth.visitorMode),
   loading: false,
   error: ''
 })
 
 const isAuthenticated = computed(() => Boolean(authState.token))
+const isGuest = computed(() => !authState.token && authState.visitorMode)
 const currentUserId = computed(() => authState.user?.id || authState.user?.userId || initialAuth.userId || null)
 const verificationStatus = computed(() => authState.verification?.status || 'UNVERIFIED')
 
@@ -34,6 +36,7 @@ function persistAuth() {
       user: authState.user,
       profile: authState.profile,
       verification: authState.verification,
+      visitorMode: authState.visitorMode,
       userId: currentUserId.value
     })
   )
@@ -51,8 +54,35 @@ function setAuth(payload) {
           role: payload.role
         }
       : null)
+  authState.visitorMode = false
   authState.error = ''
   persistAuth()
+}
+
+function enterGuestMode() {
+  authState.token = ''
+  authState.refreshToken = ''
+  authState.user = {
+    id: null,
+    username: 'guest',
+    role: 'GUEST'
+  }
+  authState.profile = null
+  authState.verification = null
+  authState.visitorMode = true
+  authState.error = ''
+  persistAuth()
+}
+
+function exitGuestMode() {
+  authState.token = ''
+  authState.refreshToken = ''
+  authState.user = null
+  authState.profile = null
+  authState.verification = null
+  authState.visitorMode = false
+  authState.error = ''
+  localStorage.removeItem(AUTH_STORAGE_KEY)
 }
 
 async function login(credentials) {
@@ -140,19 +170,14 @@ async function updateMyProfile(payload) {
 }
 
 function logout() {
-  authState.token = ''
-  authState.refreshToken = ''
-  authState.user = null
-  authState.profile = null
-  authState.verification = null
-  authState.error = ''
-  localStorage.removeItem(AUTH_STORAGE_KEY)
+  exitGuestMode()
 }
 
 export function useAuth() {
   return {
     state: authState,
     isAuthenticated,
+    isGuest,
     currentUserId,
     verificationStatus,
     login,
@@ -163,6 +188,8 @@ export function useAuth() {
     resendEmailVerificationCode,
     confirmEmailVerification,
     cancelCurrentVerification,
-    updateMyProfile
+    updateMyProfile,
+    enterGuestMode,
+    exitGuestMode
   }
 }

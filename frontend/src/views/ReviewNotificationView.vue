@@ -1,29 +1,83 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
-import { Check, CheckCircle2, Inbox, LoaderCircle, RefreshCw, Star } from '@lucide/vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
+import {
+  Bell,
+  BellDot,
+  Check,
+  CheckCheck,
+  CheckCircle2,
+  ClipboardCheck,
+  FileCheck2,
+  FileText,
+  Inbox,
+  LoaderCircle,
+  RefreshCw,
+  Search,
+  Sparkles,
+  Star,
+  UserRound
+} from '@lucide/vue'
+import { workspaceNavItems } from '../app/navigation'
 import DashboardShell from '../components/DashboardShell.vue'
+import SectionNav from '../components/layout/SectionNav.vue'
 import StatusBadge from '../components/StatusBadge.vue'
+import { useNotificationCenter } from '../composables/useNotificationCenter'
 import { useToast } from '../composables/useToast'
 import { optionLabel, TASK_CATEGORY_OPTIONS, TASK_STATUS_OPTIONS, statusTone } from '../constants'
 import api from '../services/api'
 import { useAuth } from '../stores/auth'
 
+const route = useRoute()
 const { currentUserId } = useAuth()
 const { showToast } = useToast()
+const {
+  markConversationRead: markConversationReadOnServer,
+  markAllNotificationsRead: markAllNotificationsReadOnServer,
+  replaceNotificationSummary,
+  refreshNotificationSummary
+} = useNotificationCenter()
 
 const reviewLabels = {
-  1: '体验较差',
+  1: '体验很差',
   2: '低于预期',
   3: '基本完成',
   4: '值得信任',
   5: '非常可靠'
 }
 
-const reviewTags = ['准时响应', '说明清楚', '凭证完整', '沟通友好', '按标准完成', '愿意再次合作']
+const reviewTags = [
+  '准时响应',
+  '说明清楚',
+  '凭证完整',
+  '沟通友好',
+  '按标准完成',
+  '愿意再次合作'
+]
+
+const notificationFilters = [
+  { value: 'ALL', label: '全部' },
+  { value: 'UNREAD', label: '未读' },
+  { value: 'TASK', label: '任务' },
+  { value: 'POST', label: '帖子' },
+  { value: 'REVIEW', label: '评价' },
+  { value: 'CREDIT', label: '信用' }
+]
+
+const activeSection = computed(() =>
+  ['notifications', 'workspace-notifications'].includes(route.name) ? 'notifications' : 'reviews'
+)
+const activeLabel = computed(() => (activeSection.value === 'notifications' ? '消息中心' : '评价中心'))
+const currentUser = computed(() => currentUserId.value)
 
 const tasks = ref([])
+const notifications = ref([])
 const selectedTaskId = ref('')
+const selectedNotificationId = ref('')
 const loadingReviews = ref(false)
+const loadingNotifications = ref(false)
+const notificationSearch = ref('')
+const notificationFilter = ref('ALL')
 
 const reviewForm = reactive({
   rating: 5,
@@ -31,11 +85,22 @@ const reviewForm = reactive({
   tags: []
 })
 
-const currentUser = computed(() => currentUserId.value)
-const selectedTask = computed(() => tasks.value.find((task) => String(task.id) === String(selectedTaskId.value)) || tasks.value[0] || null)
-const reviewee = computed(() => resolveReviewee(selectedTask.value))
-const selectedTaskReviews = computed(() => selectedTask.value?.reviews || [])
+let notificationRequestId = 0
 
+const selectedTask = computed(() =>
+  tasks.value.find((task) => String(task.id) === String(selectedTaskId.value)) || tasks.value[0] || null
+)
+
+const selectedNotification = computed(
+  () =>
+    decoratedNotifications.value.find(
+      (notification) => String(notification.id) === String(selectedNotificationId.value)
+    ) ||
+    decoratedNotifications.value[0] ||
+    null
+)
+
+const reviewee = computed(() => resolveReviewee(selectedTask.value))
 const existingReview = computed(() => {
   const task = selectedTask.value
   if (!task) return null
@@ -45,9 +110,9 @@ const existingReview = computed(() => {
       String(review.revieweeId) === String(reviewee.value?.id)
   )
 })
-
-const canSubmitReview = computed(() => Boolean(selectedTask.value?.id && reviewee.value?.id && !existingReview.value))
-
+const canSubmitReview = computed(
+  () => Boolean(selectedTask.value?.id && reviewee.value?.id && !existingReview.value)
+)
 const pendingReviewTasks = computed(() =>
   tasks.value.filter((task) => {
     const target = resolveReviewee(task)
@@ -59,7 +124,6 @@ const pendingReviewTasks = computed(() =>
     )
   })
 )
-
 const reviewedTasks = computed(() => tasks.value.filter((task) => !pendingReviewTasks.value.includes(task)))
 const averageGivenRating = computed(() => {
   const ownReviews = tasks.value
@@ -68,6 +132,34 @@ const averageGivenRating = computed(() => {
   if (!ownReviews.length) return '0.0'
   const average = ownReviews.reduce((sum, review) => sum + Number(review.rating || 0), 0) / ownReviews.length
   return average.toFixed(1)
+})
+const selectedTaskReviews = computed(() => selectedTask.value?.reviews || [])
+
+const decoratedNotifications = computed(() =>
+  notifications.value
+    .map((notification) => ({
+      ...notification,
+      read: Number(notification.unreadCount || 0) <= 0
+    }))
+    .sort((current, next) => new Date(next.createdAt) - new Date(current.createdAt))
+)
+const unreadNotifications = computed(() => decoratedNotifications.value.filter((notification) => !notification.read))
+const filteredNotifications = computed(() => {
+  const keyword = notificationSearch.value.trim().toLowerCase()
+  return decoratedNotifications.value.filter((notification) => {
+    const matchesFilter =
+      notificationFilter.value === 'ALL' ||
+      (notificationFilter.value === 'UNREAD' ? !notification.read : notification.type === notificationFilter.value)
+    const matchesKeyword =
+      !keyword ||
+      [notification.title, notification.content, notification.source, notification.taskId, notification.postId]
+        .filter((value) => value !== undefined && value !== null)
+        .join(' ')
+        .toLowerCase()
+        .includes(keyword)
+
+    return matchesFilter && matchesKeyword
+  })
 })
 
 function normalizePagedItems(result) {
@@ -109,20 +201,20 @@ function resolveReviewee(task) {
     return {
       id: task.providerId,
       name: task.providerName || `同学 ${task.providerId || ''}`.trim() || '帮助同学',
-      role: '帮助方'
+      role: '帮助者'
     }
   }
   if (task.providerId !== undefined && String(task.providerId) === userId) {
     return {
       id: task.requesterId,
       name: task.requesterName || `同学 ${task.requesterId || ''}`.trim() || '求助同学',
-      role: '求助方'
+      role: '求助者'
     }
   }
   return {
     id: task.providerId || task.requesterId,
     name: task.providerName || task.requesterName || '协作同学',
-    role: task.providerId ? '帮助方' : '求助方'
+    role: task.providerId ? '帮助者' : '求助者'
   }
 }
 
@@ -148,6 +240,18 @@ function formatDateTime(value) {
     hour: '2-digit',
     minute: '2-digit'
   })
+}
+
+function formatRelativeTime(value) {
+  if (!value) return '暂无时间'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  const minutes = Math.max(0, Math.round((Date.now() - date.getTime()) / 60000))
+  if (minutes < 1) return '刚刚'
+  if (minutes < 60) return `${minutes} 分钟前`
+  const hours = Math.round(minutes / 60)
+  if (hours < 24) return `${hours} 小时前`
+  return `${Math.round(hours / 24)} 天前`
 }
 
 function shortText(text, length = 72) {
@@ -182,17 +286,16 @@ async function loadReviews() {
       api.getTasks({ status: 'COMPLETED', page: 1, size: 12 }),
       api.getTasks({ status: 'REVIEWED', page: 1, size: 12 })
     ])
-
     const rawTasks = [
       ...(completedResult.status === 'fulfilled' ? normalizePagedItems(completedResult.value) : []),
       ...(reviewedResult.status === 'fulfilled' ? normalizePagedItems(reviewedResult.value) : [])
     ]
-
     const myId = currentUserId.value
     const uniqueTasks = [...new Map(rawTasks.map((task) => [String(task.id ?? task.taskId), task])).values()]
       .filter((task) => task.id || task.taskId)
       .map(normalizeTask)
-      .filter((task) => String(task.requesterId) === String(myId) || String(task.providerId) === String(myId))
+      .filter((task) =>
+        String(task.requesterId) === String(myId) || String(task.providerId) === String(myId))
 
     tasks.value = uniqueTasks
     if (uniqueTasks.length) await hydrateTaskReviews()
@@ -211,7 +314,10 @@ async function loadReviews() {
 async function hydrateTaskReviews() {
   const settled = await Promise.allSettled(
     tasks.value.map(async (task) => {
-      const [reviewsResult, detailResult] = await Promise.allSettled([api.getTaskReviews(task.id), api.getTaskDetail(task.id)])
+      const [reviewsResult, detailResult] = await Promise.allSettled([
+        api.getTaskReviews(task.id),
+        api.getTaskDetail(task.id)
+      ])
       const reviewItems =
         reviewsResult.status === 'fulfilled' && Array.isArray(reviewsResult.value)
           ? reviewsResult.value
@@ -238,21 +344,9 @@ async function hydrateTaskReviews() {
   tasks.value = settled.map((result, index) => (result.status === 'fulfilled' ? result.value : tasks.value[index]))
 }
 
-function appendReviewToTask(taskId, review) {
-  tasks.value = tasks.value.map((task) => {
-    if (String(task.id) !== String(taskId)) return task
-    return {
-      ...task,
-      status: 'REVIEWED',
-      reviews: [...(task.reviews || []), review]
-    }
-  })
-}
-
 async function submitReview() {
   if (!selectedTask.value?.id || !reviewee.value?.id || !canSubmitReview.value) return
   const comment = reviewForm.comment.trim()
-
   if (comment.length < 8) {
     showToast('请至少写 8 个字，说明本次协作是否符合预期。', { type: 'danger' })
     return
@@ -274,8 +368,8 @@ async function submitReview() {
     const result = await api.createTaskReview(selectedTask.value.id, payload)
     const review = normalizeReview(result || payload, selectedTask.value.id)
     appendReviewToTask(selectedTask.value.id, review)
+    showToast('评价已提交，后续会参与信用记录计算。')
     resetReviewForm()
-    showToast('评价已提交。')
   } catch (error) {
     showToast(error.message || '评价提交失败，请稍后重试。', { type: 'danger' })
   } finally {
@@ -283,27 +377,198 @@ async function submitReview() {
   }
 }
 
-onMounted(loadReviews)
+function appendReviewToTask(taskId, review) {
+  tasks.value = tasks.value.map((task) => {
+    if (String(task.id) !== String(taskId)) return task
+    return {
+      ...task,
+      status: 'REVIEWED',
+      reviews: [...(task.reviews || []), review]
+    }
+  })
+}
+
+function normalizeNotificationFromConversation(conversation = {}) {
+  if (conversation.type !== 'SYSTEM') return null
+  const conversationId = conversation.id || conversation.conversationId
+  if (!conversationId) return null
+  const id = `conversation-${conversationId}`
+  const unreadCount = Number(conversation.unreadCount || 0)
+  const content =
+    conversation.lastMessagePreview ||
+    conversation.lastMessageContent ||
+    conversation.lastMessage ||
+    conversation.preview ||
+    '有新的站内协作动态。'
+  return {
+    id,
+    type: conversation.relatedType === 'POST' ? 'POST' : inferNotificationType(content),
+    tone: unreadCount > 0 ? inferNotificationTone(content) : 'muted',
+    title: inferNotificationTitle(content, conversation.title || '站内协作动态'),
+    content,
+    source: conversation.relatedType === 'POST' ? '帖子通知' : '任务通知',
+    taskId: conversation.relatedType === 'TASK' ? conversation.relatedId : null,
+    postId: conversation.relatedType === 'POST' ? conversation.relatedId : null,
+    conversationId,
+    createdAt: conversation.lastMessageAt || conversation.updatedAt || conversation.createdAt || new Date().toISOString(),
+    unreadCount,
+    readAt: unreadCount > 0 ? null : conversation.lastReadAt || conversation.readAt || conversation.lastMessageAt
+  }
+}
+
+function inferNotificationType(content) {
+  if (/评价|互评/.test(content)) return 'REVIEW'
+  if (/信用|积分/.test(content)) return 'CREDIT'
+  return 'TASK'
+}
+
+function inferNotificationTone(content) {
+  if (/争议|驳回|失败|超时/.test(content)) return 'danger'
+  if (/确认|待处理|提醒/.test(content)) return 'warning'
+  if (/完成|通过|更新/.test(content)) return 'success'
+  return 'info'
+}
+
+function inferNotificationTitle(content, fallback) {
+  if (/评价|互评/.test(content)) return '评价提醒'
+  if (/信用|积分/.test(content)) return '信用记录更新'
+  if (/完成|凭证/.test(content)) return '任务完成动态'
+  return fallback || '系统通知'
+}
+
+function applyConversationRead(conversationId) {
+  const readAt = new Date().toISOString()
+  notifications.value = notifications.value.map((notification) =>
+    String(notification.conversationId) === String(conversationId)
+      ? {
+          ...notification,
+          unreadCount: 0,
+          readAt,
+          tone: notification.tone === 'info' ? 'muted' : notification.tone
+        }
+      : notification
+  )
+}
+
+async function loadNotifications() {
+  loadingNotifications.value = true
+  const requestId = ++notificationRequestId
+
+  try {
+    const result = await api.getConversations({ page: 1, size: 100 })
+    if (requestId !== notificationRequestId) return
+    const conversations = normalizePagedItems(result).filter((conversation) => conversation.type === 'SYSTEM')
+    replaceNotificationSummary(conversations)
+    notifications.value = conversations.map(normalizeNotificationFromConversation).filter(Boolean)
+    selectDefaultNotification()
+  } catch {
+    if (requestId !== notificationRequestId) return
+    replaceNotificationSummary([])
+    notifications.value = []
+    selectDefaultNotification()
+  } finally {
+    if (requestId === notificationRequestId) loadingNotifications.value = false
+  }
+}
+
+function selectDefaultNotification() {
+  if (
+    !selectedNotificationId.value ||
+    !decoratedNotifications.value.some((notification) => String(notification.id) === String(selectedNotificationId.value))
+  ) {
+    selectedNotificationId.value = String(unreadNotifications.value[0]?.id || decoratedNotifications.value[0]?.id || '')
+  }
+}
+
+function selectNotification(notification) {
+  if (!notification?.id) return
+  selectedNotificationId.value = String(notification.id)
+}
+
+async function markNotificationRead(notification) {
+  if (!notification?.id || notification.read) return
+  try {
+    await markConversationReadOnServer(notification.conversationId)
+    applyConversationRead(notification.conversationId)
+    showToast('已标记为已读。')
+  } catch (error) {
+    showToast(error.message || '标记已读失败，请稍后重试。', { type: 'danger' })
+  }
+}
+
+async function markAllNotificationsRead() {
+  try {
+    await markAllNotificationsReadOnServer()
+    const readAt = new Date().toISOString()
+    notifications.value = notifications.value.map((notification) => ({
+      ...notification,
+      unreadCount: 0,
+      readAt,
+      tone: notification.tone === 'info' ? 'muted' : notification.tone
+    }))
+    showToast('全部通知已标记为已读。')
+  } catch (error) {
+    showToast(error.message || '全部已读失败，请稍后重试。', { type: 'danger' })
+  }
+}
+
+function notificationIcon(type) {
+  if (type === 'POST') return FileText
+  if (type === 'REVIEW') return Star
+  if (type === 'CREDIT') return Sparkles
+  return ClipboardCheck
+}
+
+function notificationToneClass(notification) {
+  return `notification-icon--${notification.tone || 'info'}`
+}
+
+watch(currentUser, () => {
+  refreshNotificationSummary()
+})
+
+onMounted(async () => {
+  await Promise.all([loadReviews(), loadNotifications()])
+})
 </script>
 
 <template>
-  <DashboardShell active-label="评价中心">
-    <main class="review-page">
-      <section class="page-title-card">
+  <DashboardShell :active-label="activeLabel">
+    <main
+      class="fe08-page"
+      :class="{ 'fe08-page--notifications': activeSection === 'notifications' }"
+    >
+      <section class="page-title-card fe08-title-card">
         <div class="title-icon">
-          <Star
+          <component
+            :is="activeSection === 'notifications' ? BellDot : Star"
             :size="34"
             aria-hidden="true"
           />
         </div>
         <div class="title-copy">
-          <p>评价中心</p>
-          <h1>把任务完成后的互评单独管理</h1>
-          <span>这里仅处理任务评分、评价记录和待评价提醒，不再混入通知模块。</span>
+          <p>{{ activeSection === 'notifications' ? '通知中心' : '评价记录' }}</p>
+          <h1>{{ activeSection === 'notifications' ? '消息通知与已读管理' : '任务评分评价中心' }}</h1>
+          <span>
+            {{
+              activeSection === 'notifications'
+                ? '集中查看系统通知、任务提醒和未读消息。'
+                : '围绕任务完成后的互评和信用记录，保留真实可追溯的协作状态。'
+            }}
+          </span>
         </div>
       </section>
 
+      <SectionNav
+        class="review-section-nav"
+        :items="workspaceNavItems"
+        :active-key="route.meta?.subSection"
+        variant="rail"
+        aria-label="工作台二级导航"
+      />
+
       <section
+        v-if="activeSection === 'reviews'"
         class="metric-strip"
         aria-label="评价概览"
       >
@@ -312,16 +577,19 @@ onMounted(loadReviews)
           <strong>{{ pendingReviewTasks.length }}</strong>
         </article>
         <article class="metric-tile metric-tile--success">
-          <span>已完成评价</span>
-          <strong>{{ reviewedTasks.length }}</strong>
-        </article>
-        <article class="metric-tile metric-tile--info">
           <span>我给出的均分</span>
           <strong>{{ averageGivenRating }}</strong>
         </article>
+        <article class="metric-tile metric-tile--info">
+          <span>已评价任务</span>
+          <strong>{{ reviewedTasks.length }}</strong>
+        </article>
       </section>
 
-      <section class="review-layout">
+      <section
+        v-if="activeSection === 'reviews'"
+        class="review-layout"
+      >
         <aside class="panel-card task-review-list">
           <div class="panel-heading">
             <div>
@@ -367,7 +635,7 @@ onMounted(loadReviews)
               aria-hidden="true"
             />
             <h3>暂无已完成任务</h3>
-            <p>你发布或承接的任务完成后，会出现在这里供双方互评。</p>
+            <p>你发布或承接的任务完成后会出现在这里，双方可互相评价。</p>
           </div>
 
           <div
@@ -380,6 +648,7 @@ onMounted(loadReviews)
               class="review-task-card"
               :class="{ active: String(task.id) === String(selectedTask?.id) }"
               type="button"
+              :aria-pressed="String(task.id) === String(selectedTask?.id)"
               @click="selectTask(task)"
             >
               <span class="review-task-topline">
@@ -424,121 +693,123 @@ onMounted(loadReviews)
               aria-hidden="true"
             />
             <h3>选择任务后填写评价</h3>
-            <p>从左侧互评任务列表中选择一项协作即可开始。</p>
+            <p>从左侧互评任务列表中选择一次已完成协作。</p>
           </div>
 
-          <template v-else>
-            <div class="review-context">
-              <div>
-                <span>评价对象</span>
-                <strong>{{ reviewee?.name || '协作同学' }}</strong>
-                <small>{{ reviewee?.role || '协作方' }}</small>
-              </div>
-              <div>
-                <span>完成标准</span>
-                <strong>{{ shortText(selectedTask.completionStandard, 48) }}</strong>
-                <small>{{ selectedTask.rewardDescription || '奖励方式未设置' }}</small>
-              </div>
+          <div
+            v-if="selectedTask"
+            class="review-context"
+          >
+            <div>
+              <span>评价对象</span>
+              <strong>{{ reviewee?.name || '协作同学' }}</strong>
+              <small>{{ reviewee?.role || '协作方' }}</small>
             </div>
+            <div>
+              <span>完成标准</span>
+              <strong>{{ shortText(selectedTask.completionStandard, 48) }}</strong>
+              <small>{{ selectedTask.rewardDescription || '奖励方式未设置' }}</small>
+            </div>
+          </div>
 
-            <form
-              v-if="canSubmitReview"
-              class="review-form"
-              @submit.prevent="submitReview"
-            >
-              <fieldset class="rating-field">
-                <legend>本次协作评分</legend>
-                <div
-                  class="star-row"
-                  role="radiogroup"
-                  aria-label="本次协作评分"
+          <form
+            v-if="selectedTask && canSubmitReview"
+            class="review-form"
+            @submit.prevent="submitReview"
+          >
+            <fieldset class="rating-field">
+              <legend>本次协作评分</legend>
+              <div
+                class="star-row"
+                role="radiogroup"
+                aria-label="本次协作评分"
+              >
+                <button
+                  v-for="score in 5"
+                  :key="score"
+                  type="button"
+                  class="star-button"
+                  :class="{ active: score <= reviewForm.rating }"
+                  :aria-pressed="score === reviewForm.rating"
+                  @click="reviewForm.rating = score"
                 >
-                  <button
-                    v-for="score in 5"
-                    :key="score"
-                    type="button"
-                    class="star-button"
-                    :class="{ active: score <= reviewForm.rating }"
-                    :aria-pressed="score === reviewForm.rating"
-                    @click="reviewForm.rating = score"
-                  >
-                    <Star
-                      :size="24"
-                      aria-hidden="true"
-                    />
-                  </button>
-                </div>
-                <span>{{ reviewLabels[reviewForm.rating] }}</span>
-              </fieldset>
+                  <Star
+                    :size="25"
+                    aria-hidden="true"
+                  />
+                  <span class="sr-only">{{ score }} 星</span>
+                </button>
+              </div>
+              <span>{{ reviewLabels[reviewForm.rating] }}</span>
+            </fieldset>
 
-              <fieldset class="tag-field">
-                <legend>协作印象</legend>
-                <div class="tag-list">
-                  <button
-                    v-for="tag in reviewTags"
-                    :key="tag"
-                    type="button"
-                    class="tag-chip"
-                    :class="{ active: reviewForm.tags.includes(tag) }"
-                    :aria-pressed="reviewForm.tags.includes(tag)"
-                    @click="toggleReviewTag(tag)"
-                  >
-                    <Check
-                      v-if="reviewForm.tags.includes(tag)"
-                      :size="15"
-                      aria-hidden="true"
-                    />
-                    {{ tag }}
-                  </button>
-                </div>
-              </fieldset>
+            <fieldset class="tag-field">
+              <legend>协作印象</legend>
+              <div class="tag-list">
+                <button
+                  v-for="tag in reviewTags"
+                  :key="tag"
+                  type="button"
+                  class="tag-chip"
+                  :class="{ active: reviewForm.tags.includes(tag) }"
+                  :aria-pressed="reviewForm.tags.includes(tag)"
+                  @click="toggleReviewTag(tag)"
+                >
+                  <Check
+                    v-if="reviewForm.tags.includes(tag)"
+                    :size="15"
+                    aria-hidden="true"
+                  />
+                  {{ tag }}
+                </button>
+              </div>
+            </fieldset>
 
-              <label
-                class="field"
-                for="review-comment"
-              >
-                <span>文字评价</span>
-                <textarea
-                  id="review-comment"
-                  v-model.trim="reviewForm.comment"
-                  maxlength="500"
-                  placeholder="例如：是否准时、沟通是否顺畅、是否符合完成标准。"
-                />
-                <small>{{ reviewForm.comment.length }} / 500</small>
-              </label>
-
-              <button
-                class="primary-action"
-                type="submit"
-                :disabled="loadingReviews"
-              >
-                <LoaderCircle
-                  v-if="loadingReviews"
-                  class="spinning"
-                  :size="18"
-                  aria-hidden="true"
-                />
-                <CheckCircle2
-                  v-else
-                  :size="18"
-                  aria-hidden="true"
-                />
-                提交评价
-              </button>
-            </form>
-
-            <section
-              v-else-if="existingReview"
-              class="review-complete-state"
+            <label
+              class="field"
+              for="review-comment"
             >
-              <CheckCircle2
-                :size="42"
+              <span>文字评价</span>
+              <textarea
+                id="review-comment"
+                v-model.trim="reviewForm.comment"
+                maxlength="500"
+                placeholder="例如：是否准时、沟通是否顺畅、凭证是否清楚、是否符合完成标准。"
+              />
+              <small>{{ reviewForm.comment.length }} / 500</small>
+            </label>
+
+            <button
+              class="primary-action"
+              type="submit"
+              :disabled="loadingReviews"
+            >
+              <LoaderCircle
+                v-if="loadingReviews"
+                class="spinning"
+                :size="18"
                 aria-hidden="true"
               />
-              <strong>你已完成评价</strong>
-              <p>{{ existingReview.comment }}</p>
-            </section>
-          </template>
+              <CheckCircle2
+                v-else
+                :size="18"
+                aria-hidden="true"
+              />
+              提交评价
+            </button>
+          </form>
+
+          <section
+            v-else-if="existingReview"
+            class="review-complete-state"
+          >
+            <CheckCircle2
+              :size="42"
+              aria-hidden="true"
+            />
+            <strong>你已完成评价</strong>
+            <p>{{ existingReview.comment }}</p>
+          </section>
         </section>
 
         <section class="panel-card review-history-panel">
@@ -547,63 +818,334 @@ onMounted(loadReviews)
               <p class="section-kicker">
                 评价记录
               </p>
-              <h2>当前任务的互评历史</h2>
+              <h2>本任务互评</h2>
             </div>
-          </div>
-
-          <div
-            v-if="!selectedTask"
-            class="empty-state empty-state--compact"
-          >
-            <Star
-              :size="28"
-              aria-hidden="true"
+            <StatusBadge
+              :label="`${selectedTaskReviews.length} 条`"
+              tone="info"
             />
-            <h3>先选择一个任务</h3>
-            <p>选择任务后，这里会显示双方评价记录。</p>
           </div>
 
           <div
-            v-else-if="!selectedTaskReviews.length"
+            v-if="!selectedTaskReviews.length"
             class="empty-state empty-state--compact"
           >
-            <Inbox
-              :size="28"
+            <MessageCircle
+              :size="30"
               aria-hidden="true"
             />
             <h3>还没有评价记录</h3>
-            <p>提交第一条评价后，这里会立即更新。</p>
+            <p>双方评价后会在这里汇总展示。</p>
+          </div>
+
+          <article
+            v-for="review in selectedTaskReviews"
+            v-else
+            :key="review.id"
+            class="history-review"
+          >
+            <div class="history-review-head">
+              <span class="review-avatar">
+                <UserRound
+                  :size="20"
+                  aria-hidden="true"
+                />
+              </span>
+              <div>
+                <strong>{{ String(review.reviewerId) === String(currentUser) ? '我给出的评价' : '对方评价' }}</strong>
+                <small>{{ formatDateTime(review.createdAt) }}</small>
+              </div>
+              <span class="mini-stars">
+                <Star
+                  v-for="score in review.rating"
+                  :key="score"
+                  :size="14"
+                  aria-hidden="true"
+                />
+              </span>
+            </div>
+            <p>{{ review.comment || '未填写文字评价。' }}</p>
+          </article>
+        </section>
+      </section>
+
+      <section
+        v-else
+        class="notification-layout"
+      >
+        <section class="panel-card notification-list-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="section-kicker">
+                通知列表
+              </p>
+              <h2>关键事件不会丢</h2>
+            </div>
+            <button
+              class="ghost-action ghost-action--compact"
+              type="button"
+              :disabled="!unreadNotifications.length || loadingNotifications"
+              @click="markAllNotificationsRead"
+            >
+              <CheckCheck
+                :size="17"
+                aria-hidden="true"
+              />
+              全部已读
+            </button>
+          </div>
+
+          <div class="notification-tools">
+            <label
+              class="notification-search"
+              for="notification-search"
+            >
+              <Search
+                :size="18"
+                aria-hidden="true"
+              />
+              <input
+                id="notification-search"
+                v-model.trim="notificationSearch"
+                type="search"
+                placeholder="搜索任务标题、内容或关键词"
+              >
+            </label>
+            <button
+              class="icon-action"
+              type="button"
+              aria-label="刷新通知"
+              :disabled="loadingNotifications"
+              @click="loadNotifications"
+            >
+              <RefreshCw
+                :class="{ spinning: loadingNotifications }"
+                :size="18"
+                aria-hidden="true"
+              />
+            </button>
+          </div>
+
+          <div
+            class="filter-tabs"
+            role="tablist"
+            aria-label="通知筛选"
+          >
+            <button
+              v-for="filter in notificationFilters"
+              :key="filter.value"
+              type="button"
+              :class="{ active: notificationFilter === filter.value }"
+              :aria-pressed="notificationFilter === filter.value"
+              @click="notificationFilter = filter.value"
+            >
+              {{ filter.label }}
+            </button>
+          </div>
+
+          <div
+            v-if="loadingNotifications && !notifications.length"
+            class="loading-state"
+            role="status"
+          >
+            <LoaderCircle
+              class="spinning"
+              :size="24"
+              aria-hidden="true"
+            />
+            <span>正在同步通知...</span>
+          </div>
+
+          <div
+            v-else-if="!filteredNotifications.length"
+            class="empty-state"
+          >
+            <Bell
+              :size="34"
+              aria-hidden="true"
+            />
+            <h3>没有匹配通知</h3>
+            <p>调整筛选条件后再查看。</p>
           </div>
 
           <div
             v-else
-            class="history-list"
+            class="notification-list"
           >
-            <article
-              v-for="review in selectedTaskReviews"
-              :key="review.id"
-              class="history-review"
+            <button
+              v-for="notification in filteredNotifications"
+              :key="notification.id"
+              class="notification-card"
+              :class="{ active: String(notification.id) === String(selectedNotification?.id), unread: !notification.read }"
+              type="button"
+              @click="selectNotification(notification)"
             >
-              <div class="history-review-head">
-                <div>
-                  <strong>{{ String(review.reviewerId) === String(currentUser) ? '我给出的评价' : '对方给出的评价' }}</strong>
-                  <small>{{ formatDateTime(review.createdAt) }}</small>
-                </div>
-                <span class="review-score">{{ review.rating }} / 5</span>
-              </div>
-              <p>{{ review.comment || '未填写文字评价。' }}</p>
-            </article>
+              <span
+                class="notification-icon"
+                :class="notificationToneClass(notification)"
+              >
+                <component
+                  :is="notificationIcon(notification.type)"
+                  :size="22"
+                  aria-hidden="true"
+                />
+              </span>
+              <span class="notification-body">
+                <span class="notification-card-head">
+                  <strong>{{ notification.title }}</strong>
+                  <small>{{ formatRelativeTime(notification.createdAt) }}</small>
+                </span>
+                <span>{{ shortText(notification.content, 78) }}</span>
+                <span class="notification-meta">
+                  {{ notification.source }} ·
+                  {{ notification.taskId ? `任务 #${notification.taskId}` : notification.postId ? `帖子 #${notification.postId}` : '系统消息' }}
+                </span>
+              </span>
+              <span
+                v-if="!notification.read"
+                class="unread-dot"
+                aria-label="未读通知"
+              />
+            </button>
           </div>
         </section>
+
+        <aside class="panel-card notification-detail-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="section-kicker">
+                通知详情
+              </p>
+              <h2>{{ selectedNotification?.title || '选择一条通知' }}</h2>
+            </div>
+            <StatusBadge
+              :label="selectedNotification?.read ? '已读' : '未读'"
+              :tone="selectedNotification?.read ? 'success' : 'warning'"
+            />
+          </div>
+
+          <template v-if="selectedNotification">
+            <div class="notification-detail-hero">
+              <span
+                class="notification-icon"
+                :class="notificationToneClass(selectedNotification)"
+              >
+                <component
+                  :is="notificationIcon(selectedNotification.type)"
+                  :size="30"
+                  aria-hidden="true"
+                />
+              </span>
+              <div>
+                <strong>{{ selectedNotification.source }}</strong>
+                <span>{{ formatDateTime(selectedNotification.createdAt) }}</span>
+              </div>
+            </div>
+            <p class="notification-detail-copy">
+              {{ selectedNotification.content }}
+            </p>
+
+            <dl class="notification-meta-list">
+              <div>
+                <dt>分类</dt>
+                <dd>{{ selectedNotification.type }}</dd>
+              </div>
+              <div>
+                <dt>关联内容</dt>
+                <dd>
+                  {{ selectedNotification.taskId ? `任务 #${selectedNotification.taskId}` : selectedNotification.postId ? `帖子 #${selectedNotification.postId}` : '无' }}
+                </dd>
+              </div>
+              <div>
+                <dt>状态</dt>
+                <dd>{{ selectedNotification.read ? '已读' : '未读' }}</dd>
+              </div>
+            </dl>
+
+            <div class="detail-actions">
+              <button
+                class="primary-action"
+                type="button"
+                :disabled="selectedNotification.read || loadingNotifications"
+                @click="markNotificationRead(selectedNotification)"
+              >
+                <CheckCheck
+                  :size="17"
+                  aria-hidden="true"
+                />
+                标为已读
+              </button>
+              <RouterLink
+                v-if="selectedNotification.taskId"
+                class="ghost-action"
+                :to="{ name: 'task-detail', params: { taskId: selectedNotification.taskId } }"
+              >
+                <FileCheck2
+                  :size="17"
+                  aria-hidden="true"
+                />
+                查看任务
+              </RouterLink>
+              <RouterLink
+                v-if="selectedNotification.postId"
+                class="ghost-action"
+                :to="{ name: 'post-list', query: { postId: selectedNotification.postId } }"
+              >
+                <FileText
+                  :size="17"
+                  aria-hidden="true"
+                />
+                查看帖子
+              </RouterLink>
+            </div>
+          </template>
+        </aside>
       </section>
     </main>
   </DashboardShell>
 </template>
 
 <style scoped>
-.review-page {
+.fe08-page {
   display: grid;
-  gap: 18px;
+  grid-template-columns: minmax(184px, 218px) minmax(0, 1fr);
+  grid-template-areas:
+    "title title"
+    "nav metrics"
+    "nav content";
+  gap: 20px;
+  align-items: start;
+}
+
+.fe08-title-card {
+  grid-area: title;
+}
+
+.fe08-page--notifications {
+  grid-template-areas:
+    "title title"
+    "nav content";
+}
+
+.review-section-nav {
+  grid-area: nav;
+  align-self: start;
+  position: sticky;
+  top: 96px;
+  padding: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+  box-shadow: none;
+}
+
+.metric-strip {
+  grid-area: metrics;
+}
+
+.review-layout,
+.notification-layout {
+  grid-area: content;
 }
 
 .page-title-card,
@@ -611,25 +1153,26 @@ onMounted(loadReviews)
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-surface);
-  box-shadow: 0 18px 36px var(--shadow-card);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--shadow-card) 72%, transparent);
 }
 
-.page-title-card {
+.fe08-title-card {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 24px;
-  padding: 26px 32px;
+  gap: 22px;
+  min-height: 112px;
+  padding: 20px 28px;
 }
 
 .title-icon {
   display: grid;
   place-items: center;
-  width: 72px;
-  height: 72px;
-  border-radius: 24px;
-  background: var(--color-accent-bg);
-  color: var(--color-accent);
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+  background: var(--color-info-bg);
+  color: var(--color-info);
 }
 
 .title-copy {
@@ -640,37 +1183,108 @@ onMounted(loadReviews)
 .title-copy p,
 .section-kicker {
   margin: 0;
-  color: var(--color-text-muted);
-  font-size: 0.86rem;
-  font-weight: 800;
+  color: var(--color-info);
+  font-size: 0.82rem;
+  font-weight: 900;
 }
 
 .title-copy h1,
-.panel-heading h2,
-.empty-state h3,
-.review-complete-state strong {
+.panel-heading h2 {
   margin: 0;
   color: var(--color-text);
+  font-weight: 900;
+  line-height: 1.15;
+}
+
+.title-copy h1 {
+  font-size: 1.5rem;
 }
 
 .title-copy span,
-.empty-state p,
-.review-complete-state p {
-  color: var(--color-text-secondary);
+.panel-copy {
+  color: var(--color-text-muted);
   line-height: 1.6;
+}
+
+.filter-tabs,
+.tag-list,
+.star-row,
+.detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-tabs button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  font-weight: 800;
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease;
+}
+
+.filter-tabs button.active {
+  border-color: var(--color-info-soft);
+  background: var(--color-brand-soft);
+  color: var(--color-info);
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  font-weight: 800;
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.tag-chip:hover {
+  border-color: var(--color-border);
+  background: var(--color-brand-soft);
+}
+
+.tag-chip.active {
+  border-color: var(--color-brand-border-hover);
+  background: var(--color-brand-soft);
+  color: var(--color-brand-hover);
+  box-shadow: 0 4px 12px var(--shadow-card);
 }
 
 .metric-strip {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
+  gap: 12px;
+  align-items: stretch;
 }
 
 .metric-tile {
   display: grid;
-  gap: 8px;
-  min-height: 82px;
-  padding: 16px;
+  gap: 6px;
+  min-height: 64px;
+  padding: 14px 16px;
   border: 1px solid var(--color-divider);
   border-radius: 8px;
   background: var(--color-surface);
@@ -684,25 +1298,38 @@ onMounted(loadReviews)
 
 .metric-tile strong {
   color: var(--color-text);
-  font-size: 1.65rem;
+  font-size: 1.45rem;
   line-height: 1;
 }
 
 .metric-tile--accent {
-  background: var(--color-accent-bg);
+  border-color: var(--color-accent-bg);
 }
 
 .metric-tile--success {
-  background: var(--color-success-bg);
+  border-color: var(--color-success-bg);
 }
 
 .metric-tile--info {
-  background: var(--color-brand-soft);
+  border-color: var(--color-brand-border);
 }
 
 .review-layout {
   display: grid;
-  grid-template-columns: minmax(280px, 0.78fr) minmax(360px, 1.08fr) minmax(280px, 0.82fr);
+  grid-template-columns: minmax(280px, 0.74fr) minmax(430px, 1.26fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.review-history-panel {
+  grid-column: 1 / -1;
+}
+
+.notification-layout {
+  display: grid;
+  grid-template-columns: minmax(380px, 0.92fr) minmax(360px, 1.08fr);
+  grid-template-areas:
+    "list detail";
   gap: 18px;
   align-items: start;
 }
@@ -722,51 +1349,68 @@ onMounted(loadReviews)
 }
 
 .icon-action,
+.ghost-action,
 .primary-action,
-.star-button,
-.tag-chip,
-.review-task-card {
-  transition:
-    border-color 180ms ease,
-    background-color 180ms ease,
-    box-shadow 180ms ease,
-    color 180ms ease;
-}
-
-.icon-action {
+.star-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
+  gap: 8px;
   min-height: 40px;
-  border: 1px solid var(--color-divider);
   border-radius: 8px;
+  font-weight: 900;
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.icon-action {
+  width: 40px;
+  border: 1px solid var(--color-divider);
   background: var(--color-surface);
   color: var(--color-text-secondary);
 }
 
 .icon-action:hover,
-.primary-action:hover:not(:disabled) {
+.ghost-action:hover {
   border-color: var(--color-brand-border-hover);
-  box-shadow: var(--shadow-button);
+  background: var(--color-brand-soft);
+  color: var(--color-info);
+}
+
+.ghost-action {
+  min-width: 112px;
+  padding: 0 13px;
+  border: 1px solid var(--color-divider);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  text-decoration: none;
+}
+
+.ghost-action--compact {
+  min-width: auto;
 }
 
 .primary-action {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 42px;
+  min-width: 148px;
   padding: 0 16px;
   border: 1px solid var(--color-info);
-  border-radius: 8px;
   background: var(--color-info);
   color: var(--color-surface);
-  font-weight: 800;
+  box-shadow: var(--shadow-button);
 }
 
 .primary-action:hover:not(:disabled) {
   background: var(--color-info-text);
+}
+
+.primary-action:disabled,
+.ghost-action:disabled,
+.icon-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
 }
 
 .loading-state,
@@ -788,48 +1432,76 @@ onMounted(loadReviews)
   min-height: 150px;
 }
 
+.empty-state h3,
+.review-complete-state strong {
+  margin: 0;
+  color: var(--color-text);
+}
+
+.empty-state p,
+.review-complete-state p {
+  margin: 0;
+  line-height: 1.55;
+}
+
 .review-task-list,
-.history-list {
+.notification-list {
   display: grid;
   gap: 10px;
 }
 
-.review-task-card {
+.review-task-card,
+.notification-card {
   display: grid;
-  gap: 11px;
   width: 100%;
-  padding: 14px;
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-surface);
   color: var(--color-text);
   text-align: left;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background-color 180ms ease;
+}
+
+.review-task-card {
+  gap: 11px;
+  padding: 14px;
 }
 
 .review-task-card:hover,
-.review-task-card.active {
+.review-task-card.active,
+.notification-card:hover,
+.notification-card.active {
   border-color: var(--color-brand-border-hover);
+  background: var(--color-surface);
   box-shadow: var(--shadow-card);
 }
 
 .review-task-topline,
 .review-task-meta,
 .review-task-footer,
-.history-review-head {
+.notification-card-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
 }
 
+.review-task-topline strong {
+  font-size: 0.98rem;
+  line-height: 1.35;
+}
+
 .review-task-meta,
 .review-task-footer,
-.review-context span,
-.review-context small,
+.notification-meta,
 .history-review small,
-.field small,
-.review-score {
+.field small {
   color: var(--color-text-muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
 }
 
 .review-context {
@@ -838,78 +1510,94 @@ onMounted(loadReviews)
   gap: 12px;
 }
 
-.review-context div {
+.review-context div,
+.notification-meta-list div {
   display: grid;
-  gap: 4px;
-  padding: 14px;
+  gap: 5px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-bg);
 }
 
-.review-context strong {
+.review-context span,
+.notification-meta-list dt {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.review-context strong,
+.notification-meta-list dd {
+  margin: 0;
   color: var(--color-text);
+  font-weight: 900;
+  line-height: 1.4;
+}
+
+.review-context small {
+  color: var(--color-text-muted);
+  line-height: 1.45;
 }
 
 .review-form {
   display: grid;
-  gap: 18px;
+  gap: 16px;
 }
 
 .rating-field,
-.tag-field,
-.field {
+.tag-field {
   display: grid;
   gap: 12px;
   margin: 0;
-  padding: 0;
-  border: 0;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface-muted);
 }
 
 .rating-field legend,
 .tag-field legend,
 .field span {
   color: var(--color-text);
-  font-weight: 800;
+  font-weight: 900;
 }
 
-.star-row,
-.tag-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.star-button,
-.tag-chip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 40px;
-  padding: 0 12px;
+.star-button {
+  width: 42px;
+  min-height: 42px;
   border: 1px solid var(--color-divider);
-  border-radius: 999px;
   background: var(--color-surface);
-  color: var(--color-text-secondary);
+  color: var(--color-text-muted);
 }
 
-.star-button.active,
-.tag-chip.active {
-  border-color: var(--color-brand);
-  background: var(--color-brand-soft);
-  color: var(--color-brand);
+.star-button.active {
+  border-color: var(--color-warning);
+  background: var(--color-warning-bg);
+  color: var(--color-warning-text);
+}
+
+.field {
+  display: grid;
+  gap: 8px;
 }
 
 .field textarea {
-  min-height: 140px;
-  padding: 14px;
+  width: 100%;
+  min-height: 126px;
+  resize: vertical;
   border: 1px solid var(--color-divider);
   border-radius: 8px;
-  outline: none;
-  resize: vertical;
-  background: var(--color-surface);
+  padding: 12px;
   color: var(--color-text);
-  line-height: 1.6;
+  line-height: 1.55;
+  outline: 0;
+}
+
+.field textarea:focus,
+.notification-search:focus-within {
+  border-color: var(--color-brand-border-hover);
+  box-shadow: var(--shadow-focus);
 }
 
 .history-review {
@@ -921,10 +1609,184 @@ onMounted(loadReviews)
   background: var(--color-surface);
 }
 
+.history-review-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.history-review-head > div {
+  display: grid;
+  gap: 2px;
+}
+
+.review-avatar {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--color-info-bg);
+  color: var(--color-info);
+}
+
+.mini-stars {
+  display: flex;
+  color: var(--color-warning-text);
+}
+
 .history-review p {
   margin: 0;
-  color: var(--color-text);
+  color: var(--color-text-secondary);
   line-height: 1.6;
+}
+
+.notification-list-panel {
+  grid-area: list;
+}
+
+.notification-detail-panel {
+  grid-area: detail;
+}
+
+.notification-tools {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.notification-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--color-divider);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+}
+
+.notification-search input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  color: var(--color-text);
+}
+
+.notification-card {
+  position: relative;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 13px;
+}
+
+.notification-card.unread {
+  border-color: var(--color-info-soft);
+  background: var(--color-surface);
+}
+
+.notification-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+}
+
+.notification-icon--info {
+  background: var(--color-info-bg);
+  color: var(--color-info);
+}
+
+.notification-icon--warning {
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+}
+
+.notification-icon--success {
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
+}
+
+.notification-icon--danger {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+.notification-icon--accent {
+  background: var(--color-accent-bg);
+  color: var(--color-accent-text);
+}
+
+.notification-icon--muted {
+  background: var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.notification-body {
+  display: grid;
+  gap: 5px;
+}
+
+.notification-body > span:not(.notification-card-head):not(.notification-meta) {
+  color: var(--color-text-muted);
+  line-height: 1.45;
+}
+
+.unread-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-info);
+}
+
+.notification-detail-hero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg);
+}
+
+.notification-detail-hero div {
+  display: grid;
+  gap: 4px;
+}
+
+.notification-detail-hero strong {
+  color: var(--color-text);
+}
+
+.notification-detail-hero span {
+  color: var(--color-text-muted);
+}
+
+.notification-detail-copy {
+  margin: 0;
+  color: var(--color-text-secondary);
+  line-height: 1.7;
+}
+
+.notification-meta-list {
+  display: grid;
+  gap: 10px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .spinning {
@@ -932,26 +1794,80 @@ onMounted(loadReviews)
 }
 
 @keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-
   to {
     transform: rotate(360deg);
   }
 }
 
-@media (max-width: 1200px) {
-  .review-layout {
+@media (max-width: 1180px) {
+  .fe08-page {
     grid-template-columns: 1fr;
+    grid-template-areas:
+      "title"
+      "nav"
+      "metrics"
+      "content";
+  }
+
+  .fe08-page--notifications {
+    grid-template-areas:
+      "title"
+      "nav"
+      "content";
+  }
+
+  .review-section-nav {
+    position: static;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+
+  .metric-strip,
+  .review-layout,
+  .notification-layout {
+    grid-area: auto;
+  }
+
+  .review-layout,
+  .notification-layout {
+    grid-template-columns: 1fr;
+    grid-template-areas: none;
+  }
+
+  .notification-list-panel,
+  .notification-detail-panel {
+    grid-area: auto;
   }
 }
 
-@media (max-width: 900px) {
-  .page-title-card,
+@media (max-width: 760px) {
+  .fe08-title-card,
   .metric-strip,
-  .review-context {
+  .review-context,
+  .notification-tools {
     grid-template-columns: 1fr;
   }
+
+  .fe08-title-card {
+    padding: 18px;
+  }
+
+  .review-task-topline,
+  .review-task-footer,
+  .notification-card-head {
+    flex-direction: column;
+  }
+
+  .notification-card {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .unread-dot {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+  }
 }
+
 </style>

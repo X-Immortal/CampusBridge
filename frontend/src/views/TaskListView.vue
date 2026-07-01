@@ -36,8 +36,10 @@ import {
   X
 } from '@lucide/vue'
 import DashboardShell from '../components/DashboardShell.vue'
+import SectionNav from '../components/layout/SectionNav.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import UserProfileModal from '../components/UserProfileModal.vue'
+import { taskNavItems } from '../app/navigation'
 import {
   APPLICATION_STATUS_OPTIONS,
   MODERATION_STATUS_OPTIONS,
@@ -52,25 +54,32 @@ import {
 import api from '../services/api'
 import { useAuth } from '../stores/auth'
 import { useToast } from '../composables/useToast'
+import { useGuestAction } from '../composables/useGuestAction'
 
 const route = useRoute()
 const router = useRouter()
 const { isAuthenticated, currentUserId, verificationStatus } = useAuth()
 const { showToast } = useToast()
+const { requireLoginAction } = useGuestAction()
 const MINE_TASK_FETCH_SIZE = 100
 
 function isMineRoute(routeName = route.name) {
-  return routeName === 'my-tasks' || routeName === 'my-task-detail'
+  return ['my-tasks', 'my-task-detail', 'workspace-tasks', 'workspace-task-detail', 'workspace-drafts'].includes(
+    routeName
+  )
 }
 
 const isMineView = computed(() => isMineRoute(route.name))
+const isDraftView = computed(() => route.name === 'workspace-drafts')
+const showMineSubtabs = computed(() => isMineView.value && !isDraftView.value)
 
 function createDefaultFilters(routeName = route.name) {
+  const defaultStatus = routeName === 'workspace-drafts' ? 'DRAFT' : isMineRoute(routeName) ? '' : 'OPEN'
   return {
     keyword: '',
     category: '',
     campus: '',
-    status: isMineRoute(routeName) ? '' : 'OPEN',
+    status: defaultStatus,
     rewardType: '',
     requiresProof: '',
     sortBy: 'CREATED_AT_DESC',
@@ -257,6 +266,17 @@ const visibleTaskGroups = computed(() => {
     ]
   }
 
+  if (isDraftView.value) {
+    return [
+      {
+        key: 'drafts',
+        title: '未发布草稿',
+        emptyCopy: '当前没有未发布的任务草稿。',
+        items: tasks.value
+      }
+    ]
+  }
+
   if (mineSubTab.value === 'accepted') {
     return [
       {
@@ -341,16 +361,32 @@ const proofAttachmentItems = computed(() =>
       []
   )
 )
-const pageTitle = computed(() =>
-  isMineView.value ? '管理自己发布的任务' : '找到值得接、能准时完成的校园互助'
-)
-const pageSubtitle = computed(() =>
-  isMineView.value
+const pageTitle = computed(() => {
+  if (isDraftView.value) return '管理任务草稿'
+  return isMineView.value ? '管理自己发布的任务' : '找到值得接、能准时完成的校园互助'
+})
+const pageSubtitle = computed(() => {
+  if (isDraftView.value) return '只显示未发布的任务草稿，可继续编辑或删除。'
+  return isMineView.value
     ? '集中查看任务状态、报名情况、截止时间与完成进度。'
     : '按校区、奖励、凭证和任务状态快速筛选，再查看完整细节后申请。'
-)
-const listRouteName = computed(() => (isMineView.value ? 'my-tasks' : 'task-list'))
-const detailRouteName = computed(() => (isMineView.value ? 'my-task-detail' : 'task-detail'))
+})
+const listRouteName = computed(() => {
+  if (isDraftView.value) return 'workspace-drafts'
+  return isMineView.value ? 'workspace-tasks' : 'task-list'
+})
+const detailRouteName = computed(() => {
+  if (isDraftView.value) return 'workspace-drafts'
+  return isMineView.value ? 'workspace-task-detail' : 'task-detail'
+})
+const taskSectionEyebrow = computed(() => {
+  if (isDraftView.value) return '任务草稿'
+  return isMineView.value ? '我的任务' : '任务广场'
+})
+const taskListTitle = computed(() => {
+  if (isDraftView.value) return `${pagination.total} 条草稿 · 第 ${pagination.page} 页`
+  return `${pagination.total} 条任务 · 第 ${pagination.page} 页`
+})
 const editableStatuses = new Set(['DRAFT', 'OPEN'])
 const cancelableStatuses = new Set(['DRAFT', 'OPEN', 'ACCEPTED', 'IN_PROGRESS'])
 const repostableStatuses = new Set(['CANCELLED', 'DRAFT'])
@@ -784,8 +820,22 @@ function applyTaskResult(result) {
 
   if (isMineView.value) {
     const mineItems = items.filter((task) => isRequesterTask(task) || isProviderTask(task))
-    const publishedItems = mineItems.filter((task) => isRequesterTask(task))
-    const acceptedItems = mineItems.filter((task) => isProviderTask(task))
+
+    if (isDraftView.value) {
+      const draftItems = mineItems.filter((task) => isRequesterTask(task) && task.status === 'DRAFT')
+      const start = (filters.page - 1) * filters.size
+      const pagedItems = draftItems.slice(start, start + filters.size)
+
+      tasks.value = pagedItems
+      pagination.page = filters.page
+      pagination.size = filters.size
+      pagination.total = draftItems.length
+      return
+    }
+
+    const nonDraftMineItems = mineItems.filter((task) => task.status !== 'DRAFT')
+    const publishedItems = nonDraftMineItems.filter((task) => isRequesterTask(task))
+    const acceptedItems = nonDraftMineItems.filter((task) => isProviderTask(task))
 
     const activePage = mineSubTab.value === 'published' ? minePublishedPage : mineAcceptedPage
     const activeItems = mineSubTab.value === 'published' ? publishedItems : acceptedItems
@@ -1012,6 +1062,10 @@ function buildTaskQuery() {
   if (isMineView.value) {
     query.page = 1
     query.size = MINE_TASK_FETCH_SIZE
+  }
+
+  if (isDraftView.value) {
+    query.status = 'DRAFT'
   }
 
   return query
@@ -1271,16 +1325,24 @@ async function clearSelectedTask() {
 }
 
 async function openEditTask() {
+  if (!requireLoginAction('编辑任务')) return
   if (!detailTask.value?.id || !canEditDetailTask.value) return
   await router.push({ name: 'task-edit', params: { taskId: detailTask.value.id } })
 }
 
 async function openRepostTask() {
+  if (!requireLoginAction('重新发布任务')) return
   if (!detailTask.value?.id || !canRepostDetailTask.value) return
   await router.push({ name: 'task-repost', params: { taskId: detailTask.value.id } })
 }
 
+async function handlePublishShortcut() {
+  if (!requireLoginAction('发布任务')) return
+  await router.push({ name: 'task-publish' })
+}
+
 function openCancelPanel() {
+  if (!requireLoginAction('管理任务')) return
   if (!canCancelDetailTask.value) return
   cancelPanelOpen.value = true
   cancelReason.value = ''
@@ -1295,6 +1357,7 @@ function closeCancelPanel() {
 
 function openApplicationPanel() {
   if (!detailTask.value || isDetailOwner.value) return
+  if (!requireLoginAction('申请接单')) return
   applicationPanelOpen.value = true
   applicationMessageError.value = ''
 }
@@ -1342,7 +1405,9 @@ async function submitQuickConfirmCompletion() {
 }
 
 async function openTaskConversation() {
-  if (!canOpenConversation.value || !detailTask.value?.id) return
+  if (!detailTask.value?.id) return
+  if (!requireLoginAction('任务私信')) return
+  if (!canOpenConversation.value) return
 
   const peerUserId = detailConversationPeerUserId.value
   if (!peerUserId) {
@@ -1381,6 +1446,7 @@ async function openTaskConversation() {
 
 async function openReportPanel() {
   if (!detailTask.value?.id) return
+  if (!requireLoginAction('提交举报')) return
   reportPanelOpen.value = true
   hydrateReportForm()
   if (!reportsLoaded.value && !reportsLoading.value) {
@@ -1858,8 +1924,8 @@ void retainedTaskWorkflowBindings
 watch(
   () => [route.name, route.params.taskId],
   ([routeName, taskId], [previousRouteName] = []) => {
-    const isListRoute = routeName === 'task-list' || routeName === 'my-tasks'
-    if (isListRoute && routeName !== previousRouteName) {
+    const isTaskListRoute = ['task-list', 'my-tasks', 'workspace-tasks', 'workspace-drafts'].includes(routeName)
+    if (isTaskListRoute && routeName !== previousRouteName) {
       Object.assign(filters, readFiltersFromRoute(routeName))
       loadTasks()
     }
@@ -1871,12 +1937,12 @@ watch(
     candidatesLoaded.value = false
     candidatesError.value = ''
     cancelPanelOpen.value = false
-  applicationPanelOpen.value = false
-  candidatePanelOpen.value = false
-  reportPanelOpen.value = false
-  resetCompletionState()
-  clearReportErrors()
-  loadTaskDetail(selectedTaskId.value)
+    applicationPanelOpen.value = false
+    candidatePanelOpen.value = false
+    reportPanelOpen.value = false
+    resetCompletionState()
+    clearReportErrors()
+    loadTaskDetail(selectedTaskId.value)
   }
 )
 
@@ -1887,7 +1953,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <DashboardShell :active-label="isMineView ? '我的任务' : '任务广场'">
+  <DashboardShell>
     <main
       class="tasks-page"
       :class="{ 'tasks-page--mine': isMineView }"
@@ -1896,27 +1962,36 @@ onMounted(async () => {
       <section class="page-title-card tasks-title-card">
         <div class="title-icon">
           <component
-            :is="isMineView ? ClipboardCheck : Filter"
+            :is="route.name === 'workspace-drafts' ? FileText : (isMineView ? ClipboardCheck : Filter)"
             :size="32"
             aria-hidden="true"
           />
         </div>
         <div class="title-copy">
-          <p>{{ isMineView ? '我的任务' : '任务广场' }}</p>
+          <p>{{ taskSectionEyebrow }}</p>
           <h1>{{ pageTitle }}</h1>
           <span>{{ pageSubtitle }}</span>
         </div>
-        <RouterLink
+        <button
           class="publish-shortcut"
-          to="/tasks/new"
+          type="button"
+          @click="handlePublishShortcut"
         >
           <PlusCircle
             :size="18"
             aria-hidden="true"
           />
           发布任务
-        </RouterLink>
+        </button>
       </section>
+
+      <SectionNav
+        class="task-section-nav"
+        :items="taskNavItems"
+        :active-key="route.meta.subSection"
+        variant="tabs"
+        aria-label="任务二级导航"
+      />
 
       <section
         class="tasks-layout tasks-layout--full"
@@ -2199,7 +2274,7 @@ onMounted(async () => {
             :class="{ 'metric-strip--mine': isMineView }"
           >
             <article
-              v-for="metric in isMineView ? mineMetricTiles : []"
+              v-for="metric in isMineView && !isDraftView ? mineMetricTiles : []"
               :key="metric.key"
               class="metric-tile metric-tile--mine"
               :class="`metric-tile--${metric.tone}`"
@@ -2238,7 +2313,7 @@ onMounted(async () => {
           </section>
 
           <div
-            v-if="isMineView"
+            v-if="showMineSubtabs"
             class="mine-subtabs"
           >
             <button
@@ -2267,7 +2342,7 @@ onMounted(async () => {
                 >
                   查询结果
                 </p>
-                <h2>{{ pagination.total }} 条任务 · 第 {{ pagination.page }} 页</h2>
+                <h2>{{ taskListTitle }}</h2>
                 <span v-if="pagination.total">当前显示 {{ resultRange }}</span>
               </div>
               <div class="toolbar-actions">
@@ -2340,8 +2415,14 @@ onMounted(async () => {
                   <span class="empty-illustration__building empty-illustration__building--right" />
                   <span class="empty-illustration__plane" />
                 </div>
-                <h3>还没有匹配的任务</h3>
-                <p>可以发布新任务，或调整筛选条件后重新查看。</p>
+                <h3>{{ isDraftView ? '还没有任务草稿' : '还没有匹配的任务' }}</h3>
+                <p>
+                  {{
+                    isDraftView
+                      ? '保存草稿后会出现在这里，方便继续编辑。'
+                      : '可以发布新任务，或调整筛选条件后重新查看。'
+                  }}
+                </p>
                 <div class="empty-actions">
                   <RouterLink
                     class="primary-action"
@@ -2351,7 +2432,7 @@ onMounted(async () => {
                       :size="18"
                       aria-hidden="true"
                     />
-                    发布任务
+                    {{ isDraftView ? '新建草稿' : '发布任务' }}
                   </RouterLink>
                   <button
                     class="ghost-action"
@@ -2395,7 +2476,7 @@ onMounted(async () => {
                 >
                   <div>
                     <p class="section-kicker">
-                      {{ group.key === 'accepted' ? '已接任务' : '发布任务' }}
+                      {{ group.key === 'accepted' ? '已接任务' : (group.key === 'drafts' ? '任务草稿' : '发布任务') }}
                     </p>
                     <h3>{{ group.title }}</h3>
                   </div>
@@ -3896,6 +3977,11 @@ onMounted(async () => {
 .tasks-page {
   display: grid;
   gap: 20px;
+}
+
+.task-section-nav {
+  width: fit-content;
+  max-width: 100%;
 }
 
 .tasks-page--mine {

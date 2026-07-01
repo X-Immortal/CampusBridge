@@ -177,6 +177,12 @@ export default {
     request(`/admin/moderation/tasks/${taskId}/reject`, { method: 'POST', body }),
   getTasks: (params) => request(`/tasks${buildQuery(params)}`),
   getTaskDetail: (taskId) => request(`/tasks/${taskId}`),
+  getAdminDashboardSummary: () => request('/admin/dashboard/summary'),
+  getAdminDashboardTrends: (params) => request(`/admin/dashboard/trends${buildQuery(params)}`),
+  getAdminTaskStatusStats: () => request('/admin/dashboard/task-status'),
+  getAdminReportStatusStats: () => request('/admin/dashboard/report-status'),
+  getAdminReportTargetTypeStats: () => request('/admin/dashboard/report-target-type'),
+  getAdminDashboardTodos: () => request('/admin/dashboard/todos'),
   createTaskApplication: (taskId, body) =>
     request(`/tasks/${taskId}/applications`, { method: 'POST', body }),
   getTaskApplications: (taskId) => request(`/tasks/${taskId}/applications`),

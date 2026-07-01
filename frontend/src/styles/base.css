@@ -367,8 +367,24 @@ html[data-density] .content-grid,
 html[data-density] .posts-page,
 html[data-density] .posts-layout,
 html[data-density] .post-list,
-html[data-density] .metric-strip {
+html[data-density] .metric-strip,
+html[data-density] .workspace-layout,
+html[data-density] .workspace-content {
   gap: var(--density-section-gap);
+}
+
+html[data-density] .settings-card,
+html[data-density] .settings-section {
+  gap: var(--density-section-gap);
+}
+
+html[data-density] .topbar-publish-button {
+  min-height: var(--density-control-height);
+  padding-inline: var(--density-control-padding-x);
+}
+
+html[data-density] .mobile-bottom-nav__item {
+  min-height: calc(var(--density-control-height) + 8px);
 }
 * {
   box-sizing: border-box;

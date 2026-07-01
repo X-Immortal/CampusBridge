@@ -319,10 +319,10 @@ test('my task cards keep detail modal in mine route context', async () => {
   const routerSource = await readFile(new URL('../src/router/index.js', import.meta.url), 'utf8')
 
   assert.match(routerSource, /path:\s*'\/tasks\/mine\/:taskId'[\s\S]*?name:\s*'my-task-detail'/)
-  assert.match(viewSource, /routeName === 'my-tasks' \|\| routeName === 'my-task-detail'/)
+  assert.match(viewSource, /\['my-tasks', 'my-task-detail', 'workspace-tasks', 'workspace-task-detail', 'workspace-drafts'\]\.includes/)
   assert.match(
     viewSource,
-    /const detailRouteName = computed\(\(\) => \(isMineView\.value \? 'my-task-detail' : 'task-detail'\)\)/
+    /return isMineView\.value \? 'workspace-task-detail' : 'task-detail'/
   )
   assert.match(viewSource, /name:\s*detailRouteName\.value/)
 })
