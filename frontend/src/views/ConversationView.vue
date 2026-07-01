@@ -315,8 +315,9 @@ function normalizeMessage(message = {}) {
 
 function formatConversationTitle(relatedType, relatedId, type) {
   if (type === 'SYSTEM' || relatedType === 'SYSTEM') return '系统通知'
-  if (relatedType === 'POST') return relatedId ? `帖子 #${relatedId} 私聊` : '帖子私聊'
-  return relatedId ? `任务 #${relatedId}` : '站内会话'
+  if (relatedType === 'POST') return '帖子私聊'
+  if (relatedType === 'TASK' || relatedId) return '任务会话'
+  return '站内会话'
 }
 
 function resolvePeerUserIdFromTask(task) {
@@ -694,7 +695,9 @@ function buildRenderedMessages(items = []) {
 function conversationSubtitle(conversation) {
   if (!conversation) return ''
   if (conversation.type === 'SYSTEM') return conversation.pinned ? '置顶通知' : '系统通知'
-  return conversation.relatedId ? `任务 #${conversation.relatedId}` : '站内会话'
+  if (conversation.relatedType === 'POST') return '帖子相关会话'
+  if (conversation.relatedId) return '任务相关会话'
+  return '站内会话'
 }
 
 function categoryLabel(category) {

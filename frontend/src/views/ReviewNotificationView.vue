@@ -436,6 +436,19 @@ function inferNotificationTitle(content, fallback) {
   return fallback || '系统通知'
 }
 
+function notificationTypeLabel(type) {
+  if (type === 'REVIEW') return '评价提醒'
+  if (type === 'CREDIT') return '信用动态'
+  if (type === 'TASK') return '任务动态'
+  return '系统通知'
+}
+
+function relatedContentLabel(notification) {
+  if (notification?.taskId) return '关联任务'
+  if (notification?.postId) return '关联帖子'
+  return '系统消息'
+}
+
 function applyConversationRead(conversationId) {
   const readAt = new Date().toISOString()
   notifications.value = notifications.value.map((notification) =>
@@ -989,8 +1002,7 @@ onMounted(async () => {
                 </span>
                 <span>{{ shortText(notification.content, 78) }}</span>
                 <span class="notification-meta">
-                  {{ notification.source }} ·
-                  {{ notification.taskId ? `任务 #${notification.taskId}` : notification.postId ? `帖子 #${notification.postId}` : '系统消息' }}
+                  {{ notification.source }} · {{ relatedContentLabel(notification) }}
                 </span>
               </span>
               <span
@@ -1040,13 +1052,11 @@ onMounted(async () => {
             <dl class="notification-meta-list">
               <div>
                 <dt>分类</dt>
-                <dd>{{ selectedNotification.type }}</dd>
+                <dd>{{ notificationTypeLabel(selectedNotification.type) }}</dd>
               </div>
               <div>
                 <dt>关联内容</dt>
-                <dd>
-                  {{ selectedNotification.taskId ? `任务 #${selectedNotification.taskId}` : selectedNotification.postId ? `帖子 #${selectedNotification.postId}` : '无' }}
-                </dd>
+                <dd>{{ relatedContentLabel(selectedNotification) }}</dd>
               </div>
               <div>
                 <dt>状态</dt>

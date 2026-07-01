@@ -188,11 +188,21 @@ function numericValue(value) {
   return Number.isFinite(number) ? number : 0
 }
 
+function cleanDisplayTitle(value, fallback = '未命名帖子') {
+  const text = String(value || '').trim()
+  if (!text) return fallback
+  return text
+    .replace(/^\s*#?\d+\s*[-_—:：.)、]\s*/u, '')
+    .replace(/\s*[-_—:：(（]?\s*#\d+\s*[)）]?\s*$/u, '')
+    .trim() || fallback
+}
+
 function normalizePost(post = {}) {
   const id = post.id ?? post.postId
   return {
     ...post,
     id,
+    title: cleanDisplayTitle(post.title),
     authorId: post.authorId ?? post.userId,
     category: post.category || 'INQUIRY_HELP',
     status: post.status || 'PUBLISHED',
@@ -466,7 +476,7 @@ async function handlePublishPost() {
   publishing.value = true
   try {
     const createdPost = normalizePost(await api.createPost(buildCreatePostPayload()))
-    showToast(`帖子 #${createdPost.id || ''} 已发布。`)
+    showToast('帖子已发布。')
     publishDialogOpen.value = false
 
     Object.assign(filters, {
