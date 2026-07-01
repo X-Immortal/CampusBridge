@@ -11,6 +11,8 @@ public interface CompletionProofMapper {
 
     CompletionProof selectById(Long id);
 
+    CompletionProof selectByTaskId(Long taskId);
+
     List<CompletionProof> selectAll();
 
     int updateById(CompletionProof entity);

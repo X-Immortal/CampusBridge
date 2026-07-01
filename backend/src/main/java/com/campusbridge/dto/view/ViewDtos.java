@@ -2,6 +2,7 @@ package com.campusbridge.dto.view;
 
 import com.campusbridge.dto.enums.ApiEnums;
 import com.campusbridge.pojo.CompletionProof;
+import com.campusbridge.pojo.Attachment;
 import com.campusbridge.pojo.Conversation;
 import com.campusbridge.pojo.Message;
 import com.campusbridge.pojo.Post;
@@ -73,6 +74,7 @@ public final class ViewDtos {
         private Task task;
         private List<TaskApplication> applications;
         private CompletionProof completionProof;
+        private List<Attachment> attachments;
         private List<TaskHistory> history;
         private List<Review> reviews;
     }

@@ -1,7 +1,9 @@
 package com.campusbridge.integration;
 
 import com.campusbridge.pojo.Task;
+import com.campusbridge.dto.view.ViewDtos;
 import com.campusbridge.service.PostService;
+import com.campusbridge.service.TaskDetailService;
 import com.campusbridge.service.TaskService;
 import com.campusbridge.utils.JwtUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -16,6 +18,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.eq;
@@ -57,6 +60,9 @@ class GuestAccessIntegrationTest {
     private TaskService taskService;
 
     @MockitoBean
+    private TaskDetailService taskDetailService;
+
+    @MockitoBean
     private PostService postService;
 
     private String userToken() {
@@ -85,6 +91,16 @@ class GuestAccessIntegrationTest {
         return task;
     }
 
+    private ViewDtos.TaskDetailView publicTaskDetail() {
+        return new ViewDtos.TaskDetailView(
+                publicTask(),
+                List.of(),
+                null,
+                List.of(),
+                List.of(),
+                List.of());
+    }
+
     @Test
     void guestCanListTasksWithoutToken() throws Exception {
         Map<String, Object> payload = new LinkedHashMap<>();
@@ -103,29 +119,29 @@ class GuestAccessIntegrationTest {
 
     @Test
     void guestCanReadTaskDetailButSensitiveFieldsAreMasked() throws Exception {
-        when(taskService.getTaskDetail(eq(TASK_ID), isNull())).thenReturn(publicTask());
+        when(taskDetailService.getTaskDetail(eq(TASK_ID), isNull())).thenReturn(publicTaskDetail());
 
         mockMvc.perform(get("/api/v1/tasks/" + TASK_ID))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("SUCCESS"))
-                .andExpect(jsonPath("$.data.id").value(TASK_ID))
-                .andExpect(jsonPath("$.data.title").value("帮取快递"))
-                .andExpect(jsonPath("$.data.providerName").doesNotExist())
-                .andExpect(jsonPath("$.data.providerId").doesNotExist())
-                .andExpect(jsonPath("$.data.routeHint").doesNotExist())
-                .andExpect(jsonPath("$.data.sensitiveReason").doesNotExist());
+                .andExpect(jsonPath("$.data.task.id").value(TASK_ID))
+                .andExpect(jsonPath("$.data.task.title").value("帮取快递"))
+                .andExpect(jsonPath("$.data.task.providerName").doesNotExist())
+                .andExpect(jsonPath("$.data.task.providerId").doesNotExist())
+                .andExpect(jsonPath("$.data.task.routeHint").doesNotExist())
+                .andExpect(jsonPath("$.data.task.sensitiveReason").doesNotExist());
     }
 
     @Test
     void authenticatedUserSeesSensitiveFields() throws Exception {
-        when(taskService.getTaskDetail(eq(TASK_ID), eq(USER_ID))).thenReturn(publicTask());
+        when(taskDetailService.getTaskDetail(eq(TASK_ID), eq(USER_ID))).thenReturn(publicTaskDetail());
 
         mockMvc.perform(get("/api/v1/tasks/" + TASK_ID)
                         .header("Authorization", userToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("SUCCESS"))
-                .andExpect(jsonPath("$.data.id").value(TASK_ID))
-                .andExpect(jsonPath("$.data.providerName").value("已选帮助者"));
+                .andExpect(jsonPath("$.data.task.id").value(TASK_ID))
+                .andExpect(jsonPath("$.data.task.providerName").value("已选帮助者"));
     }
 
     @Test

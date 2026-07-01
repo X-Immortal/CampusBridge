@@ -13,6 +13,8 @@ public interface TaskHistoryMapper {
 
     List<TaskHistory> selectAll();
 
+    List<TaskHistory> selectByTaskId(Long taskId);
+
     int updateById(TaskHistory entity);
 
     int deleteById(Long id);

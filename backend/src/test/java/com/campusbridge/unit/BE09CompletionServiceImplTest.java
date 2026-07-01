@@ -4,8 +4,10 @@ import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
 import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.mapper.CompletionProofMapper;
+import com.campusbridge.mapper.AttachmentMapper;
 import com.campusbridge.mapper.TaskMapper;
 import com.campusbridge.pojo.CompletionProof;
+import com.campusbridge.pojo.Attachment;
 import com.campusbridge.pojo.Task;
 import com.campusbridge.service.CreditService;
 import com.campusbridge.service.NotificationService;
@@ -18,6 +20,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -40,6 +43,9 @@ class BE09CompletionServiceImplTest {
     private CompletionProofMapper completionProofMapper;
 
     @Mock
+    private AttachmentMapper attachmentMapper;
+
+    @Mock
     private TaskMapper taskMapper;
 
     @Mock
@@ -57,6 +63,7 @@ class BE09CompletionServiceImplTest {
     void setUp() {
         completionService = new CompletionServiceImpl(
                 completionProofMapper,
+                attachmentMapper,
                 taskMapper,
                 taskHistoryService,
                 creditService,
@@ -117,6 +124,35 @@ class BE09CompletionServiceImplTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.COMMON_001_VALIDATION_ERROR);
+    }
+
+    @Test
+    void submitProofBindsOwnedTemporaryAttachments() {
+        Task task = task(TASK_ID, REQUESTER_ID, PROVIDER_ID, "IN_PROGRESS", "POINTS", 20);
+        Attachment attachment = new Attachment();
+        attachment.setId(30L);
+        attachment.setUploaderId(PROVIDER_ID);
+        attachment.setOwnerType("COMPLETION_PROOF");
+        attachment.setStatus("TEMPORARY");
+        when(taskMapper.selectById(TASK_ID)).thenReturn(task);
+        when(completionProofMapper.insert(any(CompletionProof.class))).thenAnswer(invocation -> {
+            CompletionProof proof = invocation.getArgument(0);
+            proof.setId(40L);
+            return 1;
+        });
+        when(attachmentMapper.selectById(30L)).thenReturn(attachment);
+        when(attachmentMapper.updateById(attachment)).thenReturn(1);
+        when(taskMapper.updateStatusById(
+                eq(TASK_ID), eq("IN_PROGRESS"), eq("PENDING_CONFIRMATION"), any()))
+                .thenReturn(1);
+        RequestDtos.SubmitCompletionRequest request = submitRequest("已完成并附图");
+        request.setAttachmentIds(List.of(30L));
+
+        completionService.submitCompletionProof(PROVIDER_ID, TASK_ID, request);
+
+        assertThat(attachment.getOwnerId()).isEqualTo(40L);
+        assertThat(attachment.getStatus()).isEqualTo("ACTIVE");
+        verify(attachmentMapper).updateById(attachment);
     }
 
     // ---- confirmCompletion ----

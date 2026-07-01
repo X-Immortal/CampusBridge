@@ -12,6 +12,13 @@
     WHERE id = #{id}
   </select>
 
+  <select id="selectByTaskId" resultType="com.campusbridge.pojo.CompletionProof">
+    SELECT * FROM completion_proofs
+    WHERE task_id = #{taskId}
+    ORDER BY submitted_at DESC, id DESC
+    LIMIT 1
+  </select>
+
   <select id="selectAll" resultType="com.campusbridge.pojo.CompletionProof">
     SELECT * FROM completion_proofs
   </select>

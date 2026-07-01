@@ -13,6 +13,8 @@ public interface ReviewMapper {
 
     List<Review> selectAll();
 
+    List<Review> selectByTaskId(Long taskId);
+
     List<Review> selectByRevieweeId(Long revieweeId);
 
     int updateById(Review entity);
