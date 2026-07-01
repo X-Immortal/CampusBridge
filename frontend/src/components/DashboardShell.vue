@@ -12,7 +12,7 @@ import {
   Palette,
   PlusCircle,
   School,
-  Search,
+  // Search,
   UserRound
 } from '@lucide/vue'
 import {
@@ -59,30 +59,30 @@ const accountMenuRef = ref(null)
 const preferencesOpen = ref(false)
 const preferencesRef = ref(null)
 const avatarLoadFailed = ref(false)
-const searchKeyword = ref('')
+// const searchKeyword = ref('')
 const publishMode = computed(() => props.publishMode)
 
 const activeSection = computed(() => route.meta?.section || '')
 
-const searchPlaceholder = computed(() => {
-  if (activeSection.value === 'posts') return '搜索帖子标题、内容或关键词'
-  if (activeSection.value === 'tasks') return '搜索任务标题、内容或关键词'
-  return '搜索任务、帖子或关键词'
-})
+// const searchPlaceholder = computed(() => {
+//   if (activeSection.value === 'posts') return '搜索帖子标题、内容或关键词'
+//   if (activeSection.value === 'tasks') return '搜索任务标题、内容或关键词'
+//   return '搜索任务、帖子或关键词'
+// })
 
-function handleSearch() {
-  const keyword = searchKeyword.value.trim()
-  if (!keyword) return
-
-  if (activeSection.value === 'posts') {
-    router.push({ name: 'post-list', query: { keyword } })
-  } else if (activeSection.value === 'tasks') {
-    router.push({ name: 'task-list', query: { keyword } })
-  } else {
-    router.push({ name: 'homepage', query: { keyword } })
-  }
-  searchKeyword.value = ''
-}
+// function handleSearch() {
+//   const keyword = searchKeyword.value.trim()
+//   if (!keyword) return
+//
+//   if (activeSection.value === 'posts') {
+//     router.push({ name: 'post-list', query: { keyword } })
+//   } else if (activeSection.value === 'tasks') {
+//     router.push({ name: 'task-list', query: { keyword } })
+//   } else {
+//     router.push({ name: 'homepage', query: { keyword } })
+//   }
+//   searchKeyword.value = ''
+// }
 
 const visibleNavItems = computed(() => primaryNavItems.filter((item) => canShowNavItem(item, auth)))
 
@@ -275,7 +275,7 @@ onBeforeUnmount(() => {
     </aside>
 
     <header class="dashboard-topbar">
-      <form
+      <!-- <form
         class="search-box"
         @submit.prevent="handleSearch"
       >
@@ -289,7 +289,7 @@ onBeforeUnmount(() => {
           :placeholder="searchPlaceholder"
           :aria-label="searchPlaceholder"
         >
-      </form>
+      </form> -->
 
       <div class="topbar-account">
         <button
@@ -726,8 +726,8 @@ onBeforeUnmount(() => {
   right: 0;
   left: var(--sidebar-width);
   z-index: 25;
-  display: grid;
-  grid-template-columns: minmax(240px, 1fr) auto;
+  display: flex;
+  justify-content: flex-end;
   align-items: center;
   height: var(--topbar-height);
   padding: 0 30px 0 34px;
@@ -736,7 +736,7 @@ onBeforeUnmount(() => {
   backdrop-filter: blur(18px);
 }
 
-.search-box {
+/* .search-box {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -767,7 +767,7 @@ onBeforeUnmount(() => {
 
 .search-box input::placeholder {
   color: var(--color-text-muted);
-}
+} */
 
 .topbar-account {
   display: flex;
@@ -1107,9 +1107,9 @@ onBeforeUnmount(() => {
   padding: 76px 28px 20px;
 }
 
-.dashboard-shell--publish .search-box {
+/* .dashboard-shell--publish .search-box {
   height: 44px;
-}
+} */
 
 @media (max-width: 1100px) {
   .dashboard-shell {
