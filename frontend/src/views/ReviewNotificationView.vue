@@ -457,9 +457,12 @@ async function loadNotifications() {
   try {
     const result = await api.getConversations({ page: 1, size: 100 })
     if (requestId !== notificationRequestId) return
-    const conversations = normalizePagedItems(result).filter((conversation) => conversation.type === 'SYSTEM')
+    const conversations = normalizePagedItems(result)
     replaceNotificationSummary(conversations)
-    notifications.value = conversations.map(normalizeNotificationFromConversation).filter(Boolean)
+    notifications.value = conversations
+      .filter((conversation) => conversation.type === 'SYSTEM')
+      .map(normalizeNotificationFromConversation)
+      .filter(Boolean)
     selectDefaultNotification()
   } catch {
     if (requestId !== notificationRequestId) return

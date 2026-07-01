@@ -46,7 +46,12 @@ const route = useRoute()
 const auth = useAuth()
 const { state, isAuthenticated, isGuest, currentUserId, logout, exitGuestMode } = auth
 const { sidebarCollapsed, toggleSidebarCollapsed } = useDashboardSidebar()
-const { unreadCount: notificationUnreadCount, refreshNotificationSummary } = useNotificationCenter()
+const {
+  unreadCount: notificationUnreadCount,
+  systemUnreadCount,
+  privateUnreadCount,
+  refreshNotificationSummary
+} = useNotificationCenter()
 const { showToast } = useToast()
 usePreferences()
 const accountMenuOpen = ref(false)
@@ -125,6 +130,11 @@ const notificationBadgeCount = computed(() => notificationUnreadCount.value)
 const notificationBadgeLabel = computed(() =>
   notificationBadgeCount.value > 99 ? '99+' : String(notificationBadgeCount.value)
 )
+const notificationTarget = computed(() => {
+  if (systemUnreadCount.value > 0) return '/workspace/notifications'
+  if (privateUnreadCount.value > 0) return '/workspace/messages'
+  return '/workspace/notifications'
+})
 
 function closeAccountMenu() {
   accountMenuOpen.value = false
@@ -296,7 +306,7 @@ onBeforeUnmount(() => {
         </button>
         <RouterLink
           class="notice-button"
-          to="/workspace/notifications"
+          :to="notificationTarget"
           :aria-label="notificationBadgeCount ? `消息通知，${notificationBadgeCount} 条未读` : '消息通知'"
         >
           <Bell

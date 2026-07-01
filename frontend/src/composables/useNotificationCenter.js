@@ -1,11 +1,14 @@
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import api from '../services/api'
 import { useAuth } from '../stores/auth'
 
 const notificationSummaries = ref([])
-const unreadCount = ref(0)
 const summaryLoading = ref(false)
 let refreshPromise = null
+
+const systemUnreadCount = computed(() => sumUnreadByType((summary) => summary.type === 'SYSTEM'))
+const privateUnreadCount = computed(() => sumUnreadByType((summary) => summary.type !== 'SYSTEM'))
+const unreadCount = computed(() => systemUnreadCount.value + privateUnreadCount.value)
 
 function normalizePagedItems(result) {
   if (Array.isArray(result)) return result
@@ -20,6 +23,7 @@ function normalizeNotificationFromConversation(conversation = {}) {
   return {
     id: `conversation-${conversationId}`,
     conversationId,
+    type: conversation.type || 'PRIVATE',
     unreadCount,
     read: unreadCount <= 0,
     readAt: unreadCount > 0 ? null : conversation.lastReadAt || conversation.readAt || null
@@ -28,15 +32,13 @@ function normalizeNotificationFromConversation(conversation = {}) {
 
 function replaceNotificationSummary(conversations = []) {
   notificationSummaries.value = conversations
-    .filter((conversation) => conversation?.type === 'SYSTEM')
     .map(normalizeNotificationFromConversation)
     .filter(Boolean)
-  updateUnreadCountFromSummaries()
 }
 
-function updateUnreadCountFromSummaries() {
-  unreadCount.value = notificationSummaries.value.reduce(
-    (sum, notification) => sum + Number(notification.unreadCount || 0),
+function sumUnreadByType(matchesType) {
+  return notificationSummaries.value.reduce(
+    (sum, summary) => sum + (matchesType(summary) ? Number(summary.unreadCount || 0) : 0),
     0
   )
 }
@@ -48,7 +50,6 @@ function updateConversationSummary(conversation) {
   notificationSummaries.value = notificationSummaries.value.map((summary) =>
     String(summary.conversationId) === String(normalized.conversationId) ? normalized : summary
   )
-  updateUnreadCountFromSummaries()
 }
 
 async function refreshNotificationSummary() {
@@ -56,7 +57,6 @@ async function refreshNotificationSummary() {
 
   if (!isAuthenticated.value) {
     replaceNotificationSummary([])
-    unreadCount.value = 0
     return []
   }
 
@@ -66,7 +66,7 @@ async function refreshNotificationSummary() {
   refreshPromise = api
     .getConversations({ page: 1, size: 100 })
     .then((result) => {
-      const conversations = normalizePagedItems(result).filter((conversation) => conversation?.type === 'SYSTEM')
+      const conversations = normalizePagedItems(result)
       replaceNotificationSummary(conversations)
       return conversations
     })
@@ -86,19 +86,23 @@ async function markConversationRead(conversationId) {
   if (!conversationId) return null
   const conversation = await api.markConversationRead(conversationId)
   updateConversationSummary(conversation)
-  updateUnreadCountFromSummaries()
   return conversation
 }
 
 async function markAllNotificationsRead() {
-  const ids = notificationSummaries.value.map((notification) => notification.conversationId).filter(Boolean)
+  const ids = notificationSummaries.value
+    .filter((notification) => notification.type === 'SYSTEM')
+    .map((notification) => notification.conversationId)
+    .filter(Boolean)
   await Promise.all(ids.map((conversationId) => api.markConversationRead(conversationId)))
-  unreadCount.value = 0
   notificationSummaries.value = notificationSummaries.value.map((notification) => ({
     ...notification,
-    unreadCount: 0,
-    read: true,
-    readAt: notification.readAt || new Date().toISOString()
+    unreadCount: notification.type === 'SYSTEM' ? 0 : notification.unreadCount,
+    read: notification.type === 'SYSTEM' ? true : notification.read,
+    readAt:
+      notification.type === 'SYSTEM'
+        ? notification.readAt || new Date().toISOString()
+        : notification.readAt
   }))
   return { updatedCount: ids.length, unreadCount: 0 }
 }
@@ -106,6 +110,8 @@ async function markAllNotificationsRead() {
 export function useNotificationCenter() {
   return {
     unreadCount,
+    systemUnreadCount,
+    privateUnreadCount,
     summaryLoading,
     markConversationRead,
     markAllNotificationsRead,

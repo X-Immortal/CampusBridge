@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { useAuth } from '../../stores/auth'
 import { canShowNavItem } from '../../app/navigation'
+import { useNotificationCenter } from '../../composables/useNotificationCenter'
 
 const props = defineProps({
   items: {
@@ -26,6 +27,7 @@ const props = defineProps({
 
 const route = useRoute()
 const auth = useAuth()
+const { systemUnreadCount, privateUnreadCount } = useNotificationCenter()
 
 const visibleItems = computed(() => props.items.filter((item) => canShowNavItem(item, auth)))
 
@@ -52,6 +54,12 @@ function itemClasses(item) {
 
 function isActive(item) {
   return activeItemKey.value === item.key
+}
+
+function itemUnreadCount(item) {
+  if (item.key === 'messages') return privateUnreadCount.value
+  if (item.key === 'notifications') return systemUnreadCount.value
+  return 0
 }
 </script>
 
@@ -86,6 +94,11 @@ function isActive(item) {
         v-if="item.badge !== undefined && item.badge !== null && item.badge !== 0"
         class="section-nav__badge"
       >{{ item.badge > 99 ? '99+' : item.badge }}</span>
+      <span
+        v-if="itemUnreadCount(item) > 0"
+        class="section-nav__unread-dot"
+        :aria-label="`${itemUnreadCount(item)} 条未读`"
+      />
     </component>
   </nav>
 </template>
@@ -280,6 +293,21 @@ function isActive(item) {
   color: var(--color-surface);
   font-size: 0.72rem;
   font-weight: 800;
+}
+
+.section-nav--rail .section-nav__unread-dot {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+}
+
+.section-nav__unread-dot {
+  align-self: center;
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--color-surface);
+  border-radius: 999px;
+  background: var(--color-danger);
+  box-shadow: 0 0 0 1px var(--color-danger);
 }
 
 @media (max-width: 760px) {
