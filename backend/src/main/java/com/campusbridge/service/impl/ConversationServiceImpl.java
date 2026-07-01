@@ -36,7 +36,6 @@ public class ConversationServiceImpl implements ConversationService {
     private static final int MAX_ATTACHMENT_COUNT = 9;
 
     private static final String TYPE_PRIVATE = "PRIVATE";
-    private static final String TYPE_TASK = "TASK";
     private static final String RELATED_POST = "POST";
     private static final String RELATED_TASK = "TASK";
 
@@ -86,18 +85,15 @@ public class ConversationServiceImpl implements ConversationService {
 
         LocalDateTime now = LocalDateTime.now();
         String relatedType = normalizeRelatedType(request.getRelatedType());
-        String conversationType = resolveConversationType(relatedType);
         Conversation conversation = ensureConversation(
                 ownerId,
                 request.getPeerUserId(),
-                conversationType,
                 relatedType,
                 request.getRelatedId(),
                 now);
         Conversation peerConversation = ensureConversation(
                 request.getPeerUserId(),
                 ownerId,
-                conversationType,
                 relatedType,
                 request.getRelatedId(),
                 now);
@@ -176,7 +172,6 @@ public class ConversationServiceImpl implements ConversationService {
         Conversation peerConversation = ensureConversation(
                 conversation.getPeerUserId(),
                 senderId,
-                conversation.getType(),
                 conversation.getRelatedType(),
                 conversation.getRelatedId(),
                 now);
@@ -364,13 +359,6 @@ public class ConversationServiceImpl implements ConversationService {
         return normalized;
     }
 
-    private String resolveConversationType(String relatedType) {
-        if (RELATED_TASK.equals(relatedType)) {
-            return TYPE_TASK;
-        }
-        return TYPE_PRIVATE;
-    }
-
     private String buildConversationTitle(String relatedType, Long relatedId) {
         return relatedType + " conversation #" + relatedId;
     }
@@ -378,22 +366,18 @@ public class ConversationServiceImpl implements ConversationService {
     private Conversation ensureConversation(
             Long ownerId,
             Long peerUserId,
-            String type,
             String relatedType,
             Long relatedId,
             LocalDateTime now) {
-        Conversation conversation = conversationMapper.selectByOwnerPeerAndRelated(
+        Conversation conversation = conversationMapper.selectPrivateByOwnerAndPeer(
                 ownerId,
-                peerUserId,
-                type,
-                relatedType,
-                relatedId);
+                peerUserId);
         if (conversation != null) {
             return conversation;
         }
 
         Conversation created = new Conversation();
-        created.setType(type);
+        created.setType(TYPE_PRIVATE);
         created.setTitle(buildConversationTitle(relatedType, relatedId));
         created.setOwnerId(ownerId);
         created.setPeerUserId(peerUserId);

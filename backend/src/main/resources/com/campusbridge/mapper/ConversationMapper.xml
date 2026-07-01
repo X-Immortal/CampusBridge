@@ -76,15 +76,14 @@
     LIMIT 1
   </select>
 
-  <select id="selectByOwnerPeerAndRelated" resultType="com.campusbridge.pojo.Conversation">
+  <select id="selectPrivateByOwnerAndPeer" resultType="com.campusbridge.pojo.Conversation">
     SELECT
       <include refid="conversationColumns"/>
     FROM conversations c
     WHERE c.owner_id = #{ownerId}
       AND c.peer_user_id = #{peerUserId}
-      AND c.type = #{type}
-      AND c.related_type = #{relatedType}
-      AND c.related_id = #{relatedId}
+      AND c.type = 'PRIVATE'
+      AND c.replyable = 1
     ORDER BY c.id ASC
     LIMIT 1
   </select>

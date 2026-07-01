@@ -13,6 +13,7 @@ import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.pojo.Attachment;
 import com.campusbridge.pojo.Conversation;
 import com.campusbridge.pojo.Message;
+import com.campusbridge.pojo.User;
 import com.campusbridge.service.impl.ConversationServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -154,7 +155,7 @@ class BE13ConversationReadServiceImplTest {
         attachment.setFileUrl("https://cdn.example/image.png");
 
         when(conversationMapper.selectOwnedById(CONVERSATION_ID, OWNER_ID)).thenReturn(ownerConversation);
-        when(conversationMapper.selectByOwnerPeerAndRelated(2L, OWNER_ID, "TASK", "TASK", 20L))
+        when(conversationMapper.selectPrivateByOwnerAndPeer(2L, OWNER_ID))
                 .thenReturn(peerConversation);
         when(attachmentMapper.selectById(30L)).thenReturn(attachment);
         when(attachmentMapper.updateById(attachment)).thenReturn(1);
@@ -178,12 +179,42 @@ class BE13ConversationReadServiceImplTest {
         verify(attachmentMapper).updateById(attachment);
     }
 
+    @Test
+    void createConversationReusesTheSamePrivateConversationAcrossDifferentContexts() {
+        Conversation ownerConversation = conversationWithUnread(0);
+        Conversation peerConversation = conversationWithUnread(0);
+        peerConversation.setId(11L);
+        peerConversation.setOwnerId(2L);
+        peerConversation.setPeerUserId(OWNER_ID);
+
+        User peerUser = new User();
+        peerUser.setId(2L);
+        peerUser.setEnabled(1);
+        when(userMapper.selectById(2L)).thenReturn(peerUser);
+        when(conversationMapper.selectPrivateByOwnerAndPeer(OWNER_ID, 2L))
+                .thenReturn(ownerConversation);
+        when(conversationMapper.selectPrivateByOwnerAndPeer(2L, OWNER_ID))
+                .thenReturn(peerConversation);
+
+        RequestDtos.CreateConversationRequest request = new RequestDtos.CreateConversationRequest();
+        request.setPeerUserId(2L);
+        request.setRelatedType("POST");
+        request.setRelatedId(99L);
+
+        Conversation result = conversationService.createConversation(OWNER_ID, request);
+
+        assertThat(result.getId()).isEqualTo(CONVERSATION_ID);
+        assertThat(result.getRelatedType()).isEqualTo("TASK");
+        verify(conversationMapper).selectPrivateByOwnerAndPeer(OWNER_ID, 2L);
+        verify(conversationMapper).selectPrivateByOwnerAndPeer(2L, OWNER_ID);
+    }
+
     private Conversation conversationWithUnread(int unreadCount) {
         Conversation conversation = new Conversation();
         conversation.setId(CONVERSATION_ID);
         conversation.setOwnerId(OWNER_ID);
         conversation.setPeerUserId(2L);
-        conversation.setType("TASK");
+        conversation.setType("PRIVATE");
         conversation.setRelatedType("TASK");
         conversation.setRelatedId(20L);
         conversation.setReplyable(1);
