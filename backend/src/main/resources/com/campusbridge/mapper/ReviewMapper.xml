@@ -16,6 +16,12 @@
     SELECT * FROM reviews
   </select>
 
+  <select id="selectByTaskId" resultType="com.campusbridge.pojo.Review">
+    SELECT * FROM reviews
+    WHERE task_id = #{taskId}
+    ORDER BY created_at ASC, id ASC
+  </select>
+
   <select id="selectByRevieweeId" resultType="com.campusbridge.pojo.Review">
     SELECT * FROM reviews
     WHERE reviewee_id = #{revieweeId}

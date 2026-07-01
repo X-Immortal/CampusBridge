@@ -5,6 +5,7 @@ import com.campusbridge.pojo.Result;
 import com.campusbridge.common.CurrentUserResolver;
 import com.campusbridge.common.GuestTaskMasker;
 import com.campusbridge.service.TaskService;
+import com.campusbridge.service.TaskDetailService;
 import com.campusbridge.service.CompletionService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
@@ -26,14 +27,17 @@ import java.util.Map;
 public class TaskController {
     private final CurrentUserResolver currentUserResolver;
     private final TaskService taskService;
+    private final TaskDetailService taskDetailService;
     private final CompletionService completionService;
 
     public TaskController(
             CurrentUserResolver currentUserResolver,
             TaskService taskService,
+            TaskDetailService taskDetailService,
             CompletionService completionService) {
         this.currentUserResolver = currentUserResolver;
         this.taskService = taskService;
+        this.taskDetailService = taskDetailService;
         this.completionService = completionService;
     }
 
@@ -84,9 +88,9 @@ public class TaskController {
     @GetMapping("/{taskId}")
     public Result getTaskDetail(HttpServletRequest servletRequest, @PathVariable Long taskId) {
         Long currentUserId = currentUserResolver.resolveOptionalUserId(servletRequest);
-        return Result.success(
-                GuestTaskMasker.maskForGuest(
-                        taskService.getTaskDetail(taskId, currentUserId), currentUserId));
+        var detail = taskDetailService.getTaskDetail(taskId, currentUserId);
+        detail.setTask(GuestTaskMasker.maskForGuest(detail.getTask(), currentUserId));
+        return Result.success(detail);
     }
 
     @PutMapping("/{taskId}")

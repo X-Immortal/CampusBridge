@@ -16,6 +16,14 @@
     SELECT * FROM attachments
   </select>
 
+  <select id="selectByOwner" resultType="com.campusbridge.pojo.Attachment">
+    SELECT * FROM attachments
+    WHERE owner_type = #{ownerType}
+      AND owner_id = #{ownerId}
+      AND status = 'ACTIVE'
+    ORDER BY created_at ASC, id ASC
+  </select>
+
   <update id="updateById" parameterType="com.campusbridge.pojo.Attachment">
     UPDATE attachments
     SET uploader_id = #{uploaderId},

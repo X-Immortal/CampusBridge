@@ -358,6 +358,7 @@ const completionProof = computed(() => taskDetail.value?.completionProof || deta
 const proofAttachmentItems = computed(() =>
   normalizeProofAttachments(
     completionProof.value?.attachments ||
+      taskDetail.value?.attachments ||
       completionProof.value?.attachmentUrls ||
       completionProof.value?.fileUrls ||
       completionProof.value?.attachmentIds ||

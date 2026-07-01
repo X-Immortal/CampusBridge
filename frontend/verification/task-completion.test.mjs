@@ -73,3 +73,13 @@ test('详情弹窗包含凭证上传、提交、确认、驳回和争议交互',
   assert.match(source, /api\.rejectTaskCompletion\(detailTask\.value\.id,\s*\{ reason \}\)/)
   assert.match(source, /api\.disputeTaskCompletion\(detailTask\.value\.id,\s*\{ reason \}\)/)
 })
+
+test('发布者和接单者的任务详情会展示已提交的文字与附件', async () => {
+  const source = await readFile(new URL('../src/views/TaskListView.vue', import.meta.url), 'utf8')
+
+  assert.match(source, /const completionProof = computed\(\(\) => taskDetail\.value\?\.completionProof/)
+  assert.match(source, /taskDetail\.value\?\.attachments/)
+  assert.match(source, /v-if="completionProof"/)
+  assert.match(source, /\{\{ proofDescription \|\|/)
+  assert.match(source, /v-for="attachment in proofAttachmentItems"/)
+})

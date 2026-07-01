@@ -4,8 +4,10 @@ import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
 import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.mapper.CompletionProofMapper;
+import com.campusbridge.mapper.AttachmentMapper;
 import com.campusbridge.mapper.TaskMapper;
 import com.campusbridge.pojo.CompletionProof;
+import com.campusbridge.pojo.Attachment;
 import com.campusbridge.pojo.Task;
 import com.campusbridge.service.CompletionService;
 import com.campusbridge.service.CreditService;
@@ -17,6 +19,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 @Transactional
 @Service
@@ -27,10 +32,15 @@ public class CompletionServiceImpl implements CompletionService {
     private static final String STATUS_DISPUTED = "DISPUTED";
     private static final int MAX_DESCRIPTION_LENGTH = 1000;
     private static final int MAX_REASON_LENGTH = 500;
+    private static final int MAX_ATTACHMENT_COUNT = 9;
+    private static final String ATTACHMENT_OWNER_TYPE = "COMPLETION_PROOF";
+    private static final String ATTACHMENT_STATUS_TEMPORARY = "TEMPORARY";
+    private static final String ATTACHMENT_STATUS_ACTIVE = "ACTIVE";
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CompletionServiceImpl.class);
 
     private final CompletionProofMapper completionProofMapper;
+    private final AttachmentMapper attachmentMapper;
     private final TaskMapper taskMapper;
     private final TaskHistoryService taskHistoryService;
     private final CreditService creditService;
@@ -38,11 +48,13 @@ public class CompletionServiceImpl implements CompletionService {
 
     public CompletionServiceImpl(
             CompletionProofMapper completionProofMapper,
+            AttachmentMapper attachmentMapper,
             TaskMapper taskMapper,
             TaskHistoryService taskHistoryService,
             CreditService creditService,
             NotificationService notificationService) {
         this.completionProofMapper = completionProofMapper;
+        this.attachmentMapper = attachmentMapper;
         this.taskMapper = taskMapper;
         this.taskHistoryService = taskHistoryService;
         this.creditService = creditService;
@@ -85,6 +97,8 @@ public class CompletionServiceImpl implements CompletionService {
             throw new BusinessException(ErrorCode.COMMON_999_INTERNAL_ERROR, "Failed to submit completion proof");
         }
 
+        bindAttachments(submitterId, proof.getId(), request.getAttachmentIds());
+
         // 更新任务状态为 PENDING_CONFIRMATION
         LocalDateTime now = LocalDateTime.now();
         int statusAffected = taskMapper.updateStatusById(taskId, STATUS_IN_PROGRESS, STATUS_PENDING_CONFIRMATION, now);
@@ -108,6 +122,52 @@ public class CompletionServiceImpl implements CompletionService {
 
         proof.setSubmittedAt(now);
         return proof;
+    }
+
+    private void bindAttachments(
+            Long submitterId,
+            Long proofId,
+            List<Long> attachmentIds) {
+        if (attachmentIds == null || attachmentIds.isEmpty()) {
+            return;
+        }
+        if (attachmentIds.size() > MAX_ATTACHMENT_COUNT) {
+            throw new BusinessException(
+                    ErrorCode.COMMON_001_VALIDATION_ERROR,
+                    "attachmentIds exceeds limit");
+        }
+
+        Set<Long> uniqueIds = new HashSet<>(attachmentIds);
+        if (uniqueIds.size() != attachmentIds.size() || uniqueIds.contains(null)) {
+            throw new BusinessException(
+                    ErrorCode.COMMON_001_VALIDATION_ERROR,
+                    "attachmentIds must be unique and non-null");
+        }
+
+        for (Long attachmentId : attachmentIds) {
+            Attachment attachment = attachmentMapper.selectById(attachmentId);
+            validateAttachmentOwnership(attachment, submitterId);
+            attachment.setOwnerType(ATTACHMENT_OWNER_TYPE);
+            attachment.setOwnerId(proofId);
+            attachment.setStatus(ATTACHMENT_STATUS_ACTIVE);
+            if (attachmentMapper.updateById(attachment) != 1) {
+                throw new BusinessException(
+                        ErrorCode.COMMON_999_INTERNAL_ERROR,
+                        "Failed to bind completion attachment");
+            }
+        }
+    }
+
+    private void validateAttachmentOwnership(Attachment attachment, Long submitterId) {
+        if (attachment == null
+                || !submitterId.equals(attachment.getUploaderId())
+                || !ATTACHMENT_OWNER_TYPE.equals(attachment.getOwnerType())
+                || attachment.getOwnerId() != null
+                || !ATTACHMENT_STATUS_TEMPORARY.equals(attachment.getStatus())) {
+            throw new BusinessException(
+                    ErrorCode.TASK_003_PERMISSION_DENIED,
+                    "Completion attachment is unavailable");
+        }
     }
 
     @Override

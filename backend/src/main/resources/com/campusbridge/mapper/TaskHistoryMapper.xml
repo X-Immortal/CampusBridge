@@ -16,6 +16,12 @@
     SELECT * FROM task_histories
   </select>
 
+  <select id="selectByTaskId" resultType="com.campusbridge.pojo.TaskHistory">
+    SELECT * FROM task_histories
+    WHERE task_id = #{taskId}
+    ORDER BY created_at ASC, id ASC
+  </select>
+
   <update id="updateById" parameterType="com.campusbridge.pojo.TaskHistory">
     UPDATE task_histories
     SET task_id = #{taskId},
