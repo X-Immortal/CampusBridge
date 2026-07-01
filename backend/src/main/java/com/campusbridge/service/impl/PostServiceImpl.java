@@ -2,12 +2,15 @@ package com.campusbridge.service.impl;
 
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
+import com.campusbridge.dto.enums.ApiEnums;
 import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.dto.response.ResponseDtos;
 import com.campusbridge.dto.view.ViewDtos;
+import com.campusbridge.mapper.AttachmentMapper;
 import com.campusbridge.mapper.PostInteractionMapper;
 import com.campusbridge.mapper.PostMapper;
 import com.campusbridge.mapper.ReplyMapper;
+import com.campusbridge.pojo.Attachment;
 import com.campusbridge.pojo.Post;
 import com.campusbridge.pojo.PostInteraction;
 import com.campusbridge.pojo.Reply;
@@ -18,8 +21,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Transactional
@@ -28,20 +33,25 @@ public class PostServiceImpl implements PostService {
     private static final int DEFAULT_PAGE = 1;
     private static final int DEFAULT_SIZE = 20;
     private static final int MAX_SIZE = 100;
+    private static final int MAX_ATTACHMENT_COUNT = 9;
+    private static final String ATTACHMENT_OWNER_TYPE = "POST";
 
     private final PostMapper postMapper;
     private final ReplyMapper replyMapper;
     private final PostInteractionMapper postInteractionMapper;
+    private final AttachmentMapper attachmentMapper;
     private final ContentModerationService contentModerationService;
 
     public PostServiceImpl(
             PostMapper postMapper,
             ReplyMapper replyMapper,
             PostInteractionMapper postInteractionMapper,
+            AttachmentMapper attachmentMapper,
             ContentModerationService contentModerationService) {
         this.postMapper = postMapper;
         this.replyMapper = replyMapper;
         this.postInteractionMapper = postInteractionMapper;
+        this.attachmentMapper = attachmentMapper;
         this.contentModerationService = contentModerationService;
     }
 
@@ -66,6 +76,7 @@ public class PostServiceImpl implements PostService {
             throw new BusinessException(ErrorCode.COMMON_999_INTERNAL_ERROR,
                     "Failed to create post");
         }
+        bindAttachments(userId, post.getId(), request.getAttachmentIds());
         return post;
     }
 
@@ -137,7 +148,8 @@ public class PostServiceImpl implements PostService {
             markedByCurrentUser = markInteraction != null;
         }
         return new ViewDtos.PostDetailView(
-                post, replies, likedByCurrentUser, markedByCurrentUser, post.getAcceptedReplyId());
+                post, replies, likedByCurrentUser, markedByCurrentUser,
+                post.getAcceptedReplyId(), attachmentMapper.selectByOwner("POST", postId));
     }
 
     @Override
@@ -172,6 +184,50 @@ public class PostServiceImpl implements PostService {
             throw new BusinessException(ErrorCode.POST_002_PERMISSION_DENIED);
         }
         postMapper.deleteById(postId);
+    }
+
+    private void bindAttachments(
+            Long userId, Long postId, List<Long> attachmentIds) {
+        if (attachmentIds == null || attachmentIds.isEmpty()) {
+            return;
+        }
+        if (attachmentIds.size() > MAX_ATTACHMENT_COUNT) {
+            throw new BusinessException(
+                    ErrorCode.COMMON_001_VALIDATION_ERROR,
+                    "attachmentIds exceeds limit");
+        }
+
+        Set<Long> uniqueIds = new HashSet<>(attachmentIds);
+        if (uniqueIds.size() != attachmentIds.size() || uniqueIds.contains(null)) {
+            throw new BusinessException(
+                    ErrorCode.COMMON_001_VALIDATION_ERROR,
+                    "attachmentIds must be unique and non-null");
+        }
+
+        for (Long attachmentId : attachmentIds) {
+            Attachment attachment = attachmentMapper.selectById(attachmentId);
+            validateAttachmentOwnership(attachment, userId);
+            attachment.setOwnerType(ATTACHMENT_OWNER_TYPE);
+            attachment.setOwnerId(postId);
+            attachment.setStatus("ACTIVE");
+            if (attachmentMapper.updateById(attachment) != 1) {
+                throw new BusinessException(
+                        ErrorCode.COMMON_999_INTERNAL_ERROR,
+                        "Failed to bind post attachment");
+            }
+        }
+    }
+
+    private void validateAttachmentOwnership(Attachment attachment, Long userId) {
+        if (attachment == null
+                || !userId.equals(attachment.getUploaderId())
+                || !ATTACHMENT_OWNER_TYPE.equals(attachment.getOwnerType())
+                || attachment.getOwnerId() != null
+                || !ApiEnums.AttachmentStatus.TEMPORARY.name().equals(attachment.getStatus())) {
+            throw new BusinessException(
+                    ErrorCode.FILE_004_INVALID_ATTACHMENT,
+                    "Post attachment is unavailable");
+        }
     }
 
     private Post requirePostExists(Long postId) {

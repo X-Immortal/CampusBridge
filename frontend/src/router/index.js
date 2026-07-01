@@ -12,6 +12,12 @@ import { useAuth } from '../stores/auth'
 
 const router = createRouter({
   history: createWebHistory(),
+  scrollBehavior(to, from, savedPosition) {
+    if (savedPosition) {
+      return savedPosition
+    }
+    return { top: 0 }
+  },
   routes: [
     {
       path: '/',
@@ -175,17 +181,6 @@ const router = createRouter({
         section: 'workspace',
         subSection: 'profile',
         title: '个人资料'
-      }
-    },
-    {
-      path: '/workspace/verification',
-      name: 'workspace-verification',
-      component: HomeView,
-      meta: {
-        requiresAuth: true,
-        section: 'workspace',
-        subSection: 'verification',
-        title: '校园认证'
       }
     },
     {
@@ -401,7 +396,7 @@ router.beforeEach((to) => {
   }
 
   if (to.meta?.requiresVerified && !isVerified) {
-    return { name: 'workspace-verification', query: { redirect: to.fullPath } }
+    return { name: 'workspace', query: { redirect: to.fullPath } }
   }
 
   return true

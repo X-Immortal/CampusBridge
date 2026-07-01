@@ -64,7 +64,7 @@ defineProps({
 
 .module-topbar__heading {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
 }

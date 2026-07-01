@@ -6,6 +6,7 @@ import {
   Bookmark,
   Clock3,
   FileText,
+  ImagePlus,
   LoaderCircle,
   MessageCircle,
   PlusCircle,
@@ -70,6 +71,12 @@ const replyError = ref('')
 const replyComposerOpen = ref(false)
 const replyingToId = ref(null)
 const postDetailModalOpen = ref(false)
+
+const postAttachments = ref([])
+const postUploading = ref(false)
+const postAttachmentFileInput = ref(null)
+const MAX_POST_IMAGES = 9
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024
 
 const profileUserId = ref(null)
 const showProfileModal = ref(false)
@@ -145,6 +152,7 @@ const resultRange = computed(() => {
   const end = Math.min(pagination.page * pagination.size, pagination.total)
   return `${start}-${end}`
 })
+const detailAttachments = computed(() => postDetail.value?.attachments || [])
 const canPublish = computed(() => isAuthenticated.value)
 const previewTitle = computed(() => postForm.title.trim() || '写下一个清晰的帖子标题')
 const previewContent = computed(() =>
@@ -236,23 +244,31 @@ function normalizePagedPosts(result) {
 function normalizePostDetail(result) {
   if (!result) return null
 
+  console.debug('[PostDetail] raw result:', result)
+
   if (result.post) {
-    return {
-      ...result,
+    const normalized = {
       post: normalizePost(result.post),
       replies: Array.isArray(result.replies) ? result.replies.map(normalizeReply) : [],
       likedByCurrentUser: Boolean(result.likedByCurrentUser),
-      markedByCurrentUser: Boolean(result.markedByCurrentUser)
+      markedByCurrentUser: Boolean(result.markedByCurrentUser),
+      attachments: Array.isArray(result.attachments) ? result.attachments : [],
+      acceptedReplyId: result.acceptedReplyId || null
     }
+    console.debug('[PostDetail] normalized (wrapped):', normalized)
+    return normalized
   }
 
-  return {
+  const normalized = {
     post: normalizePost(result),
     replies: [],
     likedByCurrentUser: Boolean(result.likedByCurrentUser),
     markedByCurrentUser: Boolean(result.markedByCurrentUser),
-    acceptedReplyId: result.acceptedReplyId || null
+    acceptedReplyId: result.acceptedReplyId || null,
+    attachments: Array.isArray(result.attachments) ? result.attachments : []
   }
+  console.debug('[PostDetail] normalized (flat):', normalized)
+  return normalized
 }
 
 function applyPostResult(result) {
@@ -404,6 +420,78 @@ function resetPostForm() {
     category: filters.category || 'INQUIRY_HELP'
   })
   clearPublishErrors()
+  postAttachments.value = []
+}
+
+function triggerPostImageUpload() {
+  postAttachmentFileInput.value?.click()
+}
+
+function readFileAsDataUri(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result || ''))
+    reader.onerror = () => reject(new Error('图片读取失败，请重新选择。'))
+    reader.readAsDataURL(file)
+  })
+}
+
+async function handlePostAttachmentFileChange(event) {
+  const files = Array.from(event.target.files || [])
+  if (!files.length) return
+
+  const remaining = MAX_POST_IMAGES - postAttachments.value.length
+  if (remaining <= 0) {
+    showToast(`最多上传 ${MAX_POST_IMAGES} 张图片`, { type: 'warning' })
+    event.target.value = ''
+    return
+  }
+
+  const selectedFiles = files.slice(0, remaining)
+  if (files.length > remaining) {
+    showToast(`最多上传 ${MAX_POST_IMAGES} 张图片，超出部分未添加。`, { type: 'warning' })
+  }
+
+  const imageFiles = selectedFiles.filter((f) => f.type.startsWith('image/'))
+  const oversized = imageFiles.filter((f) => f.size > MAX_IMAGE_SIZE)
+  if (oversized.length) {
+    showToast(`图片大小不能超过 10MB：${oversized.map((f) => f.name).join('、')}`, { type: 'danger' })
+    event.target.value = ''
+    return
+  }
+
+  postUploading.value = true
+  const nextAttachments = [...postAttachments.value]
+
+  try {
+    for (const file of imageFiles) {
+      const previewUrl = await readFileAsDataUri(file)
+      const uploaded = await api.uploadAttachment({
+        file,
+        expectedOwnerType: 'POST',
+        type: 'IMAGE'
+      })
+
+      const id = uploaded?.id ?? uploaded?.attachmentId ?? null
+      nextAttachments.push({
+        id,
+        file,
+        previewUrl,
+        name: uploaded?.fileName || file.name,
+        url: uploaded?.fileUrl || uploaded?.url || previewUrl
+      })
+    }
+    postAttachments.value = nextAttachments
+  } catch (error) {
+    showToast(error.message || '图片上传失败，请稍后重试。', { type: 'danger' })
+  } finally {
+    postUploading.value = false
+    event.target.value = ''
+  }
+}
+
+function removePostAttachment(index) {
+  postAttachments.value = postAttachments.value.filter((_, i) => i !== index)
 }
 
 function openPublishDialog() {
@@ -466,11 +554,15 @@ async function focusFirstInvalidField() {
 }
 
 function buildCreatePostPayload() {
+  const attachmentIds = postAttachments.value
+    .map((item) => Number(item.id ?? item.attachmentId))
+    .filter((id) => Number.isInteger(id) && id > 0)
+
   return {
     category: postForm.category,
     title: postForm.title.trim(),
     content: postForm.content.trim(),
-    attachmentIds: []
+    attachmentIds
   }
 }
 
@@ -1277,6 +1369,30 @@ onMounted(() => {
               </button>
             </div>
 
+            <section
+              v-if="detailAttachments.length"
+              class="detail-section"
+            >
+              <h3>图片</h3>
+              <div class="detail-image-grid">
+                <a
+                  v-for="(attachment, index) in detailAttachments"
+                  :key="attachment.id || index"
+                  :href="attachment.fileUrl || attachment.url"
+                  target="_blank"
+                  rel="noreferrer"
+                  class="detail-image-grid__link"
+                >
+                  <img
+                    :src="attachment.fileUrl || attachment.url"
+                    :alt="attachment.fileName || `帖子图片 ${index + 1}`"
+                    class="detail-image-grid__img"
+                    loading="lazy"
+                  >
+                </a>
+              </div>
+            </section>
+
             <section class="detail-section">
               <h3>正文</h3>
               <p class="detail-content-text">
@@ -1664,6 +1780,66 @@ onMounted(() => {
               </p>
             </label>
 
+            <fieldset class="attachment-uploader">
+              <legend>上传图片</legend>
+              <p class="attachment-uploader__hint">
+                支持 JPG/PNG/GIF，每张 ≤10MB，最多 {{ MAX_POST_IMAGES }} 张。
+              </p>
+
+              <div
+                v-if="postAttachments.length"
+                class="attachment-uploader__preview-list"
+              >
+                <div
+                  v-for="(item, index) in postAttachments"
+                  :key="item.previewUrl || index"
+                  class="attachment-uploader__item"
+                >
+                  <img
+                    :src="item.previewUrl"
+                    :alt="item.name"
+                    class="attachment-uploader__thumb"
+                  >
+                  <button
+                    type="button"
+                    class="attachment-uploader__remove"
+                    :disabled="postUploading"
+                    :aria-label="`移除 ${item.name}`"
+                    @click="removePostAttachment(index)"
+                  >
+                    <X
+                      :size="14"
+                      aria-hidden="true"
+                    />
+                  </button>
+                </div>
+              </div>
+
+              <button
+                v-if="postAttachments.length < MAX_POST_IMAGES"
+                type="button"
+                class="attachment-uploader__trigger"
+                :disabled="postUploading || publishing"
+                @click="triggerPostImageUpload"
+              >
+                <ImagePlus
+                  :size="20"
+                  aria-hidden="true"
+                />
+                {{ postUploading ? '上传中...' : '选择图片' }}
+              </button>
+
+              <input
+                ref="postAttachmentFileInput"
+                type="file"
+                multiple
+                accept="image/*"
+                hidden
+                :disabled="postUploading || publishing"
+                @change="handlePostAttachmentFileChange"
+              >
+            </fieldset>
+
             <section class="post-preview">
               <div class="post-preview-heading">
                 <span>
@@ -1915,10 +2091,10 @@ onMounted(() => {
 
 .metric-tile--mine {
   --metric-bg: var(--color-brand-soft);
-  --metric-border: var(--color-brand-border);
-  --metric-icon: var(--color-brand);
-  --metric-label: var(--color-brand-hover);
-  --metric-value: var(--color-brand-text);
+  --metric-border: var(--color-info-soft);
+  --metric-icon: var(--color-info);
+  --metric-label: var(--color-info-text);
+  --metric-value: var(--color-info-text);
 }
 
 .metric-strip svg {
@@ -2111,7 +2287,9 @@ onMounted(() => {
 
 .detail-content-text {
   white-space: pre-wrap;
-  line-height: 1.7;
+  line-height: 1.8;
+  font-size: 1.02rem;
+  color: var(--color-text);
 }
 
 .post-list {
@@ -2310,14 +2488,15 @@ onMounted(() => {
 .detail-facts {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
   margin: 0;
 }
 
 .detail-facts div {
-  display: grid;
-  gap: 5px;
-  padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-surface-muted);
@@ -2325,13 +2504,19 @@ onMounted(() => {
 
 .detail-facts dt {
   color: var(--color-text-muted);
-  font-size: 0.84rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.detail-facts dt::after {
+  content: '：';
 }
 
 .detail-facts dd {
   margin: 0;
   color: var(--color-text);
-  font-weight: 900;
+  font-weight: 700;
+  font-size: 0.88rem;
   line-height: 1.45;
 }
 
@@ -2855,7 +3040,144 @@ onMounted(() => {
   }
 }
 
+.attachment-uploader {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.attachment-uploader legend {
+  color: var(--color-text);
+  font-weight: 900;
+}
+
+.attachment-uploader__hint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+.attachment-uploader__preview-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.attachment-uploader__item {
+  position: relative;
+  width: 88px;
+  height: 88px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.attachment-uploader__thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.attachment-uploader__remove {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.attachment-uploader__item:hover .attachment-uploader__remove {
+  opacity: 1;
+}
+
+.attachment-uploader__remove:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+.attachment-uploader__trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: fit-content;
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px dashed var(--color-brand-border);
+  border-radius: 8px;
+  background: var(--color-brand-soft);
+  color: var(--color-brand-text);
+  font-weight: 900;
+  cursor: pointer;
+  transition:
+    background 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease;
+}
+
+.attachment-uploader__trigger:hover:not(:disabled) {
+  background: var(--color-brand);
+  border-color: var(--color-brand);
+  color: var(--color-surface);
+}
+
+.attachment-uploader__trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.detail-image-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.detail-image-grid__link {
+  display: block;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  transition: border-color 180ms ease;
+}
+
+.detail-image-grid__link:hover {
+  border-color: var(--color-brand-border);
+}
+
+.detail-image-grid__img {
+  display: block;
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+}
+
 @media (max-width: 640px) {
+  .detail-image-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .detail-image-grid__img {
+    height: 110px;
+  }
+
+  .attachment-uploader__item {
+    width: 72px;
+    height: 72px;
+  }
+
   .panel-card {
     padding: 18px;
   }

@@ -86,22 +86,22 @@
   --layout-max: 1180px;
 
   /* 间距 */
-  --spacing-unit: 4px;
-  --density-page-padding-y: 28px;
-  --density-page-padding-x: 24px;
-  --density-page-padding-bottom: 56px;
-  --density-panel-padding: 20px;
-  --density-card-padding: 18px;
-  --density-section-gap: 16px;
-  --density-control-height: 40px;
-  --density-control-padding-x: 14px;
-  --density-field-padding-y: 11px;
-  --density-field-padding-x: 12px;
+  --spacing-unit: 6px;
+  --density-page-padding-y: 36px;
+  --density-page-padding-x: 32px;
+  --density-page-padding-bottom: 72px;
+  --density-panel-padding: 28px;
+  --density-card-padding: 24px;
+  --density-section-gap: 24px;
+  --density-control-height: 46px;
+  --density-control-padding-x: 18px;
+  --density-field-padding-y: 14px;
+  --density-field-padding-x: 16px;
 
   /* 字体 */
   --font-size-xs: 0.75rem;
   --font-size-sm: 0.82rem;
-  --font-size-base: 0.92rem;
+  --font-size-base: 1rem;
   --font-size-md: 1rem;
   --font-size-lg: 1.12rem;
   --font-size-xl: 1.5rem;
@@ -270,20 +270,24 @@ html[data-density="compact"] {
 }
 
 html[data-density="spacious"] {
-  --spacing-unit: 6px;
-  --density-page-padding-y: 36px;
-  --density-page-padding-x: 32px;
-  --density-page-padding-bottom: 72px;
-  --density-panel-padding: 28px;
-  --density-card-padding: 24px;
-  --density-section-gap: 24px;
-  --density-control-height: 46px;
-  --density-control-padding-x: 18px;
-  --density-field-padding-y: 14px;
-  --density-field-padding-x: 16px;
-  --font-size-base: 1rem;
-  --radius-card: 12px;
-  --radius-control: 10px;
+  --spacing-unit: 10px;
+  --density-page-padding-y: 52px;
+  --density-page-padding-x: 48px;
+  --density-page-padding-bottom: 104px;
+  --density-panel-padding: 44px;
+  --density-card-padding: 40px;
+  --density-section-gap: 40px;
+  --density-control-height: 62px;
+  --density-control-padding-x: 28px;
+  --density-field-padding-y: 22px;
+  --density-field-padding-x: 24px;
+  --font-size-base: 1.14rem;
+  --radius-card: 20px;
+  --radius-control: 14px;
+}
+
+html[data-density] {
+  font-size: var(--font-size-base);
 }
 
 html[data-density] .page {

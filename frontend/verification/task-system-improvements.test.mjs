@@ -9,13 +9,14 @@ async function source(path) {
   return readFile(new URL(path, root), 'utf8')
 }
 
-test('首页推荐使用可直达的 postId 参数', async () => {
+test('首页推荐点击帖子打开内联详情弹窗', async () => {
   const [homeSource, postSource] = await Promise.all([
     source('src/views/HomePageView.vue'),
     source('src/views/PostView.vue')
   ])
 
-  assert.match(homeSource, /query:\s*\{\s*postId:/)
+  assert.match(homeSource, /openPostDetail\(postId\)/)
+  assert.match(homeSource, /postModalOpen/)
   assert.match(postSource, /readQuery\('postId'/)
 })
 

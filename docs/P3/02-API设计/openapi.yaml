@@ -1926,6 +1926,9 @@ components:
         likedByCurrentUser: { type: boolean }
         markedByCurrentUser: { type: boolean }
         acceptedReplyId: { type: integer, format: int64 }
+        attachments:
+          type: array
+          items: { $ref: '#/components/schemas/Attachment' }
 
     ApiResponseAuthResult:
       allOf:
