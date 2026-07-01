@@ -12,7 +12,7 @@ import {
   Palette,
   PlusCircle,
   School,
-  // Search,
+  Search,
   UserRound
 } from '@lucide/vue'
 import {
@@ -59,30 +59,29 @@ const accountMenuRef = ref(null)
 const preferencesOpen = ref(false)
 const preferencesRef = ref(null)
 const avatarLoadFailed = ref(false)
-// const searchKeyword = ref('')
+const searchKeyword = ref('')
 const publishMode = computed(() => props.publishMode)
 
-// const activeSection = computed(() => route.meta?.section || '')
+const activeSection = computed(() => route.meta?.section || '')
 
-// const searchPlaceholder = computed(() => {
-//   if (activeSection.value === 'posts') return '搜索帖子标题、内容或关键词'
-//   if (activeSection.value === 'tasks') return '搜索任务标题、内容或关键词'
-//   return '搜索任务、帖子或关键词'
-// })
+const searchPlaceholder = computed(() => {
+  if (activeSection.value === 'posts') return '搜索帖子标题、内容或关键词'
+  if (activeSection.value === 'tasks') return '搜索任务标题、内容或关键词'
+  if (activeSection.value === 'workspace') return '搜索帖子、任务或消息'
+  return '搜索校园帖子或任务'
+})
 
-// function handleSearch() {
-//   const keyword = searchKeyword.value.trim()
-//   if (!keyword) return
-//
-//   if (activeSection.value === 'posts') {
-//     router.push({ name: 'post-list', query: { keyword } })
-//   } else if (activeSection.value === 'tasks') {
-//     router.push({ name: 'task-list', query: { keyword } })
-//   } else {
-//     router.push({ name: 'homepage', query: { keyword } })
-//   }
-//   searchKeyword.value = ''
-// }
+function handleSearch() {
+  const keyword = searchKeyword.value.trim()
+  if (!keyword) return
+
+  if (activeSection.value === 'tasks') {
+    router.push({ name: 'task-list', query: { keyword } })
+  } else {
+    router.push({ name: 'post-list', query: { keyword } })
+  }
+  searchKeyword.value = ''
+}
 
 const visibleNavItems = computed(() => primaryNavItems.filter((item) => canShowNavItem(item, auth)))
 
@@ -275,7 +274,7 @@ onBeforeUnmount(() => {
     </aside>
 
     <header class="dashboard-topbar">
-      <!-- <form
+      <form
         class="search-box"
         @submit.prevent="handleSearch"
       >
@@ -289,7 +288,7 @@ onBeforeUnmount(() => {
           :placeholder="searchPlaceholder"
           :aria-label="searchPlaceholder"
         >
-      </form> -->
+      </form>
 
       <div class="topbar-account">
         <button
@@ -727,18 +726,23 @@ onBeforeUnmount(() => {
   left: var(--sidebar-width);
   z-index: 25;
   display: flex;
-  justify-content: flex-end;
   align-items: center;
+  justify-content: space-between;
+  gap: 24px;
   height: var(--topbar-height);
   padding: 0 30px 0 34px;
   border-bottom: 1px solid var(--color-border);
   background: var(--color-surface);
 }
 
-/* .search-box {
+.search-box {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex: 1;
+  width: auto;
+  max-width: 100%;
+  min-width: 320px;
   height: 46px;
   padding: 0 16px;
   border: 1px solid var(--color-border);
@@ -766,7 +770,7 @@ onBeforeUnmount(() => {
 
 .search-box input::placeholder {
   color: var(--color-text-muted);
-} */
+}
 
 .topbar-account {
   display: flex;
@@ -1103,7 +1107,6 @@ onBeforeUnmount(() => {
   left: 0;
   height: var(--topbar-height);
   padding: 0 32px 0 62px;
-  grid-template-columns: minmax(280px, 934px) auto;
 }
 
 .dashboard-shell--publish .dashboard-main {
@@ -1111,9 +1114,9 @@ onBeforeUnmount(() => {
   padding: 76px 28px 20px;
 }
 
-/* .dashboard-shell--publish .search-box {
+.dashboard-shell--publish .search-box {
   height: 44px;
-} */
+}
 
 @media (max-width: 1100px) {
   .dashboard-shell {
@@ -1125,11 +1128,17 @@ onBeforeUnmount(() => {
   }
 
   .dashboard-topbar {
-    grid-template-columns: 1fr;
+    flex-wrap: wrap;
     gap: 12px;
     height: auto;
     min-height: var(--topbar-height);
     padding: 12px 20px;
+  }
+
+  .search-box {
+    flex: 1 1 320px;
+    width: auto;
+    min-width: 280px;
   }
 
   .topbar-account {
@@ -1137,7 +1146,6 @@ onBeforeUnmount(() => {
   }
 
   .dashboard-shell--publish .dashboard-topbar {
-    grid-template-columns: minmax(0, 1fr) auto;
     padding-inline: 20px;
   }
 }
@@ -1201,7 +1209,6 @@ onBeforeUnmount(() => {
   }
 
   .dashboard-shell--publish .dashboard-topbar {
-    grid-template-columns: 1fr;
     padding-inline: 16px;
   }
 
