@@ -52,11 +52,13 @@ import {
 import api from '../services/api'
 import { useAuth } from '../stores/auth'
 import { useToast } from '../composables/useToast'
+import { useGuestAction } from '../composables/useGuestAction'
 
 const route = useRoute()
 const router = useRouter()
 const { isAuthenticated, currentUserId, verificationStatus } = useAuth()
 const { showToast } = useToast()
+const { requireLoginAction } = useGuestAction()
 const MINE_TASK_FETCH_SIZE = 100
 
 function isMineRoute(routeName = route.name) {
@@ -1271,16 +1273,24 @@ async function clearSelectedTask() {
 }
 
 async function openEditTask() {
+  if (!requireLoginAction('编辑任务')) return
   if (!detailTask.value?.id || !canEditDetailTask.value) return
   await router.push({ name: 'task-edit', params: { taskId: detailTask.value.id } })
 }
 
 async function openRepostTask() {
+  if (!requireLoginAction('重新发布任务')) return
   if (!detailTask.value?.id || !canRepostDetailTask.value) return
   await router.push({ name: 'task-repost', params: { taskId: detailTask.value.id } })
 }
 
+async function handlePublishShortcut() {
+  if (!requireLoginAction('发布任务')) return
+  await router.push({ name: 'task-publish' })
+}
+
 function openCancelPanel() {
+  if (!requireLoginAction('管理任务')) return
   if (!canCancelDetailTask.value) return
   cancelPanelOpen.value = true
   cancelReason.value = ''
@@ -1295,6 +1305,7 @@ function closeCancelPanel() {
 
 function openApplicationPanel() {
   if (!detailTask.value || isDetailOwner.value) return
+  if (!requireLoginAction('申请接单')) return
   applicationPanelOpen.value = true
   applicationMessageError.value = ''
 }
@@ -1342,7 +1353,9 @@ async function submitQuickConfirmCompletion() {
 }
 
 async function openTaskConversation() {
-  if (!canOpenConversation.value || !detailTask.value?.id) return
+  if (!detailTask.value?.id) return
+  if (!requireLoginAction('任务私信')) return
+  if (!canOpenConversation.value) return
 
   const peerUserId = detailConversationPeerUserId.value
   if (!peerUserId) {
@@ -1381,6 +1394,7 @@ async function openTaskConversation() {
 
 async function openReportPanel() {
   if (!detailTask.value?.id) return
+  if (!requireLoginAction('提交举报')) return
   reportPanelOpen.value = true
   hydrateReportForm()
   if (!reportsLoaded.value && !reportsLoading.value) {
@@ -1906,16 +1920,17 @@ onMounted(async () => {
           <h1>{{ pageTitle }}</h1>
           <span>{{ pageSubtitle }}</span>
         </div>
-        <RouterLink
+        <button
           class="publish-shortcut"
-          to="/tasks/new"
+          type="button"
+          @click="handlePublishShortcut"
         >
           <PlusCircle
             :size="18"
             aria-hidden="true"
           />
           发布任务
-        </RouterLink>
+        </button>
       </section>
 
       <section

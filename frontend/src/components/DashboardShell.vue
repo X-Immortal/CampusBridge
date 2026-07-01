@@ -26,6 +26,7 @@ import { useDashboardSidebar } from '../composables/useDashboardSidebar'
 import { useNotificationCenter } from '../composables/useNotificationCenter'
 import { useAuth } from '../stores/auth'
 import { usePreferences } from '../composables/usePreferences'
+import { useToast } from '../composables/useToast'
 import BackToTop from './BackToTop.vue'
 import ThemePreferences from './ThemePreferences.vue'
 
@@ -41,9 +42,10 @@ const props = defineProps({
 })
 
 const router = useRouter()
-const { state, isAuthenticated, currentUserId, logout } = useAuth()
+const { state, isAuthenticated, isGuest, currentUserId, logout, exitGuestMode } = useAuth()
 const { sidebarCollapsed, toggleSidebarCollapsed } = useDashboardSidebar()
 const { unreadCount: notificationUnreadCount, refreshNotificationSummary } = useNotificationCenter()
+const { showToast } = useToast()
 usePreferences()
 const accountMenuOpen = ref(false)
 const accountMenuRef = ref(null)
@@ -82,9 +84,11 @@ const navItems = computed(() => [
   ...(isAdmin.value ? [{ label: '管理后台', icon: Shield, to: '/admin' }] : [])
 ])
 
-const userName = computed(() =>
-  isAuthenticated.value ? state.profile?.nickname || state.user?.username || '张同学' : '未登录'
-)
+const userName = computed(() => {
+  if (isGuest.value) return '游客'
+  if (isAuthenticated.value) return state.profile?.nickname || state.user?.username || '张同学'
+  return '未登录'
+})
 const profileAvatarUrl = computed(() => String(state.profile?.avatarUrl || '').trim())
 const profileAvatarSrc = computed(() => {
   if (!profileAvatarUrl.value || avatarLoadFailed.value) return ''
@@ -96,6 +100,7 @@ const profileInitial = computed(() => {
   return name ? name.slice(0, 1) : '同'
 })
 const accountMeta = computed(() => {
+  if (isGuest.value) return '游客模式，可浏览公开内容'
   if (!isAuthenticated.value) return '登录后同步认证和任务记录'
   return state.profile?.campus || state.profile?.college || state.user?.role || '校园互助账号'
 })
@@ -141,6 +146,13 @@ function handleDocumentKeydown(event) {
 async function handleLogout() {
   logout()
   closeAccountMenu()
+  await router.push('/auth')
+}
+
+async function handleExitGuestMode() {
+  exitGuestMode()
+  closeAccountMenu()
+  showToast('已退出游客模式', { type: 'info' })
   await router.push('/auth')
 }
 
@@ -313,6 +325,10 @@ onBeforeUnmount(() => {
               />
             </span>
             <span>{{ userName }}</span>
+            <span
+              v-if="isGuest"
+              class="guest-mode-chip"
+            >游客</span>
             <ChevronDown
               class="account-chevron"
               :size="19"
@@ -387,6 +403,32 @@ onBeforeUnmount(() => {
               />
               退出登录
             </button>
+            <template v-else-if="isGuest">
+              <RouterLink
+                class="account-menu-item"
+                to="/auth"
+                role="menuitem"
+                @click="closeAccountMenu"
+              >
+                <LogIn
+                  :size="17"
+                  aria-hidden="true"
+                />
+                登录或注册
+              </RouterLink>
+              <button
+                class="account-menu-item account-menu-item--danger"
+                type="button"
+                role="menuitem"
+                @click="handleExitGuestMode"
+              >
+                <LogOut
+                  :size="17"
+                  aria-hidden="true"
+                />
+                退出游客模式
+              </button>
+            </template>
             <RouterLink
               v-else
               class="account-menu-item"
@@ -749,6 +791,21 @@ onBeforeUnmount(() => {
 
 .account-button.active .account-chevron {
   transform: rotate(180deg);
+}
+
+.guest-mode-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--color-warning-bg, rgba(245, 158, 11, 0.12));
+  color: var(--color-warning, #b45309);
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
 }
 
 .account-button > span:not(.avatar) {

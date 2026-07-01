@@ -142,6 +142,11 @@ public class TaskServiceImpl implements TaskService {
 
     @Override
     public Task getTaskDetail(Long taskId) {
+        return getTaskDetail(taskId, null);
+    }
+
+    @Override
+    public Task getTaskDetail(Long taskId, Long currentUserId) {
         if (taskId == null) {
             throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "taskId must not be null");
         }

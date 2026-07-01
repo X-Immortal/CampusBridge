@@ -3,6 +3,7 @@ package com.campusbridge.controller;
 import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.pojo.Result;
 import com.campusbridge.common.CurrentUserResolver;
+import com.campusbridge.common.GuestTaskMasker;
 import com.campusbridge.service.TaskService;
 import com.campusbridge.service.CompletionService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -81,8 +82,11 @@ public class TaskController {
     }
 
     @GetMapping("/{taskId}")
-    public Result getTaskDetail(@PathVariable Long taskId) {
-        return Result.success(taskService.getTaskDetail(taskId));
+    public Result getTaskDetail(HttpServletRequest servletRequest, @PathVariable Long taskId) {
+        Long currentUserId = currentUserResolver.resolveOptionalUserId(servletRequest);
+        return Result.success(
+                GuestTaskMasker.maskForGuest(
+                        taskService.getTaskDetail(taskId, currentUserId), currentUserId));
     }
 
     @PutMapping("/{taskId}")

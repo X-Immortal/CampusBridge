@@ -26,11 +26,13 @@ import { optionLabel, POST_CATEGORY_OPTIONS, POST_STATUS_OPTIONS } from '../cons
 import api from '../services/api'
 import { useAuth } from '../stores/auth'
 import { useToast } from '../composables/useToast'
+import { useGuestAction } from '../composables/useGuestAction'
 
 const route = useRoute()
 const router = useRouter()
 const { isAuthenticated, currentUserId } = useAuth()
 const { showToast } = useToast()
+const { requireLoginAction } = useGuestAction()
 
 const DEFAULT_PAGE_SIZE = 8
 
@@ -383,6 +385,7 @@ function resetPostForm() {
 }
 
 function openPublishDialog() {
+  if (!requireLoginAction('发布帖子')) return
   resetPostForm()
   publishDialogOpen.value = true
   nextTick(() => {
@@ -533,6 +536,7 @@ function authorCopy(source) {
 }
 
 async function submitReply() {
+  if (!requireLoginAction('回复帖子')) return
   const content = replyContent.value.trim()
   if (!content) {
     replyError.value = '请输入回复内容'
@@ -582,7 +586,8 @@ function cancelReply() {
 }
 
 async function togglePostLike(post) {
-  if (!isAuthenticated.value || !post?.id) return
+  if (!post?.id) return
+  if (!requireLoginAction('点赞')) return
   const postRef = post
   const currentlyLiked = postRef._likedByCurrentUser ?? false
   const prevCount = Number(postRef.likeCount) || 0
@@ -637,7 +642,8 @@ async function toggleDetailLike() {
 }
 
 async function togglePostMark(post) {
-  if (!isAuthenticated.value || !post?.id) return
+  if (!post?.id) return
+  if (!requireLoginAction('收藏')) return
   const postRef = post
   const currentlyMarked = postRef._markedByCurrentUser ?? false
   const prevCount = Number(postRef.markCount) || 0
