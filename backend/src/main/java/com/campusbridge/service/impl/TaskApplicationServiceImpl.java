@@ -34,6 +34,7 @@ public class TaskApplicationServiceImpl implements TaskApplicationService {
     private static final String STATUS_OPEN = "OPEN";
     private static final String STATUS_ACCEPTED = "ACCEPTED";
     private static final String STATUS_PENDING = "PENDING";
+    private static final String STATUS_WITHDRAWN = "WITHDRAWN";
     private static final String VERIFICATION_STATUS_VERIFIED = "VERIFIED";
     private static final String HISTORY_NOTE_ACCEPTED = "APPLICATION_ACCEPTED";
 
@@ -81,8 +82,27 @@ public class TaskApplicationServiceImpl implements TaskApplicationService {
                     ErrorCode.TASK_003_PERMISSION_DENIED,
                     "Task requester cannot apply to own task");
         }
-        if (taskApplicationMapper.selectByTaskIdAndApplicantId(taskId, applicantId) != null) {
+        TaskApplication existingApplication =
+                taskApplicationMapper.selectByTaskIdAndApplicantId(taskId, applicantId);
+        if (existingApplication != null && !STATUS_WITHDRAWN.equals(existingApplication.getStatus())) {
             throw new BusinessException(ErrorCode.TASK_007_ALREADY_APPLIED);
+        }
+
+        if (existingApplication != null) {
+            existingApplication.setMessage(request.getMessage());
+            existingApplication.setStatus(STATUS_PENDING);
+            existingApplication.setCreatedAt(LocalDateTime.now());
+            existingApplication.setHandledAt(null);
+            if (taskApplicationMapper.updateById(existingApplication) != 1) {
+                throw new BusinessException(
+                        ErrorCode.COMMON_999_INTERNAL_ERROR,
+                        "Failed to reactivate task application");
+            }
+            notificationService.notifyTaskApplicationCreated(
+                    task,
+                    existingApplication,
+                    applicantId);
+            return existingApplication;
         }
 
         TaskApplication application = new TaskApplication();
@@ -118,6 +138,57 @@ public class TaskApplicationServiceImpl implements TaskApplicationService {
                 .stream()
                 .map(this::toCandidateView)
                 .toList();
+    }
+
+    @Override
+    public List<ViewDtos.MyTaskApplicationView> listMyApplications(Long applicantId) {
+        if (applicantId == null) {
+            throw new BusinessException(ErrorCode.AUTH_001_UNAUTHORIZED);
+        }
+
+        return taskApplicationMapper.selectByApplicantId(applicantId)
+                .stream()
+                .map(application -> new ViewDtos.MyTaskApplicationView(
+                        application,
+                        taskMapper.selectById(application.getTaskId())))
+                .filter(view -> view.getTask() != null)
+                .toList();
+    }
+
+    @Override
+    public TaskApplication withdrawApplication(Long applicantId, Long applicationId) {
+        if (applicantId == null || applicationId == null) {
+            throwValidation("applicantId and applicationId are required");
+        }
+
+        TaskApplication application = taskApplicationMapper.selectById(applicationId);
+        if (application == null) {
+            throw new BusinessException(ErrorCode.TASK_004_APPLICATION_NOT_FOUND);
+        }
+        if (!applicantId.equals(application.getApplicantId())) {
+            throw new BusinessException(ErrorCode.TASK_003_PERMISSION_DENIED);
+        }
+        if (!STATUS_PENDING.equals(application.getStatus())) {
+            throw new BusinessException(
+                    ErrorCode.COMMON_003_CONFLICT,
+                    "Only pending application can be withdrawn");
+        }
+
+        LocalDateTime handledAt = LocalDateTime.now();
+        int affectedRows = taskApplicationMapper.updateStatusById(
+                applicationId,
+                STATUS_PENDING,
+                STATUS_WITHDRAWN,
+                handledAt);
+        if (affectedRows != 1) {
+            throw new BusinessException(
+                    ErrorCode.COMMON_003_CONFLICT,
+                    "Application status changed before withdrawal");
+        }
+
+        application.setStatus(STATUS_WITHDRAWN);
+        application.setHandledAt(handledAt);
+        return application;
     }
 
     @Override

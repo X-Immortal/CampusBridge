@@ -188,6 +188,9 @@ export default {
   getTaskApplications: (taskId) => request(`/tasks/${taskId}/applications`),
   acceptTaskApplication: (taskId, applicationId) =>
     request(`/tasks/${taskId}/applications/${applicationId}/accept`, { method: 'POST' }),
+  getMyTaskApplications: () => request('/task-applications/mine'),
+  withdrawTaskApplication: (applicationId) =>
+    request(`/task-applications/${applicationId}`, { method: 'DELETE' }),
   getConversations: (params) => request(`/conversations${buildQuery(params)}`),
   getConversationUnreadCount: () => request('/conversations/unread-count'),
   createConversation: (body) => request('/conversations', { method: 'POST', body }),

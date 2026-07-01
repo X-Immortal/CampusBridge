@@ -21,6 +21,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -126,6 +127,26 @@ class BE07TaskApplicationServiceImplTest {
     }
 
     @Test
+    void createApplicationReactivatesWithdrawnApplication() {
+        Task task = task(TASK_ID, REQUESTER_ID, "OPEN");
+        TaskApplication application = pendingApplication(APPLICATION_ID, TASK_ID, APPLICANT_ID);
+        application.setStatus("WITHDRAWN");
+        when(taskMapper.selectById(TASK_ID)).thenReturn(task);
+        when(taskApplicationMapper.selectByTaskIdAndApplicantId(TASK_ID, APPLICANT_ID))
+                .thenReturn(application);
+        when(taskApplicationMapper.updateById(application)).thenReturn(1);
+
+        TaskApplication result = applicationService.createApplication(
+                APPLICANT_ID, TASK_ID, appRequest("重新申请"));
+
+        assertThat(result.getStatus()).isEqualTo("PENDING");
+        assertThat(result.getMessage()).isEqualTo("重新申请");
+        assertThat(result.getHandledAt()).isNull();
+        verify(notificationService)
+                .notifyTaskApplicationCreated(task, application, APPLICANT_ID);
+    }
+
+    @Test
     void createApplicationRejectsNullTaskId() {
         assertThatThrownBy(() -> applicationService.createApplication(
                 APPLICANT_ID, null, appRequest("message")))
@@ -200,6 +221,61 @@ class BE07TaskApplicationServiceImplTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.TASK_004_APPLICATION_NOT_FOUND);
+    }
+
+    // ---- applicant self-service ----
+
+    @Test
+    void listMyApplicationsReturnsApplicationsWithTasks() {
+        TaskApplication application = pendingApplication(APPLICATION_ID, TASK_ID, APPLICANT_ID);
+        Task task = task(TASK_ID, REQUESTER_ID, "OPEN");
+        when(taskApplicationMapper.selectByApplicantId(APPLICANT_ID))
+                .thenReturn(List.of(application));
+        when(taskMapper.selectById(TASK_ID)).thenReturn(task);
+
+        var result = applicationService.listMyApplications(APPLICANT_ID);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getApplication()).isSameAs(application);
+        assertThat(result.get(0).getTask()).isSameAs(task);
+    }
+
+    @Test
+    void withdrawApplicationChangesPendingStatus() {
+        TaskApplication application = pendingApplication(APPLICATION_ID, TASK_ID, APPLICANT_ID);
+        when(taskApplicationMapper.selectById(APPLICATION_ID)).thenReturn(application);
+        when(taskApplicationMapper.updateStatusById(
+                eq(APPLICATION_ID), eq("PENDING"), eq("WITHDRAWN"), any()))
+                .thenReturn(1);
+
+        TaskApplication result =
+                applicationService.withdrawApplication(APPLICANT_ID, APPLICATION_ID);
+
+        assertThat(result.getStatus()).isEqualTo("WITHDRAWN");
+        assertThat(result.getHandledAt()).isNotNull();
+    }
+
+    @Test
+    void withdrawApplicationRejectsDifferentApplicant() {
+        TaskApplication application = pendingApplication(APPLICATION_ID, TASK_ID, APPLICANT_ID);
+        when(taskApplicationMapper.selectById(APPLICATION_ID)).thenReturn(application);
+
+        assertThatThrownBy(() -> applicationService.withdrawApplication(999L, APPLICATION_ID))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.TASK_003_PERMISSION_DENIED);
+    }
+
+    @Test
+    void withdrawApplicationRejectsAcceptedApplication() {
+        TaskApplication application = pendingApplication(APPLICATION_ID, TASK_ID, APPLICANT_ID);
+        application.setStatus("ACCEPTED");
+        when(taskApplicationMapper.selectById(APPLICATION_ID)).thenReturn(application);
+
+        assertThatThrownBy(() -> applicationService.withdrawApplication(APPLICANT_ID, APPLICATION_ID))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.COMMON_003_CONFLICT);
     }
 
     // ---- helpers ----

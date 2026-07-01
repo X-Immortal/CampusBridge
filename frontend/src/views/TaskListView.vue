@@ -254,7 +254,9 @@ const completedTaskCount = computed(() =>
   tasks.value.filter((task) => ['COMPLETED', 'REVIEWED'].includes(task.status)).length
 )
 const requesterTaskCards = computed(() => tasks.value.filter(isRequesterTask))
-const acceptedTaskCards = computed(() => tasks.value.filter(isProviderTask))
+const acceptedTaskCards = computed(() =>
+  tasks.value.filter((task) => isProviderTask(task) || task.myApplicationStatus === 'PENDING')
+)
 const visibleTaskGroups = computed(() => {
   if (!isMineView.value) {
     return [
@@ -282,8 +284,8 @@ const visibleTaskGroups = computed(() => {
     return [
       {
         key: 'accepted',
-        title: '我接受的任务',
-        emptyCopy: '当前筛选下没有你接下的任务。',
+        title: '我申请或接受的任务',
+        emptyCopy: '当前筛选下没有申请中或已经接下的任务。',
         items: acceptedTaskCards.value
       }
     ]
@@ -526,6 +528,7 @@ const proofSubmittedAt = computed(
   () => completionProof.value?.submittedAt || completionProof.value?.createdAt || completionProof.value?.updatedAt || ''
 )
 const hasCurrentUserApplied = computed(() =>
+  detailTask.value?.myApplicationStatus === 'PENDING' ||
   Boolean(submittedApplicationForTask.value) ||
   candidates.value.some(
     (candidate) =>
@@ -816,11 +819,62 @@ function isProviderTask(task = {}) {
   return providerId !== undefined && providerId !== null && String(providerId) === String(currentUserId.value)
 }
 
-function applyTaskResult(result) {
+function matchesCurrentTaskFilters(task) {
+  const keyword = filters.keyword.trim().toLowerCase()
+  const searchable = [task.title, task.description, task.campus, task.location]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase()
+
+  return Boolean(
+    (!keyword || searchable.includes(keyword)) &&
+      (!filters.category || task.category === filters.category) &&
+      (!filters.campus || String(task.campus || '').includes(filters.campus.trim())) &&
+      (!filters.status || task.status === filters.status) &&
+      (!filters.rewardType || task.rewardType === filters.rewardType) &&
+      (filters.requiresProof === '' || task.requiresProof === (filters.requiresProof === 'true'))
+  )
+}
+
+function normalizePendingApplicationTasks(result) {
+  return normalizePagedTasks(result)
+    .filter((item) => item?.application?.status === 'PENDING' && item.task)
+    .map((item) => ({
+      ...normalizeTask(item.task),
+      myApplicationId: item.application.id,
+      myApplicationStatus: item.application.status,
+      myApplicationCreatedAt: item.application.createdAt
+    }))
+    .filter(matchesCurrentTaskFilters)
+}
+
+function applyTaskResult(result, myApplications = []) {
   let items = normalizePagedTasks(result).map(normalizeTask)
 
   if (isMineView.value) {
-    const mineItems = items.filter((task) => isRequesterTask(task) || isProviderTask(task))
+    const pendingApplicationTasks = normalizePendingApplicationTasks(myApplications)
+    const pendingApplicationByTaskId = new Map(
+      pendingApplicationTasks.map((task) => [String(task.id), task])
+    )
+    items = items.map((task) => {
+      const pendingTask = pendingApplicationByTaskId.get(String(task.id))
+      return pendingTask
+        ? {
+            ...task,
+            myApplicationId: pendingTask.myApplicationId,
+            myApplicationStatus: pendingTask.myApplicationStatus,
+            myApplicationCreatedAt: pendingTask.myApplicationCreatedAt
+          }
+        : task
+    })
+    const knownTaskIds = new Set(items.map((task) => String(task.id)))
+    const mergedItems = [
+      ...items,
+      ...pendingApplicationTasks.filter((task) => !knownTaskIds.has(String(task.id)))
+    ]
+    const mineItems = mergedItems.filter(
+      (task) => isRequesterTask(task) || isProviderTask(task) || task.myApplicationStatus === 'PENDING'
+    )
 
     if (isDraftView.value) {
       const draftItems = mineItems.filter((task) => isRequesterTask(task) && task.status === 'DRAFT')
@@ -836,7 +890,9 @@ function applyTaskResult(result) {
 
     const nonDraftMineItems = mineItems.filter((task) => task.status !== 'DRAFT')
     const publishedItems = nonDraftMineItems.filter((task) => isRequesterTask(task))
-    const acceptedItems = nonDraftMineItems.filter((task) => isProviderTask(task))
+    const acceptedItems = nonDraftMineItems.filter(
+      (task) => isProviderTask(task) || task.myApplicationStatus === 'PENDING'
+    )
 
     const activePage = mineSubTab.value === 'published' ? minePublishedPage : mineAcceptedPage
     const activeItems = mineSubTab.value === 'published' ? publishedItems : acceptedItems
@@ -1113,10 +1169,13 @@ async function loadTasks() {
   const requestId = ++listRequestId
 
   try {
-    const result = await api.getTasks(buildTaskQuery())
+    const [result, myApplications] = await Promise.all([
+      api.getTasks(buildTaskQuery()),
+      isMineView.value && !isDraftView.value ? api.getMyTaskApplications() : Promise.resolve([])
+    ])
     if (requestId !== listRequestId) return
 
-    applyTaskResult(result)
+    applyTaskResult(result, myApplications)
   } catch (error) {
     if (requestId !== listRequestId) return
     tasks.value = []
@@ -1153,7 +1212,14 @@ async function loadTaskDetail(taskId) {
   try {
     const result = await api.getTaskDetail(taskId)
     if (requestId !== detailRequestId) return
-    taskDetail.value = normalizeTaskDetail(result)
+    const normalizedDetail = normalizeTaskDetail(result)
+    const listTask = tasks.value.find((task) => String(task.id) === String(taskId))
+    if (normalizedDetail?.task && listTask?.myApplicationStatus) {
+      normalizedDetail.task.myApplicationId = listTask.myApplicationId
+      normalizedDetail.task.myApplicationStatus = listTask.myApplicationStatus
+      normalizedDetail.task.myApplicationCreatedAt = listTask.myApplicationCreatedAt
+    }
+    taskDetail.value = normalizedDetail
     await loadCandidates(taskId)
   } catch (error) {
     if (requestId !== detailRequestId) return
@@ -1527,6 +1593,26 @@ async function quickDeleteDraft(task) {
     await refreshTasks()
   } catch (error) {
     showToast(error.message || '删除草稿失败，请稍后重试。', { type: 'danger' })
+  } finally {
+    operationLoading.value = ''
+  }
+}
+
+async function withdrawPendingApplication(task) {
+  if (!task?.myApplicationId || task.myApplicationStatus !== 'PENDING') return
+  if (!confirm('确认取消这次接单申请？')) return
+
+  operationLoading.value = `withdraw-application-${task.myApplicationId}`
+  try {
+    await api.withdrawTaskApplication(task.myApplicationId)
+    showToast('接单申请已取消。', { type: 'success' })
+    if (String(selectedTaskId.value) === String(task.id)) {
+      await clearSelectedTask()
+    } else {
+      await refreshTasks()
+    }
+  } catch (error) {
+    showToast(error.message || '取消接单申请失败，请稍后重试。', { type: 'danger' })
   } finally {
     operationLoading.value = ''
   }
@@ -2537,8 +2623,8 @@ onMounted(async () => {
                           <strong>{{ task.title || '未命名任务' }}</strong>
                         </span>
                         <StatusBadge
-                          :label="taskStatusLabel(task.status)"
-                          :tone="taskStatusTone(task.status)"
+                          :label="task.myApplicationStatus === 'PENDING' ? '申请中' : taskStatusLabel(task.status)"
+                          :tone="task.myApplicationStatus === 'PENDING' ? 'warning' : taskStatusTone(task.status)"
                         />
                       </span>
 
@@ -2582,6 +2668,27 @@ onMounted(async () => {
                     <span class="task-card-footer">
                       <span>{{ taskCategoryLabel(task) }}</span>
                       <span>发布于 {{ formatCreatedAt(task.createdAt) }}</span>
+                      <button
+                        v-if="task.myApplicationStatus === 'PENDING'"
+                        class="card-delete-btn"
+                        type="button"
+                        aria-label="取消接单申请"
+                        :disabled="operationLoading === `withdraw-application-${task.myApplicationId}`"
+                        @click.stop="withdrawPendingApplication(task)"
+                      >
+                        <LoaderCircle
+                          v-if="operationLoading === `withdraw-application-${task.myApplicationId}`"
+                          class="spinning"
+                          :size="15"
+                          aria-hidden="true"
+                        />
+                        <X
+                          v-else
+                          :size="15"
+                          aria-hidden="true"
+                        />
+                        取消申请
+                      </button>
                       <button
                         v-if="isMineView && task.status === 'DRAFT'"
                         class="card-edit-btn"
@@ -3209,6 +3316,27 @@ onMounted(async () => {
                   :tone="applicationGate.tone"
                 />
                 <button
+                  v-if="detailTask.myApplicationStatus === 'PENDING'"
+                  class="ghost-action workflow-entry__button"
+                  type="button"
+                  :disabled="operationLoading === `withdraw-application-${detailTask.myApplicationId}`"
+                  @click="withdrawPendingApplication(detailTask)"
+                >
+                  <LoaderCircle
+                    v-if="operationLoading === `withdraw-application-${detailTask.myApplicationId}`"
+                    class="spinning"
+                    :size="17"
+                    aria-hidden="true"
+                  />
+                  <X
+                    v-else
+                    :size="17"
+                    aria-hidden="true"
+                  />
+                  取消申请
+                </button>
+                <button
+                  v-else
                   class="primary-action workflow-entry__button"
                   type="button"
                   :disabled="applicationSubmitting"

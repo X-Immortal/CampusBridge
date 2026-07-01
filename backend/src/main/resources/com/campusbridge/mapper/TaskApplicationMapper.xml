@@ -24,6 +24,12 @@
     ORDER BY created_at DESC, id DESC
   </select>
 
+  <select id="selectByApplicantId" resultType="com.campusbridge.pojo.TaskApplication">
+    SELECT * FROM task_applications
+    WHERE applicant_id = #{applicantId}
+    ORDER BY created_at DESC, id DESC
+  </select>
+
   <select id="selectAll" resultType="com.campusbridge.pojo.TaskApplication">
     SELECT * FROM task_applications
   </select>
