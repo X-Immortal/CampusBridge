@@ -243,7 +243,9 @@ class BE07TaskApplicationServiceImplTest {
     @Test
     void withdrawApplicationChangesPendingStatus() {
         TaskApplication application = pendingApplication(APPLICATION_ID, TASK_ID, APPLICANT_ID);
+        Task task = task(TASK_ID, REQUESTER_ID, "OPEN");
         when(taskApplicationMapper.selectById(APPLICATION_ID)).thenReturn(application);
+        when(taskMapper.selectById(TASK_ID)).thenReturn(task);
         when(taskApplicationMapper.updateStatusById(
                 eq(APPLICATION_ID), eq("PENDING"), eq("WITHDRAWN"), any()))
                 .thenReturn(1);
@@ -253,6 +255,8 @@ class BE07TaskApplicationServiceImplTest {
 
         assertThat(result.getStatus()).isEqualTo("WITHDRAWN");
         assertThat(result.getHandledAt()).isNotNull();
+        verify(notificationService)
+                .notifyTaskApplicationWithdrawn(task, application, APPLICANT_ID);
     }
 
     @Test

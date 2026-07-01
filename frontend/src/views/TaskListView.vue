@@ -425,13 +425,26 @@ const canEditDetailTask = computed(
 const canCancelDetailTask = computed(
   () => isDetailOwner.value && cancelableStatuses.has(detailTask.value?.status)
 )
+const canWithdrawDetailTask = computed(
+  () => isDetailProvider.value && ['ACCEPTED', 'IN_PROGRESS'].includes(detailTask.value?.status)
+)
 const canRepostDetailTask = computed(() => {
   if (!isDetailOwner.value || !detailTask.value) return false
   return repostableStatuses.has(detailTask.value.status)
 })
 const hasDetailActions = computed(
-  () => canEditDetailTask.value || canCancelDetailTask.value || canRepostDetailTask.value
+  () =>
+    canEditDetailTask.value ||
+    canCancelDetailTask.value ||
+    canRepostDetailTask.value ||
+    canWithdrawDetailTask.value
 )
+const isProviderWithdrawal = computed(() => canWithdrawDetailTask.value && !isDetailOwner.value)
+const cancelActionTitle = computed(() => {
+  if (detailTask.value?.status === 'DRAFT') return '删除草稿'
+  return isProviderWithdrawal.value ? '退出任务' : '取消任务'
+})
+const cancelActionWillDeductPoint = computed(() => detailTask.value?.status === 'IN_PROGRESS')
 const canStartDetailTask = computed(
   () => isDetailProvider.value && detailTask.value?.status === 'ACCEPTED'
 )
@@ -1410,7 +1423,7 @@ async function handlePublishShortcut() {
 
 function openCancelPanel() {
   if (!requireLoginAction('管理任务')) return
-  if (!canCancelDetailTask.value) return
+  if (!canCancelDetailTask.value && !canWithdrawDetailTask.value) return
   cancelPanelOpen.value = true
   cancelReason.value = ''
   cancelReasonError.value = ''
@@ -1629,28 +1642,50 @@ async function openDraftEditor(task) {
 }
 
 async function submitCancelTask() {
-  if (!detailTask.value?.id || !canCancelDetailTask.value) return
+  if (!detailTask.value?.id || (!canCancelDetailTask.value && !canWithdrawDetailTask.value)) return
 
   const isDraft = detailTask.value.status === 'DRAFT'
   const reason = cancelReason.value.trim()
-  if (!isDraft && reason.length < 4) {
+  const reasonRequired = isProviderWithdrawal.value || !['DRAFT', 'OPEN'].includes(detailTask.value.status)
+  if (reasonRequired && reason.length < 4) {
     cancelReasonError.value = '请用至少 4 个字说明取消原因，方便后续追溯。'
+    return
+  }
+
+  if (
+    cancelActionWillDeductPoint.value &&
+    !confirm(`任务已经开始，${cancelActionTitle.value}将扣除 1 积分。确认继续吗？`)
+  ) {
     return
   }
 
   operationLoading.value = 'cancel'
   cancelReasonError.value = ''
   try {
-    if (isDraft) {
+    if (isProviderWithdrawal.value) {
+      await api.withdrawFromTask(detailTask.value.id, { reason })
+    } else if (isDraft) {
       await api.deleteTaskDraft(detailTask.value.id)
     } else {
       await api.cancelTask(detailTask.value.id, reason)
     }
-    showToast(isDraft ? '草稿已删除。' : '任务已取消，状态记录会保留在任务历史中。', { type: 'success' })
+    showToast(
+      isProviderWithdrawal.value
+        ? '你已退出任务，任务重新开放接单。'
+        : isDraft
+          ? '草稿已删除。'
+          : '任务已取消，状态记录会保留在任务历史中。',
+      { type: 'success' }
+    )
     closeCancelPanel()
-    await refreshTasks()
+    if (isProviderWithdrawal.value) {
+      await clearSelectedTask()
+    } else {
+      await refreshTasks()
+    }
   } catch (error) {
-    showToast(error.message || `${isDraft ? '删除草稿失败' : '取消任务失败'}，请稍后重试。`, { type: 'danger' })
+    const fallback = isProviderWithdrawal.value ? '退出任务失败' : isDraft ? '删除草稿失败' : '取消任务失败'
+    showToast(error.message || `${fallback}，请稍后重试。`, { type: 'danger' })
   } finally {
     operationLoading.value = ''
   }
@@ -3532,10 +3567,11 @@ onMounted(async () => {
           </div>
 
           <footer
-            v-if="canOpenConversation"
+            v-if="canOpenConversation || hasDetailActions"
             class="detail-action-row"
           >
             <button
+              v-if="canOpenConversation"
               class="primary-action detail-primary-action"
               type="button"
               :disabled="operationLoading === 'conversation'"
@@ -3554,8 +3590,136 @@ onMounted(async () => {
               />
               打开任务会话
             </button>
+            <button
+              v-if="canEditDetailTask"
+              class="ghost-action"
+              type="button"
+              @click="openEditTask"
+            >
+              <Pencil
+                :size="17"
+                aria-hidden="true"
+              />
+              编辑任务
+            </button>
+            <button
+              v-if="canRepostDetailTask"
+              class="ghost-action"
+              type="button"
+              @click="openRepostTask"
+            >
+              <Repeat2
+                :size="17"
+                aria-hidden="true"
+              />
+              重新发布
+            </button>
+            <button
+              v-if="canCancelDetailTask || canWithdrawDetailTask"
+              class="danger-action"
+              type="button"
+              @click="openCancelPanel"
+            >
+              <X
+                :size="17"
+                aria-hidden="true"
+              />
+              {{ cancelActionTitle }}
+            </button>
           </footer>
         </template>
+      </section>
+    </div>
+
+    <div
+      v-if="cancelPanelOpen && detailTask"
+      class="workflow-modal-layer"
+      @click.self="closeCancelPanel"
+    >
+      <section
+        class="panel-card workflow-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="task-cancel-title"
+      >
+        <header class="workflow-modal__header">
+          <div>
+            <p class="section-kicker">
+              任务状态变更
+            </p>
+            <h3 id="task-cancel-title">
+              {{ cancelActionTitle }}
+            </h3>
+            <p v-if="cancelActionWillDeductPoint">
+              任务已经开始，本次操作会扣除 1 积分，并通知对方。
+            </p>
+            <p v-else-if="isProviderWithdrawal">
+              退出后任务将重新开放接单，发布者会收到通知。
+            </p>
+            <p v-else>
+              取消后任务不能继续执行；已经选人时，接单者会收到通知。
+            </p>
+          </div>
+          <button
+            class="icon-action"
+            type="button"
+            :aria-label="`关闭${cancelActionTitle}窗口`"
+            @click="closeCancelPanel"
+          >
+            <X
+              :size="18"
+              aria-hidden="true"
+            />
+          </button>
+        </header>
+
+        <form
+          class="application-form"
+          @submit.prevent="submitCancelTask"
+        >
+          <label
+            class="application-field"
+            for="task-cancel-reason"
+          >
+            <span>{{ ['DRAFT', 'OPEN'].includes(detailTask.status) && !isProviderWithdrawal ? '原因（可选）' : '原因' }}</span>
+            <textarea
+              id="task-cancel-reason"
+              v-model.trim="cancelReason"
+              maxlength="300"
+              :aria-invalid="Boolean(cancelReasonError)"
+              placeholder="请说明取消或退出任务的原因"
+            />
+            <small>{{ cancelReason.length }}/300</small>
+            <p
+              v-if="cancelReasonError"
+              class="field-error"
+            >
+              {{ cancelReasonError }}
+            </p>
+          </label>
+          <div class="workflow-modal__footer">
+            <button
+              class="ghost-action"
+              type="button"
+              @click="closeCancelPanel"
+            >
+              返回
+            </button>
+            <button
+              class="danger-action"
+              type="submit"
+              :disabled="operationLoading === 'cancel'"
+            >
+              <LoaderCircle
+                v-if="operationLoading === 'cancel'"
+                class="spinning"
+                :size="17"
+                aria-hidden="true"
+              />
+              确认{{ cancelActionTitle }}
+            </button>
+          </div>
+        </form>
       </section>
     </div>
 

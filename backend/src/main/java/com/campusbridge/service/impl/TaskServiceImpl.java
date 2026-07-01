@@ -6,9 +6,12 @@ import com.campusbridge.dto.enums.ApiEnums;
 import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.mapper.CampusVerificationMapper;
 import com.campusbridge.mapper.TaskMapper;
+import com.campusbridge.mapper.TaskApplicationMapper;
+import com.campusbridge.pojo.TaskApplication;
 import com.campusbridge.pojo.CampusVerification;
 import com.campusbridge.pojo.Task;
 import com.campusbridge.service.ContentModerationService;
+import com.campusbridge.service.CreditService;
 import com.campusbridge.service.NotificationService;
 import com.campusbridge.service.TaskHistoryService;
 import com.campusbridge.service.TaskService;
@@ -48,6 +51,8 @@ public class TaskServiceImpl implements TaskService {
     private final TaskHistoryService taskHistoryService;
     private final ContentModerationService contentModerationService;
     private final NotificationService notificationService;
+    private final TaskApplicationMapper taskApplicationMapper;
+    private final CreditService creditService;
 
     private static final String STATUS_ACCEPTED = "ACCEPTED";
     private static final String STATUS_IN_PROGRESS = "IN_PROGRESS";
@@ -55,18 +60,23 @@ public class TaskServiceImpl implements TaskService {
     private static final String STATUS_COMPLETED = "COMPLETED";
     private static final String STATUS_CANCELLED = "CANCELLED";
     private static final String STATUS_DISPUTED = "DISPUTED";
+    private static final String STATUS_WITHDRAWN = "WITHDRAWN";
 
     public TaskServiceImpl(
             TaskMapper taskMapper,
             CampusVerificationMapper campusVerificationMapper,
             TaskHistoryService taskHistoryService,
             ContentModerationService contentModerationService,
-            NotificationService notificationService) {
+            NotificationService notificationService,
+            TaskApplicationMapper taskApplicationMapper,
+            CreditService creditService) {
         this.taskMapper = taskMapper;
         this.campusVerificationMapper = campusVerificationMapper;
         this.taskHistoryService = taskHistoryService;
         this.contentModerationService = contentModerationService;
         this.notificationService = notificationService;
+        this.taskApplicationMapper = taskApplicationMapper;
+        this.creditService = creditService;
     }
 
     @Override
@@ -224,9 +234,12 @@ public class TaskServiceImpl implements TaskService {
             throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
         }
 
-        if (reason == null || reason.isBlank()) {
+        if (!STATUS_OPEN.equals(fromStatus) && (reason == null || reason.isBlank())) {
             throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "reason is required for cancellation");
         }
+        validateLength(reason, MAX_TRANSITION_REASON_LENGTH, "reason is too long");
+
+        String normalizedReason = isBlank(reason) ? "发布者取消了待接单任务" : reason.trim();
 
         LocalDateTime now = LocalDateTime.now();
         int affectedRows = taskMapper.updateStatusById(taskId, fromStatus, STATUS_CANCELLED, now);
@@ -239,9 +252,96 @@ public class TaskServiceImpl implements TaskService {
                 fromStatus,
                 STATUS_CANCELLED,
                 operatorId,
-                "ACTION=CANCEL; REASON=" + reason);
+                "ACTION=CANCEL; REASON=" + normalizedReason);
+
+        if (STATUS_IN_PROGRESS.equals(fromStatus)) {
+            creditService.adjustCredit(
+                    operatorId,
+                    -1,
+                    "进行中的任务 #" + taskId + " 被发布者取消",
+                    "TASK",
+                    taskId);
+        }
+        notificationService.notifyTaskStatusChanged(
+                task,
+                fromStatus,
+                STATUS_CANCELLED,
+                operatorId,
+                normalizedReason);
 
         task.setStatus(STATUS_CANCELLED);
+        task.setUpdatedAt(now);
+        return task;
+    }
+
+    @Override
+    public Task withdrawFromTask(Long providerId, Long taskId, String reason) {
+        requireOperatorId(providerId);
+        if (taskId == null || isBlank(reason)) {
+            throw new BusinessException(
+                    ErrorCode.COMMON_001_VALIDATION_ERROR,
+                    "taskId and reason are required");
+        }
+        validateLength(reason, MAX_TRANSITION_REASON_LENGTH, "reason is too long");
+
+        Task task = taskMapper.selectById(taskId);
+        if (task == null) {
+            throw new BusinessException(ErrorCode.TASK_001_NOT_FOUND);
+        }
+        if (task.getProviderId() == null || !providerId.equals(task.getProviderId())) {
+            throw new BusinessException(ErrorCode.TASK_003_PERMISSION_DENIED);
+        }
+
+        String fromStatus = task.getStatus();
+        if (!STATUS_ACCEPTED.equals(fromStatus) && !STATUS_IN_PROGRESS.equals(fromStatus)) {
+            throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        if (taskMapper.releaseProviderById(taskId, providerId, fromStatus, now) != 1) {
+            throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
+        }
+
+        TaskApplication application =
+                taskApplicationMapper.selectByTaskIdAndApplicantId(taskId, providerId);
+        if (application != null && STATUS_ACCEPTED.equals(application.getStatus())) {
+            int applicationUpdated = taskApplicationMapper.updateStatusById(
+                    application.getId(),
+                    STATUS_ACCEPTED,
+                    STATUS_WITHDRAWN,
+                    now);
+            if (applicationUpdated != 1) {
+                throw new BusinessException(
+                        ErrorCode.COMMON_003_CONFLICT,
+                        "Accepted application changed before provider withdrawal");
+            }
+        }
+
+        String normalizedReason = reason.trim();
+        taskHistoryService.recordHistory(
+                taskId,
+                fromStatus,
+                STATUS_OPEN,
+                providerId,
+                "ACTION=PROVIDER_WITHDRAW; REASON=" + normalizedReason);
+        if (STATUS_IN_PROGRESS.equals(fromStatus)) {
+            creditService.adjustCredit(
+                    providerId,
+                    -1,
+                    "退出进行中的任务 #" + taskId,
+                    "TASK",
+                    taskId);
+        }
+        notificationService.notifyTaskStatusChanged(
+                task,
+                fromStatus,
+                STATUS_OPEN,
+                providerId,
+                "接单者退出任务：" + normalizedReason);
+
+        task.setProviderId(null);
+        task.setProviderName(null);
+        task.setStatus(STATUS_OPEN);
         task.setUpdatedAt(now);
         return task;
     }

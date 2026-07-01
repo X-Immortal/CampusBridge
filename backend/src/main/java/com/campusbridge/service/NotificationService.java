@@ -2,6 +2,7 @@ package com.campusbridge.service;
 
 import com.campusbridge.pojo.Post;
 import com.campusbridge.pojo.Reply;
+import com.campusbridge.pojo.Review;
 import com.campusbridge.pojo.Task;
 import com.campusbridge.pojo.TaskApplication;
 
@@ -20,6 +21,21 @@ public interface NotificationService {
     void notifyTaskApplicationAccepted(
             Task task,
             TaskApplication application,
+            Long operatorId);
+
+    void notifyTaskApplicationRejected(
+            Task task,
+            TaskApplication application,
+            Long operatorId);
+
+    void notifyTaskApplicationWithdrawn(
+            Task task,
+            TaskApplication application,
+            Long operatorId);
+
+    void notifyTaskReviewCreated(
+            Task task,
+            Review review,
             Long operatorId);
 
     void notifyTaskStatusChanged(

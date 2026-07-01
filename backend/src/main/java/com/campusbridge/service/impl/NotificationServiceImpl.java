@@ -9,6 +9,7 @@ import com.campusbridge.pojo.Conversation;
 import com.campusbridge.pojo.Message;
 import com.campusbridge.pojo.Post;
 import com.campusbridge.pojo.Reply;
+import com.campusbridge.pojo.Review;
 import com.campusbridge.pojo.Task;
 import com.campusbridge.pojo.TaskApplication;
 import com.campusbridge.pojo.User;
@@ -96,6 +97,50 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     @Override
+    public void notifyTaskApplicationRejected(
+            Task task,
+            TaskApplication application,
+            Long operatorId) {
+        if (task == null || application == null) {
+            return;
+        }
+        String content = "你对"
+                + taskLabel(task)
+                + "的接单申请未被选中。";
+        sendTaskNotification(application.getApplicantId(), operatorId, task, content);
+    }
+
+    @Override
+    public void notifyTaskApplicationWithdrawn(
+            Task task,
+            TaskApplication application,
+            Long operatorId) {
+        if (task == null || application == null) {
+            return;
+        }
+        String content = userLabel(application.getApplicantId())
+                + "撤回了对"
+                + taskLabel(task)
+                + "的接单申请。";
+        sendTaskNotification(task.getRequesterId(), operatorId, task, content);
+    }
+
+    @Override
+    public void notifyTaskReviewCreated(
+            Task task,
+            Review review,
+            Long operatorId) {
+        if (task == null || review == null || review.getRevieweeId() == null) {
+            return;
+        }
+        String content = taskLabel(task)
+                + "收到了一条"
+                + review.getRating()
+                + "星评价。";
+        sendTaskNotification(review.getRevieweeId(), operatorId, task, content);
+    }
+
+    @Override
     public void notifyTaskStatusChanged(
             Task task,
             String fromStatus,
@@ -143,14 +188,6 @@ public class NotificationServiceImpl implements NotificationService {
         LocalDateTime now = LocalDateTime.now();
         if (conversation == null) {
             conversation = createTaskNotificationConversation(recipientId, operatorId, task, now);
-        }
-
-        int duplicateCount = messageMapper.countByConversationTypeAndContent(
-                conversation.getId(),
-                MESSAGE_TYPE_SYSTEM_NOTIFICATION,
-                content);
-        if (duplicateCount > 0) {
-            return;
         }
 
         Message message = new Message();

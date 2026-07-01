@@ -32,6 +32,12 @@ public interface TaskMapper {
             @Param("providerId") Long providerId,
             @Param("updatedAt") LocalDateTime updatedAt);
 
+    int releaseProviderById(
+            @Param("id") Long id,
+            @Param("providerId") Long providerId,
+            @Param("fromStatus") String fromStatus,
+            @Param("updatedAt") LocalDateTime updatedAt);
+
     List<Task> selectWithFilters(Map<String, Object> params);
 
     long countWithFilters(Map<String, Object> params);

@@ -174,6 +174,8 @@ public class TaskApplicationServiceImpl implements TaskApplicationService {
                     "Only pending application can be withdrawn");
         }
 
+        Task task = requireTask(application.getTaskId());
+
         LocalDateTime handledAt = LocalDateTime.now();
         int affectedRows = taskApplicationMapper.updateStatusById(
                 applicationId,
@@ -188,6 +190,7 @@ public class TaskApplicationServiceImpl implements TaskApplicationService {
 
         application.setStatus(STATUS_WITHDRAWN);
         application.setHandledAt(handledAt);
+        notificationService.notifyTaskApplicationWithdrawn(task, application, applicantId);
         return application;
     }
 
@@ -234,6 +237,11 @@ public class TaskApplicationServiceImpl implements TaskApplicationService {
                     "Failed to accept pending application");
         }
 
+        List<TaskApplication> rejectedApplications = taskApplicationMapper.selectByTaskId(taskId)
+                .stream()
+                .filter(item -> STATUS_PENDING.equals(item.getStatus()))
+                .filter(item -> !applicationId.equals(item.getId()))
+                .toList();
         taskApplicationMapper.rejectOtherPendingByTaskId(taskId, applicationId, now);
         taskHistoryService.recordHistory(
                 taskId,
@@ -245,6 +253,8 @@ public class TaskApplicationServiceImpl implements TaskApplicationService {
         application.setStatus(STATUS_ACCEPTED);
         application.setHandledAt(now);
         notificationService.notifyTaskApplicationAccepted(task, application, requesterId);
+        rejectedApplications.forEach(rejected ->
+                notificationService.notifyTaskApplicationRejected(task, rejected, requesterId));
         return application;
     }
 
