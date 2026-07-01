@@ -658,7 +658,7 @@ onMounted(async () => {
         class="conversation-section-nav"
         :items="workspaceNavItems"
         :active-key="route.meta?.subSection"
-        variant="compact"
+        variant="rail"
         aria-label="工作台二级导航"
       />
 
@@ -978,8 +978,19 @@ onMounted(async () => {
   --chat-border: var(--color-border);
   --chat-soft: var(--color-brand-soft);
   display: grid;
+  grid-template-columns: minmax(220px, 270px) minmax(0, 1fr);
   gap: 18px;
   color: var(--chat-text);
+}
+
+.conversation-page > .page-title-card {
+  grid-column: 1 / -1;
+}
+
+.conversation-section-nav {
+  align-self: start;
+  position: sticky;
+  top: 18px;
 }
 
 .page-title-card,
@@ -1591,7 +1602,19 @@ onMounted(async () => {
   }
 }
 
-.conversation-section-nav {
-  margin-bottom: 4px;
+@media (min-width: 1021px) {
+  .conversation-workspace {
+    grid-column: 2;
+  }
+}
+
+@media (max-width: 1020px) {
+  .conversation-page {
+    grid-template-columns: 1fr;
+  }
+
+  .conversation-section-nav {
+    position: static;
+  }
 }
 </style>

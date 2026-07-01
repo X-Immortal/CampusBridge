@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import {
   Bell,
   BellDot,
@@ -29,7 +29,6 @@ import api from '../services/api'
 import { useAuth } from '../stores/auth'
 
 const route = useRoute()
-const router = useRouter()
 const { currentUserId } = useAuth()
 const { showToast } = useToast()
 const {
@@ -64,7 +63,9 @@ const notificationFilters = [
   { value: 'CREDIT', label: '信用' }
 ]
 
-const activeSection = computed(() => (route.name === 'notifications' ? 'notifications' : 'reviews'))
+const activeSection = computed(() =>
+  ['notifications', 'workspace-notifications'].includes(route.name) ? 'notifications' : 'reviews'
+)
 const activeLabel = computed(() => (activeSection.value === 'notifications' ? '消息中心' : '评价中心'))
 const currentUser = computed(() => currentUserId.value)
 
@@ -142,9 +143,6 @@ const decoratedNotifications = computed(() =>
     .sort((current, next) => new Date(next.createdAt) - new Date(current.createdAt))
 )
 const unreadNotifications = computed(() => decoratedNotifications.value.filter((notification) => !notification.read))
-const unreadNotificationCount = computed(() =>
-  decoratedNotifications.value.reduce((sum, notification) => sum + Number(notification.unreadCount || 0), 0)
-)
 const filteredNotifications = computed(() => {
   const keyword = notificationSearch.value.trim().toLowerCase()
   return decoratedNotifications.value.filter((notification) => {
@@ -162,12 +160,6 @@ const filteredNotifications = computed(() => {
     return matchesFilter && matchesKeyword
   })
 })
-
-const notificationMetrics = computed(() => [
-  { label: '未读通知', value: unreadNotificationCount.value, tone: 'info' },
-  { label: '待评价', value: pendingReviewTasks.value.length, tone: 'accent' },
-  { label: '已完成评价', value: reviewedTasks.value.length, tone: 'success' }
-])
 
 function normalizePagedItems(result) {
   if (Array.isArray(result)) return result
@@ -517,10 +509,6 @@ async function markAllNotificationsRead() {
   }
 }
 
-async function switchSection(section) {
-  await router.push({ name: section === 'notifications' ? 'notifications' : 'reviews' })
-}
-
 function notificationIcon(type) {
   if (type === 'REVIEW') return Star
   if (type === 'CREDIT') return Sparkles
@@ -542,7 +530,10 @@ onMounted(async () => {
 
 <template>
   <DashboardShell :active-label="activeLabel">
-    <main class="fe08-page">
+    <main
+      class="fe08-page"
+      :class="{ 'fe08-page--notifications': activeSection === 'notifications' }"
+    >
       <section class="page-title-card fe08-title-card">
         <div class="title-icon">
           <component
@@ -552,41 +543,15 @@ onMounted(async () => {
           />
         </div>
         <div class="title-copy">
-          <p>FE08 · 评价与通知</p>
-          <h1>{{ activeSection === 'notifications' ? '消息中心与已读管理' : '任务评分评价中心' }}</h1>
-          <span>围绕任务完成后的互评、信用记录和关键通知，保留真实可追溯的协作状态。</span>
-        </div>
-        <div
-          class="section-switch"
-          role="tablist"
-          aria-label="评价与通知切换"
-        >
-          <button
-            type="button"
-            role="tab"
-            :aria-selected="activeSection === 'reviews'"
-            :class="{ active: activeSection === 'reviews' }"
-            @click="switchSection('reviews')"
-          >
-            <Star
-              :size="17"
-              aria-hidden="true"
-            />
-            评价
-          </button>
-          <button
-            type="button"
-            role="tab"
-            :aria-selected="activeSection === 'notifications'"
-            :class="{ active: activeSection === 'notifications' }"
-            @click="switchSection('notifications')"
-          >
-            <Bell
-              :size="17"
-              aria-hidden="true"
-            />
-            通知
-          </button>
+          <p>{{ activeSection === 'notifications' ? '通知中心' : '评价记录' }}</p>
+          <h1>{{ activeSection === 'notifications' ? '消息通知与已读管理' : '任务评分评价中心' }}</h1>
+          <span>
+            {{
+              activeSection === 'notifications'
+                ? '集中查看系统通知、任务提醒和未读消息。'
+                : '围绕任务完成后的互评和信用记录，保留真实可追溯的协作状态。'
+            }}
+          </span>
         </div>
       </section>
 
@@ -594,13 +559,14 @@ onMounted(async () => {
         class="review-section-nav"
         :items="workspaceNavItems"
         :active-key="route.meta?.subSection"
-        variant="compact"
+        variant="rail"
         aria-label="工作台二级导航"
       />
 
       <section
+        v-if="activeSection === 'reviews'"
         class="metric-strip"
-        aria-label="评价与通知概览"
+        aria-label="评价概览"
       >
         <article class="metric-tile metric-tile--accent">
           <span>待评价任务</span>
@@ -611,8 +577,8 @@ onMounted(async () => {
           <strong>{{ averageGivenRating }}</strong>
         </article>
         <article class="metric-tile metric-tile--info">
-          <span>未读通知</span>
-          <strong>{{ unreadNotifications.length }}</strong>
+          <span>已评价任务</span>
+          <strong>{{ reviewedTasks.length }}</strong>
         </article>
       </section>
 
@@ -1125,34 +1091,6 @@ onMounted(async () => {
             </div>
           </template>
         </aside>
-
-        <section class="panel-card notification-metrics-panel">
-          <div class="panel-heading">
-            <div>
-              <p class="section-kicker">
-                处理概览
-              </p>
-              <h2>今天要留意的事</h2>
-            </div>
-            <BellDot
-              :size="22"
-              aria-hidden="true"
-            />
-          </div>
-          <div class="notification-metrics">
-            <article
-              v-for="metric in notificationMetrics"
-              :key="metric.label"
-              :class="`notification-metric notification-metric--${metric.tone}`"
-            >
-              <span>{{ metric.label }}</span>
-              <strong>{{ metric.value }}</strong>
-            </article>
-          </div>
-          <p class="panel-copy">
-            已读状态来自服务端会话消息记录，换设备或清理浏览器缓存后仍会保持一致。
-          </p>
-        </section>
       </section>
     </main>
   </DashboardShell>
@@ -1161,7 +1099,44 @@ onMounted(async () => {
 <style scoped>
 .fe08-page {
   display: grid;
-  gap: 18px;
+  grid-template-columns: minmax(184px, 218px) minmax(0, 1fr);
+  grid-template-areas:
+    "title title"
+    "nav metrics"
+    "nav content";
+  gap: 20px;
+  align-items: start;
+}
+
+.fe08-title-card {
+  grid-area: title;
+}
+
+.fe08-page--notifications {
+  grid-template-areas:
+    "title title"
+    "nav content";
+}
+
+.review-section-nav {
+  grid-area: nav;
+  align-self: start;
+  position: sticky;
+  top: 96px;
+  padding: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+  box-shadow: none;
+}
+
+.metric-strip {
+  grid-area: metrics;
+}
+
+.review-layout,
+.notification-layout {
+  grid-area: content;
 }
 
 .page-title-card,
@@ -1169,7 +1144,7 @@ onMounted(async () => {
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-surface);
-  box-shadow: 0 18px 36px var(--shadow-card);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--shadow-card) 72%, transparent);
 }
 
 .fe08-title-card {
@@ -1184,10 +1159,10 @@ onMounted(async () => {
 .title-icon {
   display: grid;
   place-items: center;
-  width: 62px;
-  height: 62px;
+  width: 56px;
+  height: 56px;
   border-radius: 8px;
-  background: linear-gradient(135deg, var(--color-info-bg), var(--color-accent-bg));
+  background: var(--color-info-bg);
   color: var(--color-info);
 }
 
@@ -1222,7 +1197,6 @@ onMounted(async () => {
   line-height: 1.6;
 }
 
-.section-switch,
 .filter-tabs,
 .tag-list,
 .star-row,
@@ -1233,14 +1207,6 @@ onMounted(async () => {
   gap: 8px;
 }
 
-.section-switch {
-  padding: 4px;
-  border: 1px solid var(--color-divider);
-  border-radius: 8px;
-  background: var(--color-bg);
-}
-
-.section-switch button,
 .filter-tabs button {
   display: inline-flex;
   align-items: center;
@@ -1260,7 +1226,6 @@ onMounted(async () => {
     color 180ms ease;
 }
 
-.section-switch button.active,
 .filter-tabs button.active {
   border-color: var(--color-info-soft);
   background: var(--color-brand-soft);
@@ -1302,62 +1267,60 @@ onMounted(async () => {
 .metric-strip {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
+  gap: 12px;
+  align-items: stretch;
 }
 
-.metric-tile,
-.notification-metric {
+.metric-tile {
   display: grid;
-  gap: 8px;
-  min-height: 82px;
-  padding: 16px;
+  gap: 6px;
+  min-height: 64px;
+  padding: 14px 16px;
   border: 1px solid var(--color-divider);
   border-radius: 8px;
   background: var(--color-surface);
 }
 
-.metric-tile span,
-.notification-metric span {
+.metric-tile span {
   color: var(--color-text-muted);
   font-size: 0.86rem;
   font-weight: 800;
 }
 
-.metric-tile strong,
-.notification-metric strong {
+.metric-tile strong {
   color: var(--color-text);
-  font-size: 1.65rem;
+  font-size: 1.45rem;
   line-height: 1;
 }
 
-.metric-tile--accent,
-.notification-metric--accent {
-  background: var(--color-accent-bg);
+.metric-tile--accent {
+  border-color: var(--color-accent-bg);
 }
 
-.metric-tile--success,
-.notification-metric--success {
-  background: var(--color-success-bg);
+.metric-tile--success {
+  border-color: var(--color-success-bg);
 }
 
-.metric-tile--info,
-.notification-metric--info {
-  background: var(--color-brand-soft);
+.metric-tile--info {
+  border-color: var(--color-brand-border);
 }
 
 .review-layout {
   display: grid;
-  grid-template-columns: minmax(280px, 0.78fr) minmax(360px, 1.1fr) minmax(280px, 0.82fr);
+  grid-template-columns: minmax(280px, 0.74fr) minmax(430px, 1.26fr);
   gap: 18px;
   align-items: start;
 }
 
+.review-history-panel {
+  grid-column: 1 / -1;
+}
+
 .notification-layout {
   display: grid;
-  grid-template-columns: minmax(360px, 1fr) minmax(320px, 0.72fr);
+  grid-template-columns: minmax(380px, 0.92fr) minmax(360px, 1.08fr);
   grid-template-areas:
-    "list detail"
-    "list metrics";
+    "list detail";
   gap: 18px;
   align-items: start;
 }
@@ -1678,10 +1641,6 @@ onMounted(async () => {
   grid-area: detail;
 }
 
-.notification-metrics-panel {
-  grid-area: metrics;
-}
-
 .notification-tools {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -1805,8 +1764,7 @@ onMounted(async () => {
   line-height: 1.7;
 }
 
-.notification-meta-list,
-.notification-metrics {
+.notification-meta-list {
   display: grid;
   gap: 10px;
 }
@@ -1833,6 +1791,35 @@ onMounted(async () => {
 }
 
 @media (max-width: 1180px) {
+  .fe08-page {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "title"
+      "nav"
+      "metrics"
+      "content";
+  }
+
+  .fe08-page--notifications {
+    grid-template-areas:
+      "title"
+      "nav"
+      "content";
+  }
+
+  .review-section-nav {
+    position: static;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+
+  .metric-strip,
+  .review-layout,
+  .notification-layout {
+    grid-area: auto;
+  }
+
   .review-layout,
   .notification-layout {
     grid-template-columns: 1fr;
@@ -1840,8 +1827,7 @@ onMounted(async () => {
   }
 
   .notification-list-panel,
-  .notification-detail-panel,
-  .notification-metrics-panel {
+  .notification-detail-panel {
     grid-area: auto;
   }
 }
@@ -1856,14 +1842,6 @@ onMounted(async () => {
 
   .fe08-title-card {
     padding: 18px;
-  }
-
-  .section-switch {
-    width: 100%;
-  }
-
-  .section-switch button {
-    flex: 1;
   }
 
   .review-task-topline,
@@ -1883,7 +1861,4 @@ onMounted(async () => {
   }
 }
 
-.review-section-nav {
-  margin-bottom: 4px;
-}
 </style>

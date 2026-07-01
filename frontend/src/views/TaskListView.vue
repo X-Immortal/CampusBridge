@@ -70,6 +70,8 @@ function isMineRoute(routeName = route.name) {
 }
 
 const isMineView = computed(() => isMineRoute(route.name))
+const isDraftView = computed(() => route.name === 'workspace-drafts')
+const showMineSubtabs = computed(() => isMineView.value && !isDraftView.value)
 
 function createDefaultFilters(routeName = route.name) {
   const defaultStatus = routeName === 'workspace-drafts' ? 'DRAFT' : isMineRoute(routeName) ? '' : 'OPEN'
@@ -264,6 +266,17 @@ const visibleTaskGroups = computed(() => {
     ]
   }
 
+  if (isDraftView.value) {
+    return [
+      {
+        key: 'drafts',
+        title: '未发布草稿',
+        emptyCopy: '当前没有未发布的任务草稿。',
+        items: tasks.value
+      }
+    ]
+  }
+
   if (mineSubTab.value === 'accepted') {
     return [
       {
@@ -349,22 +362,30 @@ const proofAttachmentItems = computed(() =>
   )
 )
 const pageTitle = computed(() => {
-  if (route.name === 'workspace-drafts') return '管理任务草稿'
+  if (isDraftView.value) return '管理任务草稿'
   return isMineView.value ? '管理自己发布的任务' : '找到值得接、能准时完成的校园互助'
 })
 const pageSubtitle = computed(() => {
-  if (route.name === 'workspace-drafts') return '查看、编辑或删除未发布的任务草稿。'
+  if (isDraftView.value) return '只显示未发布的任务草稿，可继续编辑或删除。'
   return isMineView.value
     ? '集中查看任务状态、报名情况、截止时间与完成进度。'
     : '按校区、奖励、凭证和任务状态快速筛选，再查看完整细节后申请。'
 })
 const listRouteName = computed(() => {
-  if (route.name === 'workspace-drafts') return 'workspace-drafts'
+  if (isDraftView.value) return 'workspace-drafts'
   return isMineView.value ? 'workspace-tasks' : 'task-list'
 })
 const detailRouteName = computed(() => {
-  if (route.name === 'workspace-drafts') return 'workspace-drafts'
+  if (isDraftView.value) return 'workspace-drafts'
   return isMineView.value ? 'workspace-task-detail' : 'task-detail'
+})
+const taskSectionEyebrow = computed(() => {
+  if (isDraftView.value) return '任务草稿'
+  return isMineView.value ? '我的任务' : '任务广场'
+})
+const taskListTitle = computed(() => {
+  if (isDraftView.value) return `${pagination.total} 条草稿 · 第 ${pagination.page} 页`
+  return `${pagination.total} 条任务 · 第 ${pagination.page} 页`
 })
 const editableStatuses = new Set(['DRAFT', 'OPEN'])
 const cancelableStatuses = new Set(['DRAFT', 'OPEN', 'ACCEPTED', 'IN_PROGRESS'])
@@ -799,8 +820,22 @@ function applyTaskResult(result) {
 
   if (isMineView.value) {
     const mineItems = items.filter((task) => isRequesterTask(task) || isProviderTask(task))
-    const publishedItems = mineItems.filter((task) => isRequesterTask(task))
-    const acceptedItems = mineItems.filter((task) => isProviderTask(task))
+
+    if (isDraftView.value) {
+      const draftItems = mineItems.filter((task) => isRequesterTask(task) && task.status === 'DRAFT')
+      const start = (filters.page - 1) * filters.size
+      const pagedItems = draftItems.slice(start, start + filters.size)
+
+      tasks.value = pagedItems
+      pagination.page = filters.page
+      pagination.size = filters.size
+      pagination.total = draftItems.length
+      return
+    }
+
+    const nonDraftMineItems = mineItems.filter((task) => task.status !== 'DRAFT')
+    const publishedItems = nonDraftMineItems.filter((task) => isRequesterTask(task))
+    const acceptedItems = nonDraftMineItems.filter((task) => isProviderTask(task))
 
     const activePage = mineSubTab.value === 'published' ? minePublishedPage : mineAcceptedPage
     const activeItems = mineSubTab.value === 'published' ? publishedItems : acceptedItems
@@ -1027,6 +1062,10 @@ function buildTaskQuery() {
   if (isMineView.value) {
     query.page = 1
     query.size = MINE_TASK_FETCH_SIZE
+  }
+
+  if (isDraftView.value) {
+    query.status = 'DRAFT'
   }
 
   return query
@@ -1885,8 +1924,8 @@ void retainedTaskWorkflowBindings
 watch(
   () => [route.name, route.params.taskId],
   ([routeName, taskId], [previousRouteName] = []) => {
-    const isListRoute = routeName === 'task-list' || routeName === 'my-tasks'
-    if (isListRoute && routeName !== previousRouteName) {
+    const isTaskListRoute = ['task-list', 'my-tasks', 'workspace-tasks', 'workspace-drafts'].includes(routeName)
+    if (isTaskListRoute && routeName !== previousRouteName) {
       Object.assign(filters, readFiltersFromRoute(routeName))
       loadTasks()
     }
@@ -1898,12 +1937,12 @@ watch(
     candidatesLoaded.value = false
     candidatesError.value = ''
     cancelPanelOpen.value = false
-  applicationPanelOpen.value = false
-  candidatePanelOpen.value = false
-  reportPanelOpen.value = false
-  resetCompletionState()
-  clearReportErrors()
-  loadTaskDetail(selectedTaskId.value)
+    applicationPanelOpen.value = false
+    candidatePanelOpen.value = false
+    reportPanelOpen.value = false
+    resetCompletionState()
+    clearReportErrors()
+    loadTaskDetail(selectedTaskId.value)
   }
 )
 
@@ -1929,7 +1968,7 @@ onMounted(async () => {
           />
         </div>
         <div class="title-copy">
-          <p>{{ route.name === 'workspace-drafts' ? '任务草稿' : (isMineView ? '我的任务' : '任务广场') }}</p>
+          <p>{{ taskSectionEyebrow }}</p>
           <h1>{{ pageTitle }}</h1>
           <span>{{ pageSubtitle }}</span>
         </div>
@@ -2235,7 +2274,7 @@ onMounted(async () => {
             :class="{ 'metric-strip--mine': isMineView }"
           >
             <article
-              v-for="metric in isMineView ? mineMetricTiles : []"
+              v-for="metric in isMineView && !isDraftView ? mineMetricTiles : []"
               :key="metric.key"
               class="metric-tile metric-tile--mine"
               :class="`metric-tile--${metric.tone}`"
@@ -2274,7 +2313,7 @@ onMounted(async () => {
           </section>
 
           <div
-            v-if="isMineView"
+            v-if="showMineSubtabs"
             class="mine-subtabs"
           >
             <button
@@ -2303,7 +2342,7 @@ onMounted(async () => {
                 >
                   查询结果
                 </p>
-                <h2>{{ pagination.total }} 条任务 · 第 {{ pagination.page }} 页</h2>
+                <h2>{{ taskListTitle }}</h2>
                 <span v-if="pagination.total">当前显示 {{ resultRange }}</span>
               </div>
               <div class="toolbar-actions">
@@ -2376,8 +2415,14 @@ onMounted(async () => {
                   <span class="empty-illustration__building empty-illustration__building--right" />
                   <span class="empty-illustration__plane" />
                 </div>
-                <h3>还没有匹配的任务</h3>
-                <p>可以发布新任务，或调整筛选条件后重新查看。</p>
+                <h3>{{ isDraftView ? '还没有任务草稿' : '还没有匹配的任务' }}</h3>
+                <p>
+                  {{
+                    isDraftView
+                      ? '保存草稿后会出现在这里，方便继续编辑。'
+                      : '可以发布新任务，或调整筛选条件后重新查看。'
+                  }}
+                </p>
                 <div class="empty-actions">
                   <RouterLink
                     class="primary-action"
@@ -2387,7 +2432,7 @@ onMounted(async () => {
                       :size="18"
                       aria-hidden="true"
                     />
-                    发布任务
+                    {{ isDraftView ? '新建草稿' : '发布任务' }}
                   </RouterLink>
                   <button
                     class="ghost-action"
@@ -2431,7 +2476,7 @@ onMounted(async () => {
                 >
                   <div>
                     <p class="section-kicker">
-                      {{ group.key === 'accepted' ? '已接任务' : '发布任务' }}
+                      {{ group.key === 'accepted' ? '已接任务' : (group.key === 'drafts' ? '任务草稿' : '发布任务') }}
                     </p>
                     <h3>{{ group.title }}</h3>
                   </div>

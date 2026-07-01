@@ -66,7 +66,7 @@ export const primaryNavItems = [
   },
   {
     key: 'admin',
-    label: '管理',
+    label: '管理后台',
     shortLabel: '管理',
     icon: Shield,
     to: '/admin',

@@ -244,6 +244,7 @@ onBeforeUnmount(() => {
       <nav
         class="sidebar-nav"
         aria-label="主导航"
+        data-admin-label="管理后台"
       >
         <RouterLink
           v-for="item in visibleNavItems"

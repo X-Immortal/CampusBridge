@@ -102,6 +102,7 @@ const publishMode = computed(() => {
 const sourceTaskId = computed(() => (route.params.taskId ? String(route.params.taskId) : ''))
 const isEditMode = computed(() => publishMode.value === 'edit')
 const isRepostMode = computed(() => publishMode.value === 'repost')
+const isEditingDraft = computed(() => isEditMode.value && sourceTask.value?.status === 'DRAFT')
 const canChangeFixedFields = computed(() => !isEditMode.value)
 const shellActiveLabel = computed(() => (isEditMode.value || isRepostMode.value ? '我的任务' : '发布任务'))
 const pageMeta = computed(() => {
@@ -268,6 +269,23 @@ function hasDraftContent() {
   ].some((value) => value.trim())
 }
 
+function serverDraftMissingFields() {
+  const requiredFields = [
+    { label: '标题', ready: Boolean(taskForm.title.trim()) },
+    { label: '说明', ready: Boolean(taskForm.description.trim()) },
+    { label: '校区', ready: Boolean(taskForm.campus.trim()) },
+    { label: '地点', ready: Boolean(taskForm.location.trim()) },
+    { label: '截止时间', ready: Boolean(taskForm.deadline) },
+    { label: '奖励方式', ready: Boolean(taskForm.rewardType) },
+    { label: '完成标准', ready: Boolean(taskForm.completionStandard.trim()) }
+  ]
+  return requiredFields.filter((field) => !field.ready).map((field) => field.label)
+}
+
+function canSyncDraftToServer() {
+  return serverDraftMissingFields().length === 0
+}
+
 function restoreSavedDraft() {
   if (!savedDraft.value?.form) return
   Object.assign(taskForm, savedDraft.value.form)
@@ -280,24 +298,44 @@ function discardSavedDraft() {
   showToast('本机草稿已清除。', { type: 'success' })
 }
 
+function persistLocalDraft() {
+  const draft = {
+    savedAt: new Date().toISOString(),
+    mode: publishMode.value,
+    sourceTaskId: sourceTaskId.value || null,
+    serverDraftId: isEditingDraft.value ? sourceTaskId.value : null,
+    form: cloneForm()
+  }
+
+  localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft))
+  savedDraft.value = draft
+  return draft
+}
+
 async function handleSaveDraft() {
   if (!hasDraftContent()) {
     showToast('至少填写标题、说明、地点或完成标准中的一项后再保存草稿。', { type: 'warning' })
     return
   }
 
-  const draft = {
-    savedAt: new Date().toISOString(),
-    mode: publishMode.value,
-    sourceTaskId: sourceTaskId.value || null,
-    form: cloneForm()
-  }
+  persistLocalDraft()
 
-  localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft))
-  savedDraft.value = draft
+  const missingFields = serverDraftMissingFields()
 
   if (!canPublish.value) {
-    showToast('草稿已保存在本机，可在完成登录和认证后继续发布。', { type: 'success' })
+    showToast('草稿已保存在本机；登录并完成认证后，补齐必填项可同步到服务器。', { type: 'success' })
+    return
+  }
+
+  if (isEditingDraft.value) {
+    showToast('草稿修改已保存在本机；当前后端没有单独的草稿更新接口，可补齐后直接发布。', { type: 'success' })
+    return
+  }
+
+  if (!canSyncDraftToServer()) {
+    showToast(`草稿已保存在本机。补齐${missingFields.join('、')}后，才能同步到服务器草稿。`, {
+      type: 'warning'
+    })
     return
   }
 
@@ -306,8 +344,8 @@ async function handleSaveDraft() {
     const serverDraft = await api.saveTaskDraft(buildDraftPayload())
     lastCreatedTask.value = normalizeTaskResult(serverDraft)
     showToast('草稿已保存到任务系统，本机也保留了一份便于继续编辑。', { type: 'success' })
-  } catch (error) {
-    showToast(error.message || '本机草稿已保存，但同步到任务系统失败。', { type: 'danger' })
+  } catch {
+    showToast('草稿已保存在本机，但同步到服务器失败；稍后可恢复本机草稿继续编辑。', { type: 'warning' })
   } finally {
     submitting.value = false
   }
@@ -649,6 +687,12 @@ async function handleSubmitTask() {
   submitting.value = true
   try {
     if (isEditMode.value) {
+      if (isEditingDraft.value) {
+        persistLocalDraft()
+        showToast('草稿修改已保存在本机。当前后端草稿更新会返回错误，前端已避免覆盖失败。', { type: 'warning' })
+        return
+      }
+
       const updatedTask = await api.updateTask(sourceTaskId.value, buildUpdatePayload())
       lastCreatedTask.value = normalizeTaskResult(updatedTask)
       clearSavedDraft()

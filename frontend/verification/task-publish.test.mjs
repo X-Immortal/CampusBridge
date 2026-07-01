@@ -143,6 +143,19 @@ function hasDraftContent(form) {
   ].some((value) => String(value || '').trim())
 }
 
+function serverDraftMissingFields(form) {
+  const requiredFields = [
+    { label: '标题', ready: Boolean(form.title.trim()) },
+    { label: '说明', ready: Boolean(form.description.trim()) },
+    { label: '校区', ready: Boolean(form.campus.trim()) },
+    { label: '地点', ready: Boolean(form.location.trim()) },
+    { label: '截止时间', ready: Boolean(form.deadline) },
+    { label: '奖励方式', ready: Boolean(form.rewardType) },
+    { label: '完成标准', ready: Boolean(form.completionStandard.trim()) }
+  ]
+  return requiredFields.filter((field) => !field.ready).map((field) => field.label)
+}
+
 function buildPayload(form) {
   return {
     category: form.category,
@@ -319,7 +332,16 @@ async function simulateSaveDraft({
 
   const gate = publishGate({ isAuthenticated, verificationStatus })
   if (gate) {
-    return { feedback: '草稿已保存在本机，可在完成登录和认证后继续发布。', localOnly: true, api }
+    return { feedback: '草稿已保存在本机；登录并完成认证后，补齐必填项可同步到服务器。', localOnly: true, api }
+  }
+
+  const missingFields = serverDraftMissingFields(form)
+  if (missingFields.length) {
+    return {
+      feedback: `草稿已保存在本机。补齐${missingFields.join('、')}后，才能同步到服务器草稿。`,
+      localOnly: true,
+      api
+    }
   }
 
   const serverDraft = await api.saveTaskDraft(buildDraftPayload(form))
@@ -442,25 +464,35 @@ test('即时任务会携带 routeHint，空奖励说明会省略为 undefined', 
   assert.equal(payload.rewardType, 'FREE')
 })
 
-test('草稿 payload 允许部分字段为空，并使用草稿接口保存', async () => {
+test('字段完整的草稿使用服务器草稿接口保存', async () => {
   const api = createApiRecorder()
-  const form = baseForm({
-    title: '只写标题的草稿',
-    description: '',
-    campus: '',
-    location: '',
-    rewardDescription: '',
-    completionStandard: '',
-    routeHint: ''
-  })
+  const form = baseForm({ title: '完整草稿' })
   const result = await simulateSaveDraft({ form, api })
 
   assert.equal(result.feedback, '草稿已保存到任务系统，本机也保留了一份便于继续编辑。')
   assert.equal(api.calls.length, 1)
   assert.equal(api.calls[0].method, 'saveTaskDraft')
-  assert.equal(api.calls[0].body.title, '只写标题的草稿')
-  assert.equal(api.calls[0].body.description, undefined)
+  assert.equal(api.calls[0].body.title, '完整草稿')
+  assert.equal(api.calls[0].body.description, '下午六点前帮忙取一只小包裹，取到后放到图书馆一楼服务台。')
   assert.equal(result.lastTask.status, 'DRAFT')
+})
+
+test('字段不完整的草稿只保存在本机并提示补齐后再同步服务器', async () => {
+  const api = createApiRecorder()
+  const result = await simulateSaveDraft({
+    form: baseForm({
+      title: '只写标题的草稿',
+      description: '',
+      campus: '',
+      location: '',
+      completionStandard: ''
+    }),
+    api
+  })
+
+  assert.equal(result.localOnly, true)
+  assert.equal(result.feedback, '草稿已保存在本机。补齐说明、校区、地点、完成标准后，才能同步到服务器草稿。')
+  assert.equal(api.calls.length, 0)
 })
 
 test('未登录或未认证时草稿只保存在本机，不调用后端草稿接口', async () => {
@@ -473,7 +505,7 @@ test('未登录或未认证时草稿只保存在本机，不调用后端草稿�
   })
 
   assert.equal(result.localOnly, true)
-  assert.equal(result.feedback, '草稿已保存在本机，可在完成登录和认证后继续发布。')
+  assert.equal(result.feedback, '草稿已保存在本机；登录并完成认证后，补齐必填项可同步到服务器。')
   assert.equal(api.calls.length, 0)
 })
 
