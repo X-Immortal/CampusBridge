@@ -39,6 +39,36 @@
     LIMIT #{size} OFFSET #{offset}
   </select>
 
+  <select id="selectRepliedByUser" resultType="com.campusbridge.pojo.Post">
+    SELECT p.*, up.nickname AS author_name
+    FROM posts p
+    LEFT JOIN user_profiles up ON up.user_id = p.author_id
+    <where>
+      AND EXISTS (
+        SELECT 1
+        FROM replies r
+        WHERE r.post_id = p.id
+          AND r.author_id = #{userId}
+      )
+      <if test="category != null and category != ''">
+        AND p.category = #{category}
+      </if>
+      <if test="status != null and status != ''">
+        AND p.status = #{status}
+      </if>
+      <if test="keyword != null and keyword != ''">
+        AND (p.title LIKE CONCAT('%', #{keyword}, '%') OR p.content LIKE CONCAT('%', #{keyword}, '%'))
+      </if>
+    </where>
+    ORDER BY (
+      SELECT MAX(r2.created_at)
+      FROM replies r2
+      WHERE r2.post_id = p.id
+        AND r2.author_id = #{userId}
+    ) DESC, p.id DESC
+    LIMIT #{size} OFFSET #{offset}
+  </select>
+
   <select id="countWithFilters" resultType="long">
     SELECT COUNT(*) FROM posts
     <where>
@@ -50,6 +80,27 @@
       </if>
       <if test="keyword != null and keyword != ''">
         AND (title LIKE CONCAT('%', #{keyword}, '%') OR content LIKE CONCAT('%', #{keyword}, '%'))
+      </if>
+    </where>
+  </select>
+
+  <select id="countRepliedByUser" resultType="long">
+    SELECT COUNT(*) FROM posts p
+    <where>
+      AND EXISTS (
+        SELECT 1
+        FROM replies r
+        WHERE r.post_id = p.id
+          AND r.author_id = #{userId}
+      )
+      <if test="category != null and category != ''">
+        AND p.category = #{category}
+      </if>
+      <if test="status != null and status != ''">
+        AND p.status = #{status}
+      </if>
+      <if test="keyword != null and keyword != ''">
+        AND (p.title LIKE CONCAT('%', #{keyword}, '%') OR p.content LIKE CONCAT('%', #{keyword}, '%'))
       </if>
     </where>
   </select>

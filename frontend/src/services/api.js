@@ -130,6 +130,7 @@ export default {
   getPostDetail: (postId) => request(`/posts/${postId}`),
   updatePost: (postId, body) => request(`/posts/${postId}`, { method: 'PATCH', body }),
   deletePost: (postId) => request(`/posts/${postId}`, { method: 'DELETE' }),
+  getMyRepliedPosts: (params) => request(`/posts/replied${buildQuery(params)}`),
   createPostReply: (postId, body) =>
     request(`/posts/${postId}/replies`, { method: 'POST', body }),
   createPostInteraction: (postId, body) =>

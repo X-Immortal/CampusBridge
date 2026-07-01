@@ -93,6 +93,16 @@ public final class ViewDtos {
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
+    public static class MyReplyPostView {
+        private Post post;
+        private List<Reply> replies;
+        private LocalDateTime lastReplyAt;
+        private Long replyTotal;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class ConversationMessageView {
         private Conversation conversation;
         private List<Message> messages;

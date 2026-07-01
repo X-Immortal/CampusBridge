@@ -198,17 +198,22 @@ function cleanDisplayTitle(value, fallback = '未命名帖子') {
 }
 
 function normalizePost(post = {}) {
-  const id = post.id ?? post.postId
+  const source = post.post || post
+  const id = source.id ?? source.postId
+  const myReplies = Array.isArray(post.replies) ? post.replies.map(normalizeReply) : []
   return {
-    ...post,
+    ...source,
     id,
-    title: cleanDisplayTitle(post.title),
-    authorId: post.authorId ?? post.userId,
-    category: post.category || 'INQUIRY_HELP',
-    status: post.status || 'PUBLISHED',
-    replyCount: numericValue(post.replyCount),
-    likeCount: numericValue(post.likeCount),
-    markCount: numericValue(post.markCount)
+    title: cleanDisplayTitle(source.title),
+    authorId: source.authorId ?? source.userId,
+    category: source.category || 'INQUIRY_HELP',
+    status: source.status || 'PUBLISHED',
+    replyCount: numericValue(source.replyCount),
+    likeCount: numericValue(source.likeCount),
+    markCount: numericValue(source.markCount),
+    _myReplies: myReplies,
+    _myReplyTotal: numericValue(post.replyTotal || myReplies.length),
+    _lastReplyAt: post.lastReplyAt || myReplies[0]?.createdAt || null
   }
 }
 
@@ -293,6 +298,8 @@ async function refreshPosts() {
   try {
     const result = currentSubSection.value === 'marked'
       ? await api.getMarkedPosts()
+      : currentSubSection.value === 'replies'
+        ? await api.getMyRepliedPosts(buildPostQuery())
       : await api.getPosts(buildPostQuery())
     if (requestId !== listRequestId) return
 
@@ -548,6 +555,14 @@ function authorCopy(source) {
   }
   if (authorName && authorName.trim()) return authorName.trim()
   return `同学 ${authorId}`
+}
+
+function myReplyPreview(post) {
+  const replies = Array.isArray(post?._myReplies) ? post._myReplies : []
+  return replies
+    .map((reply) => compactContent(reply.content, 72))
+    .filter(Boolean)
+    .slice(0, 2)
 }
 
 async function submitReply() {
@@ -947,35 +962,11 @@ onMounted(() => {
         </div>
       </form>
 
-      <div
-        v-if="isRepliesSection"
-        class="panel-card list-panel"
-      >
-        <div class="empty-state">
-          <MessageCircle
-            :size="40"
-            aria-hidden="true"
-          />
-          <h3>我的回复</h3>
-          <p>这里将展示你参与回复过的帖子。当前版本暂从帖子广场加载，后续会接入专属接口。</p>
-          <button
-            class="ghost-action"
-            type="button"
-            @click="router.push({ name: 'post-list' })"
-          >
-            返回帖子广场
-          </button>
-        </div>
-      </div>
-
-      <div
-        v-else
-        class="posts-layout"
-      >
+      <div class="posts-layout">
         <section class="panel-card list-panel">
           <div class="list-toolbar">
             <div>
-              <span class="section-kicker">帖子列表</span>
+              <span class="section-kicker">{{ isRepliesSection ? '我的回复' : '帖子列表' }}</span>
               <h2>共 {{ pagination.total }} 条，当前 {{ resultRange }}</h2>
             </div>
             <button
@@ -1026,18 +1017,18 @@ onMounted(() => {
               :size="40"
               aria-hidden="true"
             />
-            <h3>{{ markedFilter ? '当前页面没有标记的帖子' : '还没有匹配的帖子' }}</h3>
-            <p>{{ markedFilter ? '试试取消仅显示标记，或标记感兴趣的帖子后再次查看。' : '可以清空筛选条件，或发布一条新的校园帖子。' }}</p>
+            <h3>{{ isRepliesSection ? '还没有找到你的回复' : markedFilter ? '当前页面没有标记的帖子' : '还没有匹配的帖子' }}</h3>
+            <p>{{ isRepliesSection ? '你回复过的帖子会展示在这里，可以清空筛选条件后再查看。' : markedFilter ? '试试取消仅显示标记，或标记感兴趣的帖子后再次查看。' : '可以清空筛选条件，或发布一条新的校园帖子。' }}</p>
             <button
               class="primary-action"
               type="button"
-              @click="openPublishDialog"
+              @click="isRepliesSection ? resetFilters() : openPublishDialog()"
             >
               <PlusCircle
                 :size="18"
                 aria-hidden="true"
               />
-              发布帖子
+              {{ isRepliesSection ? '清空筛选' : '发布帖子' }}
             </button>
           </div>
 
@@ -1078,6 +1069,17 @@ onMounted(() => {
                   />
                 </span>
                 <span class="post-card-copy">{{ compactContent(post.content) }}</span>
+                <span
+                  v-if="isRepliesSection && post._myReplies?.length"
+                  class="my-reply-snippets"
+                >
+                  <span
+                    v-for="reply in myReplyPreview(post)"
+                    :key="`${post.id}-${reply}`"
+                  >
+                    我回复：{{ reply }}
+                  </span>
+                </span>
                 <span class="post-card-footer">
                   <span>
                     <MessageCircle
@@ -2210,6 +2212,21 @@ onMounted(() => {
 
 .post-card-copy {
   margin: 0;
+}
+
+.my-reply-snippets {
+  display: grid;
+  gap: 6px;
+}
+
+.my-reply-snippets span {
+  padding: 8px 10px;
+  border-left: 3px solid var(--color-brand);
+  border-radius: 8px;
+  background: var(--color-brand-soft);
+  color: var(--color-text-secondary);
+  font-size: 0.88rem;
+  line-height: 1.55;
 }
 
 .post-card-footer {

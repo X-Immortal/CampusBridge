@@ -53,6 +53,19 @@ public class PostController {
         return Result.success(postService.listPosts(keyword, category, status, page, size));
     }
 
+    @GetMapping("/replied")
+    public Result listMyRepliedPosts(
+            HttpServletRequest servletRequest,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false, defaultValue = "1") Integer page,
+            @RequestParam(required = false, defaultValue = "20") Integer size) {
+        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        return Result.success(postService.listPostsRepliedByUser(
+                currentUserId, keyword, category, status, page, size));
+    }
+
     @GetMapping("/{postId}")
     public Result getPostDetail(
             HttpServletRequest servletRequest,

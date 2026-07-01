@@ -17,7 +17,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Transactional
 @Service
@@ -76,6 +79,47 @@ public class PostServiceImpl implements PostService {
         List<Post> posts = postMapper.selectWithFilters(category, status, keyword, offset, safeSize);
         long total = postMapper.countWithFilters(category, status, keyword);
         return new ResponseDtos.PagedResult<>(posts, safePage, safeSize, total);
+    }
+
+    @Override
+    public ResponseDtos.PagedResult<ViewDtos.MyReplyPostView> listPostsRepliedByUser(
+            Long userId, String keyword, String category, String status, Integer page, Integer size) {
+        if (userId == null) {
+            throw new BusinessException(ErrorCode.AUTH_001_UNAUTHORIZED);
+        }
+
+        int safePage = page == null || page < 1 ? DEFAULT_PAGE : page;
+        int safeSize = size == null || size < 1 ? DEFAULT_SIZE : Math.min(size, MAX_SIZE);
+        int offset = (safePage - 1) * safeSize;
+
+        List<Post> posts = postMapper.selectRepliedByUser(userId, category, status, keyword, offset, safeSize);
+        if (posts.isEmpty()) {
+            long total = postMapper.countRepliedByUser(userId, category, status, keyword);
+            return new ResponseDtos.PagedResult<>(Collections.emptyList(), safePage, safeSize, total);
+        }
+
+        List<Long> postIds = posts.stream().map(Post::getId).toList();
+        Map<Long, List<Reply>> repliesByPostId = replyMapper.selectByAuthorAndPostIds(userId, postIds)
+                .stream()
+                .collect(Collectors.groupingBy(Reply::getPostId));
+
+        List<ViewDtos.MyReplyPostView> items = posts.stream()
+                .map(post -> {
+                    List<Reply> replies = repliesByPostId.getOrDefault(post.getId(), Collections.emptyList());
+                    LocalDateTime lastReplyAt = replies.stream()
+                            .map(Reply::getCreatedAt)
+                            .filter(value -> value != null)
+                            .max(LocalDateTime::compareTo)
+                            .orElse(null);
+                    return new ViewDtos.MyReplyPostView(
+                            post,
+                            replies,
+                            lastReplyAt,
+                            (long) replies.size());
+                })
+                .toList();
+        long total = postMapper.countRepliedByUser(userId, category, status, keyword);
+        return new ResponseDtos.PagedResult<>(items, safePage, safeSize, total);
     }
 
     @Override
