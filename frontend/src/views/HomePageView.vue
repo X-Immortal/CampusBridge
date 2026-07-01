@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   Bookmark,
@@ -24,12 +24,11 @@ import TaskDetailModal from '../components/TaskDetailModal.vue'
 import { optionLabel, POST_CATEGORY_OPTIONS, POST_STATUS_OPTIONS, TASK_CATEGORY_OPTIONS } from '../constants'
 import api from '../services/api'
 import { useAuth } from '../stores/auth'
-import { useToast } from '../composables/useToast'
+
 import { useGuestAction } from '../composables/useGuestAction'
 
 const router = useRouter()
-const { isAuthenticated, currentUserId } = useAuth()
-const { showToast } = useToast()
+const { currentUserId } = useAuth()
 const { requireLoginAction } = useGuestAction()
 
 const loading = ref(true)
@@ -446,7 +445,11 @@ onMounted(async () => {
           v-if="postModalLoading"
           class="loading-state"
         >
-          <LoaderCircle class="spinning" :size="28" aria-hidden="true" />
+          <LoaderCircle
+            class="spinning"
+            :size="28"
+            aria-hidden="true"
+          />
           <span>正在加载帖子详情</span>
         </div>
 
@@ -454,7 +457,9 @@ onMounted(async () => {
           <div class="detail-card-header">
             <div>
               <span class="section-kicker">{{ postCategoryLabel(postModalData.post.category) }}</span>
-              <h2 id="home-post-detail-title">{{ postModalData.post.title || '未命名帖子' }}</h2>
+              <h2 id="home-post-detail-title">
+                {{ postModalData.post.title || '未命名帖子' }}
+              </h2>
             </div>
             <div class="detail-header-actions">
               <StatusBadge
@@ -462,13 +467,24 @@ onMounted(async () => {
                 :label="postStatusMeta(postModalData.post.status).label"
                 :tone="postStatusMeta(postModalData.post.status).tone"
               />
-              <button class="icon-action" type="button" aria-label="关闭" @click="closePostModal">
-                <X :size="18" aria-hidden="true" />
+              <button
+                class="icon-action"
+                type="button"
+                aria-label="关闭"
+                @click="closePostModal"
+              >
+                <X
+                  :size="18"
+                  aria-hidden="true"
+                />
               </button>
             </div>
           </div>
 
-          <div v-if="postModalError" class="page-feedback page-feedback--danger compact-feedback">
+          <div
+            v-if="postModalError"
+            class="page-feedback page-feedback--danger compact-feedback"
+          >
             {{ postModalError }}
           </div>
 
@@ -498,7 +514,11 @@ onMounted(async () => {
               type="button"
               @click="togglePostLike"
             >
-              <ThumbsUp :size="17" :fill="postModalData.likedByCurrentUser ? 'currentColor' : 'none'" aria-hidden="true" />
+              <ThumbsUp
+                :size="17"
+                :fill="postModalData.likedByCurrentUser ? 'currentColor' : 'none'"
+                aria-hidden="true"
+              />
               <span class="like-count">{{ postModalData.post.likeCount || 0 }}</span>
             </button>
             <button
@@ -507,29 +527,44 @@ onMounted(async () => {
               type="button"
               @click="togglePostMark"
             >
-              <Bookmark :size="17" :fill="postModalData.markedByCurrentUser ? 'currentColor' : 'none'" aria-hidden="true" />
+              <Bookmark
+                :size="17"
+                :fill="postModalData.markedByCurrentUser ? 'currentColor' : 'none'"
+                aria-hidden="true"
+              />
               <span class="like-count">{{ postModalData.post.markCount || 0 }}</span>
             </button>
           </div>
 
-          <section v-if="postModalData.attachments.length" class="detail-section">
+          <section
+            v-if="postModalData.attachments.length"
+            class="detail-section"
+          >
             <h3>图片</h3>
             <div class="detail-image-grid">
               <a
                 v-for="(att, idx) in postModalData.attachments"
                 :key="att.id || idx"
                 :href="att.fileUrl || att.url"
-                target="_blank" rel="noreferrer"
+                target="_blank"
+                rel="noreferrer"
                 class="detail-image-grid__link"
               >
-                <img :src="att.fileUrl || att.url" :alt="att.fileName || `图片 ${idx + 1}`" class="detail-image-grid__img" loading="lazy">
+                <img
+                  :src="att.fileUrl || att.url"
+                  :alt="att.fileName || `图片 ${idx + 1}`"
+                  class="detail-image-grid__img"
+                  loading="lazy"
+                >
               </a>
             </div>
           </section>
 
           <section class="detail-section">
             <h3>正文</h3>
-            <p class="detail-content-text">{{ postModalData.post.content || '暂无正文' }}</p>
+            <p class="detail-content-text">
+              {{ postModalData.post.content || '暂无正文' }}
+            </p>
           </section>
 
           <section class="detail-section">
@@ -537,8 +572,16 @@ onMounted(async () => {
               <h3>回复</h3>
               <span>{{ postModalData.replies.length }} 条</span>
             </div>
-            <div v-if="!postModalData.replies.length" class="reply-empty">暂无回复</div>
-            <div v-else class="reply-list">
+            <div
+              v-if="!postModalData.replies.length"
+              class="reply-empty"
+            >
+              暂无回复
+            </div>
+            <div
+              v-else
+              class="reply-list"
+            >
               <article
                 v-for="reply in postModalData.replies"
                 :key="reply.id"
@@ -546,27 +589,42 @@ onMounted(async () => {
                 :class="{ accepted: String(reply.id) === String(postModalData.acceptedReplyId) }"
               >
                 <div class="reply-card-top">
-                  <span><UserRound :size="16" aria-hidden="true" /> {{ authorCopy(reply.authorId, reply.authorName) }}</span>
+                  <span><UserRound
+                    :size="16"
+                    aria-hidden="true"
+                  /> {{ authorCopy(reply.authorId, reply.authorName) }}</span>
                   <small>{{ formatDateTime(reply.createdAt) }}</small>
                 </div>
                 <p>{{ reply.content }}</p>
                 <div class="reply-actions">
-                  <span v-if="String(reply.id) === String(postModalData.acceptedReplyId)" class="accepted-tag">已采纳</span>
+                  <span
+                    v-if="String(reply.id) === String(postModalData.acceptedReplyId)"
+                    class="accepted-tag"
+                  >已采纳</span>
                 </div>
               </article>
             </div>
           </section>
         </template>
 
-        <div v-else class="empty-state detail-empty">
-          <BookOpen :size="40" aria-hidden="true" />
+        <div
+          v-else
+          class="empty-state detail-empty"
+        >
+          <BookOpen
+            :size="40"
+            aria-hidden="true"
+          />
           <h3>帖子详情暂不可用</h3>
           <p>请关闭弹窗后重新打开试试。</p>
         </div>
       </section>
     </div>
 
-    <TaskDetailModal :task-id="selectedTaskId" @close="selectedTaskId = null" />
+    <TaskDetailModal
+      :task-id="selectedTaskId"
+      @close="selectedTaskId = null"
+    />
   </DashboardShell>
 </template>
 
