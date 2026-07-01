@@ -62,7 +62,7 @@ const avatarLoadFailed = ref(false)
 // const searchKeyword = ref('')
 const publishMode = computed(() => props.publishMode)
 
-const activeSection = computed(() => route.meta?.section || '')
+// const activeSection = computed(() => route.meta?.section || '')
 
 // const searchPlaceholder = computed(() => {
 //   if (activeSection.value === 'posts') return '搜索帖子标题、内容或关键词'
