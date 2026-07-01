@@ -13,11 +13,11 @@ import {
   RefreshCw,
   Scale,
   ShieldAlert,
-  ShieldCheck,
   XCircle
 } from '@lucide/vue'
 import DashboardShell from '../components/DashboardShell.vue'
-import SectionNav from '../components/layout/SectionNav.vue'
+import ModuleTopbar from '../components/layout/ModuleTopbar.vue'
+import ModuleEntryCard from '../components/layout/ModuleEntryCard.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import AdminMetricGrid from '../components/admin/AdminMetricGrid.vue'
 import AdminTrendChart from '../components/admin/AdminTrendChart.vue'
@@ -382,18 +382,6 @@ async function loadDashboard() {
   }
 }
 
-function formatDashboardUpdatedAt(value) {
-  if (!value) return '尚未刷新'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return String(value)
-  return date.toLocaleString('zh-CN', {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
-
 function handleTodoNavigate(item) {
   if (!item?.route) return
   showToast(`已跳转到「${item.label}」入口。`)
@@ -406,26 +394,12 @@ function handleTodoNavigate(item) {
       class="admin-page"
       :aria-busy="verificationsLoading || reportsLoading || dashboardLoading"
     >
-      <section class="page-title-card admin-title-card">
-        <div class="title-icon">
-          <ShieldCheck
-            :size="34"
-            aria-hidden="true"
-          />
-        </div>
-        <div class="title-copy">
-          <p>管理员工作台</p>
-          <h1>{{ activeSection === 'dashboard' ? '平台运行总览与数据仪表盘' : '审核认证、裁决举报与处理任务' }}</h1>
-          <span>
-            <template v-if="activeSection === 'dashboard'">
-              实时统计平台核心指标，最近更新于 {{ formatDashboardUpdatedAt(dashboardUpdatedAt) }}。
-            </template>
-            <template v-else>
-              面向管理员角色的集中处理台，直接对接管理员 API 文档中的专属端点。
-            </template>
-          </span>
-        </div>
-        <div class="admin-title-card__actions">
+      <ModuleTopbar
+        eyebrow="管理后台"
+        title="管理后台"
+        description="查看平台数据、认证审核和举报处理。"
+      >
+        <template #extra>
           <button
             v-if="activeSection === 'dashboard'"
             class="icon-action"
@@ -445,8 +419,17 @@ function handleTodoNavigate(item) {
             :label="isAdmin ? '管理员权限' : '非管理员账号'"
             :tone="isAdmin ? 'success' : 'danger'"
           />
-        </div>
-      </section>
+        </template>
+        <ModuleEntryCard
+          v-for="item in adminNavItems"
+          :key="item.key"
+          :to="item.to"
+          :icon="item.icon"
+          :title="item.label"
+          :description="item.description"
+          :active="activeSection === item.key"
+        />
+      </ModuleTopbar>
 
       <section
         v-if="!isAdmin"
@@ -473,14 +456,6 @@ function handleTodoNavigate(item) {
           <strong>{{ reportCount }}</strong>
         </article>
       </section>
-
-      <SectionNav
-        class="admin-section-nav"
-        :items="adminNavItems"
-        :active-key="activeSection"
-        variant="tabs"
-        aria-label="管理员功能切换"
-      />
 
       <section
         v-if="activeSection === 'dashboard'"
@@ -997,7 +972,6 @@ function handleTodoNavigate(item) {
   gap: 18px;
 }
 
-.page-title-card,
 .panel-card,
 .page-feedback {
   border: 1px solid var(--color-border);
@@ -1006,31 +980,6 @@ function handleTodoNavigate(item) {
   box-shadow: 0 18px 36px var(--shadow-card);
 }
 
-.admin-title-card {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 22px;
-  min-height: 112px;
-  padding: 20px 28px;
-}
-
-.title-icon {
-  display: grid;
-  place-items: center;
-  width: 62px;
-  height: 62px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, var(--color-brand-soft), var(--color-accent-bg));
-  color: var(--color-brand);
-}
-
-.title-copy {
-  display: grid;
-  gap: 6px;
-}
-
-.title-copy p,
 .section-kicker {
   margin: 0;
   color: var(--color-brand);
@@ -1038,7 +987,6 @@ function handleTodoNavigate(item) {
   font-weight: 900;
 }
 
-.title-copy h1,
 .panel-heading h2 {
   margin: 0;
   color: var(--color-text);
@@ -1046,11 +994,6 @@ function handleTodoNavigate(item) {
   line-height: 1.15;
 }
 
-.title-copy h1 {
-  font-size: 1.5rem;
-}
-
-.title-copy span,
 .panel-copy {
   color: var(--color-text-muted);
   line-height: 1.6;
@@ -1109,42 +1052,6 @@ function handleTodoNavigate(item) {
 
 .admin-metric--accent {
   background: var(--color-accent-bg);
-}
-
-.admin-section-switch {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  width: fit-content;
-  max-width: 100%;
-  padding: 4px;
-  border: 1px solid var(--color-divider);
-  border-radius: 8px;
-  background: var(--color-bg);
-}
-
-.admin-section-switch button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 38px;
-  padding: 0 13px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--color-text-secondary);
-  font-weight: 900;
-  transition:
-    background-color 180ms ease,
-    border-color 180ms ease,
-    color 180ms ease;
-}
-
-.admin-section-switch button.active {
-  border-color: var(--color-brand-border);
-  background: var(--color-brand-soft);
-  color: var(--color-brand-hover);
 }
 
 .admin-layout {
@@ -1573,14 +1480,12 @@ function handleTodoNavigate(item) {
 }
 
 @media (max-width: 760px) {
-  .admin-title-card,
   .admin-metric-strip,
   .admin-form,
   .record-meta-grid {
     grid-template-columns: 1fr;
   }
 
-  .admin-section-switch,
   .inline-controls,
   .record-actions,
   .manual-actions,
@@ -1590,26 +1495,9 @@ function handleTodoNavigate(item) {
     width: 100%;
   }
 
-  .admin-section-switch button {
-    flex: 1 1 140px;
-  }
-
   .pagination-bar {
     flex-wrap: wrap;
   }
-}
-
-.admin-title-card__actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.admin-title-card__actions .icon-action {
-  gap: 6px;
-  width: auto;
-  padding: 0 12px;
-  color: var(--color-brand);
 }
 
 .admin-dashboard {
@@ -1648,10 +1536,5 @@ function handleTodoNavigate(item) {
   }
 }
 
-@media (max-width: 760px) {
-  .admin-title-card__actions {
-    width: 100%;
-    justify-content: flex-end;
-  }
-}
+
 </style>

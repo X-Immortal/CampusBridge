@@ -260,38 +260,6 @@
   height: 44px;
 }
 
-#app .dashboard-shell--publish .page-title-card {
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  min-height: 92px;
-  gap: 20px;
-  padding: 8px 4px 6px;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-}
-
-#app .dashboard-shell--publish .title-icon {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-}
-
-#app .dashboard-shell--publish .title-copy {
-  gap: 4px;
-}
-
-#app .dashboard-shell--publish .title-copy p {
-  font-size: 1rem;
-}
-
-#app .dashboard-shell--publish .title-copy h1 {
-  font-size: 2rem;
-}
-
-#app .dashboard-shell--publish .title-copy span {
-  font-size: 0.94rem;
-}
-
 @media (max-width: 1100px) {
   #app .dashboard-shell--publish .dashboard-topbar {
     grid-template-columns: minmax(0, 1fr) auto;

@@ -20,7 +20,8 @@ import {
   X
 } from '@lucide/vue'
 import DashboardShell from '../components/DashboardShell.vue'
-import SectionNav from '../components/layout/SectionNav.vue'
+import ModuleTopbar from '../components/layout/ModuleTopbar.vue'
+import ModuleEntryCard from '../components/layout/ModuleEntryCard.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import UserProfileModal from '../components/UserProfileModal.vue'
 import { postNavItems } from '../app/navigation'
@@ -736,38 +737,34 @@ onMounted(() => {
       class="posts-page"
       :aria-busy="listLoading"
     >
-      <section class="page-title-card posts-title-card">
-        <div class="title-icon">
-          <BookOpen
-            :size="32"
-            aria-hidden="true"
-          />
-        </div>
-        <div class="title-copy">
-          <p>社区</p>
-          <h1>浏览校园帖子</h1>
-          <span>按分类和关键词查看问询、闲置、组队与校园交流内容。</span>
-        </div>
-        <button
-          class="primary-action title-action"
-          type="button"
-          @click="openPublishDialog"
-        >
-          <PlusCircle
-            :size="18"
-            aria-hidden="true"
-          />
-          发布帖子
-        </button>
-      </section>
-
-      <SectionNav
-        class="post-section-nav"
-        :items="postNavItems"
-        :active-key="currentSubSection"
-        variant="tabs"
-        aria-label="社区二级导航"
-      />
+      <ModuleTopbar
+        eyebrow="社区"
+        title="校园社区"
+        description="浏览帖子、查看我的发布与互动。"
+      >
+        <template #extra>
+          <button
+            class="primary-action"
+            type="button"
+            @click="openPublishDialog"
+          >
+            <PlusCircle
+              :size="18"
+              aria-hidden="true"
+            />
+            发布帖子
+          </button>
+        </template>
+        <ModuleEntryCard
+          v-for="item in postNavItems"
+          :key="item.key"
+          :to="item.to"
+          :icon="item.icon"
+          :title="item.label"
+          :description="item.description"
+          :active="currentSubSection === item.key"
+        />
+      </ModuleTopbar>
 
       <section class="metric-strip">
         <div class="metric-tile metric-tile--posts">
@@ -1730,12 +1727,6 @@ onMounted(() => {
   color: var(--color-text);
 }
 
-.post-section-nav {
-  width: fit-content;
-  max-width: 100%;
-}
-
-.page-title-card,
 .panel-card,
 .page-feedback {
   border: 1px solid var(--color-border);
@@ -1744,33 +1735,6 @@ onMounted(() => {
   box-shadow: var(--shadow-card);
 }
 
-.page-title-card {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 22px;
-  min-height: 108px;
-  padding: 20px 28px;
-}
-
-.title-icon {
-  display: grid;
-  place-items: center;
-  width: 60px;
-  height: 60px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, var(--color-brand-soft), var(--color-brand-soft));
-  color: var(--color-brand);
-}
-
-.title-copy {
-  display: grid;
-  gap: 5px;
-}
-
-.title-copy p,
-.title-copy h1,
-.title-copy span,
 .filter-heading h2,
 .list-toolbar h2,
 .detail-card-header h2,
@@ -1780,23 +1744,10 @@ onMounted(() => {
   margin: 0;
 }
 
-.title-copy p,
 .section-kicker {
   color: var(--color-brand);
   font-size: 0.82rem;
   font-weight: 900;
-}
-
-.title-copy h1 {
-  color: var(--color-text);
-  font-size: 1.5rem;
-  line-height: 1.2;
-}
-
-.title-copy span {
-  color: var(--color-text-muted);
-  font-size: 0.92rem;
-  line-height: 1.5;
 }
 
 .panel-card {
@@ -2853,17 +2804,11 @@ onMounted(() => {
 }
 
 @media (max-width: 900px) {
-  .page-title-card,
   .metric-strip,
   .filter-grid,
   .detail-facts,
   .category-selector {
     grid-template-columns: 1fr;
-  }
-
-  .page-title-card {
-    gap: 18px;
-    padding: 22px;
   }
 
   .filter-heading,
@@ -2897,7 +2842,6 @@ onMounted(() => {
     height: 40px;
   }
 
-  .title-action,
   .primary-action,
   .ghost-action,
   .page-button,

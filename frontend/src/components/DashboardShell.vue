@@ -62,8 +62,6 @@ const avatarLoadFailed = ref(false)
 // const searchKeyword = ref('')
 const publishMode = computed(() => props.publishMode)
 
-const activeSection = computed(() => route.meta?.section || '')
-
 // const searchPlaceholder = computed(() => {
 //   if (activeSection.value === 'posts') return '搜索帖子标题、内容或关键词'
 //   if (activeSection.value === 'tasks') return '搜索任务标题、内容或关键词'
@@ -733,7 +731,6 @@ onBeforeUnmount(() => {
   padding: 0 30px 0 34px;
   border-bottom: 1px solid var(--color-border);
   background: var(--color-surface);
-  backdrop-filter: blur(18px);
 }
 
 /* .search-box {
@@ -834,12 +831,15 @@ onBeforeUnmount(() => {
   justify-content: center;
   width: 42px;
   height: 42px;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
+  background: var(--color-surface);
 }
 
 .notice-button:hover,
 .account-button:hover,
 .account-button.active {
+  border-color: var(--color-brand-border-hover);
   background: var(--color-brand-soft);
   color: var(--color-brand);
 }
@@ -875,7 +875,9 @@ onBeforeUnmount(() => {
   gap: 11px;
   min-height: 46px;
   padding: 0 10px;
+  border: 1px solid var(--color-border);
   border-radius: 8px;
+  background: var(--color-surface);
   font-size: 1rem;
   font-weight: 900;
 }
@@ -914,7 +916,7 @@ onBeforeUnmount(() => {
   width: 42px;
   height: 42px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--color-brand-soft), var(--color-brand-soft));
+  background: var(--color-brand-soft);
   color: var(--color-brand);
   font-weight: 900;
   overflow: hidden;

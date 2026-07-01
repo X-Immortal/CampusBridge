@@ -1,7 +1,9 @@
 import {
   Bell,
+  Bookmark,
   BookOpen,
   ClipboardList,
+  FileText,
   Grid2X2,
   Home,
   LayoutDashboard,
@@ -85,6 +87,7 @@ export const taskNavItems = [
     key: 'plaza',
     label: '任务广场',
     to: '/tasks',
+    icon: Grid2X2,
     publicAccess: true,
     requiresAuth: false,
     description: '浏览公开任务'
@@ -93,17 +96,19 @@ export const taskNavItems = [
     key: 'mine',
     label: '我的任务',
     to: '/workspace/tasks',
+    icon: ClipboardList,
     publicAccess: false,
     requiresAuth: true,
-    description: '我发布的和我接取的任务'
+    description: '查看发布与接取记录'
   },
   {
     key: 'drafts',
     label: '任务草稿',
     to: '/workspace/drafts',
+    icon: FileText,
     publicAccess: false,
     requiresAuth: true,
-    description: '未发布的草稿任务'
+    description: '继续编辑未发布内容'
   }
 ]
 
@@ -113,35 +118,39 @@ export const taskNavItems = [
 export const postNavItems = [
   {
     key: 'plaza',
-    label: '帖子广场',
+    label: '浏览校园帖子',
     to: '/posts',
+    icon: BookOpen,
     publicAccess: true,
     requiresAuth: false,
-    description: '浏览校园帖子'
+    description: '查看校园讨论与经验分享'
   },
   {
     key: 'mine',
     label: '我的帖子',
     to: '/workspace/posts',
+    icon: FileText,
     publicAccess: false,
     requiresAuth: true,
-    description: '我发布的帖子'
+    description: '管理我发布的帖子'
   },
   {
     key: 'replies',
     label: '我的回复',
     to: '/workspace/replies',
+    icon: MessageCircle,
     publicAccess: false,
     requiresAuth: true,
-    description: '我参与过的回复'
+    description: '查看参与过的讨论'
   },
   {
     key: 'marked',
     label: '我的标记',
     to: '/workspace/marked-posts',
+    icon: Bookmark,
     publicAccess: false,
     requiresAuth: true,
-    description: '我标记收藏的帖子'
+    description: '查看收藏与标记内容'
   }
 ]
 

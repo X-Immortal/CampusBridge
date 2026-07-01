@@ -33,7 +33,8 @@ import {
 import { workspaceNavItems } from '../app/navigation'
 import AccountSettingsModal from '../components/AccountSettingsModal.vue'
 import DashboardShell from '../components/DashboardShell.vue'
-import SectionNav from '../components/layout/SectionNav.vue'
+import ModuleTopbar from '../components/layout/ModuleTopbar.vue'
+import ModuleEntryCard from '../components/layout/ModuleEntryCard.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import { usePreferences } from '../composables/usePreferences'
 import { useTheme } from '../composables/useTheme'
@@ -111,26 +112,6 @@ const privateProfileItems = [
 ]
 
 const currentSubSection = computed(() => route.meta?.subSection || 'overview')
-
-const pageTitle = computed(() => {
-  const titles = {
-    overview: '工作台概览',
-    profile: '个人资料',
-    verification: '校园认证',
-    settings: '账号与主题'
-  }
-  return titles[currentSubSection.value] || '工作台'
-})
-
-const pageSubtitle = computed(() => {
-  const subtitles = {
-    overview: '账户状态、认证进度与快捷入口一览。',
-    profile: '编辑昵称、头像、标签和联系方式，管理公开档案。',
-    verification: '提交校园身份信息，通过认证后解锁更多功能。',
-    settings: '修改账号信息，调整外观主题与界面密度。'
-  }
-  return subtitles[currentSubSection.value] || '管理工作台相关设置。'
-})
 
 const themeModes = [
   { key: 'light', label: '日间', icon: Sun },
@@ -677,916 +658,793 @@ onMounted(async () => {
 <template>
   <DashboardShell>
     <main class="workspace-page">
-      <section class="page-title-card">
-        <div class="title-icon">
-          <IdCard
-            :size="32"
-            aria-hidden="true"
-          />
-        </div>
-        <div class="title-copy">
-          <p>我的工作台</p>
-          <h1>{{ pageTitle }}</h1>
-          <span>{{ pageSubtitle }}</span>
-        </div>
-        <StatusBadge :status="verificationStatus" />
-      </section>
-
-      <div class="workspace-layout">
-        <SectionNav
-          class="workspace-section-nav"
-          :items="workspaceNavItems"
-          :active-key="currentSubSection"
-          variant="rail"
-          aria-label="工作台二级导航"
+      <ModuleTopbar
+        eyebrow="工作台"
+        title="我的工作台"
+        description="管理个人资料、认证、消息和偏好。"
+      >
+        <template #extra>
+          <StatusBadge :status="verificationStatus" />
+        </template>
+        <ModuleEntryCard
+          v-for="item in workspaceNavItems"
+          :key="item.key"
+          :to="item.to"
+          :icon="item.icon"
+          :title="item.label"
+          :description="item.description"
+          :active="currentSubSection === item.key"
         />
+      </ModuleTopbar>
 
-        <div class="workspace-content">
-          <template v-if="currentSubSection === 'overview'">
-            <article class="panel-card panel-card--wide identity-profile-card">
-              <div class="profile-hero">
-                <button
-                  class="profile-avatar-large"
-                  type="button"
-                  :aria-label="profileAvatarSrc ? '更换头像' : '上传头像'"
-                  :disabled="avatarUploading"
-                  @click="triggerAvatarUpload"
+      <div class="workspace-content">
+        <template v-if="currentSubSection === 'overview'">
+          <article class="panel-card panel-card--wide identity-profile-card">
+            <div class="profile-hero">
+              <button
+                class="profile-avatar-large"
+                type="button"
+                :aria-label="profileAvatarSrc ? '更换头像' : '上传头像'"
+                :disabled="avatarUploading"
+                @click="triggerAvatarUpload"
+              >
+                <img
+                  v-if="profileAvatarSrc"
+                  :src="profileAvatarSrc"
+                  :alt="`${userName}的头像`"
+                  referrerpolicy="no-referrer"
+                  @error="handleAvatarError"
                 >
-                  <img
-                    v-if="profileAvatarSrc"
-                    :src="profileAvatarSrc"
-                    :alt="`${userName}的头像`"
-                    referrerpolicy="no-referrer"
-                    @error="handleAvatarError"
+                <span v-else>{{ profileInitial }}</span>
+                <span class="avatar-upload-overlay">
+                  <LoaderCircle
+                    v-if="avatarUploading"
+                    class="spinning"
+                    :size="22"
+                    aria-hidden="true"
+                  />
+                  <ImagePlus
+                    v-else
+                    :size="22"
+                    aria-hidden="true"
+                  />
+                </span>
+              </button>
+              <input
+                ref="avatarFileInput"
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                hidden
+                @change="handleAvatarFileChange"
+              >
+
+              <div class="profile-main-copy">
+                <div class="section-kicker-row">
+                  <p class="section-kicker">
+                    身份档案
+                  </p>
+                  <div class="credit-badge">
+                    <span class="credit-level-icon">
+                      <ChartLine
+                        :size="15"
+                        aria-hidden="true"
+                      />
+                    </span>
+                    <span class="credit-level-text">Lv.{{ creditLevel }} {{ levelLabel }}</span>
+                    <span class="credit-points">{{ creditPoints }} 积分</span>
+                  </div>
+                </div>
+                <div class="credit-progress-track">
+                  <span
+                    class="credit-progress-fill"
+                    :style="{ width: `${levelProgressPercent}%` }"
+                  />
+                </div>
+                <h2>{{ userName }}</h2>
+                <span>{{ myProfile.bio || '还没有填写个人简介。' }}</span>
+                <div class="profile-chip-row">
+                  <span>
+                    <MapPin
+                      :size="15"
+                      aria-hidden="true"
+                    />
+                    {{ myProfile.campus || '未填写校区' }}
+                  </span>
+                  <span>
+                    <Building2
+                      :size="15"
+                      aria-hidden="true"
+                    />
+                    {{ myProfile.college || '未填写学院' }}
+                  </span>
+                  <span>
+                    <ShieldCheck
+                      :size="15"
+                      aria-hidden="true"
+                    />
+                    {{ optionLabel(STATUS_OPTIONS, verificationStatus) }}
+                  </span>
+                </div>
+              </div>
+
+              <button
+                class="ghost-action profile-edit-shortcut"
+                type="button"
+                @click="showAccountModal = true"
+              >
+                <UserPen
+                  :size="17"
+                  aria-hidden="true"
+                />
+                账号信息修改
+              </button>
+            </div>
+
+            <div class="profile-progress-block">
+              <div>
+                <span>档案完整度</span>
+                <strong>{{ profileCompletion }}%</strong>
+              </div>
+              <span class="profile-progress-track">
+                <span :style="{ width: `${profileCompletion}%` }" />
+              </span>
+            </div>
+
+            <dl class="profile-meta-grid">
+              <div
+                v-for="item in profileMetaCards"
+                :key="item.label"
+              >
+                <dt>
+                  <component
+                    :is="item.icon"
+                    :size="16"
+                    aria-hidden="true"
+                  />
+                  {{ item.label }}
+                </dt>
+                <dd>{{ item.value }}</dd>
+              </div>
+            </dl>
+          </article>
+
+          <article
+            v-if="verification && verificationStatus === 'PENDING' && verification.method !== 'CAMPUS_EMAIL'"
+            class="panel-card verification-overview"
+          >
+            <div class="panel-heading">
+              <div>
+                <p class="section-kicker">
+                  认证状态
+                </p>
+                <h2>审核中</h2>
+              </div>
+              <StatusBadge
+                status="PENDING"
+                tone="warning"
+                label="审核中"
+              />
+            </div>
+            <p class="panel-copy">
+              你的认证资料已提交，正在等待管理员审核，请耐心等待。
+            </p>
+            <div class="step-list">
+              <div
+                v-for="step in stepItems"
+                :key="step.label"
+                class="step-item"
+                :class="{ done: step.done, 'connector-done': step.connectorDone }"
+              >
+                <CheckCircle2
+                  :size="18"
+                  aria-hidden="true"
+                />
+                <span>{{ step.label }}</span>
+              </div>
+            </div>
+            <dl class="record-grid">
+              <div>
+                <dt>认证方式</dt>
+                <dd>{{ optionLabel(VERIFICATION_METHODS, verification?.method) }}</dd>
+              </div>
+              <div>
+                <dt>学校</dt>
+                <dd>{{ verification?.school || '未提交' }}</dd>
+              </div>
+              <div>
+                <dt>院系</dt>
+                <dd>{{ verification?.department || '未提交' }}</dd>
+              </div>
+            </dl>
+          </article>
+
+          <article
+            v-if="verification && verificationStatus === 'VERIFIED'"
+            class="panel-card verification-overview"
+          >
+            <div class="panel-heading">
+              <div>
+                <p class="section-kicker">
+                  认证状态
+                </p>
+                <h2>{{ optionLabel(STATUS_OPTIONS, verificationStatus) }}</h2>
+              </div>
+              <StatusBadge :status="verificationStatus" />
+            </div>
+            <p class="panel-copy">
+              {{ statusCopy }}
+            </p>
+
+            <div class="step-list">
+              <div
+                v-for="step in stepItems"
+                :key="step.label"
+                class="step-item"
+                :class="{ done: step.done, 'connector-done': step.connectorDone }"
+              >
+                <CheckCircle2
+                  :size="18"
+                  aria-hidden="true"
+                />
+                <span>{{ step.label }}</span>
+              </div>
+            </div>
+
+            <dl class="record-grid">
+              <div>
+                <dt>认证方式</dt>
+                <dd>{{ optionLabel(VERIFICATION_METHODS, verification?.method) }}</dd>
+              </div>
+              <div>
+                <dt>学校</dt>
+                <dd>{{ verification?.school || '未提交' }}</dd>
+              </div>
+              <div>
+                <dt>院系</dt>
+                <dd>{{ verification?.department || '未提交' }}</dd>
+              </div>
+              <div>
+                <dt>提交时间</dt>
+                <dd>{{ formatDate(verification?.createdAt) }}</dd>
+              </div>
+            </dl>
+          </article>
+
+          <article class="panel-card safety-card">
+            <div class="panel-heading">
+              <div>
+                <p class="section-kicker">
+                  认证权益
+                </p>
+                <h2>通过后你可以</h2>
+              </div>
+              <Info
+                :size="22"
+                aria-hidden="true"
+              />
+            </div>
+            <ul class="benefit-list">
+              <li
+                v-for="item in verificationBenefits"
+                :key="item.title"
+                class="benefit-item"
+              >
+                <span class="benefit-icon">
+                  <component
+                    :is="item.icon"
+                    :size="20"
+                    aria-hidden="true"
+                  />
+                </span>
+                <span>
+                  <strong>{{ item.title }}</strong>
+                  <small>{{ item.copy }}</small>
+                </span>
+              </li>
+            </ul>
+          </article>
+        </template>
+
+        <template v-if="currentSubSection === 'profile'">
+          <article class="panel-card profile-editor-card">
+            <div class="panel-heading">
+              <div>
+                <p class="section-kicker">
+                  档案编辑
+                </p>
+                <h2>用户身份信息</h2>
+              </div>
+              <button
+                class="ghost-action"
+                type="button"
+                :disabled="loading || profileSubmitting"
+                @click="handleRefresh"
+              >
+                <RefreshCw
+                  :class="{ spinning: loading }"
+                  :size="17"
+                  aria-hidden="true"
+                />
+                刷新
+              </button>
+            </div>
+
+            <form
+              class="profile-form"
+              @submit.prevent="handleSubmitProfile"
+            >
+              <label class="field">
+                <span>昵称</span>
+                <input
+                  v-model.trim="profileForm.nickname"
+                  maxlength="50"
+                  placeholder="例如：林沐妍"
+                  :disabled="!profileEditing || profileSubmitting"
+                  :aria-invalid="Boolean(profileErrors.nickname)"
+                >
+                <small
+                  v-if="profileErrors.nickname"
+                  class="field-error"
+                >{{ profileErrors.nickname }}</small>
+              </label>
+
+              <label class="field">
+                <span>校区</span>
+                <input
+                  v-model.trim="profileForm.campus"
+                  maxlength="100"
+                  placeholder="例如：主校区"
+                  :disabled="!profileEditing || profileSubmitting"
+                  :aria-invalid="Boolean(profileErrors.campus)"
+                >
+                <small
+                  v-if="profileErrors.campus"
+                  class="field-error"
+                >{{ profileErrors.campus }}</small>
+              </label>
+
+              <label class="field field-wide">
+                <span>学院</span>
+                <input
+                  v-model.trim="profileForm.college"
+                  maxlength="100"
+                  placeholder="例如：计算机学院"
+                  :disabled="!profileEditing || profileSubmitting"
+                  :aria-invalid="Boolean(profileErrors.college)"
+                >
+                <small
+                  v-if="profileErrors.college"
+                  class="field-error"
+                >{{ profileErrors.college }}</small>
+              </label>
+
+              <label class="field field-wide">
+                <span>个人简介</span>
+                <textarea
+                  v-model.trim="profileForm.bio"
+                  maxlength="500"
+                  rows="4"
+                  placeholder="写下专业、常活动地点或擅长帮助的事情"
+                  :disabled="!profileEditing || profileSubmitting"
+                  :aria-invalid="Boolean(profileErrors.bio)"
+                />
+                <small
+                  v-if="profileErrors.bio"
+                  class="field-error"
+                >{{ profileErrors.bio }}</small>
+              </label>
+
+              <label class="field field-wide">
+                <span>联系方式</span>
+                <input
+                  v-model.trim="profileForm.contactInfo"
+                  maxlength="255"
+                  placeholder="例如：站内消息优先"
+                  :disabled="!profileEditing || profileSubmitting"
+                  :aria-invalid="Boolean(profileErrors.contactInfo)"
+                >
+                <small
+                  v-if="profileErrors.contactInfo"
+                  class="field-error"
+                >{{ profileErrors.contactInfo }}</small>
+              </label>
+
+              <label class="field">
+                <span>兴趣标签</span>
+                <input
+                  v-model.trim="profileForm.interestTagsText"
+                  placeholder="跑腿互助，二手教材，摄影"
+                  :disabled="!profileEditing || profileSubmitting"
+                  :aria-invalid="Boolean(profileErrors.interestTagsText)"
+                >
+                <small
+                  v-if="profileErrors.interestTagsText"
+                  class="field-error"
+                >{{ profileErrors.interestTagsText }}</small>
+              </label>
+
+              <label class="field">
+                <span>技能标签</span>
+                <input
+                  v-model.trim="profileForm.skillTagsText"
+                  placeholder="Java，PPT排版，文档整理"
+                  :disabled="!profileEditing || profileSubmitting"
+                  :aria-invalid="Boolean(profileErrors.skillTagsText)"
+                >
+                <small
+                  v-if="profileErrors.skillTagsText"
+                  class="field-error"
+                >{{ profileErrors.skillTagsText }}</small>
+              </label>
+
+              <div class="profile-form-actions">
+                <template v-if="profileEditing">
+                  <button
+                    class="primary-action"
+                    type="submit"
+                    :disabled="profileSubmitting"
                   >
-                  <span v-else>{{ profileInitial }}</span>
-                  <span class="avatar-upload-overlay">
                     <LoaderCircle
-                      v-if="avatarUploading"
+                      v-if="profileSubmitting"
                       class="spinning"
-                      :size="22"
+                      :size="18"
+                      aria-hidden="true"
+                    />
+                    <Save
+                      v-else
+                      :size="18"
+                      aria-hidden="true"
+                    />
+                    保存档案
+                  </button>
+                  <button
+                    class="ghost-action"
+                    type="button"
+                    :disabled="profileSubmitting"
+                    @click="handleCancelProfileEdit"
+                  >
+                    <X
+                      :size="17"
+                      aria-hidden="true"
+                    />
+                    取消
+                  </button>
+                </template>
+                <button
+                  v-else
+                  class="primary-action"
+                  type="button"
+                  @click="handleEditProfile"
+                >
+                  <UserPen
+                    :size="18"
+                    aria-hidden="true"
+                  />
+                  编辑用户档案
+                </button>
+              </div>
+            </form>
+          </article>
+
+          <article class="panel-card identity-visibility-card">
+            <div class="panel-heading">
+              <div>
+                <p class="section-kicker">
+                  主页可见性
+                </p>
+                <h2>公开身份预览</h2>
+              </div>
+              <Eye
+                :size="22"
+                aria-hidden="true"
+              />
+            </div>
+
+            <dl class="identity-row-list">
+              <div
+                v-for="item in publicIdentityRows"
+                :key="item.label"
+              >
+                <dt>
+                  <component
+                    :is="item.icon"
+                    :size="16"
+                    aria-hidden="true"
+                  />
+                  {{ item.label }}
+                </dt>
+                <dd>{{ item.value }}</dd>
+              </div>
+            </dl>
+
+            <div class="identity-tag-block">
+              <div>
+                <span>
+                  <Tag
+                    :size="15"
+                    aria-hidden="true"
+                  />
+                  兴趣标签
+                </span>
+                <div class="tag-list">
+                  <span
+                    v-for="tag in interestTags"
+                    :key="`interest-${tag}`"
+                    class="soft-tag"
+                  >{{ tag }}</span>
+                  <span
+                    v-if="!interestTags.length"
+                    class="soft-tag soft-tag--muted"
+                  >未填写</span>
+                </div>
+              </div>
+              <div>
+                <span>
+                  <Tag
+                    :size="15"
+                    aria-hidden="true"
+                  />
+                  技能标签
+                </span>
+                <div class="tag-list">
+                  <span
+                    v-for="tag in skillTags"
+                    :key="`skill-${tag}`"
+                    class="soft-tag soft-tag--blue"
+                  >{{ tag }}</span>
+                  <span
+                    v-if="!skillTags.length"
+                    class="soft-tag soft-tag--muted"
+                  >未填写</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="visibility-split">
+              <div>
+                <strong>公开展示</strong>
+                <span
+                  v-for="item in publicProfileItems"
+                  :key="item"
+                >{{ item }}</span>
+              </div>
+              <div>
+                <strong>仅自己可见</strong>
+                <span
+                  v-for="item in privateProfileItems"
+                  :key="item"
+                >{{ item }}</span>
+              </div>
+            </div>
+          </article>
+        </template>
+
+        <template v-if="currentSubSection === 'verification'">
+          <article
+            v-if="canSubmitVerification || pendingEmailVerification"
+            class="panel-card verification-form-card"
+          >
+            <div class="panel-heading">
+              <div>
+                <p class="section-kicker">
+                  提交资料
+                </p>
+                <h2>填写认证信息</h2>
+              </div>
+              <button
+                class="ghost-action"
+                type="button"
+                :disabled="loading || !isAuthenticated"
+                @click="handleRefresh"
+              >
+                <RefreshCw
+                  :class="{ spinning: loading }"
+                  :size="17"
+                  aria-hidden="true"
+                />
+                刷新
+              </button>
+            </div>
+
+            <form
+              v-if="canSubmitVerification"
+              class="verification-form"
+              @submit.prevent="handleSubmitVerification"
+            >
+              <label class="field">
+                <span>认证方式</span>
+                <select v-model="verificationForm.method">
+                  <option
+                    v-for="method in VERIFICATION_METHODS"
+                    :key="method.value"
+                    :value="method.value"
+                  >
+                    {{ method.label }}
+                  </option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span>真实姓名</span>
+                <input
+                  v-model.trim="verificationForm.realName"
+                  required
+                  placeholder="用于后台实名核验"
+                >
+              </label>
+
+              <label class="field">
+                <span>学号</span>
+                <input
+                  v-model.trim="verificationForm.studentNumber"
+                  required
+                  placeholder="不会在公开页面直接展示"
+                >
+              </label>
+
+              <label class="field">
+                <span>学校</span>
+                <input
+                  v-model.trim="verificationForm.school"
+                  required
+                  placeholder="例如：南京大学"
+                >
+              </label>
+
+              <label class="field">
+                <span>院系</span>
+                <input
+                  v-model.trim="verificationForm.department"
+                  placeholder="选填，例如：软件学院"
+                >
+              </label>
+
+              <label
+                v-if="isEmailVerificationMethod"
+                class="field field-wide"
+              >
+                <span>校园邮箱</span>
+                <input
+                  v-model.trim="verificationForm.campusEmail"
+                  required
+                  type="email"
+                  placeholder="请输入学校邮箱，例如 name@school.edu.cn"
+                >
+              </label>
+
+              <div
+                v-else-if="requiresVerificationEvidence"
+                class="field field-wide evidence-upload-field"
+              >
+                <span>{{ verificationEvidenceLabel }}</span>
+                <input
+                  ref="verificationEvidenceFileInput"
+                  class="sr-only"
+                  type="file"
+                  accept="image/*"
+                  @change="handleVerificationEvidenceFileChange"
+                >
+                <div
+                  class="evidence-upload-box"
+                  :class="{ 'evidence-upload-box--empty': requiresVerificationEvidence && !verificationForm.evidenceUrl }"
+                >
+                  <button
+                    class="ghost-action upload-evidence-button"
+                    type="button"
+                    :disabled="verificationEvidenceUploading"
+                    @click="triggerVerificationEvidenceUpload"
+                  >
+                    <LoaderCircle
+                      v-if="verificationEvidenceUploading"
+                      class="spinning"
+                      :size="17"
                       aria-hidden="true"
                     />
                     <ImagePlus
                       v-else
-                      :size="22"
+                      :size="17"
                       aria-hidden="true"
                     />
-                  </span>
-                </button>
-                <input
-                  ref="avatarFileInput"
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  hidden
-                  @change="handleAvatarFileChange"
-                >
-
-                <div class="profile-main-copy">
-                  <div class="section-kicker-row">
-                    <p class="section-kicker">
-                      身份档案
-                    </p>
-                    <div class="credit-badge">
-                      <span class="credit-level-icon">
-                        <ChartLine
-                          :size="15"
-                          aria-hidden="true"
-                        />
-                      </span>
-                      <span class="credit-level-text">Lv.{{ creditLevel }} {{ levelLabel }}</span>
-                      <span class="credit-points">{{ creditPoints }} 积分</span>
-                    </div>
-                  </div>
-                  <div class="credit-progress-track">
-                    <span
-                      class="credit-progress-fill"
-                      :style="{ width: `${levelProgressPercent}%` }"
-                    />
-                  </div>
-                  <h2>{{ userName }}</h2>
-                  <span>{{ myProfile.bio || '还没有填写个人简介。' }}</span>
-                  <div class="profile-chip-row">
-                    <span>
-                      <MapPin
-                        :size="15"
-                        aria-hidden="true"
-                      />
-                      {{ myProfile.campus || '未填写校区' }}
-                    </span>
-                    <span>
-                      <Building2
-                        :size="15"
-                        aria-hidden="true"
-                      />
-                      {{ myProfile.college || '未填写学院' }}
-                    </span>
-                    <span>
-                      <ShieldCheck
-                        :size="15"
-                        aria-hidden="true"
-                      />
-                      {{ optionLabel(STATUS_OPTIONS, verificationStatus) }}
-                    </span>
-                  </div>
-                </div>
-
-                <button
-                  class="ghost-action profile-edit-shortcut"
-                  type="button"
-                  @click="showAccountModal = true"
-                >
-                  <UserPen
-                    :size="17"
-                    aria-hidden="true"
-                  />
-                  账号信息修改
-                </button>
-              </div>
-
-              <div class="profile-progress-block">
-                <div>
-                  <span>档案完整度</span>
-                  <strong>{{ profileCompletion }}%</strong>
-                </div>
-                <span class="profile-progress-track">
-                  <span :style="{ width: `${profileCompletion}%` }" />
-                </span>
-              </div>
-
-              <dl class="profile-meta-grid">
-                <div
-                  v-for="item in profileMetaCards"
-                  :key="item.label"
-                >
-                  <dt>
-                    <component
-                      :is="item.icon"
-                      :size="16"
-                      aria-hidden="true"
-                    />
-                    {{ item.label }}
-                  </dt>
-                  <dd>{{ item.value }}</dd>
-                </div>
-              </dl>
-            </article>
-
-            <article
-              v-if="verification && verificationStatus === 'PENDING' && verification.method !== 'CAMPUS_EMAIL'"
-              class="panel-card verification-overview"
-            >
-              <div class="panel-heading">
-                <div>
-                  <p class="section-kicker">
-                    认证状态
-                  </p>
-                  <h2>审核中</h2>
-                </div>
-                <StatusBadge
-                  status="PENDING"
-                  tone="warning"
-                  label="审核中"
-                />
-              </div>
-              <p class="panel-copy">
-                你的认证资料已提交，正在等待管理员审核，请耐心等待。
-              </p>
-              <div class="step-list">
-                <div
-                  v-for="step in stepItems"
-                  :key="step.label"
-                  class="step-item"
-                  :class="{ done: step.done, 'connector-done': step.connectorDone }"
-                >
-                  <CheckCircle2
-                    :size="18"
-                    aria-hidden="true"
-                  />
-                  <span>{{ step.label }}</span>
-                </div>
-              </div>
-              <dl class="record-grid">
-                <div>
-                  <dt>认证方式</dt>
-                  <dd>{{ optionLabel(VERIFICATION_METHODS, verification?.method) }}</dd>
-                </div>
-                <div>
-                  <dt>学校</dt>
-                  <dd>{{ verification?.school || '未提交' }}</dd>
-                </div>
-                <div>
-                  <dt>院系</dt>
-                  <dd>{{ verification?.department || '未提交' }}</dd>
-                </div>
-              </dl>
-            </article>
-
-            <article
-              v-if="verification && verificationStatus === 'VERIFIED'"
-              class="panel-card verification-overview"
-            >
-              <div class="panel-heading">
-                <div>
-                  <p class="section-kicker">
-                    认证状态
-                  </p>
-                  <h2>{{ optionLabel(STATUS_OPTIONS, verificationStatus) }}</h2>
-                </div>
-                <StatusBadge :status="verificationStatus" />
-              </div>
-              <p class="panel-copy">
-                {{ statusCopy }}
-              </p>
-
-              <div class="step-list">
-                <div
-                  v-for="step in stepItems"
-                  :key="step.label"
-                  class="step-item"
-                  :class="{ done: step.done, 'connector-done': step.connectorDone }"
-                >
-                  <CheckCircle2
-                    :size="18"
-                    aria-hidden="true"
-                  />
-                  <span>{{ step.label }}</span>
-                </div>
-              </div>
-
-              <dl class="record-grid">
-                <div>
-                  <dt>认证方式</dt>
-                  <dd>{{ optionLabel(VERIFICATION_METHODS, verification?.method) }}</dd>
-                </div>
-                <div>
-                  <dt>学校</dt>
-                  <dd>{{ verification?.school || '未提交' }}</dd>
-                </div>
-                <div>
-                  <dt>院系</dt>
-                  <dd>{{ verification?.department || '未提交' }}</dd>
-                </div>
-                <div>
-                  <dt>提交时间</dt>
-                  <dd>{{ formatDate(verification?.createdAt) }}</dd>
-                </div>
-              </dl>
-            </article>
-
-            <article class="panel-card safety-card">
-              <div class="panel-heading">
-                <div>
-                  <p class="section-kicker">
-                    认证权益
-                  </p>
-                  <h2>通过后你可以</h2>
-                </div>
-                <Info
-                  :size="22"
-                  aria-hidden="true"
-                />
-              </div>
-              <ul class="benefit-list">
-                <li
-                  v-for="item in verificationBenefits"
-                  :key="item.title"
-                  class="benefit-item"
-                >
-                  <span class="benefit-icon">
-                    <component
-                      :is="item.icon"
-                      :size="20"
-                      aria-hidden="true"
-                    />
-                  </span>
-                  <span>
-                    <strong>{{ item.title }}</strong>
-                    <small>{{ item.copy }}</small>
-                  </span>
-                </li>
-              </ul>
-            </article>
-          </template>
-
-          <template v-if="currentSubSection === 'profile'">
-            <article class="panel-card profile-editor-card">
-              <div class="panel-heading">
-                <div>
-                  <p class="section-kicker">
-                    档案编辑
-                  </p>
-                  <h2>用户身份信息</h2>
-                </div>
-                <button
-                  class="ghost-action"
-                  type="button"
-                  :disabled="loading || profileSubmitting"
-                  @click="handleRefresh"
-                >
-                  <RefreshCw
-                    :class="{ spinning: loading }"
-                    :size="17"
-                    aria-hidden="true"
-                  />
-                  刷新
-                </button>
-              </div>
-
-              <form
-                class="profile-form"
-                @submit.prevent="handleSubmitProfile"
-              >
-                <label class="field">
-                  <span>昵称</span>
-                  <input
-                    v-model.trim="profileForm.nickname"
-                    maxlength="50"
-                    placeholder="例如：林沐妍"
-                    :disabled="!profileEditing || profileSubmitting"
-                    :aria-invalid="Boolean(profileErrors.nickname)"
-                  >
-                  <small
-                    v-if="profileErrors.nickname"
-                    class="field-error"
-                  >{{ profileErrors.nickname }}</small>
-                </label>
-
-                <label class="field">
-                  <span>校区</span>
-                  <input
-                    v-model.trim="profileForm.campus"
-                    maxlength="100"
-                    placeholder="例如：主校区"
-                    :disabled="!profileEditing || profileSubmitting"
-                    :aria-invalid="Boolean(profileErrors.campus)"
-                  >
-                  <small
-                    v-if="profileErrors.campus"
-                    class="field-error"
-                  >{{ profileErrors.campus }}</small>
-                </label>
-
-                <label class="field field-wide">
-                  <span>学院</span>
-                  <input
-                    v-model.trim="profileForm.college"
-                    maxlength="100"
-                    placeholder="例如：计算机学院"
-                    :disabled="!profileEditing || profileSubmitting"
-                    :aria-invalid="Boolean(profileErrors.college)"
-                  >
-                  <small
-                    v-if="profileErrors.college"
-                    class="field-error"
-                  >{{ profileErrors.college }}</small>
-                </label>
-
-                <label class="field field-wide">
-                  <span>个人简介</span>
-                  <textarea
-                    v-model.trim="profileForm.bio"
-                    maxlength="500"
-                    rows="4"
-                    placeholder="写下专业、常活动地点或擅长帮助的事情"
-                    :disabled="!profileEditing || profileSubmitting"
-                    :aria-invalid="Boolean(profileErrors.bio)"
-                  />
-                  <small
-                    v-if="profileErrors.bio"
-                    class="field-error"
-                  >{{ profileErrors.bio }}</small>
-                </label>
-
-                <label class="field field-wide">
-                  <span>联系方式</span>
-                  <input
-                    v-model.trim="profileForm.contactInfo"
-                    maxlength="255"
-                    placeholder="例如：站内消息优先"
-                    :disabled="!profileEditing || profileSubmitting"
-                    :aria-invalid="Boolean(profileErrors.contactInfo)"
-                  >
-                  <small
-                    v-if="profileErrors.contactInfo"
-                    class="field-error"
-                  >{{ profileErrors.contactInfo }}</small>
-                </label>
-
-                <label class="field">
-                  <span>兴趣标签</span>
-                  <input
-                    v-model.trim="profileForm.interestTagsText"
-                    placeholder="跑腿互助，二手教材，摄影"
-                    :disabled="!profileEditing || profileSubmitting"
-                    :aria-invalid="Boolean(profileErrors.interestTagsText)"
-                  >
-                  <small
-                    v-if="profileErrors.interestTagsText"
-                    class="field-error"
-                  >{{ profileErrors.interestTagsText }}</small>
-                </label>
-
-                <label class="field">
-                  <span>技能标签</span>
-                  <input
-                    v-model.trim="profileForm.skillTagsText"
-                    placeholder="Java，PPT排版，文档整理"
-                    :disabled="!profileEditing || profileSubmitting"
-                    :aria-invalid="Boolean(profileErrors.skillTagsText)"
-                  >
-                  <small
-                    v-if="profileErrors.skillTagsText"
-                    class="field-error"
-                  >{{ profileErrors.skillTagsText }}</small>
-                </label>
-
-                <div class="profile-form-actions">
-                  <template v-if="profileEditing">
-                    <button
-                      class="primary-action"
-                      type="submit"
-                      :disabled="profileSubmitting"
-                    >
-                      <LoaderCircle
-                        v-if="profileSubmitting"
-                        class="spinning"
-                        :size="18"
-                        aria-hidden="true"
-                      />
-                      <Save
-                        v-else
-                        :size="18"
-                        aria-hidden="true"
-                      />
-                      保存档案
-                    </button>
-                    <button
-                      class="ghost-action"
-                      type="button"
-                      :disabled="profileSubmitting"
-                      @click="handleCancelProfileEdit"
-                    >
-                      <X
-                        :size="17"
-                        aria-hidden="true"
-                      />
-                      取消
-                    </button>
-                  </template>
-                  <button
-                    v-else
-                    class="primary-action"
-                    type="button"
-                    @click="handleEditProfile"
-                  >
-                    <UserPen
-                      :size="18"
-                      aria-hidden="true"
-                    />
-                    编辑用户档案
+                    {{ verificationEvidenceUploading ? '上传中' : '上传照片' }}
                   </button>
+                  <div>
+                    <strong>{{ verificationEvidenceFileName || '尚未上传照片' }}</strong>
+                    <small>{{ verificationEvidenceHint }}</small>
+                  </div>
                 </div>
-              </form>
-            </article>
+                <p
+                  v-if="requiresVerificationEvidence && !verificationForm.evidenceUrl"
+                  class="evidence-required-hint"
+                >
+                  请先上传{{ verificationEvidenceLabel }}，否则无法提交认证。
+                </p>
+                <a
+                  v-if="verificationForm.evidenceUrl"
+                  class="evidence-link"
+                  :href="verificationForm.evidenceUrl"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  查看已上传照片
+                </a>
+              </div>
 
-            <article class="panel-card identity-visibility-card">
-              <div class="panel-heading">
-                <div>
-                  <p class="section-kicker">
-                    主页可见性
-                  </p>
-                  <h2>公开身份预览</h2>
-                </div>
-                <Eye
-                  :size="22"
+              <button
+                class="primary-action"
+                type="submit"
+                :disabled="submitting || verificationEvidenceUploading"
+              >
+                <LoaderCircle
+                  v-if="submitting"
+                  class="spinning"
+                  :size="18"
                   aria-hidden="true"
                 />
-              </div>
+                <ShieldCheck
+                  v-else
+                  :size="18"
+                  aria-hidden="true"
+                />
+                提交校内认证
+              </button>
+            </form>
 
-              <dl class="identity-row-list">
-                <div
-                  v-for="item in publicIdentityRows"
-                  :key="item.label"
-                >
-                  <dt>
-                    <component
-                      :is="item.icon"
-                      :size="16"
-                      aria-hidden="true"
-                    />
-                    {{ item.label }}
-                  </dt>
-                  <dd>{{ item.value }}</dd>
-                </div>
-              </dl>
-
-              <div class="identity-tag-block">
-                <div>
-                  <span>
-                    <Tag
-                      :size="15"
-                      aria-hidden="true"
-                    />
-                    兴趣标签
-                  </span>
-                  <div class="tag-list">
-                    <span
-                      v-for="tag in interestTags"
-                      :key="`interest-${tag}`"
-                      class="soft-tag"
-                    >{{ tag }}</span>
-                    <span
-                      v-if="!interestTags.length"
-                      class="soft-tag soft-tag--muted"
-                    >未填写</span>
-                  </div>
-                </div>
-                <div>
-                  <span>
-                    <Tag
-                      :size="15"
-                      aria-hidden="true"
-                    />
-                    技能标签
-                  </span>
-                  <div class="tag-list">
-                    <span
-                      v-for="tag in skillTags"
-                      :key="`skill-${tag}`"
-                      class="soft-tag soft-tag--blue"
-                    >{{ tag }}</span>
-                    <span
-                      v-if="!skillTags.length"
-                      class="soft-tag soft-tag--muted"
-                    >未填写</span>
-                  </div>
-                </div>
-              </div>
-
-              <div class="visibility-split">
-                <div>
-                  <strong>公开展示</strong>
-                  <span
-                    v-for="item in publicProfileItems"
-                    :key="item"
-                  >{{ item }}</span>
-                </div>
-                <div>
-                  <strong>仅自己可见</strong>
-                  <span
-                    v-for="item in privateProfileItems"
-                    :key="item"
-                  >{{ item }}</span>
-                </div>
-              </div>
-            </article>
-          </template>
-
-          <template v-if="currentSubSection === 'verification'">
-            <article
-              v-if="canSubmitVerification || pendingEmailVerification"
-              class="panel-card verification-form-card"
+            <div
+              v-else-if="pendingEmailVerification"
+              class="email-code-panel"
             >
-              <div class="panel-heading">
-                <div>
-                  <p class="section-kicker">
-                    提交资料
-                  </p>
-                  <h2>填写认证信息</h2>
-                </div>
-                <button
-                  class="ghost-action"
-                  type="button"
-                  :disabled="loading || !isAuthenticated"
-                  @click="handleRefresh"
-                >
-                  <RefreshCw
-                    :class="{ spinning: loading }"
-                    :size="17"
-                    aria-hidden="true"
-                  />
-                  刷新
-                </button>
+              <span class="email-code-icon">
+                <AtSign
+                  :size="34"
+                  aria-hidden="true"
+                />
+              </span>
+              <div>
+                <h3>输入邮箱验证码</h3>
+                <p>验证码已发送至校园邮箱，输入 6 位验证码即可完成认证。</p>
               </div>
-
-              <form
-                v-if="canSubmitVerification"
-                class="verification-form"
-                @submit.prevent="handleSubmitVerification"
-              >
-                <label class="field">
-                  <span>认证方式</span>
-                  <select v-model="verificationForm.method">
-                    <option
-                      v-for="method in VERIFICATION_METHODS"
-                      :key="method.value"
-                      :value="method.value"
-                    >
-                      {{ method.label }}
-                    </option>
-                  </select>
-                </label>
-
-                <label class="field">
-                  <span>真实姓名</span>
-                  <input
-                    v-model.trim="verificationForm.realName"
-                    required
-                    placeholder="用于后台实名核验"
-                  >
-                </label>
-
-                <label class="field">
-                  <span>学号</span>
-                  <input
-                    v-model.trim="verificationForm.studentNumber"
-                    required
-                    placeholder="不会在公开页面直接展示"
-                  >
-                </label>
-
-                <label class="field">
-                  <span>学校</span>
-                  <input
-                    v-model.trim="verificationForm.school"
-                    required
-                    placeholder="例如：南京大学"
-                  >
-                </label>
-
-                <label class="field">
-                  <span>院系</span>
-                  <input
-                    v-model.trim="verificationForm.department"
-                    placeholder="选填，例如：软件学院"
-                  >
-                </label>
-
-                <label
-                  v-if="isEmailVerificationMethod"
-                  class="field field-wide"
+              <label class="field">
+                <span>邮箱验证码</span>
+                <input
+                  v-model.trim="emailVerificationCode"
+                  inputmode="numeric"
+                  maxlength="6"
+                  placeholder="请输入 6 位验证码"
                 >
-                  <span>校园邮箱</span>
-                  <input
-                    v-model.trim="verificationForm.campusEmail"
-                    required
-                    type="email"
-                    placeholder="请输入学校邮箱，例如 name@school.edu.cn"
-                  >
-                </label>
-
-                <div
-                  v-else-if="requiresVerificationEvidence"
-                  class="field field-wide evidence-upload-field"
-                >
-                  <span>{{ verificationEvidenceLabel }}</span>
-                  <input
-                    ref="verificationEvidenceFileInput"
-                    class="sr-only"
-                    type="file"
-                    accept="image/*"
-                    @change="handleVerificationEvidenceFileChange"
-                  >
-                  <div
-                    class="evidence-upload-box"
-                    :class="{ 'evidence-upload-box--empty': requiresVerificationEvidence && !verificationForm.evidenceUrl }"
-                  >
-                    <button
-                      class="ghost-action upload-evidence-button"
-                      type="button"
-                      :disabled="verificationEvidenceUploading"
-                      @click="triggerVerificationEvidenceUpload"
-                    >
-                      <LoaderCircle
-                        v-if="verificationEvidenceUploading"
-                        class="spinning"
-                        :size="17"
-                        aria-hidden="true"
-                      />
-                      <ImagePlus
-                        v-else
-                        :size="17"
-                        aria-hidden="true"
-                      />
-                      {{ verificationEvidenceUploading ? '上传中' : '上传照片' }}
-                    </button>
-                    <div>
-                      <strong>{{ verificationEvidenceFileName || '尚未上传照片' }}</strong>
-                      <small>{{ verificationEvidenceHint }}</small>
-                    </div>
-                  </div>
-                  <p
-                    v-if="requiresVerificationEvidence && !verificationForm.evidenceUrl"
-                    class="evidence-required-hint"
-                  >
-                    请先上传{{ verificationEvidenceLabel }}，否则无法提交认证。
-                  </p>
-                  <a
-                    v-if="verificationForm.evidenceUrl"
-                    class="evidence-link"
-                    :href="verificationForm.evidenceUrl"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    查看已上传照片
-                  </a>
-                </div>
-
+              </label>
+              <div class="email-code-actions">
                 <button
                   class="primary-action"
-                  type="submit"
-                  :disabled="submitting || verificationEvidenceUploading"
+                  type="button"
+                  :disabled="emailCodeSubmitting"
+                  @click="handleConfirmEmailCode"
                 >
                   <LoaderCircle
-                    v-if="submitting"
+                    v-if="emailCodeSubmitting"
                     class="spinning"
                     :size="18"
                     aria-hidden="true"
                   />
-                  <ShieldCheck
+                  <CheckCircle2
                     v-else
                     :size="18"
                     aria-hidden="true"
                   />
-                  提交校内认证
+                  确认认证
                 </button>
-              </form>
-
-              <div
-                v-else-if="pendingEmailVerification"
-                class="email-code-panel"
-              >
-                <span class="email-code-icon">
-                  <AtSign
-                    :size="34"
-                    aria-hidden="true"
-                  />
-                </span>
-                <div>
-                  <h3>输入邮箱验证码</h3>
-                  <p>验证码已发送至校园邮箱，输入 6 位验证码即可完成认证。</p>
-                </div>
-                <label class="field">
-                  <span>邮箱验证码</span>
-                  <input
-                    v-model.trim="emailVerificationCode"
-                    inputmode="numeric"
-                    maxlength="6"
-                    placeholder="请输入 6 位验证码"
-                  >
-                </label>
-                <div class="email-code-actions">
-                  <button
-                    class="primary-action"
-                    type="button"
-                    :disabled="emailCodeSubmitting"
-                    @click="handleConfirmEmailCode"
-                  >
-                    <LoaderCircle
-                      v-if="emailCodeSubmitting"
-                      class="spinning"
-                      :size="18"
-                      aria-hidden="true"
-                    />
-                    <CheckCircle2
-                      v-else
-                      :size="18"
-                      aria-hidden="true"
-                    />
-                    确认认证
-                  </button>
-                  <button
-                    class="ghost-action"
-                    type="button"
-                    :disabled="emailCodeResending || verificationCancelling"
-                    @click="handleResendEmailCode"
-                  >
-                    <RefreshCw
-                      :class="{ spinning: emailCodeResending }"
-                      :size="17"
-                      aria-hidden="true"
-                    />
-                    重发验证码
-                  </button>
-                  <button
-                    class="ghost-action"
-                    type="button"
-                    :disabled="verificationCancelling"
-                    @click="handleCancelVerification"
-                  >
-                    <LoaderCircle
-                      v-if="verificationCancelling"
-                      class="spinning"
-                      :size="17"
-                      aria-hidden="true"
-                    />
-                    <X
-                      v-else
-                      :size="17"
-                      aria-hidden="true"
-                    />
-                    取消本次认证
-                  </button>
-                </div>
-              </div>
-
-              <div
-                v-else
-                class="locked-state"
-              >
-                <span class="locked-state-visual">
-                  <ShieldCheck
-                    :size="56"
-                    aria-hidden="true"
-                  />
-                </span>
-                <strong>{{ lockMessage }}</strong>
-                <span>你的校园身份已认证成功，无需重复提交。</span>
-                <div class="locked-actions">
-                  <button
-                    class="primary-action primary-action--compact"
-                    type="button"
-                    @click="showToast('认证资料已在上方展示。')"
-                  >
-                    <ClipboardList
-                      :size="17"
-                      aria-hidden="true"
-                    />
-                    查看认证资料
-                  </button>
-                  <button
-                    class="ghost-action ghost-action--compact"
-                    type="button"
-                    :disabled="loading || !isAuthenticated"
-                    @click="handleRefresh"
-                  >
-                    <RefreshCw
-                      :class="{ spinning: loading }"
-                      :size="17"
-                      aria-hidden="true"
-                    />
-                    刷新状态
-                  </button>
-                </div>
-              </div>
-            </article>
-
-            <article class="panel-card safety-card">
-              <div class="panel-heading">
-                <div>
-                  <p class="section-kicker">
-                    认证权益
-                  </p>
-                  <h2>通过后你可以</h2>
-                </div>
-                <Info
-                  :size="22"
-                  aria-hidden="true"
-                />
-              </div>
-              <ul class="benefit-list">
-                <li
-                  v-for="item in verificationBenefits"
-                  :key="item.title"
-                  class="benefit-item"
+                <button
+                  class="ghost-action"
+                  type="button"
+                  :disabled="emailCodeResending || verificationCancelling"
+                  @click="handleResendEmailCode"
                 >
-                  <span class="benefit-icon">
-                    <component
-                      :is="item.icon"
-                      :size="20"
-                      aria-hidden="true"
-                    />
-                  </span>
-                  <span>
-                    <strong>{{ item.title }}</strong>
-                    <small>{{ item.copy }}</small>
-                  </span>
-                </li>
-              </ul>
-            </article>
-
-            <article
-              v-if="verification && verificationStatus === 'PENDING' && verification.method !== 'CAMPUS_EMAIL'"
-              class="panel-card verification-overview"
-            >
-              <div class="panel-heading">
-                <div>
-                  <p class="section-kicker">
-                    认证状态
-                  </p>
-                  <h2>审核中</h2>
-                </div>
-                <StatusBadge
-                  status="PENDING"
-                  tone="warning"
-                  label="审核中"
-                />
-              </div>
-              <p class="panel-copy">
-                你的认证资料已提交，正在等待管理员审核，请耐心等待。
-              </p>
-              <div class="pending-verification-actions">
+                  <RefreshCw
+                    :class="{ spinning: emailCodeResending }"
+                    :size="17"
+                    aria-hidden="true"
+                  />
+                  重发验证码
+                </button>
                 <button
                   class="ghost-action"
                   type="button"
@@ -1604,241 +1462,358 @@ onMounted(async () => {
                     :size="17"
                     aria-hidden="true"
                   />
-                  撤回认证
+                  取消本次认证
                 </button>
               </div>
-              <div class="step-list">
-                <div
-                  v-for="step in stepItems"
-                  :key="step.label"
-                  class="step-item"
-                  :class="{ done: step.done, 'connector-done': step.connectorDone }"
-                >
-                  <CheckCircle2
-                    :size="18"
-                    aria-hidden="true"
-                  />
-                  <span>{{ step.label }}</span>
-                </div>
-              </div>
-              <dl class="record-grid">
-                <div>
-                  <dt>认证方式</dt>
-                  <dd>{{ optionLabel(VERIFICATION_METHODS, verification?.method) }}</dd>
-                </div>
-                <div>
-                  <dt>学校</dt>
-                  <dd>{{ verification?.school || '未提交' }}</dd>
-                </div>
-                <div>
-                  <dt>院系</dt>
-                  <dd>{{ verification?.department || '未提交' }}</dd>
-                </div>
-              </dl>
-            </article>
-
-            <article
-              v-if="verification && verificationStatus === 'VERIFIED'"
-              class="panel-card verification-overview"
-            >
-              <div class="panel-heading">
-                <div>
-                  <p class="section-kicker">
-                    认证状态
-                  </p>
-                  <h2>{{ optionLabel(STATUS_OPTIONS, verificationStatus) }}</h2>
-                </div>
-                <StatusBadge :status="verificationStatus" />
-              </div>
-              <p class="panel-copy">
-                {{ statusCopy }}
-              </p>
-
-              <div class="step-list">
-                <div
-                  v-for="step in stepItems"
-                  :key="step.label"
-                  class="step-item"
-                  :class="{ done: step.done, 'connector-done': step.connectorDone }"
-                >
-                  <CheckCircle2
-                    :size="18"
-                    aria-hidden="true"
-                  />
-                  <span>{{ step.label }}</span>
-                </div>
-              </div>
-
-              <dl class="record-grid">
-                <div>
-                  <dt>认证方式</dt>
-                  <dd>{{ optionLabel(VERIFICATION_METHODS, verification?.method) }}</dd>
-                </div>
-                <div>
-                  <dt>学校</dt>
-                  <dd>{{ verification?.school || '未提交' }}</dd>
-                </div>
-                <div>
-                  <dt>院系</dt>
-                  <dd>{{ verification?.department || '未提交' }}</dd>
-                </div>
-                <div>
-                  <dt>提交时间</dt>
-                  <dd>{{ formatDate(verification?.createdAt) }}</dd>
-                </div>
-              </dl>
-            </article>
+            </div>
 
             <div
-              v-if="verification?.rejectReason"
-              class="panel-card reject-box"
+              v-else
+              class="locked-state"
             >
-              <strong>驳回原因</strong>
-              <span>{{ verification.rejectReason }}</span>
-            </div>
-          </template>
-
-          <template v-if="currentSubSection === 'settings'">
-            <article class="panel-card panel-card--wide settings-card">
-              <div class="panel-heading">
-                <div>
-                  <p class="section-kicker">
-                    账号安全
-                  </p>
-                  <h2>账号信息</h2>
-                </div>
+              <span class="locked-state-visual">
+                <ShieldCheck
+                  :size="56"
+                  aria-hidden="true"
+                />
+              </span>
+              <strong>{{ lockMessage }}</strong>
+              <span>你的校园身份已认证成功，无需重复提交。</span>
+              <div class="locked-actions">
+                <button
+                  class="primary-action primary-action--compact"
+                  type="button"
+                  @click="showToast('认证资料已在上方展示。')"
+                >
+                  <ClipboardList
+                    :size="17"
+                    aria-hidden="true"
+                  />
+                  查看认证资料
+                </button>
+                <button
+                  class="ghost-action ghost-action--compact"
+                  type="button"
+                  :disabled="loading || !isAuthenticated"
+                  @click="handleRefresh"
+                >
+                  <RefreshCw
+                    :class="{ spinning: loading }"
+                    :size="17"
+                    aria-hidden="true"
+                  />
+                  刷新状态
+                </button>
               </div>
-              <p class="panel-copy">
-                修改登录邮箱、密码或其他账号安全设置。
-              </p>
-              <button
-                class="primary-action"
-                type="button"
-                @click="showAccountModal = true"
+            </div>
+          </article>
+
+          <article class="panel-card safety-card">
+            <div class="panel-heading">
+              <div>
+                <p class="section-kicker">
+                  认证权益
+                </p>
+                <h2>通过后你可以</h2>
+              </div>
+              <Info
+                :size="22"
+                aria-hidden="true"
+              />
+            </div>
+            <ul class="benefit-list">
+              <li
+                v-for="item in verificationBenefits"
+                :key="item.title"
+                class="benefit-item"
               >
-                <UserPen
+                <span class="benefit-icon">
+                  <component
+                    :is="item.icon"
+                    :size="20"
+                    aria-hidden="true"
+                  />
+                </span>
+                <span>
+                  <strong>{{ item.title }}</strong>
+                  <small>{{ item.copy }}</small>
+                </span>
+              </li>
+            </ul>
+          </article>
+
+          <article
+            v-if="verification && verificationStatus === 'PENDING' && verification.method !== 'CAMPUS_EMAIL'"
+            class="panel-card verification-overview"
+          >
+            <div class="panel-heading">
+              <div>
+                <p class="section-kicker">
+                  认证状态
+                </p>
+                <h2>审核中</h2>
+              </div>
+              <StatusBadge
+                status="PENDING"
+                tone="warning"
+                label="审核中"
+              />
+            </div>
+            <p class="panel-copy">
+              你的认证资料已提交，正在等待管理员审核，请耐心等待。
+            </p>
+            <div class="pending-verification-actions">
+              <button
+                class="ghost-action"
+                type="button"
+                :disabled="verificationCancelling"
+                @click="handleCancelVerification"
+              >
+                <LoaderCircle
+                  v-if="verificationCancelling"
+                  class="spinning"
+                  :size="17"
+                  aria-hidden="true"
+                />
+                <X
+                  v-else
+                  :size="17"
+                  aria-hidden="true"
+                />
+                撤回认证
+              </button>
+            </div>
+            <div class="step-list">
+              <div
+                v-for="step in stepItems"
+                :key="step.label"
+                class="step-item"
+                :class="{ done: step.done, 'connector-done': step.connectorDone }"
+              >
+                <CheckCircle2
                   :size="18"
                   aria-hidden="true"
                 />
-                账号信息修改
-              </button>
+                <span>{{ step.label }}</span>
+              </div>
+            </div>
+            <dl class="record-grid">
+              <div>
+                <dt>认证方式</dt>
+                <dd>{{ optionLabel(VERIFICATION_METHODS, verification?.method) }}</dd>
+              </div>
+              <div>
+                <dt>学校</dt>
+                <dd>{{ verification?.school || '未提交' }}</dd>
+              </div>
+              <div>
+                <dt>院系</dt>
+                <dd>{{ verification?.department || '未提交' }}</dd>
+              </div>
+            </dl>
+          </article>
 
-              <div class="settings-section">
-                <div class="panel-heading">
-                  <div>
-                    <p class="section-kicker">
-                      外观
-                    </p>
-                    <h2>主题模式</h2>
-                  </div>
-                  <Palette
-                    :size="22"
+          <article
+            v-if="verification && verificationStatus === 'VERIFIED'"
+            class="panel-card verification-overview"
+          >
+            <div class="panel-heading">
+              <div>
+                <p class="section-kicker">
+                  认证状态
+                </p>
+                <h2>{{ optionLabel(STATUS_OPTIONS, verificationStatus) }}</h2>
+              </div>
+              <StatusBadge :status="verificationStatus" />
+            </div>
+            <p class="panel-copy">
+              {{ statusCopy }}
+            </p>
+
+            <div class="step-list">
+              <div
+                v-for="step in stepItems"
+                :key="step.label"
+                class="step-item"
+                :class="{ done: step.done, 'connector-done': step.connectorDone }"
+              >
+                <CheckCircle2
+                  :size="18"
+                  aria-hidden="true"
+                />
+                <span>{{ step.label }}</span>
+              </div>
+            </div>
+
+            <dl class="record-grid">
+              <div>
+                <dt>认证方式</dt>
+                <dd>{{ optionLabel(VERIFICATION_METHODS, verification?.method) }}</dd>
+              </div>
+              <div>
+                <dt>学校</dt>
+                <dd>{{ verification?.school || '未提交' }}</dd>
+              </div>
+              <div>
+                <dt>院系</dt>
+                <dd>{{ verification?.department || '未提交' }}</dd>
+              </div>
+              <div>
+                <dt>提交时间</dt>
+                <dd>{{ formatDate(verification?.createdAt) }}</dd>
+              </div>
+            </dl>
+          </article>
+
+          <div
+            v-if="verification?.rejectReason"
+            class="panel-card reject-box"
+          >
+            <strong>驳回原因</strong>
+            <span>{{ verification.rejectReason }}</span>
+          </div>
+        </template>
+
+        <template v-if="currentSubSection === 'settings'">
+          <article class="panel-card panel-card--wide settings-card">
+            <div class="panel-heading">
+              <div>
+                <p class="section-kicker">
+                  账号安全
+                </p>
+                <h2>账号信息</h2>
+              </div>
+            </div>
+            <p class="panel-copy">
+              修改登录邮箱、密码或其他账号安全设置。
+            </p>
+            <button
+              class="primary-action"
+              type="button"
+              @click="showAccountModal = true"
+            >
+              <UserPen
+                :size="18"
+                aria-hidden="true"
+              />
+              账号信息修改
+            </button>
+
+            <div class="settings-section">
+              <div class="panel-heading">
+                <div>
+                  <p class="section-kicker">
+                    外观
+                  </p>
+                  <h2>主题模式</h2>
+                </div>
+                <Palette
+                  :size="22"
+                  aria-hidden="true"
+                />
+              </div>
+              <div class="settings-options">
+                <button
+                  v-for="m in themeModes"
+                  :key="m.key"
+                  type="button"
+                  class="settings-option"
+                  :class="{ active: theme === m.key }"
+                  :aria-pressed="theme === m.key"
+                  @click="setTheme(m.key)"
+                >
+                  <component
+                    :is="m.icon"
+                    :size="18"
                     aria-hidden="true"
                   />
-                </div>
-                <div class="settings-options">
-                  <button
-                    v-for="m in themeModes"
-                    :key="m.key"
-                    type="button"
-                    class="settings-option"
-                    :class="{ active: theme === m.key }"
-                    :aria-pressed="theme === m.key"
-                    @click="setTheme(m.key)"
-                  >
-                    <component
-                      :is="m.icon"
-                      :size="18"
-                      aria-hidden="true"
-                    />
-                    <span>{{ m.label }}</span>
-                    <Check
-                      v-if="theme === m.key"
-                      class="check-mark"
-                      :size="16"
-                      aria-hidden="true"
-                    />
-                  </button>
-                </div>
-              </div>
-
-              <div class="settings-section">
-                <div class="panel-heading">
-                  <div>
-                    <p class="section-kicker">
-                      个性化
-                    </p>
-                    <h2>强调色</h2>
-                  </div>
-                  <Palette
-                    :size="22"
+                  <span>{{ m.label }}</span>
+                  <Check
+                    v-if="theme === m.key"
+                    class="check-mark"
+                    :size="16"
                     aria-hidden="true"
                   />
-                </div>
-                <div class="settings-options settings-options--swatches">
-                  <button
-                    v-for="a in accentOptions"
-                    :key="a.key"
-                    type="button"
-                    class="settings-swatch"
-                    :class="{ active: accent === a.key }"
-                    :style="{ '--swatch-color': a.color }"
-                    :aria-pressed="accent === a.key"
-                    @click="setAccent(a.key)"
-                  >
-                    <span
-                      class="swatch-dot"
-                      :style="{ backgroundColor: a.color }"
-                    />
-                    <span class="swatch-label">{{ a.label }}</span>
-                    <Check
-                      v-if="accent === a.key"
-                      class="check-mark"
-                      :size="16"
-                      aria-hidden="true"
-                    />
-                  </button>
-                </div>
+                </button>
               </div>
+            </div>
 
-              <div class="settings-section">
-                <div class="panel-heading">
-                  <div>
-                    <p class="section-kicker">
-                      布局
-                    </p>
-                    <h2>界面密度</h2>
-                  </div>
-                  <LayoutGrid
-                    :size="22"
+            <div class="settings-section">
+              <div class="panel-heading">
+                <div>
+                  <p class="section-kicker">
+                    个性化
+                  </p>
+                  <h2>强调色</h2>
+                </div>
+                <Palette
+                  :size="22"
+                  aria-hidden="true"
+                />
+              </div>
+              <div class="settings-options settings-options--swatches">
+                <button
+                  v-for="a in accentOptions"
+                  :key="a.key"
+                  type="button"
+                  class="settings-swatch"
+                  :class="{ active: accent === a.key }"
+                  :style="{ '--swatch-color': a.color }"
+                  :aria-pressed="accent === a.key"
+                  @click="setAccent(a.key)"
+                >
+                  <span
+                    class="swatch-dot"
+                    :style="{ backgroundColor: a.color }"
+                  />
+                  <span class="swatch-label">{{ a.label }}</span>
+                  <Check
+                    v-if="accent === a.key"
+                    class="check-mark"
+                    :size="16"
                     aria-hidden="true"
                   />
-                </div>
-                <div class="settings-options">
-                  <button
-                    v-for="d in densityOptions"
-                    :key="d.key"
-                    type="button"
-                    class="settings-option settings-option--density"
-                    :class="{ active: density === d.key }"
-                    :aria-pressed="density === d.key"
-                    @click="setDensity(d.key)"
-                  >
-                    <span class="density-preview">A</span>
-                    <span class="density-label">{{ d.label }}</span>
-                    <small class="density-hint">{{ d.hint }}</small>
-                    <Check
-                      v-if="density === d.key"
-                      class="check-mark"
-                      :size="16"
-                      aria-hidden="true"
-                    />
-                  </button>
-                </div>
+                </button>
               </div>
-            </article>
-          </template>
-        </div>
+            </div>
+
+            <div class="settings-section">
+              <div class="panel-heading">
+                <div>
+                  <p class="section-kicker">
+                    布局
+                  </p>
+                  <h2>界面密度</h2>
+                </div>
+                <LayoutGrid
+                  :size="22"
+                  aria-hidden="true"
+                />
+              </div>
+              <div class="settings-options">
+                <button
+                  v-for="d in densityOptions"
+                  :key="d.key"
+                  type="button"
+                  class="settings-option settings-option--density"
+                  :class="{ active: density === d.key }"
+                  :aria-pressed="density === d.key"
+                  @click="setDensity(d.key)"
+                >
+                  <span class="density-preview">A</span>
+                  <span class="density-label">{{ d.label }}</span>
+                  <small class="density-hint">{{ d.hint }}</small>
+                  <Check
+                    v-if="density === d.key"
+                    class="check-mark"
+                    :size="16"
+                    aria-hidden="true"
+                  />
+                </button>
+              </div>
+            </div>
+          </article>
+        </template>
       </div>
     </main>
   </DashboardShell>
@@ -1851,21 +1826,9 @@ onMounted(async () => {
 
 <style scoped>
 .workspace-page {
-  min-height: 100%;
-}
-
-.workspace-layout {
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
   gap: 18px;
-  margin-top: 18px;
-}
-
-.workspace-section-nav {
-  position: sticky;
-  top: calc(var(--topbar-height) + 22px);
-  align-self: start;
-  height: fit-content;
+  min-height: 100%;
 }
 
 .workspace-content {
@@ -1879,7 +1842,6 @@ onMounted(async () => {
   grid-column: 1 / -1;
 }
 
-.page-title-card,
 .panel-card {
   border: 1px solid var(--color-border);
   border-radius: 8px;
@@ -1887,52 +1849,7 @@ onMounted(async () => {
   box-shadow: var(--shadow-card);
 }
 
-.page-title-card {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 20px;
-  min-height: 104px;
-  padding: 18px 28px;
-}
-
-.title-icon {
-  display: grid;
-  place-items: center;
-  width: 60px;
-  height: 60px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, var(--color-brand-soft), var(--color-brand-soft));
-  color: var(--color-brand-text);
-}
-
-.title-copy {
-  display: grid;
-  gap: 5px;
-}
-
-.title-copy p,
-.section-kicker {
-  margin: 0;
-  color: var(--color-brand-text);
-  font-size: 0.82rem;
-  font-weight: 900;
-}
-
-.title-copy h1 {
-  margin: 0;
-  color: var(--color-text);
-  font-size: 1.5rem;
-  font-weight: 900;
-  line-height: 1.1;
-}
-
-.title-copy span {
-  color: var(--color-text-muted);
-  font-size: 0.9rem;
-}
-
-.page-title-card :deep(.status-badge--success),
+.module-topbar :deep(.status-badge--success),
 .verification-overview :deep(.status-badge--success) {
   min-height: 32px;
   padding: 0 13px;
@@ -2866,14 +2783,6 @@ onMounted(async () => {
 }
 
 @media (max-width: 1100px) {
-  .workspace-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .workspace-section-nav {
-    position: static;
-  }
-
   .workspace-content {
     grid-template-columns: 1fr;
   }
@@ -2902,7 +2811,6 @@ onMounted(async () => {
     grid-template-columns: 1fr;
   }
 
-  .page-title-card,
   .profile-hero,
   .verification-form,
   .profile-form,

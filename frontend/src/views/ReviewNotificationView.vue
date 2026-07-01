@@ -3,7 +3,6 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import {
   Bell,
-  BellDot,
   Check,
   CheckCheck,
   CheckCircle2,
@@ -20,7 +19,8 @@ import {
 } from '@lucide/vue'
 import { workspaceNavItems } from '../app/navigation'
 import DashboardShell from '../components/DashboardShell.vue'
-import SectionNav from '../components/layout/SectionNav.vue'
+import ModuleTopbar from '../components/layout/ModuleTopbar.vue'
+import ModuleEntryCard from '../components/layout/ModuleEntryCard.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import { useNotificationCenter } from '../composables/useNotificationCenter'
 import { useToast } from '../composables/useToast'
@@ -541,34 +541,23 @@ onMounted(async () => {
       class="fe08-page"
       :class="{ 'fe08-page--notifications': activeSection === 'notifications' }"
     >
-      <section class="page-title-card fe08-title-card">
-        <div class="title-icon">
-          <component
-            :is="activeSection === 'notifications' ? BellDot : Star"
-            :size="34"
-            aria-hidden="true"
-          />
-        </div>
-        <div class="title-copy">
-          <p>{{ activeSection === 'notifications' ? '通知中心' : '评价记录' }}</p>
-          <h1>{{ activeSection === 'notifications' ? '消息通知与已读管理' : '任务评分评价中心' }}</h1>
-          <span>
-            {{
-              activeSection === 'notifications'
-                ? '集中查看系统通知、任务提醒和未读消息。'
-                : '围绕任务完成后的互评和信用记录，保留真实可追溯的协作状态。'
-            }}
-          </span>
-        </div>
-      </section>
-
-      <SectionNav
-        class="review-section-nav"
-        :items="workspaceNavItems"
-        :active-key="route.meta?.subSection"
-        variant="rail"
-        aria-label="工作台二级导航"
-      />
+      <ModuleTopbar
+        eyebrow="工作台"
+        :title="activeSection === 'notifications' ? '通知中心' : '评价记录'"
+        :description="activeSection === 'notifications'
+          ? '系统通知与未读消息。'
+          : '查看评价与信用。'"
+      >
+        <ModuleEntryCard
+          v-for="item in workspaceNavItems"
+          :key="item.key"
+          :to="item.to"
+          :icon="item.icon"
+          :title="item.label"
+          :description="item.description"
+          :active="route.meta?.subSection === item.key"
+        />
+      </ModuleTopbar>
 
       <section
         v-if="activeSection === 'reviews'"
@@ -1111,102 +1100,15 @@ onMounted(async () => {
 <style scoped>
 .fe08-page {
   display: grid;
-  grid-template-columns: minmax(184px, 218px) minmax(0, 1fr);
-  grid-template-areas:
-    "title title"
-    "nav metrics"
-    "nav content";
   gap: 20px;
   align-items: start;
 }
 
-.fe08-title-card {
-  grid-area: title;
-}
-
-.fe08-page--notifications {
-  grid-template-areas:
-    "title title"
-    "nav content";
-}
-
-.review-section-nav {
-  grid-area: nav;
-  align-self: start;
-  position: sticky;
-  top: 96px;
-  padding: 8px;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
-  box-shadow: none;
-}
-
-.metric-strip {
-  grid-area: metrics;
-}
-
-.review-layout,
-.notification-layout {
-  grid-area: content;
-}
-
-.page-title-card,
 .panel-card {
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-surface);
   box-shadow: 0 10px 24px color-mix(in srgb, var(--shadow-card) 72%, transparent);
-}
-
-.fe08-title-card {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 22px;
-  min-height: 112px;
-  padding: 20px 28px;
-}
-
-.title-icon {
-  display: grid;
-  place-items: center;
-  width: 56px;
-  height: 56px;
-  border-radius: 8px;
-  background: var(--color-info-bg);
-  color: var(--color-info);
-}
-
-.title-copy {
-  display: grid;
-  gap: 6px;
-}
-
-.title-copy p,
-.section-kicker {
-  margin: 0;
-  color: var(--color-info);
-  font-size: 0.82rem;
-  font-weight: 900;
-}
-
-.title-copy h1,
-.panel-heading h2 {
-  margin: 0;
-  color: var(--color-text);
-  font-weight: 900;
-  line-height: 1.15;
-}
-
-.title-copy h1 {
-  font-size: 1.5rem;
-}
-
-.title-copy span,
-.panel-copy {
-  color: var(--color-text-muted);
-  line-height: 1.6;
 }
 
 .filter-tabs,
@@ -1803,35 +1705,6 @@ onMounted(async () => {
 }
 
 @media (max-width: 1180px) {
-  .fe08-page {
-    grid-template-columns: 1fr;
-    grid-template-areas:
-      "title"
-      "nav"
-      "metrics"
-      "content";
-  }
-
-  .fe08-page--notifications {
-    grid-template-areas:
-      "title"
-      "nav"
-      "content";
-  }
-
-  .review-section-nav {
-    position: static;
-    padding: 0;
-    border: 0;
-    background: transparent;
-  }
-
-  .metric-strip,
-  .review-layout,
-  .notification-layout {
-    grid-area: auto;
-  }
-
   .review-layout,
   .notification-layout {
     grid-template-columns: 1fr;
@@ -1845,15 +1718,10 @@ onMounted(async () => {
 }
 
 @media (max-width: 760px) {
-  .fe08-title-card,
   .metric-strip,
   .review-context,
   .notification-tools {
     grid-template-columns: 1fr;
-  }
-
-  .fe08-title-card {
-    padding: 18px;
   }
 
   .review-task-topline,

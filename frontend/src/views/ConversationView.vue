@@ -16,7 +16,8 @@ import {
 } from '@lucide/vue'
 import { workspaceNavItems } from '../app/navigation'
 import DashboardShell from '../components/DashboardShell.vue'
-import SectionNav from '../components/layout/SectionNav.vue'
+import ModuleTopbar from '../components/layout/ModuleTopbar.vue'
+import ModuleEntryCard from '../components/layout/ModuleEntryCard.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import { useNotificationCenter } from '../composables/useNotificationCenter'
 import { useToast } from '../composables/useToast'
@@ -747,13 +748,21 @@ onMounted(async () => {
 <template>
   <DashboardShell active-label="消息通知">
     <main class="message-page">
-      <SectionNav
-        class="conversation-section-nav"
-        :items="workspaceNavItems"
-        :active-key="route.meta?.subSection"
-        variant="rail"
-        aria-label="工作台二级导航"
-      />
+      <ModuleTopbar
+        eyebrow="工作台"
+        title="消息私信"
+        description="站内会话与沟通。"
+      >
+        <ModuleEntryCard
+          v-for="item in workspaceNavItems"
+          :key="item.key"
+          :to="item.to"
+          :icon="item.icon"
+          :title="item.label"
+          :description="item.description"
+          :active="route.meta?.subSection === item.key"
+        />
+      </ModuleTopbar>
 
       <section class="message-shell">
         <aside class="conversation-list-panel panel-card">
@@ -1122,14 +1131,8 @@ onMounted(async () => {
 <style scoped>
 .message-page {
   display: grid;
-  grid-template-columns: minmax(220px, 270px) minmax(0, 1fr);
   gap: 18px;
   align-items: start;
-}
-
-.conversation-section-nav {
-  position: sticky;
-  top: 18px;
 }
 
 .message-shell {
@@ -1545,14 +1548,6 @@ onMounted(async () => {
 }
 
 @media (max-width: 1200px) {
-  .message-page {
-    grid-template-columns: 1fr;
-  }
-
-  .conversation-section-nav {
-    position: static;
-  }
-
   .message-shell {
     grid-template-columns: 1fr;
   }

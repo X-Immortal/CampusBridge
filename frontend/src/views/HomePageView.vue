@@ -3,17 +3,18 @@ import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   BookOpen,
-  Briefcase,
   Flame,
+  Grid2X2,
+  LayoutDashboard,
   LoaderCircle,
   MessageCircle,
-  Sparkles,
   ThumbsUp,
   Clock3,
-  ArrowRight,
   MapPin
 } from '@lucide/vue'
 import DashboardShell from '../components/DashboardShell.vue'
+import ModuleTopbar from '../components/layout/ModuleTopbar.vue'
+import ModuleEntryCard from '../components/layout/ModuleEntryCard.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import api from '../services/api'
 import { useAuth } from '../stores/auth'
@@ -95,48 +96,31 @@ onMounted(async () => {
       class="home-page"
       :aria-busy="loading"
     >
-      <!-- Hero banner -->
-      <section class="hero-banner">
-        <div class="hero-content">
-          <div class="hero-icon">
-            <Sparkles
-              :size="36"
-              aria-hidden="true"
-            />
-          </div>
-          <div>
-            <p class="hero-kicker">
-              校园生活一站通
-            </p>
-            <h1>欢迎来到 CampusBridge</h1>
-            <span class="hero-subtitle">浏览热门帖子、发现最新任务，让校园协作更高效。</span>
-          </div>
-        </div>
-        <div class="hero-actions">
-          <button
-            class="primary-action"
-            type="button"
-            @click="goPosts"
-          >
-            <BookOpen
-              :size="18"
-              aria-hidden="true"
-            />
-            浏览帖子
-          </button>
-          <button
-            class="ghost-action"
-            type="button"
-            @click="goTasks"
-          >
-            <Briefcase
-              :size="18"
-              aria-hidden="true"
-            />
-            查看任务
-          </button>
-        </div>
-      </section>
+      <!-- Module topbar -->
+      <ModuleTopbar
+        eyebrow="校园生活一站通"
+        title="发现校园协作"
+        description="浏览热门帖子、发现最新任务，让校园协作更高效。"
+      >
+        <ModuleEntryCard
+          :to="{ name: 'post-list' }"
+          :icon="BookOpen"
+          title="浏览校园帖子"
+          description="查看校园讨论与经验分享"
+        />
+        <ModuleEntryCard
+          :to="{ name: 'task-list' }"
+          :icon="Grid2X2"
+          title="任务广场"
+          description="浏览公开任务"
+        />
+        <ModuleEntryCard
+          :to="{ name: 'workspace' }"
+          :icon="LayoutDashboard"
+          title="工作台概览"
+          description="账户状态与快捷入口"
+        />
+      </ModuleTopbar>
 
       <!-- Loading state -->
       <div
@@ -160,46 +144,6 @@ onMounted(async () => {
       </div>
 
       <template v-else>
-        <!-- Quick nav cards -->
-        <section class="quick-nav">
-          <button
-            class="quick-nav-card"
-            type="button"
-            @click="goPosts"
-          >
-            <BookOpen
-              :size="24"
-              aria-hidden="true"
-            />
-            <div>
-              <strong>帖子广场</strong>
-              <span>问询、闲置、组队、社交</span>
-            </div>
-            <ArrowRight
-              :size="18"
-              aria-hidden="true"
-            />
-          </button>
-          <button
-            class="quick-nav-card"
-            type="button"
-            @click="goTasks"
-          >
-            <Briefcase
-              :size="24"
-              aria-hidden="true"
-            />
-            <div>
-              <strong>任务大厅</strong>
-              <span>跑腿代取、代办委托</span>
-            </div>
-            <ArrowRight
-              :size="18"
-              aria-hidden="true"
-            />
-          </button>
-        </section>
-
         <!-- Hot posts -->
         <section class="home-section">
           <div class="section-header">
@@ -376,119 +320,6 @@ onMounted(async () => {
   padding: 24px 20px 40px;
 }
 
-.hero-banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  padding: 28px 32px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, var(--color-brand) 0%, var(--color-brand-hover) 100%);
-  color: #fff;
-  flex-wrap: wrap;
-}
-
-.hero-content {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-}
-
-.hero-icon {
-  display: grid;
-  place-items: center;
-  width: 56px;
-  height: 56px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.18);
-  flex-shrink: 0;
-}
-
-.hero-kicker {
-  margin: 0 0 4px;
-  font-size: 0.85rem;
-  font-weight: 700;
-  opacity: 0.85;
-}
-
-.hero-banner h1 {
-  margin: 0 0 6px;
-  font-size: 1.5rem;
-  font-weight: 900;
-}
-
-.hero-subtitle {
-  font-size: 0.92rem;
-  opacity: 0.85;
-}
-
-.hero-actions {
-  display: flex;
-  gap: 10px;
-  flex-shrink: 0;
-}
-
-.hero-actions .primary-action {
-  background: var(--color-surface);
-  color: var(--color-brand);
-  border: none;
-}
-
-.hero-actions .ghost-action {
-  background: rgba(255, 255, 255, 0.15);
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.3);
-}
-
-.hero-actions .ghost-action:hover {
-  background: rgba(255, 255, 255, 0.25);
-}
-
-.quick-nav {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 14px;
-}
-
-.quick-nav-card {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 16px 20px;
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  background: var(--color-surface);
-  cursor: pointer;
-  transition: border-color 0.15s, box-shadow 0.15s;
-  text-align: left;
-  width: 100%;
-}
-
-.quick-nav-card:hover {
-  border-color: var(--color-brand-border);
-  box-shadow: 0 2px 8px var(--shadow-card);
-}
-
-.quick-nav-card div {
-  display: grid;
-  gap: 2px;
-  flex: 1;
-}
-
-.quick-nav-card strong {
-  font-size: 0.95rem;
-  color: var(--color-text);
-}
-
-.quick-nav-card span {
-  font-size: 0.82rem;
-  color: var(--color-text-muted);
-}
-
-.quick-nav-card svg:last-child {
-  color: var(--color-text-muted);
-}
-
 .home-section {
   display: grid;
   gap: 14px;
@@ -618,20 +449,6 @@ onMounted(async () => {
 }
 
 @media (max-width: 768px) {
-  .hero-banner {
-    flex-direction: column;
-    align-items: flex-start;
-    padding: 20px;
-  }
-
-  .hero-actions {
-    width: 100%;
-  }
-
-  .hero-actions button {
-    flex: 1;
-  }
-
   .home-card-grid {
     grid-template-columns: 1fr;
   }

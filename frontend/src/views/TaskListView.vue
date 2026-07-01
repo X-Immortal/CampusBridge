@@ -37,7 +37,8 @@ import {
   X
 } from '@lucide/vue'
 import DashboardShell from '../components/DashboardShell.vue'
-import SectionNav from '../components/layout/SectionNav.vue'
+import ModuleTopbar from '../components/layout/ModuleTopbar.vue'
+import ModuleEntryCard from '../components/layout/ModuleEntryCard.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import UserProfileModal from '../components/UserProfileModal.vue'
 import { taskNavItems } from '../app/navigation'
@@ -362,16 +363,6 @@ const proofAttachmentItems = computed(() =>
       []
   )
 )
-const pageTitle = computed(() => {
-  if (isDraftView.value) return '管理任务草稿'
-  return isMineView.value ? '管理自己发布的任务' : '找到值得接、能准时完成的校园互助'
-})
-const pageSubtitle = computed(() => {
-  if (isDraftView.value) return '只显示未发布的任务草稿，可继续编辑或删除。'
-  return isMineView.value
-    ? '集中查看任务状态、报名情况、截止时间与完成进度。'
-    : '按校区、奖励、凭证和任务状态快速筛选，再查看完整细节后申请。'
-})
 const listRouteName = computed(() => {
   if (isDraftView.value) return 'workspace-drafts'
   return isMineView.value ? 'workspace-tasks' : 'task-list'
@@ -379,10 +370,6 @@ const listRouteName = computed(() => {
 const detailRouteName = computed(() => {
   if (isDraftView.value) return 'workspace-drafts'
   return isMineView.value ? 'workspace-task-detail' : 'task-detail'
-})
-const taskSectionEyebrow = computed(() => {
-  if (isDraftView.value) return '任务草稿'
-  return isMineView.value ? '我的任务' : '任务广场'
 })
 const taskListTitle = computed(() => {
   if (isDraftView.value) return `${pagination.total} 条草稿 · 第 ${pagination.page} 页`
@@ -1970,39 +1957,34 @@ onMounted(async () => {
       :class="{ 'tasks-page--mine': isMineView }"
       :aria-busy="listLoading"
     >
-      <section class="page-title-card tasks-title-card">
-        <div class="title-icon">
-          <component
-            :is="route.name === 'workspace-drafts' ? FileText : (isMineView ? ClipboardCheck : Filter)"
-            :size="32"
-            aria-hidden="true"
-          />
-        </div>
-        <div class="title-copy">
-          <p>{{ taskSectionEyebrow }}</p>
-          <h1>{{ pageTitle }}</h1>
-          <span>{{ pageSubtitle }}</span>
-        </div>
-        <button
-          class="publish-shortcut"
-          type="button"
-          @click="handlePublishShortcut"
-        >
-          <PlusCircle
-            :size="18"
-            aria-hidden="true"
-          />
-          发布任务
-        </button>
-      </section>
-
-      <SectionNav
-        class="task-section-nav"
-        :items="taskNavItems"
-        :active-key="route.meta.subSection"
-        variant="tabs"
-        aria-label="任务二级导航"
-      />
+      <ModuleTopbar
+        eyebrow="任务"
+        title="任务中心"
+        description="浏览、管理与继续编辑任务。"
+      >
+        <template #extra>
+          <button
+            class="primary-action"
+            type="button"
+            @click="handlePublishShortcut"
+          >
+            <PlusCircle
+              :size="18"
+              aria-hidden="true"
+            />
+            发布任务
+          </button>
+        </template>
+        <ModuleEntryCard
+          v-for="item in taskNavItems"
+          :key="item.key"
+          :to="item.to"
+          :icon="item.icon"
+          :title="item.label"
+          :description="item.description"
+          :active="route.meta.subSection === item.key"
+        />
+      </ModuleTopbar>
 
       <section
         class="tasks-layout tasks-layout--full"
@@ -4003,18 +3985,12 @@ onMounted(async () => {
   gap: 20px;
 }
 
-.task-section-nav {
-  width: fit-content;
-  max-width: 100%;
-}
-
 .tasks-page--mine {
   gap: 14px;
   width: 100%;
   color: var(--color-text);
 }
 
-.page-title-card,
 .panel-card {
   border: 1px solid var(--color-border);
   border-radius: 8px;
@@ -4022,31 +3998,6 @@ onMounted(async () => {
   box-shadow: var(--shadow-card);
 }
 
-.page-title-card {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 28px;
-  min-height: 132px;
-  padding: 26px 38px;
-}
-
-.title-icon {
-  display: grid;
-  place-items: center;
-  width: 78px;
-  height: 82px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, var(--color-brand-soft), var(--color-brand-soft));
-  color: var(--color-brand-text);
-}
-
-.title-copy {
-  display: grid;
-  gap: 8px;
-}
-
-.title-copy p,
 .section-kicker {
   margin: 0;
   color: var(--color-brand-text);
@@ -4054,7 +4005,6 @@ onMounted(async () => {
   font-weight: 900;
 }
 
-.title-copy h1,
 .filter-heading h2,
 .list-toolbar h2,
 .detail-topbar h2 {
@@ -4064,17 +4014,11 @@ onMounted(async () => {
   line-height: 1.15;
 }
 
-.title-copy h1 {
-  font-size: 1.9rem;
-}
-
-.title-copy span,
 .list-toolbar span {
   color: var(--color-text-muted);
   line-height: 1.55;
 }
 
-.publish-shortcut,
 .primary-action,
 .ghost-action,
 .danger-action,
@@ -4093,7 +4037,6 @@ onMounted(async () => {
     box-shadow 180ms ease;
 }
 
-.publish-shortcut,
 .primary-action,
 .search-submit {
   min-height: 44px;
@@ -4103,12 +4046,6 @@ onMounted(async () => {
   box-shadow: var(--shadow-button);
 }
 
-.publish-shortcut {
-  padding: 0 16px;
-  white-space: nowrap;
-}
-
-.publish-shortcut:hover,
 .primary-action:hover:not(:disabled),
 .search-submit:hover:not(:disabled) {
   background: var(--color-brand-text);
@@ -4164,7 +4101,6 @@ onMounted(async () => {
   opacity: 0.62;
 }
 
-.publish-shortcut:focus-visible,
 .primary-action:focus-visible,
 .ghost-action:focus-visible,
 .danger-action:focus-visible,
@@ -6482,7 +6418,6 @@ onMounted(async () => {
 }
 
 @media (max-width: 900px) {
-  .page-title-card,
   .filter-grid,
   .metric-strip,
   .metric-strip--mine,
@@ -6496,11 +6431,6 @@ onMounted(async () => {
   .completion-steps,
   .completion-upload-grid {
     grid-template-columns: 1fr;
-  }
-
-  .page-title-card {
-    gap: 18px;
-    padding: 22px;
   }
 
   .filter-heading,
@@ -6566,7 +6496,6 @@ onMounted(async () => {
     width: 100%;
   }
 
-  .publish-shortcut,
   .primary-action,
   .ghost-action,
   .danger-action,
@@ -6582,11 +6511,6 @@ onMounted(async () => {
 
   .pagination-bar--mine {
     grid-template-columns: 1fr auto 1fr;
-  }
-
-  .title-icon {
-    width: 64px;
-    height: 64px;
   }
 
   .empty-actions {

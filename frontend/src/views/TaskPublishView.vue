@@ -29,6 +29,7 @@ import {
   Target
 } from '@lucide/vue'
 import DashboardShell from '../components/DashboardShell.vue'
+import ModuleTopbar from '../components/layout/ModuleTopbar.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import { optionLabel, REWARD_TYPE_OPTIONS, TASK_CATEGORY_OPTIONS } from '../constants'
 import api from '../services/api'
@@ -790,23 +791,18 @@ watch(
       class="publish-page"
       :aria-busy="submitting"
     >
-      <section class="page-title-card">
-        <div class="title-icon">
-          <Send
-            :size="32"
-            aria-hidden="true"
+      <ModuleTopbar
+        :eyebrow="pageMeta.kicker"
+        :title="pageMeta.title"
+        :description="pageMeta.copy"
+      >
+        <template #extra>
+          <StatusBadge
+            :label="pageMeta.status"
+            :tone="canPublish ? 'success' : 'warning'"
           />
-        </div>
-        <div class="title-copy">
-          <p>{{ pageMeta.kicker }}</p>
-          <h1>{{ pageMeta.title }}</h1>
-          <span>{{ pageMeta.copy }}</span>
-        </div>
-        <StatusBadge
-          :label="pageMeta.status"
-          :tone="canPublish ? 'success' : 'warning'"
-        />
-      </section>
+        </template>
+      </ModuleTopbar>
 
       <section
         v-if="loadingSource"
@@ -1546,7 +1542,6 @@ watch(
   gap: 20px;
 }
 
-.page-title-card,
 .panel-card,
 .page-feedback,
 .draft-alert,
@@ -1557,31 +1552,6 @@ watch(
   box-shadow: var(--shadow-card);
 }
 
-.page-title-card {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 28px;
-  min-height: 132px;
-  padding: 26px 38px;
-}
-
-.title-icon {
-  display: grid;
-  place-items: center;
-  width: 78px;
-  height: 82px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, var(--color-brand-soft), var(--color-brand-soft));
-  color: var(--color-brand-text);
-}
-
-.title-copy {
-  display: grid;
-  gap: 8px;
-}
-
-.title-copy p,
 .section-kicker,
 .section-heading p {
   margin: 0;
@@ -1590,22 +1560,12 @@ watch(
   font-weight: 900;
 }
 
-.title-copy h1,
 .panel-heading h2,
 .section-heading h2 {
   margin: 0;
   color: var(--color-text);
   font-weight: 900;
   line-height: 1.15;
-}
-
-.title-copy h1 {
-  font-size: 1.9rem;
-}
-
-.title-copy span {
-  color: var(--color-text-muted);
-  font-size: 1rem;
 }
 
 .gate-alert,
@@ -2177,7 +2137,6 @@ watch(
 }
 
 @media (max-width: 900px) {
-  .page-title-card,
   .category-selector,
   .reward-selector,
   .preference-grid,
@@ -2187,23 +2146,9 @@ watch(
   .publish-side {
     grid-template-columns: 1fr;
   }
-
-  .page-title-card {
-    gap: 18px;
-    padding: 22px;
-  }
 }
 
 @media (max-width: 640px) {
-  .page-title-card {
-    grid-template-columns: 1fr;
-  }
-
-  .title-icon {
-    width: 64px;
-    height: 64px;
-  }
-
   .panel-card {
     padding: 18px;
   }
@@ -2239,43 +2184,6 @@ watch(
   border-radius: 8px;
   background: var(--color-surface);
   box-shadow: none;
-}
-
-.page-title-card {
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  min-height: 132px;
-  padding: 26px 38px;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-card);
-}
-
-.title-icon {
-  width: 78px;
-  height: 82px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, var(--color-brand-soft), var(--color-brand-soft));
-  color: var(--color-brand-text);
-}
-
-.title-copy {
-  gap: 8px;
-}
-
-.title-copy p {
-  color: var(--color-brand-text);
-  font-size: 0.92rem;
-}
-
-.title-copy h1 {
-  color: var(--color-text);
-  font-size: 1.9rem;
-  line-height: 1.15;
-}
-
-.title-copy span {
-  color: var(--color-text-muted);
-  font-size: 1rem;
 }
 
 .publish-layout {
@@ -2685,23 +2593,6 @@ watch(
 @media (max-width: 640px) {
   .publish-page {
     gap: 12px;
-  }
-
-  .page-title-card {
-    grid-template-columns: 1fr;
-  }
-
-  .title-icon {
-    width: 64px;
-    height: 64px;
-  }
-
-  .title-copy h1 {
-    font-size: 1.48rem;
-  }
-
-  .page-title-card :deep(.status-badge) {
-    grid-column: 1 / -1;
   }
 
   .category-selector {
