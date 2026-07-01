@@ -34,4 +34,8 @@ public interface PostInteractionMapper {
             @Param("type") String type);
 
     int deleteById(Long id);
+
+    List<String> selectPreferredPostCategories(
+            @Param("userId") Long userId,
+            @Param("limit") int limit);
 }

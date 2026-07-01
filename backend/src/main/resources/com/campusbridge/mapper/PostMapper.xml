@@ -148,4 +148,12 @@
     ORDER BY p.created_at DESC
   </select>
 
+  <select id="selectAllPublishedPosts" resultType="com.campusbridge.pojo.Post">
+    SELECT p.*, up.nickname AS author_name
+    FROM posts p
+    LEFT JOIN user_profiles up ON up.user_id = p.author_id
+    WHERE p.status = 'PUBLISHED'
+    ORDER BY p.created_at DESC
+  </select>
+
 </mapper>

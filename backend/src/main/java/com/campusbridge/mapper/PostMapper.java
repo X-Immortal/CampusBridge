@@ -47,4 +47,6 @@ public interface PostMapper {
     List<Post> selectHotPosts(@Param("size") Integer size);
 
     List<Post> selectByIds(@Param("ids") List<Long> ids);
+
+    List<Post> selectAllPublishedPosts();
 }

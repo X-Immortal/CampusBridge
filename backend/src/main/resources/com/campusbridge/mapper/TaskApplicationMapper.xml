@@ -67,4 +67,28 @@
     WHERE id = #{id}
   </delete>
 
+  <select id="selectPreferredCategories" resultType="java.lang.String">
+    SELECT t.category
+    FROM task_applications ta
+    JOIN tasks t ON t.id = ta.task_id
+    WHERE ta.applicant_id = #{userId}
+      AND ta.status = 'ACCEPTED'
+      AND t.category IS NOT NULL
+    GROUP BY t.category
+    ORDER BY COUNT(*) DESC
+    LIMIT #{limit}
+  </select>
+
+  <select id="selectPreferredRewardTypes" resultType="java.lang.String">
+    SELECT t.reward_type
+    FROM task_applications ta
+    JOIN tasks t ON t.id = ta.task_id
+    WHERE ta.applicant_id = #{userId}
+      AND ta.status = 'ACCEPTED'
+      AND t.reward_type IS NOT NULL
+    GROUP BY t.reward_type
+    ORDER BY COUNT(*) DESC
+    LIMIT #{limit}
+  </select>
+
 </mapper>
