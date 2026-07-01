@@ -19,6 +19,10 @@ public interface ReplyMapper {
             @Param("offset") Integer offset,
             @Param("size") Integer size);
 
+    List<Reply> selectByAuthorAndPostIds(
+            @Param("authorId") Long authorId,
+            @Param("postIds") List<Long> postIds);
+
     long countByPostId(@Param("postId") Long postId);
 
     int updateById(Reply entity);

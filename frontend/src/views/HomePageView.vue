@@ -21,7 +21,7 @@ import ModuleTopbar from '../components/layout/ModuleTopbar.vue'
 import ModuleEntryCard from '../components/layout/ModuleEntryCard.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import TaskDetailModal from '../components/TaskDetailModal.vue'
-import { POST_STATUS_OPTIONS } from '../constants'
+import { optionLabel, POST_CATEGORY_OPTIONS, POST_STATUS_OPTIONS, TASK_CATEGORY_OPTIONS } from '../constants'
 import api from '../services/api'
 import { useAuth } from '../stores/auth'
 import { useToast } from '../composables/useToast'
@@ -46,29 +46,31 @@ const postModalLoading = ref(false)
 const postModalData = ref(null)
 const postModalError = ref('')
 
-const categoryLabelMap = {
-  INQUIRY_HELP: '问询求助',
-  SECOND_HAND: '二手闲置',
-  TEAM_FRIEND: '组队搭子',
-  CAMPUS_SOCIAL: '校园交流'
-}
-
-function postCategoryLabel(category) {
-  return categoryLabelMap[category] || category || '未分类'
-}
-
 function postStatusMeta(status) {
   return POST_STATUS_OPTIONS.find((o) => o.value === status) || { value: status, label: status || '未知', tone: 'muted' }
 }
-
-const taskCategoryLabels = {
-  ERRAND: '跑腿代取',
-  AGENCY: '代办委托'
-}
-
 const taskCategoryTones = {
   ERRAND: 'info',
   AGENCY: 'warn'
+}
+
+function postCategoryLabel(category) {
+  const label = optionLabel(POST_CATEGORY_OPTIONS, category)
+  return label === category ? '校园帖子' : label
+}
+
+function taskCategoryLabel(category) {
+  const label = optionLabel(TASK_CATEGORY_OPTIONS, category)
+  return label === category ? '校园任务' : label
+}
+
+function cleanDisplayTitle(value, fallback) {
+  const text = String(value || '').trim()
+  if (!text) return fallback
+  return text
+    .replace(/^\s*#?\d+\s*[-_—:：.)、]\s*/u, '')
+    .replace(/\s*[-_—:：(（]?\s*#\d+\s*[)）]?\s*$/u, '')
+    .trim() || fallback
 }
 
 function formatDateTime(value) {
@@ -86,7 +88,7 @@ function formatDateTime(value) {
 function authorCopy(authorId, nickname) {
   if (currentUserId.value != null && String(authorId) === String(currentUserId.value)) return '我'
   if (nickname) return nickname
-  return `同学 ${authorId}`
+  return '校园同学'
 }
 
 function compactContent(value, maxLength = 80) {
@@ -308,7 +310,7 @@ onMounted(async () => {
               @click="goPost(post.id)"
             >
               <div class="home-card-header">
-                <span class="home-card-category">{{ post.category }}</span>
+                <span class="home-card-category">{{ postCategoryLabel(post.category) }}</span>
                 <span class="home-card-stats">
                   <span>
                     <MessageCircle
@@ -327,7 +329,7 @@ onMounted(async () => {
                 </span>
               </div>
               <h3 class="home-card-title">
-                {{ post.title || '未命名帖子' }}
+                {{ cleanDisplayTitle(post.title, '未命名帖子') }}
               </h3>
               <p class="home-card-content">
                 {{ compactContent(post.content) }}
@@ -392,7 +394,7 @@ onMounted(async () => {
             >
               <div class="home-card-header">
                 <StatusBadge
-                  :label="taskCategoryLabels[task.category] || task.category"
+                  :label="taskCategoryLabel(task.category)"
                   :tone="taskCategoryTones[task.category] || 'info'"
                 />
                 <span
@@ -407,7 +409,7 @@ onMounted(async () => {
                 </span>
               </div>
               <h3 class="home-card-title">
-                {{ task.title || '未命名任务' }}
+                {{ cleanDisplayTitle(task.title, '未命名任务') }}
               </h3>
               <p class="home-card-content">
                 {{ compactContent(task.description) }}
@@ -572,8 +574,8 @@ onMounted(async () => {
 .home-page {
   display: grid;
   gap: 22px;
-  max-width: 1100px;
-  margin: 0 auto;
+  width: 100%;
+  max-width: none;
   padding: 24px 20px 40px;
 }
 

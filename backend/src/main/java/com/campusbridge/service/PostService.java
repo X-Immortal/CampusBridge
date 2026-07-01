@@ -11,6 +11,9 @@ public interface PostService {
     ResponseDtos.PagedResult<Post> listPosts(
             String keyword, String category, String status, Integer page, Integer size);
 
+    ResponseDtos.PagedResult<ViewDtos.MyReplyPostView> listPostsRepliedByUser(
+            Long userId, String keyword, String category, String status, Integer page, Integer size);
+
     ViewDtos.PostDetailView getPostDetail(Long postId, Long currentUserId);
 
     Post updatePost(Long userId, Long postId, RequestDtos.UpdatePostRequest request);

@@ -337,7 +337,7 @@ export function canShowNavItem(item, auth) {
  */
 export function isNavItemActive(item, route) {
   if (!route || !item) return false
-  if (item.section && route.meta?.section === item.section) return true
+  if (item.section) return route.meta?.section === item.section
   if (route.path === item.to) return true
   if (typeof item.to === 'string' && item.to !== '/' && route.path.startsWith(item.to)) {
     if (!route.meta?.section || route.meta.section === item.section) return true

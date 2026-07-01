@@ -636,11 +636,21 @@ function booleanFlag(value, fallback = false) {
   return Boolean(value)
 }
 
+function cleanDisplayTitle(value, fallback = '未命名任务') {
+  const text = String(value || '').trim()
+  if (!text) return fallback
+  return text
+    .replace(/^\s*#?\d+\s*[-_—:：.)、]\s*/u, '')
+    .replace(/\s*[-_—:：(（]?\s*#\d+\s*[)）]?\s*$/u, '')
+    .trim() || fallback
+}
+
 function normalizeTask(task = {}) {
   const id = task.id ?? task.taskId
   return {
     ...task,
     id,
+    title: cleanDisplayTitle(task.title),
     requesterId: task.requesterId ?? task.ownerId,
     providerId: task.providerId ?? task.helperId ?? task.acceptedApplicantId,
     category: task.category || task.taskCategory || task.typeKey || 'AGENCY',
@@ -1063,7 +1073,7 @@ function normalizeProofAttachments(value = []) {
     .filter(Boolean)
     .map((item, index) => {
       if (typeof item === 'number') {
-        return normalizeAttachmentItem({ id: item, name: `附件 #${item}` }, index)
+        return normalizeAttachmentItem({ id: item, name: `附件 ${index + 1}` }, index)
       }
       return normalizeAttachmentItem(item, index)
     })
@@ -1575,7 +1585,7 @@ async function submitReport() {
     const normalized = normalizeReport(result)
     myReports.value = [normalized, ...myReports.value.filter((report) => String(report.id) !== String(normalized.id))]
     reportsLoaded.value = true
-    showToast(`举报 #${normalized.id || reportForm.targetId} 已提交，管理员会根据站内记录处理。`, { type: 'success' })
+    showToast('举报已提交，管理员会根据站内记录处理。', { type: 'success' })
     closeReportPanel()
   } catch (error) {
     showToast(error.message || '举报提交失败，请稍后重试。', { type: 'danger' })
@@ -2865,7 +2875,7 @@ onMounted(async () => {
                   {{ taskCategoryLabel(detailTask) }}
                 </span>
               </div>
-              <span class="detail-task-id">任务 ID #{{ detailTask.id }}</span>
+              <span class="detail-task-id">{{ formatDateTime(detailTask.createdAt) || '任务详情' }}</span>
             </header>
 
             <div class="detail-title-block">
@@ -3151,8 +3161,7 @@ onMounted(async () => {
                       aria-hidden="true"
                     />
                     {{ attachment.name }}
-                    <small v-if="attachment.id">#{{ attachment.id }}</small>
-                    <small v-else>未上传</small>
+                    <small>{{ attachment.id ? '已上传' : '未上传' }}</small>
                     <button
                       type="button"
                       :aria-label="`移除 ${attachment.name}`"
@@ -3397,7 +3406,7 @@ onMounted(async () => {
                 <p>
                   {{
                     selectedDetailReport
-                      ? `举报 #${selectedDetailReport.id}：${reportStatusLabel(selectedDetailReport.status)}。`
+                      ? `举报记录：${reportStatusLabel(selectedDetailReport.status)}。`
                       : '违规、纠纷或站外交易可提交举报。'
                   }}
                 </p>
@@ -4114,7 +4123,7 @@ onMounted(async () => {
         <div class="report-context">
           <span class="report-context__info">
             <strong>{{ detailTask.title || '当前任务' }}</strong>
-            <small>任务 #{{ detailTask.id }} · {{ taskCategoryLabel(detailTask) }}</small>
+            <small>{{ taskCategoryLabel(detailTask) }} · {{ taskStatusLabel(detailTask.status) }}</small>
           </span>
           <StatusBadge
             :label="taskStatusLabel(detailTask.status)"
@@ -4257,7 +4266,7 @@ onMounted(async () => {
             class="report-history-card"
           >
             <span>
-              <strong>#{{ report.id }} · {{ reportTargetLabel(report.targetType) }}</strong>
+              <strong>{{ reportTargetLabel(report.targetType) }}举报记录</strong>
               <small>{{ formatDateTime(report.createdAt) }}</small>
             </span>
             <StatusBadge

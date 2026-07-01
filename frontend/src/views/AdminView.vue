@@ -1191,10 +1191,18 @@ async function punishAppeal(task) {
                 <div>
                   <dt>任务奖励</dt>
                   <dd>
-                    <template v-if="task.rewardType === 'FREE'">免费互助</template>
-                    <template v-else-if="task.rewardType === 'POINTS'">{{ task.rewardAmount || 0 }} 积分</template>
-                    <template v-else-if="task.rewardType === 'CASH'">现金 {{ task.rewardAmount || 0 }} 元</template>
-                    <template v-else>双方协商</template>
+                    <template v-if="task.rewardType === 'FREE'">
+                      免费互助
+                    </template>
+                    <template v-else-if="task.rewardType === 'POINTS'">
+                      {{ task.rewardAmount || 0 }} 积分
+                    </template>
+                    <template v-else-if="task.rewardType === 'CASH'">
+                      现金 {{ task.rewardAmount || 0 }} 元
+                    </template>
+                    <template v-else>
+                      双方协商
+                    </template>
                   </dd>
                 </div>
                 <div>
@@ -1206,7 +1214,9 @@ async function punishAppeal(task) {
               <div class="appeal-task-detail">
                 <p><strong>任务描述：</strong>{{ task.description || '暂无描述' }}</p>
                 <p><strong>完成标准：</strong>{{ task.completionStandard || '未设置' }}</p>
-                <p v-if="task.location"><strong>地点：</strong>{{ task.location }}</p>
+                <p v-if="task.location">
+                  <strong>地点：</strong>{{ task.location }}
+                </p>
               </div>
 
               <footer class="record-actions appeal-actions">
@@ -1269,14 +1279,20 @@ async function punishAppeal(task) {
             <dl>
               <div>
                 <dt>
-                  <RotateCcw :size="16" aria-hidden="true" />
+                  <RotateCcw
+                    :size="16"
+                    aria-hidden="true"
+                  />
                   驳回申诉
                 </dt>
                 <dd>认为执行者已按要求完成任务，驳回发布者的申诉。任务将正常完成，积分报酬正常结算。</dd>
               </div>
               <div>
                 <dt>
-                  <Gavel :size="16" aria-hidden="true" />
+                  <Gavel
+                    :size="16"
+                    aria-hidden="true"
+                  />
                   处罚（-20积分）
                 </dt>
                 <dd>认为执行者存在违规行为（虚假完成、未达标等），支持发布者的申诉。任务完成但执行者将被扣除 20 点信用积分。</dd>

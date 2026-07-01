@@ -25,6 +25,18 @@
     LIMIT #{size} OFFSET #{offset}
   </select>
 
+  <select id="selectByAuthorAndPostIds" resultType="com.campusbridge.pojo.Reply">
+    SELECT r.*, up.nickname AS author_name
+    FROM replies r
+    LEFT JOIN user_profiles up ON r.author_id = up.user_id
+    WHERE r.author_id = #{authorId}
+      AND r.post_id IN
+      <foreach collection="postIds" item="postId" open="(" separator="," close=")">
+        #{postId}
+      </foreach>
+    ORDER BY r.created_at DESC, r.id DESC
+  </select>
+
   <select id="countByPostId" resultType="long">
     SELECT COUNT(*) FROM replies
     WHERE post_id = #{postId}

@@ -21,7 +21,21 @@ public interface PostMapper {
             @Param("offset") Integer offset,
             @Param("size") Integer size);
 
+    List<Post> selectRepliedByUser(
+            @Param("userId") Long userId,
+            @Param("category") String category,
+            @Param("status") String status,
+            @Param("keyword") String keyword,
+            @Param("offset") Integer offset,
+            @Param("size") Integer size);
+
     long countWithFilters(
+            @Param("category") String category,
+            @Param("status") String status,
+            @Param("keyword") String keyword);
+
+    long countRepliedByUser(
+            @Param("userId") Long userId,
             @Param("category") String category,
             @Param("status") String status,
             @Param("keyword") String keyword);
