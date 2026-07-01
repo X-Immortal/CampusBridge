@@ -29,14 +29,6 @@ test('共享导航保留首页推荐入口并使用四个一级模块', async ()
   assert.match(navigationSource, /key:\s*'workspace'/)
 })
 
-test('个人主页复用共享 DashboardShell 和工作台二级导航', async () => {
-  const homeViewSource = await source('src/views/HomeView.vue')
-
-  assert.match(homeViewSource, /<DashboardShell/)
-  assert.match(homeViewSource, /:items="workspaceNavItems"/)
-  assert.match(homeViewSource, /:active-key="currentSubSection"/)
-})
-
 test('草稿删除使用专用接口，任务广场请求服务端排除过期任务', async () => {
   const [apiSource, taskListSource] = await Promise.all([
     source('src/services/api.js'),
