@@ -4,6 +4,7 @@ import {
   BookOpen,
   ClipboardList,
   FileText,
+  Gavel,
   Grid2X2,
   Home,
   LayoutDashboard,
@@ -235,6 +236,14 @@ export const adminNavItems = [
     to: '/admin/reports',
     icon: Scale,
     description: '处理用户举报与争议',
+    requiresRole: 'ADMIN'
+  },
+  {
+    key: 'appeals',
+    label: '申诉处理',
+    to: '/admin/appeals',
+    icon: Gavel,
+    description: '处理任务完成申诉',
     requiresRole: 'ADMIN'
   }
 ]

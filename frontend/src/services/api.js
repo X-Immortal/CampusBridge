@@ -172,6 +172,9 @@ export default {
     request(`/admin/verifications/${id}/reject`, { method: 'POST', body }),
   resolveReport: (reportId, body) =>
     request(`/admin/reports/${reportId}/resolve`, { method: 'POST', body }),
+  getAdminAppeals: (params) => request(`/admin/appeals${buildQuery(params)}`),
+  dismissAppeal: (taskId) => request(`/admin/appeals/${taskId}/dismiss`, { method: 'POST' }),
+  punishAppeal: (taskId) => request(`/admin/appeals/${taskId}/punish`, { method: 'POST' }),
   getPendingModerationTasks: () => request('/admin/moderation/tasks/pending'),
   approveModerationTask: (taskId, body = {}) =>
     request(`/admin/moderation/tasks/${taskId}/approve`, { method: 'POST', body }),

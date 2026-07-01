@@ -8,12 +8,15 @@ import {
   ChevronRight,
   FileWarning,
   GaugeCircle,
+  Gavel,
   IdCard,
   LoaderCircle,
   RefreshCw,
+  RotateCcw,
   Scale,
   ShieldAlert,
-  XCircle
+  XCircle,
+  AlertTriangle
 } from '@lucide/vue'
 import DashboardShell from '../components/DashboardShell.vue'
 import ModuleTopbar from '../components/layout/ModuleTopbar.vue'
@@ -42,7 +45,8 @@ const route = useRoute()
 const sections = [
   { key: 'dashboard', label: '数据概览', icon: GaugeCircle },
   { key: 'verifications', label: '认证审核', icon: IdCard },
-  { key: 'reports', label: '举报裁决', icon: Scale }
+  { key: 'reports', label: '举报裁决', icon: Scale },
+  { key: 'appeals', label: '申诉处理', icon: Gavel }
 ]
 
 const allowedSectionKeys = new Set(sections.map((section) => section.key))
@@ -93,6 +97,34 @@ const reportErrors = reactive({})
 const reportSubmitting = ref(false)
 const activeReportId = ref('')
 const lastModerationRecord = ref(null)
+
+const appeals = ref([])
+const appealsLoading = ref(false)
+const appealsPage = reactive({
+  page: 1,
+  size: 20
+})
+const appealsTotal = ref(0)
+const appealsActionLoading = ref('')
+
+const appealsTotalPages = computed(() =>
+  Math.max(1, Math.ceil(appealsTotal.value / appealsPage.size))
+)
+
+const visibleAppealsPages = computed(() => {
+  const total = appealsTotalPages.value
+  const current = appealsPage.page
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, i) => i + 1)
+  }
+  const pages = new Set([1, total])
+  for (let i = Math.max(2, current - 1); i <= Math.min(total - 1, current + 1); i++) {
+    pages.add(i)
+  }
+  if (current > 3) pages.add(Math.max(2, current - 2))
+  if (current < total - 2) pages.add(Math.min(total - 1, current + 2))
+  return Array.from(pages).sort((a, b) => a - b)
+})
 
 const dashboardLoading = ref(false)
 const dashboardError = ref('')
@@ -353,7 +385,7 @@ async function submitReportResolution() {
 }
 
 onMounted(async () => {
-  await Promise.allSettled([loadVerifications(), loadReports(), loadDashboard()])
+  await Promise.allSettled([loadVerifications(), loadReports(), loadDashboard(), loadAppeals()])
 })
 
 async function loadDashboard() {
@@ -385,6 +417,61 @@ async function loadDashboard() {
 function handleTodoNavigate(item) {
   if (!item?.route) return
   showToast(`已跳转到「${item.label}」入口。`)
+}
+
+async function loadAppeals() {
+  appealsLoading.value = true
+  try {
+    const result = await api.getAdminAppeals({
+      page: appealsPage.page,
+      size: appealsPage.size
+    })
+    appeals.value = normalizeItems(result)
+    appealsTotal.value = Number(result?.total ?? 0)
+  } catch (error) {
+    showToast(error.message, { type: 'danger' })
+  } finally {
+    appealsLoading.value = false
+  }
+}
+
+function goToAppealsPage(page) {
+  const pageNum = Number(page)
+  if (!pageNum || pageNum < 1 || pageNum > appealsTotalPages.value) return
+  appealsPage.page = pageNum
+  loadAppeals()
+}
+
+async function dismissAppeal(task) {
+  if (!task?.id) return
+  const loadingKey = `dismiss:${task.id}`
+  appealsActionLoading.value = loadingKey
+  try {
+    await api.dismissAppeal(task.id)
+    appeals.value = appeals.value.filter((item) => String(item.id) !== String(task.id))
+    appealsTotal.value = Math.max(0, appealsTotal.value - 1)
+    showToast(`任务 #${task.id} 申诉已驳回，任务正常完成。`)
+  } catch (error) {
+    showToast(error.message, { type: 'danger' })
+  } finally {
+    appealsActionLoading.value = ''
+  }
+}
+
+async function punishAppeal(task) {
+  if (!task?.id) return
+  const loadingKey = `punish:${task.id}`
+  appealsActionLoading.value = loadingKey
+  try {
+    await api.punishAppeal(task.id)
+    appeals.value = appeals.value.filter((item) => String(item.id) !== String(task.id))
+    appealsTotal.value = Math.max(0, appealsTotal.value - 1)
+    showToast(`任务 #${task.id} 已处罚，执行者扣除 20 积分。`)
+  } catch (error) {
+    showToast(error.message, { type: 'danger' })
+  } finally {
+    appealsActionLoading.value = ''
+  }
 }
 </script>
 
@@ -454,6 +541,10 @@ function handleTodoNavigate(item) {
         <article class="admin-metric admin-metric--info">
           <span>全站举报</span>
           <strong>{{ reportCount }}</strong>
+        </article>
+        <article class="admin-metric admin-metric--accent">
+          <span>待处理申诉</span>
+          <strong>{{ appealsTotal }}</strong>
         </article>
       </section>
 
@@ -960,6 +1051,230 @@ function handleTodoNavigate(item) {
             <strong>{{ recordSummary(lastModerationRecord) }}</strong>
             <p>{{ lastModerationRecord.decision || reportForm.decision }}</p>
           </section>
+        </section>
+      </section>
+
+      <section
+        v-else-if="activeSection === 'appeals'"
+        class="admin-layout admin-layout--reports"
+        aria-labelledby="admin-appeals-title"
+      >
+        <aside class="panel-card admin-list-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="section-kicker">
+                申诉处理
+              </p>
+              <h2 id="admin-appeals-title">
+                任务争议申诉列表
+              </h2>
+            </div>
+            <button
+              class="icon-action"
+              type="button"
+              aria-label="刷新申诉列表"
+              :disabled="appealsLoading"
+              @click="loadAppeals"
+            >
+              <RefreshCw
+                :class="{ spinning: appealsLoading }"
+                :size="18"
+                aria-hidden="true"
+              />
+            </button>
+          </div>
+
+          <div
+            v-if="appealsLoading && !appeals.length"
+            class="loading-state"
+            role="status"
+          >
+            <LoaderCircle
+              class="spinning"
+              :size="24"
+              aria-hidden="true"
+            />
+            <span>正在同步申诉列表...</span>
+          </div>
+
+          <div
+            v-else-if="!appeals.length"
+            class="empty-state"
+          >
+            <AlertTriangle
+              :size="36"
+              aria-hidden="true"
+            />
+            <h3>暂无待处理申诉</h3>
+            <p>任务参与者发起的争议申诉会出现在这里。</p>
+          </div>
+
+          <template v-else>
+            <nav
+              class="pagination-bar"
+              aria-label="申诉列表翻页"
+            >
+              <button
+                class="pagination-btn"
+                type="button"
+                :disabled="appealsPage.page <= 1"
+                @click="goToAppealsPage(appealsPage.page - 1)"
+              >
+                <ChevronLeft
+                  :size="17"
+                  aria-hidden="true"
+                />
+                上一页
+              </button>
+
+              <div class="pagination-pages">
+                <button
+                  v-for="pageNum in visibleAppealsPages"
+                  :key="pageNum"
+                  class="pagination-num"
+                  :class="{ active: pageNum === appealsPage.page }"
+                  type="button"
+                  :aria-current="pageNum === appealsPage.page ? 'page' : undefined"
+                  @click="goToAppealsPage(pageNum)"
+                >
+                  {{ pageNum }}
+                </button>
+              </div>
+
+              <button
+                class="pagination-btn"
+                type="button"
+                :disabled="appealsPage.page >= appealsTotalPages"
+                @click="goToAppealsPage(appealsPage.page + 1)"
+              >
+                下一页
+                <ChevronRight
+                  :size="17"
+                  aria-hidden="true"
+                />
+              </button>
+            </nav>
+
+            <article
+              v-for="task in appeals"
+              :key="task.id"
+              class="appeal-card"
+            >
+              <header class="record-card-head">
+                <div>
+                  <strong>任务 #{{ task.id }}：{{ task.title || '未命名任务' }}</strong>
+                  <span>{{ task.category === 'ERRAND' ? '跑腿代取' : '委托代办' }} · 校区 {{ task.campus || '未设置' }}</span>
+                </div>
+                <StatusBadge
+                  label="争议中"
+                  tone="danger"
+                />
+              </header>
+
+              <dl class="record-meta-grid">
+                <div>
+                  <dt>发布者（申诉方）</dt>
+                  <dd>{{ task.requesterName || `用户 #${task.requesterId}` }}</dd>
+                </div>
+                <div>
+                  <dt>执行者（被申诉方）</dt>
+                  <dd>{{ task.providerName || `用户 #${task.providerId || '未指派'}` }}</dd>
+                </div>
+                <div>
+                  <dt>任务奖励</dt>
+                  <dd>
+                    <template v-if="task.rewardType === 'FREE'">免费互助</template>
+                    <template v-else-if="task.rewardType === 'POINTS'">{{ task.rewardAmount || 0 }} 积分</template>
+                    <template v-else-if="task.rewardType === 'CASH'">现金 {{ task.rewardAmount || 0 }} 元</template>
+                    <template v-else>双方协商</template>
+                  </dd>
+                </div>
+                <div>
+                  <dt>更新时间</dt>
+                  <dd>{{ formatDateTime(task.updatedAt) }}</dd>
+                </div>
+              </dl>
+
+              <div class="appeal-task-detail">
+                <p><strong>任务描述：</strong>{{ task.description || '暂无描述' }}</p>
+                <p><strong>完成标准：</strong>{{ task.completionStandard || '未设置' }}</p>
+                <p v-if="task.location"><strong>地点：</strong>{{ task.location }}</p>
+              </div>
+
+              <footer class="record-actions appeal-actions">
+                <button
+                  class="primary-action"
+                  type="button"
+                  :disabled="Boolean(appealsActionLoading)"
+                  @click="dismissAppeal(task)"
+                >
+                  <LoaderCircle
+                    v-if="appealsActionLoading === `dismiss:${task.id}`"
+                    class="spinning"
+                    :size="17"
+                    aria-hidden="true"
+                  />
+                  <RotateCcw
+                    v-else
+                    :size="17"
+                    aria-hidden="true"
+                  />
+                  驳回申诉
+                </button>
+                <button
+                  class="danger-action"
+                  type="button"
+                  :disabled="Boolean(appealsActionLoading)"
+                  @click="punishAppeal(task)"
+                >
+                  <LoaderCircle
+                    v-if="appealsActionLoading === `punish:${task.id}`"
+                    class="spinning"
+                    :size="17"
+                    aria-hidden="true"
+                  />
+                  <Gavel
+                    v-else
+                    :size="17"
+                    aria-hidden="true"
+                  />
+                  处罚（-20积分）
+                </button>
+              </footer>
+            </article>
+          </template>
+        </aside>
+
+        <section class="panel-card admin-form-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="section-kicker">
+                操作说明
+              </p>
+              <h2>申诉裁决指引</h2>
+            </div>
+          </div>
+
+          <div class="appeal-guide">
+            <p>任务参与者对完成结果发起争议后，管理员需根据双方沟通记录、完成凭证和时间戳进行仲裁。</p>
+
+            <dl>
+              <div>
+                <dt>
+                  <RotateCcw :size="16" aria-hidden="true" />
+                  驳回申诉
+                </dt>
+                <dd>认为执行者已按要求完成任务，驳回发布者的申诉。任务将正常完成，积分报酬正常结算。</dd>
+              </div>
+              <div>
+                <dt>
+                  <Gavel :size="16" aria-hidden="true" />
+                  处罚（-20积分）
+                </dt>
+                <dd>认为执行者存在违规行为（虚假完成、未达标等），支持发布者的申诉。任务完成但执行者将被扣除 20 点信用积分。</dd>
+              </div>
+            </dl>
+          </div>
         </section>
       </section>
     </main>
@@ -1534,6 +1849,79 @@ function handleTodoNavigate(item) {
   .admin-dashboard__charts {
     grid-template-columns: 1fr;
   }
+}
+
+/* ---- 申诉处理 ---- */
+.appeal-card {
+  display: grid;
+  gap: 12px;
+  padding: 15px;
+  border: 1px solid var(--color-danger-soft);
+  border-radius: 8px;
+  background: var(--color-surface);
+}
+
+.appeal-task-detail {
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg);
+}
+
+.appeal-task-detail p {
+  margin: 0 0 6px 0;
+  color: var(--color-text-secondary);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.appeal-task-detail p:last-child {
+  margin-bottom: 0;
+}
+
+.appeal-actions {
+  justify-content: flex-end;
+}
+
+.appeal-guide {
+  display: grid;
+  gap: 14px;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+.appeal-guide p {
+  margin: 0;
+}
+
+.appeal-guide dl {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+}
+
+.appeal-guide dl > div {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg);
+}
+
+.appeal-guide dt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text);
+  font-weight: 900;
+}
+
+.appeal-guide dd {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.88rem;
+  line-height: 1.55;
 }
 
 

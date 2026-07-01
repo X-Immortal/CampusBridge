@@ -346,6 +346,18 @@ const router = createRouter({
       }
     },
     {
+      path: '/admin/appeals',
+      name: 'admin-appeals',
+      component: AdminView,
+      meta: {
+        requiresAuth: true,
+        requiresRole: 'ADMIN',
+        section: 'admin',
+        subSection: 'appeals',
+        title: '申诉处理'
+      }
+    },
+    {
       path: '/:pathMatch(.*)*',
       name: 'not-found',
       redirect: { name: 'homepage' }
