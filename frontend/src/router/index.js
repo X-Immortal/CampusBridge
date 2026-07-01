@@ -92,14 +92,19 @@ const router = createRouter({
     {
       path: '/admin',
       name: 'admin',
-      component: AdminView
+      component: AdminView,
+      meta: {
+        requiresAuth: true,
+        requiresRole: 'ADMIN'
+      }
     }
   ]
 })
 
 router.beforeEach((to) => {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, state } = useAuth()
   const publicRouteNames = new Set(['homepage', 'auth'])
+  const role = String(state.user?.role || '').toUpperCase()
 
   if (to.name === 'auth' && isAuthenticated.value) {
     return { name: 'home' }
@@ -112,6 +117,10 @@ router.beforeEach((to) => {
         redirect: to.fullPath
       }
     }
+  }
+
+  if (to.meta?.requiresRole && role !== String(to.meta.requiresRole).toUpperCase()) {
+    return { name: 'home' }
   }
 
   return true

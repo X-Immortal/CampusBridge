@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campusbridge.mapper.AdminDashboardMapper">
+
+  <select id="countAllUsers" resultType="long">
+    SELECT COUNT(*) FROM users
+  </select>
+
+  <select id="countVerifiedUsers" resultType="long">
+    SELECT COUNT(DISTINCT cv.user_id)
+    FROM campus_verifications cv
+    WHERE cv.status = 'VERIFIED'
+  </select>
+
+  <select id="countAllTasks" resultType="long">
+    SELECT COUNT(*) FROM tasks
+  </select>
+
+  <select id="countActiveTasks" resultType="long">
+    SELECT COUNT(*) FROM tasks
+    WHERE status IN ('OPEN', 'ACCEPTED', 'IN_PROGRESS', 'PENDING_CONFIRMATION')
+  </select>
+
+  <select id="countCompletedTasks" resultType="long">
+    SELECT COUNT(*) FROM tasks
+    WHERE status IN ('COMPLETED', 'REVIEWED')
+  </select>
+
+  <select id="countAllPosts" resultType="long">
+    SELECT COUNT(*) FROM posts
+    WHERE status &lt;&gt; 'DELETED'
+  </select>
+
+  <select id="countPendingVerifications" resultType="long">
+    SELECT COUNT(*) FROM campus_verifications
+    WHERE status = 'PENDING'
+  </select>
+
+  <select id="countPendingReports" resultType="long">
+    SELECT COUNT(*) FROM reports
+    WHERE status IN ('PENDING', 'PROCESSING')
+  </select>
+
+  <select id="countDisputedTasks" resultType="long">
+    SELECT COUNT(*) FROM tasks
+    WHERE status = 'DISPUTED'
+  </select>
+
+  <select id="countNewUsersByDay" resultType="java.util.LinkedHashMap">
+    SELECT DATE(created_at) AS day, COUNT(*) AS count
+    FROM users
+    WHERE created_at &gt;= #{from}
+    GROUP BY DATE(created_at)
+    ORDER BY day ASC
+  </select>
+
+  <select id="countNewTasksByDay" resultType="java.util.LinkedHashMap">
+    SELECT DATE(created_at) AS day, COUNT(*) AS count
+    FROM tasks
+    WHERE created_at &gt;= #{from}
+    GROUP BY DATE(created_at)
+    ORDER BY day ASC
+  </select>
+
+  <select id="countNewPostsByDay" resultType="java.util.LinkedHashMap">
+    SELECT DATE(created_at) AS day, COUNT(*) AS count
+    FROM posts
+    WHERE created_at &gt;= #{from}
+      AND status &lt;&gt; 'DELETED'
+    GROUP BY DATE(created_at)
+    ORDER BY day ASC
+  </select>
+
+  <select id="countTasksByStatus" resultType="java.util.LinkedHashMap">
+    SELECT status AS status, COUNT(*) AS count
+    FROM tasks
+    GROUP BY status
+    ORDER BY count DESC, status ASC
+  </select>
+
+  <select id="countReportsByStatus" resultType="java.util.LinkedHashMap">
+    SELECT status AS status, COUNT(*) AS count
+    FROM reports
+    GROUP BY status
+    ORDER BY count DESC, status ASC
+  </select>
+
+  <select id="countReportsByTargetType" resultType="java.util.LinkedHashMap">
+    SELECT target_type AS targetType, COUNT(*) AS count
+    FROM reports
+    GROUP BY target_type
+    ORDER BY count DESC, targetType ASC
+  </select>
+
+</mapper>
