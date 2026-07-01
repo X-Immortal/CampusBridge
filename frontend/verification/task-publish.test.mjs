@@ -624,3 +624,16 @@ test('publish success resets form state', async () => {
   assert.match(source, /lastCreatedTask\.value = normalizeTaskResult\(createdTask\)/)
   assert.match(source, /clearSavedDraft\(\)\s*[\r\n]+\s*resetForm\(\)\s*[\r\n]+\s*clearErrors\(\)/)
 })
+
+test('draft cards can reopen a server draft in the publish form', async () => {
+  const listSource = await readFile(new URL('../src/views/TaskListView.vue', import.meta.url), 'utf8')
+  const publishSource = await readFile(new URL('../src/views/TaskPublishView.vue', import.meta.url), 'utf8')
+
+  assert.match(listSource, /async function openDraftEditor\(task\)/)
+  assert.match(listSource, /name: 'task-publish',[\s\S]*query: \{ draftId: String\(task\.id\) \}/)
+  assert.match(listSource, /aria-label="编辑草稿"[\s\S]*@click\.stop="openDraftEditor\(task\)"/)
+  assert.match(publishSource, /route\.params\.taskId \|\| route\.query\.draftId/)
+  assert.match(publishSource, /await api\.getTaskDetail\(sourceTaskId\.value\)/)
+  assert.match(publishSource, /await api\.deleteTaskDraft\(sourceTaskId\.value\)/)
+  assert.match(publishSource, /route\.name, route\.params\.taskId, route\.query\.draftId/)
+})

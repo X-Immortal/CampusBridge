@@ -99,13 +99,29 @@ const publishMode = computed(() => {
   if (route.name === 'task-repost') return 'repost'
   return 'create'
 })
-const sourceTaskId = computed(() => (route.params.taskId ? String(route.params.taskId) : ''))
+const sourceTaskId = computed(() => {
+  const taskId = route.params.taskId || route.query.draftId
+  return taskId ? String(taskId) : ''
+})
 const isEditMode = computed(() => publishMode.value === 'edit')
 const isRepostMode = computed(() => publishMode.value === 'repost')
-const isEditingDraft = computed(() => isEditMode.value && sourceTask.value?.status === 'DRAFT')
+const isRestoringServerDraft = computed(() => publishMode.value === 'create' && Boolean(route.query.draftId))
+const isEditingDraft = computed(() => sourceTask.value?.status === 'DRAFT')
 const canChangeFixedFields = computed(() => !isEditMode.value)
-const shellActiveLabel = computed(() => (isEditMode.value || isRepostMode.value ? '我的任务' : '发布任务'))
+const shellActiveLabel = computed(() => {
+  if (isRestoringServerDraft.value) return '任务草稿'
+  return isEditMode.value || isRepostMode.value ? '我的任务' : '发布任务'
+})
 const pageMeta = computed(() => {
+  if (isRestoringServerDraft.value) {
+    return {
+      kicker: '任务草稿',
+      title: '继续编辑草稿',
+      copy: '已恢复草稿中的任务信息，确认内容后可以直接发布。',
+      status: '编辑中'
+    }
+  }
+
   if (isEditMode.value) {
     return {
       kicker: '任务编辑',
@@ -504,6 +520,9 @@ async function loadSourceTask() {
   try {
     const result = await api.getTaskDetail(sourceTaskId.value)
     const task = normalizeTaskResult(result)
+    if (isRestoringServerDraft.value && task.status !== 'DRAFT') {
+      throw new Error('要编辑的草稿不存在或已经发布。')
+    }
     sourceTask.value = task
     applyTaskToForm(task)
     clearErrors()
@@ -668,7 +687,7 @@ async function handleSubmitTask() {
     return
   }
 
-  if ((isEditMode.value || isRepostMode.value) && !sourceTask.value) {
+  if ((isEditMode.value || isRepostMode.value || isRestoringServerDraft.value) && !sourceTask.value) {
     showToast('没有可用的原任务内容，请返回任务详情后重试。', { type: 'danger' })
     return
   }
@@ -712,6 +731,13 @@ async function handleSubmitTask() {
 
     const createdTask = await api.createTask(buildPayload())
     lastCreatedTask.value = normalizeTaskResult(createdTask)
+    if (isRestoringServerDraft.value) {
+      try {
+        await api.deleteTaskDraft(sourceTaskId.value)
+      } catch {
+        showToast('任务已发布，但原草稿未能自动删除，请稍后在草稿栏手动删除。', { type: 'warning' })
+      }
+    }
     clearSavedDraft()
     resetForm()
     clearErrors()
@@ -741,7 +767,7 @@ onBeforeUnmount(() => {
 })
 
 watch(
-  () => [route.name, route.params.taskId],
+  () => [route.name, route.params.taskId, route.query.draftId],
   async () => {
     lastCreatedTask.value = null
     clearErrors()

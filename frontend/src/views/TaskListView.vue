@@ -24,6 +24,7 @@ import {
   MapPin,
   MessageCircle,
   Package,
+  Pencil,
   PlusCircle,
   RefreshCw,
   Search,
@@ -1531,6 +1532,16 @@ async function quickDeleteDraft(task) {
   }
 }
 
+async function openDraftEditor(task) {
+  if (!requireLoginAction('编辑草稿')) return
+  if (!task?.id || task.status !== 'DRAFT') return
+
+  await router.push({
+    name: 'task-publish',
+    query: { draftId: String(task.id) }
+  })
+}
+
 async function submitCancelTask() {
   if (!detailTask.value?.id || !canCancelDetailTask.value) return
 
@@ -2571,6 +2582,19 @@ onMounted(async () => {
                     <span class="task-card-footer">
                       <span>{{ taskCategoryLabel(task) }}</span>
                       <span>发布于 {{ formatCreatedAt(task.createdAt) }}</span>
+                      <button
+                        v-if="isMineView && task.status === 'DRAFT'"
+                        class="card-edit-btn"
+                        type="button"
+                        aria-label="编辑草稿"
+                        @click.stop="openDraftEditor(task)"
+                      >
+                        <Pencil
+                          :size="15"
+                          aria-hidden="true"
+                        />
+                        编辑
+                      </button>
                       <button
                         v-if="isMineView && task.status === 'DRAFT'"
                         class="card-delete-btn"
@@ -5359,6 +5383,30 @@ onMounted(async () => {
   cursor: pointer;
   margin-left: auto;
   transition: border-color 150ms ease, background 150ms ease;
+}
+
+.card-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: 1px solid var(--color-brand-border);
+  border-radius: 6px;
+  background: var(--color-brand-soft);
+  color: var(--color-brand);
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+  margin-left: auto;
+  transition: border-color 150ms ease, background 150ms ease;
+}
+
+.card-edit-btn:hover {
+  filter: brightness(0.98);
+}
+
+.card-edit-btn + .card-delete-btn {
+  margin-left: 0;
 }
 
 .card-delete-btn:hover {
