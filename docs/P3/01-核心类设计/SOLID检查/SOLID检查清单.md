@@ -56,7 +56,7 @@
 | 8 | 缺少内容展示适配机制 | OCP、LSP | 增加泛型 `ContentItemAdapter<T>` |
 | 9 | `TaskLifecycleService` 接口过大 | ISP | 拆分 `TaskService`、`TaskHistoryService`、`TaskQueryService` |
 | 10 | 查询能力只围绕任务 | SRP、OCP | 增加 `ContentQueryService`、`PostQueryService`、`TaskQueryService` |
-| 11 | `Conversation` 只绑定任务会话 | OCP | 增加 `ConversationType`，支持私聊、系统通知、任务会话 |
+| 11 | `Conversation` 只绑定任务会话 | OCP | 增加 `ConversationType`；当前用户沟通按联系人复用 `PRIVATE` 会话，任务/帖子仅作为来源，同时保留 `SYSTEM` 通知和兼容类型 |
 | 12 | `CompletionProof` 直接保存图片 URL | SRP、OCP | 增加通用 `Attachment` |
 | 13 | 信用等级缺少独立策略 | OCP | 增加 `CreditLevelPolicy` |
 | 14 | 服务依赖方向不明确 | DIP | 明确 Service 依赖 Repository 接口和应用服务协作 |
