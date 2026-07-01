@@ -16,7 +16,9 @@ import {
   ShieldCheck,
   UserRound
 } from '@lucide/vue'
+import { workspaceNavItems } from '../app/navigation'
 import DashboardShell from '../components/DashboardShell.vue'
+import SectionNav from '../components/layout/SectionNav.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import { useNotificationCenter } from '../composables/useNotificationCenter'
 import { useToast } from '../composables/useToast'
@@ -651,6 +653,14 @@ onMounted(async () => {
           tone="success"
         />
       </section>
+
+      <SectionNav
+        class="conversation-section-nav"
+        :items="workspaceNavItems"
+        :active-key="route.meta?.subSection"
+        variant="compact"
+        aria-label="工作台二级导航"
+      />
 
       <section class="conversation-workspace">
         <aside class="conversation-list-panel">
@@ -1579,5 +1589,9 @@ onMounted(async () => {
   .pager-button {
     padding-inline: 10px;
   }
+}
+
+.conversation-section-nav {
+  margin-bottom: 4px;
 }
 </style>

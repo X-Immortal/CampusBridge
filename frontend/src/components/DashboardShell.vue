@@ -1,27 +1,27 @@
 ﻿<script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import {
   Bell,
-  BookOpen,
   ChevronDown,
   ChevronsLeft,
   ChevronsRight,
-  ClipboardList,
-  Grid2X2,
-  Home,
+  Compass,
   LogIn,
   LogOut,
   Palette,
-  Shield,
-  MessageCircle,
   PlusCircle,
   School,
   Search,
-  ShieldCheck,
-  Star,
   UserRound
 } from '@lucide/vue'
+import {
+  canShowNavItem,
+  isNavItemActive,
+  primaryNavItems,
+  publishTaskAction,
+  userMenuItems
+} from '../app/navigation'
 import { useDashboardSidebar } from '../composables/useDashboardSidebar'
 import { useNotificationCenter } from '../composables/useNotificationCenter'
 import { useAuth } from '../stores/auth'
@@ -33,7 +33,7 @@ import ThemePreferences from './ThemePreferences.vue'
 const props = defineProps({
   activeLabel: {
     type: String,
-    default: '个人主页'
+    default: ''
   },
   publishMode: {
     type: Boolean,
@@ -42,7 +42,9 @@ const props = defineProps({
 })
 
 const router = useRouter()
-const { state, isAuthenticated, isGuest, currentUserId, logout, exitGuestMode } = useAuth()
+const route = useRoute()
+const auth = useAuth()
+const { state, isAuthenticated, isGuest, currentUserId, logout, exitGuestMode } = auth
 const { sidebarCollapsed, toggleSidebarCollapsed } = useDashboardSidebar()
 const { unreadCount: notificationUnreadCount, refreshNotificationSummary } = useNotificationCenter()
 const { showToast } = useToast()
@@ -53,36 +55,51 @@ const preferencesOpen = ref(false)
 const preferencesRef = ref(null)
 const avatarLoadFailed = ref(false)
 const searchKeyword = ref('')
-const activeLabel = computed(() => props.activeLabel)
 const publishMode = computed(() => props.publishMode)
-const searchPlaceholder = computed(() =>
-  activeLabel.value === '帖子广场' ? '搜索帖子标题、内容或关键词' : '搜索任务标题、内容或关键词'
-)
+
+const activeSection = computed(() => route.meta?.section || '')
+
+const searchPlaceholder = computed(() => {
+  if (activeSection.value === 'posts') return '搜索帖子标题、内容或关键词'
+  if (activeSection.value === 'tasks') return '搜索任务标题、内容或关键词'
+  return '搜索任务、帖子或关键词'
+})
 
 function handleSearch() {
   const keyword = searchKeyword.value.trim()
   if (!keyword) return
-  router.push({
-    name: activeLabel.value === '帖子广场' ? 'post-list' : 'task-list',
-    query: { keyword }
-  })
+
+  if (activeSection.value === 'posts') {
+    router.push({ name: 'post-list', query: { keyword } })
+  } else if (activeSection.value === 'tasks') {
+    router.push({ name: 'task-list', query: { keyword } })
+  } else {
+    router.push({ name: 'homepage', query: { keyword } })
+  }
   searchKeyword.value = ''
 }
 
-const isAdmin = computed(() => String(state.user?.role || '').toUpperCase() === 'ADMIN')
+const visibleNavItems = computed(() => primaryNavItems.filter((item) => canShowNavItem(item, auth)))
 
-const navItems = computed(() => [
-  { label: '首页推荐', icon: Home, to: '/' },
-  { label: '个人主页', icon: Home, to: '/home' },
-  { label: '帖子广场', icon: BookOpen, to: '/posts' },
-  { label: '任务广场', icon: Grid2X2, to: '/tasks' },
-  { label: '发布任务', icon: PlusCircle, to: '/tasks/new' },
-  { label: '我的任务', icon: ClipboardList, to: '/tasks/mine' },
-  { label: '站内沟通', icon: MessageCircle, to: '/conversations' },
-  { label: '评价中心', icon: Star, to: '/reviews' },
-  { label: '消息中心', icon: Bell, to: '/notifications' },
-  ...(isAdmin.value ? [{ label: '管理后台', icon: Shield, to: '/admin' }] : [])
-])
+function isItemActive(item) {
+  return isNavItemActive(item, route) || item.label === props.activeLabel
+}
+
+function handlePublishTask() {
+  if (!isAuthenticated.value) {
+    showToast('发布任务需要登录', { type: 'warning' })
+    router.push({ name: 'auth', query: { redirect: '/tasks/new' } })
+    return
+  }
+  if (state.verification?.status !== 'VERIFIED') {
+    showToast('完成认证后可发布任务', { type: 'warning' })
+    router.push({ name: 'workspace-verification' })
+    return
+  }
+  router.push({ name: 'task-publish' })
+}
+
+const menuItems = computed(() => userMenuItems(auth))
 
 const userName = computed(() => {
   if (isGuest.value) return '游客'
@@ -229,10 +246,10 @@ onBeforeUnmount(() => {
         aria-label="主导航"
       >
         <RouterLink
-          v-for="item in navItems"
-          :key="item.label"
+          v-for="item in visibleNavItems"
+          :key="item.key"
           class="nav-item"
-          :class="{ active: item.label === activeLabel }"
+          :class="{ active: isItemActive(item) }"
           :to="item.to"
           :title="sidebarCollapsed ? item.label : undefined"
         >
@@ -264,9 +281,21 @@ onBeforeUnmount(() => {
       </form>
 
       <div class="topbar-account">
+        <button
+          class="topbar-publish-button"
+          type="button"
+          :aria-label="publishTaskAction.label"
+          @click="handlePublishTask"
+        >
+          <PlusCircle
+            :size="18"
+            aria-hidden="true"
+          />
+          <span>{{ publishTaskAction.label }}</span>
+        </button>
         <RouterLink
           class="notice-button"
-          to="/notifications"
+          to="/workspace/notifications"
           :aria-label="notificationBadgeCount ? `消息通知，${notificationBadgeCount} 条未读` : '消息通知'"
         >
           <Bell
@@ -365,31 +394,40 @@ onBeforeUnmount(() => {
             </div>
 
             <RouterLink
-              v-if="isAuthenticated"
+              v-for="item in menuItems"
+              :key="item.key"
               class="account-menu-item"
-              to="/home"
+              :to="item.to"
               role="menuitem"
               @click="closeAccountMenu"
             >
-              <ShieldCheck
+              <component
+                :is="item.icon"
                 :size="17"
                 aria-hidden="true"
               />
-              认证中心
+              {{ item.label }}
             </RouterLink>
-            <RouterLink
+
+            <button
               v-if="isAuthenticated"
               class="account-menu-item"
-              to="/tasks/mine"
+              type="button"
               role="menuitem"
-              @click="closeAccountMenu"
+              @click="togglePreferences(); closeAccountMenu()"
             >
-              <ClipboardList
+              <Palette
                 :size="17"
                 aria-hidden="true"
               />
-              我的任务
-            </RouterLink>
+              外观主题
+            </button>
+
+            <div
+              v-if="isAuthenticated || isGuest"
+              class="account-dropdown-divider"
+            />
+
             <button
               v-if="isAuthenticated"
               class="account-menu-item account-menu-item--danger"
@@ -450,6 +488,52 @@ onBeforeUnmount(() => {
     <div class="dashboard-main">
       <slot />
     </div>
+
+    <nav
+      v-if="!publishMode"
+      class="mobile-bottom-nav"
+      aria-label="移动端主导航"
+    >
+      <RouterLink
+        v-for="item in visibleNavItems"
+        :key="item.key"
+        class="mobile-bottom-nav__item"
+        :class="{ active: isItemActive(item) }"
+        :to="item.to"
+      >
+        <component
+          :is="item.icon"
+          :size="22"
+          aria-hidden="true"
+        />
+        <span>{{ item.shortLabel || item.label }}</span>
+      </RouterLink>
+      <button
+        class="mobile-bottom-nav__item mobile-bottom-nav__item--publish"
+        type="button"
+        :aria-label="publishTaskAction.shortLabel"
+        @click="handlePublishTask"
+      >
+        <PlusCircle
+          :size="24"
+          aria-hidden="true"
+        />
+        <span>{{ publishTaskAction.shortLabel }}</span>
+      </button>
+      <button
+        class="mobile-bottom-nav__item"
+        type="button"
+        aria-label="游客浏览"
+        @click="isGuest ? router.push('/auth') : router.push('/workspace')"
+      >
+        <Compass
+          :size="22"
+          aria-hidden="true"
+        />
+        <span>{{ isAuthenticated ? '我的' : '我的' }}</span>
+      </button>
+    </nav>
+
     <BackToTop />
   </section>
 </template>
@@ -917,6 +1001,83 @@ onBeforeUnmount(() => {
   padding: calc(var(--topbar-height) + 22px) 24px 36px;
 }
 
+.topbar-publish-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid var(--color-brand);
+  border-radius: 8px;
+  background: var(--color-brand);
+  color: var(--color-surface);
+  font-size: 0.92rem;
+  font-weight: 900;
+  cursor: pointer;
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.topbar-publish-button:hover:not(:disabled) {
+  background: var(--color-brand-hover);
+  border-color: var(--color-brand-hover);
+  box-shadow: var(--shadow-button);
+}
+
+.account-dropdown-divider {
+  height: 1px;
+  margin: 4px 0;
+  background: var(--color-border);
+}
+
+.mobile-bottom-nav {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 35;
+  display: none;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: center;
+  height: 64px;
+  padding: 0 8px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
+}
+
+.mobile-bottom-nav__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 54px;
+  padding: 4px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color 180ms ease,
+    color 180ms ease;
+}
+
+.mobile-bottom-nav__item:hover,
+.mobile-bottom-nav__item.active {
+  color: var(--color-brand);
+}
+
+.mobile-bottom-nav__item--publish {
+  color: var(--color-brand);
+}
+
 .dashboard-shell--publish {
   --sidebar-width: 0px;
   --topbar-height: 68px;
@@ -1013,7 +1174,11 @@ onBeforeUnmount(() => {
 
   .dashboard-main {
     margin-left: 0;
-    padding: 20px 16px 32px;
+    padding: 20px 16px 84px;
+  }
+
+  .mobile-bottom-nav {
+    display: grid;
   }
 
   .dashboard-shell--publish {

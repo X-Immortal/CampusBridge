@@ -20,8 +20,10 @@ import {
   X
 } from '@lucide/vue'
 import DashboardShell from '../components/DashboardShell.vue'
+import SectionNav from '../components/layout/SectionNav.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import UserProfileModal from '../components/UserProfileModal.vue'
+import { postNavItems } from '../app/navigation'
 import { optionLabel, POST_CATEGORY_OPTIONS, POST_STATUS_OPTIONS } from '../constants'
 import api from '../services/api'
 import { useAuth } from '../stores/auth'
@@ -699,10 +701,20 @@ async function toggleDetailMark() {
 
 const markedFilter = ref(false)
 
+const currentSubSection = computed(() => route.meta?.subSection || 'plaza')
+
 const displayPosts = computed(() => {
-  if (!markedFilter.value) return posts.value
-  return posts.value.filter((p) => p._markedByCurrentUser)
+  let list = posts.value
+  if (currentSubSection.value === 'mine' && currentUserId.value != null) {
+    list = list.filter((p) => String(p.authorId) === String(currentUserId.value))
+  }
+  if (markedFilter.value) {
+    list = list.filter((p) => p._markedByCurrentUser)
+  }
+  return list
 })
+
+const isRepliesSection = computed(() => currentSubSection.value === 'replies')
 
 watch(
   () => route.query,
@@ -719,7 +731,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <DashboardShell active-label="帖子广场">
+  <DashboardShell>
     <main
       class="posts-page"
       :aria-busy="listLoading"
@@ -732,7 +744,7 @@ onMounted(() => {
           />
         </div>
         <div class="title-copy">
-          <p>社区帖子</p>
+          <p>社区</p>
           <h1>浏览校园帖子</h1>
           <span>按分类和关键词查看问询、闲置、组队与校园交流内容。</span>
         </div>
@@ -748,6 +760,14 @@ onMounted(() => {
           发布帖子
         </button>
       </section>
+
+      <SectionNav
+        class="post-section-nav"
+        :items="postNavItems"
+        :active-key="currentSubSection"
+        variant="tabs"
+        aria-label="社区二级导航"
+      />
 
       <section class="metric-strip">
         <div class="metric-tile metric-tile--posts">
@@ -920,7 +940,31 @@ onMounted(() => {
         </div>
       </form>
 
-      <div class="posts-layout">
+      <div
+        v-if="isRepliesSection"
+        class="panel-card list-panel"
+      >
+        <div class="empty-state">
+          <MessageCircle
+            :size="40"
+            aria-hidden="true"
+          />
+          <h3>我的回复</h3>
+          <p>这里将展示你参与回复过的帖子。当前版本暂从帖子广场加载，后续会接入专属接口。</p>
+          <button
+            class="ghost-action"
+            type="button"
+            @click="router.push({ name: 'post-list' })"
+          >
+            返回帖子广场
+          </button>
+        </div>
+      </div>
+
+      <div
+        v-else
+        class="posts-layout"
+      >
         <section class="panel-card list-panel">
           <div class="list-toolbar">
             <div>
@@ -1680,6 +1724,11 @@ onMounted(() => {
   width: 100%;
   max-width: none;
   color: var(--color-text);
+}
+
+.post-section-nav {
+  width: fit-content;
+  max-width: 100%;
 }
 
 .page-title-card,

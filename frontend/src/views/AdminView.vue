@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import {
   BadgeCheck,
   CheckCircle2,
@@ -17,11 +17,13 @@ import {
   XCircle
 } from '@lucide/vue'
 import DashboardShell from '../components/DashboardShell.vue'
+import SectionNav from '../components/layout/SectionNav.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import AdminMetricGrid from '../components/admin/AdminMetricGrid.vue'
 import AdminTrendChart from '../components/admin/AdminTrendChart.vue'
 import AdminDistributionChart from '../components/admin/AdminDistributionChart.vue'
 import AdminTodoSummary from '../components/admin/AdminTodoSummary.vue'
+import { adminNavItems } from '../app/navigation'
 import {
   MODERATION_DECISION_OPTIONS,
   MODERATION_STATUS_OPTIONS,
@@ -36,7 +38,6 @@ import { useToast } from '../composables/useToast'
 const { state } = useAuth()
 const { showToast } = useToast()
 const route = useRoute()
-const router = useRouter()
 
 const sections = [
   { key: 'dashboard', label: '数据概览', icon: GaugeCircle },
@@ -106,8 +107,11 @@ const dashboardTrendDays = ref(7)
 
 const DEFAULT_SECTION = 'dashboard'
 const initialSection = (() => {
-  const requested = String(route.query?.section || '').toLowerCase()
-  return allowedSectionKeys.has(requested) ? requested : DEFAULT_SECTION
+  const metaSection = String(route.meta?.subSection || '').toLowerCase()
+  const querySection = String(route.query?.section || '').toLowerCase()
+  if (allowedSectionKeys.has(metaSection)) return metaSection
+  if (allowedSectionKeys.has(querySection)) return querySection
+  return DEFAULT_SECTION
 })()
 
 const activeSection = ref(initialSection)
@@ -115,16 +119,8 @@ const activeSection = ref(initialSection)
 const isAdmin = computed(() => String(state.user?.role || '').toUpperCase() === 'ADMIN')
 const pendingVerificationCount = computed(() => verificationTotal.value)
 const reportCount = computed(() => reports.value.length)
-function switchSection(sectionKey) {
-  if (!allowedSectionKeys.has(sectionKey)) return
-  activeSection.value = sectionKey
-  if (route.query?.section !== sectionKey) {
-    router.replace({ query: sectionKey === DEFAULT_SECTION ? {} : { ...route.query, section: sectionKey } })
-  }
-}
-
 watch(
-  () => route.query?.section,
+  () => route.meta?.subSection || route.query?.section,
   (section) => {
     const next = String(section || '').toLowerCase()
     if (!next) {
@@ -405,7 +401,7 @@ function handleTodoNavigate(item) {
 </script>
 
 <template>
-  <DashboardShell active-label="管理后台">
+  <DashboardShell>
     <main
       class="admin-page"
       :aria-busy="verificationsLoading || reportsLoading || dashboardLoading"
@@ -478,28 +474,13 @@ function handleTodoNavigate(item) {
         </article>
       </section>
 
-      <section
-        class="admin-section-switch"
-        role="tablist"
+      <SectionNav
+        class="admin-section-nav"
+        :items="adminNavItems"
+        :active-key="activeSection"
+        variant="tabs"
         aria-label="管理员功能切换"
-      >
-        <button
-          v-for="section in sections"
-          :key="section.key"
-          type="button"
-          role="tab"
-          :aria-selected="activeSection === section.key"
-          :class="{ active: activeSection === section.key }"
-          @click="switchSection(section.key)"
-        >
-          <component
-            :is="section.icon"
-            :size="17"
-            aria-hidden="true"
-          />
-          {{ section.label }}
-        </button>
-      </section>
+      />
 
       <section
         v-if="activeSection === 'dashboard'"

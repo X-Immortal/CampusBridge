@@ -36,8 +36,10 @@ import {
   X
 } from '@lucide/vue'
 import DashboardShell from '../components/DashboardShell.vue'
+import SectionNav from '../components/layout/SectionNav.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import UserProfileModal from '../components/UserProfileModal.vue'
+import { taskNavItems } from '../app/navigation'
 import {
   APPLICATION_STATUS_OPTIONS,
   MODERATION_STATUS_OPTIONS,
@@ -62,17 +64,20 @@ const { requireLoginAction } = useGuestAction()
 const MINE_TASK_FETCH_SIZE = 100
 
 function isMineRoute(routeName = route.name) {
-  return routeName === 'my-tasks' || routeName === 'my-task-detail'
+  return ['my-tasks', 'my-task-detail', 'workspace-tasks', 'workspace-task-detail', 'workspace-drafts'].includes(
+    routeName
+  )
 }
 
 const isMineView = computed(() => isMineRoute(route.name))
 
 function createDefaultFilters(routeName = route.name) {
+  const defaultStatus = routeName === 'workspace-drafts' ? 'DRAFT' : isMineRoute(routeName) ? '' : 'OPEN'
   return {
     keyword: '',
     category: '',
     campus: '',
-    status: isMineRoute(routeName) ? '' : 'OPEN',
+    status: defaultStatus,
     rewardType: '',
     requiresProof: '',
     sortBy: 'CREATED_AT_DESC',
@@ -343,16 +348,24 @@ const proofAttachmentItems = computed(() =>
       []
   )
 )
-const pageTitle = computed(() =>
-  isMineView.value ? '管理自己发布的任务' : '找到值得接、能准时完成的校园互助'
-)
-const pageSubtitle = computed(() =>
-  isMineView.value
+const pageTitle = computed(() => {
+  if (route.name === 'workspace-drafts') return '管理任务草稿'
+  return isMineView.value ? '管理自己发布的任务' : '找到值得接、能准时完成的校园互助'
+})
+const pageSubtitle = computed(() => {
+  if (route.name === 'workspace-drafts') return '查看、编辑或删除未发布的任务草稿。'
+  return isMineView.value
     ? '集中查看任务状态、报名情况、截止时间与完成进度。'
     : '按校区、奖励、凭证和任务状态快速筛选，再查看完整细节后申请。'
-)
-const listRouteName = computed(() => (isMineView.value ? 'my-tasks' : 'task-list'))
-const detailRouteName = computed(() => (isMineView.value ? 'my-task-detail' : 'task-detail'))
+})
+const listRouteName = computed(() => {
+  if (route.name === 'workspace-drafts') return 'workspace-drafts'
+  return isMineView.value ? 'workspace-tasks' : 'task-list'
+})
+const detailRouteName = computed(() => {
+  if (route.name === 'workspace-drafts') return 'workspace-drafts'
+  return isMineView.value ? 'workspace-task-detail' : 'task-detail'
+})
 const editableStatuses = new Set(['DRAFT', 'OPEN'])
 const cancelableStatuses = new Set(['DRAFT', 'OPEN', 'ACCEPTED', 'IN_PROGRESS'])
 const repostableStatuses = new Set(['CANCELLED', 'DRAFT'])
@@ -1901,7 +1914,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <DashboardShell :active-label="isMineView ? '我的任务' : '任务广场'">
+  <DashboardShell>
     <main
       class="tasks-page"
       :class="{ 'tasks-page--mine': isMineView }"
@@ -1910,13 +1923,13 @@ onMounted(async () => {
       <section class="page-title-card tasks-title-card">
         <div class="title-icon">
           <component
-            :is="isMineView ? ClipboardCheck : Filter"
+            :is="route.name === 'workspace-drafts' ? FileText : (isMineView ? ClipboardCheck : Filter)"
             :size="32"
             aria-hidden="true"
           />
         </div>
         <div class="title-copy">
-          <p>{{ isMineView ? '我的任务' : '任务广场' }}</p>
+          <p>{{ route.name === 'workspace-drafts' ? '任务草稿' : (isMineView ? '我的任务' : '任务广场') }}</p>
           <h1>{{ pageTitle }}</h1>
           <span>{{ pageSubtitle }}</span>
         </div>
@@ -1932,6 +1945,14 @@ onMounted(async () => {
           发布任务
         </button>
       </section>
+
+      <SectionNav
+        class="task-section-nav"
+        :items="taskNavItems"
+        :active-key="route.meta.subSection"
+        variant="tabs"
+        aria-label="任务二级导航"
+      />
 
       <section
         class="tasks-layout tasks-layout--full"
@@ -3911,6 +3932,11 @@ onMounted(async () => {
 .tasks-page {
   display: grid;
   gap: 20px;
+}
+
+.task-section-nav {
+  width: fit-content;
+  max-width: 100%;
 }
 
 .tasks-page--mine {

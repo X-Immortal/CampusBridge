@@ -18,7 +18,9 @@ import {
   Star,
   UserRound
 } from '@lucide/vue'
+import { workspaceNavItems } from '../app/navigation'
 import DashboardShell from '../components/DashboardShell.vue'
+import SectionNav from '../components/layout/SectionNav.vue'
 import StatusBadge from '../components/StatusBadge.vue'
 import { useNotificationCenter } from '../composables/useNotificationCenter'
 import { useToast } from '../composables/useToast'
@@ -587,6 +589,14 @@ onMounted(async () => {
           </button>
         </div>
       </section>
+
+      <SectionNav
+        class="review-section-nav"
+        :items="workspaceNavItems"
+        :active-key="route.meta?.subSection"
+        variant="compact"
+        aria-label="工作台二级导航"
+      />
 
       <section
         class="metric-strip"
@@ -1871,5 +1881,9 @@ onMounted(async () => {
     top: 14px;
     right: 14px;
   }
+}
+
+.review-section-nav {
+  margin-bottom: 4px;
 }
 </style>
