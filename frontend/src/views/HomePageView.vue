@@ -12,6 +12,8 @@ import {
   LoaderCircle,
   MapPin,
   MessageCircle,
+  Reply as ReplyIcon,
+  Send,
   ThumbsUp,
   UserRound,
   X
@@ -28,7 +30,7 @@ import { useAuth } from '../stores/auth'
 import { useGuestAction } from '../composables/useGuestAction'
 
 const router = useRouter()
-const { currentUserId } = useAuth()
+const { isAuthenticated, currentUserId } = useAuth()
 const { requireLoginAction } = useGuestAction()
 
 const loading = ref(true)
@@ -44,6 +46,10 @@ const postModalOpen = ref(false)
 const postModalLoading = ref(false)
 const postModalData = ref(null)
 const postModalError = ref('')
+const replyContent = ref('')
+const replySubmitting = ref(false)
+const replyError = ref('')
+const replyComposerOpen = ref(false)
 
 function postStatusMeta(status) {
   return POST_STATUS_OPTIONS.find((o) => o.value === status) || { value: status, label: status || '未知', tone: 'muted' }
@@ -125,6 +131,7 @@ function closePostModal() {
   postModalOpen.value = false
   postModalData.value = null
   postModalError.value = ''
+  cancelReply()
 }
 
 function normalizePostDetail(result) {
@@ -188,6 +195,25 @@ async function togglePostMark() {
     post.markCount = Math.max(0, (Number(post.markCount) || 0) + (marked ? 1 : -1))
   }
 }
+
+async function submitReply() {
+  if (!requireLoginAction('回复帖子')) return
+  const content = replyContent.value.trim()
+  if (!content) { replyError.value = '请输入回复内容'; return }
+  if (content.length > 2000) { replyError.value = '回复不能超过2000字'; return }
+  if (!postModalData.value?.post?.id) return
+  replyError.value = ''
+  replySubmitting.value = true
+  try {
+    await api.createPostReply(postModalData.value.post.id, { content })
+    replyContent.value = ''
+    replyComposerOpen.value = false
+    await openPostDetail(postModalData.value.post.id)
+  } catch (e) { replyError.value = e.message || '回复失败' }
+  finally { replySubmitting.value = false }
+}
+function startReply() { replyComposerOpen.value = true; replyContent.value = ''; replyError.value = '' }
+function cancelReply() { replyComposerOpen.value = false; replyContent.value = ''; replyError.value = '' }
 
 function goTasks() {
   router.push({ name: 'task-list' })
@@ -604,6 +630,20 @@ onMounted(async () => {
                 </div>
               </article>
             </div>
+
+            <div v-if="!isAuthenticated" class="reply-login-hint">请先登录后再参与回复。</div>
+            <form v-else-if="replyComposerOpen" class="top-reply-form" @submit.prevent="submitReply">
+              <textarea v-model="replyContent" maxlength="2000" placeholder="写下你的回复..." :disabled="replySubmitting" />
+              <div class="inline-reply-actions">
+                <small>{{ replyContent.length }}/2000</small>
+                <p v-if="replyError" class="reply-form-error">{{ replyError }}</p>
+                <button type="button" class="reply-cancel-btn" :disabled="replySubmitting" @click="cancelReply">取消</button>
+                <button type="submit" class="reply-submit-btn" :disabled="replySubmitting || !replyContent.trim()">
+                  <LoaderCircle v-if="replySubmitting" class="spinning" :size="15" /><Send v-else :size="15" />回复
+                </button>
+              </div>
+            </form>
+            <button v-else class="start-top-reply-btn" type="button" @click="startReply"><ReplyIcon :size="15" />发表回复</button>
           </section>
         </template>
 
@@ -1053,6 +1093,18 @@ onMounted(async () => {
   align-items: center;
   gap: 10px;
 }
+
+.reply-login-hint { margin: 0; padding: 13px; border: 1px dashed var(--color-border-dashed); border-radius: 8px; background: var(--color-surface-muted); color: var(--color-text-muted); text-align: center; font-size: 0.92rem; }
+.start-top-reply-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; margin-top: 10px; padding: 8px 14px; border: 1px dashed var(--color-brand-border); border-radius: 6px; background: var(--color-brand-soft); color: var(--color-brand-text); font-size: 0.85rem; font-weight: 700; cursor: pointer; }
+.top-reply-form { display: grid; gap: 8px; margin-top: 12px; padding: 12px; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface-muted); }
+.top-reply-form textarea { width: 100%; min-height: 88px; padding: 8px 10px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: var(--color-text); font: inherit; line-height: 1.55; resize: vertical; box-sizing: border-box; }
+.top-reply-form textarea:focus { outline: none; border-color: var(--color-brand-border-hover); box-shadow: var(--shadow-focus); }
+.inline-reply-actions { display: flex; align-items: center; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.inline-reply-actions small { margin-right: auto; color: var(--color-text-muted); }
+.reply-form-error { color: var(--color-danger-soft); margin: 0; font-size: 0.88rem; }
+.reply-cancel-btn { padding: 5px 12px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: var(--color-text-secondary); font-size: 0.82rem; font-weight: 700; cursor: pointer; }
+.reply-submit-btn { display: inline-flex; align-items: center; gap: 5px; padding: 5px 14px; border: none; border-radius: 6px; background: var(--color-brand); color: var(--color-surface); font-size: 0.82rem; font-weight: 700; cursor: pointer; }
+.reply-submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .accepted-tag {
   width: fit-content;
