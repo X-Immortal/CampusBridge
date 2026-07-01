@@ -35,6 +35,8 @@ public interface TaskService {
 
     Task cancelTask(Long operatorId, Long taskId, String reason);
 
+    Task withdrawFromTask(Long providerId, Long taskId, String reason);
+
     void deleteDraft(Long operatorId, Long taskId);
 
     Task saveDraft(Long requesterId, RequestDtos.CreateTaskRequest request);

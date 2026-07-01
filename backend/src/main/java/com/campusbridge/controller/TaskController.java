@@ -108,6 +108,16 @@ public class TaskController {
         return Result.success(taskService.cancelTask(currentUserId, taskId, reason));
     }
 
+    @PostMapping("/{taskId}/provider-withdrawal")
+    public Result withdrawProvider(
+            HttpServletRequest servletRequest,
+            @PathVariable Long taskId,
+            @RequestBody java.util.Map<String, String> request) {
+        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        return Result.success(
+                taskService.withdrawFromTask(currentUserId, taskId, request.get("reason")));
+    }
+
     @DeleteMapping("/{taskId}/draft")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public Result deleteDraft(

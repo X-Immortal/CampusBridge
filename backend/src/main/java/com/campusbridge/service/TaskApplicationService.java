@@ -16,6 +16,10 @@ public interface TaskApplicationService {
             Long requesterId,
             Long taskId);
 
+    List<ViewDtos.MyTaskApplicationView> listMyApplications(Long applicantId);
+
+    TaskApplication withdrawApplication(Long applicantId, Long applicationId);
+
     TaskApplication acceptApplication(
             Long requesterId,
             Long taskId,

@@ -69,6 +69,16 @@
       AND provider_id IS NULL
   </update>
 
+  <update id="releaseProviderById">
+    UPDATE tasks
+    SET provider_id = NULL,
+        status = 'OPEN',
+        updated_at = #{updatedAt}
+    WHERE id = #{id}
+      AND provider_id = #{providerId}
+      AND status = #{fromStatus}
+  </update>
+
   <delete id="deleteById">
     DELETE FROM tasks
     WHERE id = #{id}
