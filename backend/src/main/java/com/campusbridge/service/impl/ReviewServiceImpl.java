@@ -8,6 +8,7 @@ import com.campusbridge.mapper.TaskMapper;
 import com.campusbridge.pojo.Review;
 import com.campusbridge.pojo.Task;
 import com.campusbridge.service.ReviewService;
+import com.campusbridge.service.NotificationService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,10 +23,15 @@ public class ReviewServiceImpl implements ReviewService {
 
     private final ReviewMapper reviewMapper;
     private final TaskMapper taskMapper;
+    private final NotificationService notificationService;
 
-    public ReviewServiceImpl(ReviewMapper reviewMapper, TaskMapper taskMapper) {
+    public ReviewServiceImpl(
+            ReviewMapper reviewMapper,
+            TaskMapper taskMapper,
+            NotificationService notificationService) {
         this.reviewMapper = reviewMapper;
         this.taskMapper = taskMapper;
+        this.notificationService = notificationService;
     }
 
     @Override
@@ -80,6 +86,8 @@ public class ReviewServiceImpl implements ReviewService {
             throw new BusinessException(ErrorCode.COMMON_999_INTERNAL_ERROR,
                     "Failed to create review");
         }
+
+        notificationService.notifyTaskReviewCreated(task, review, reviewerId);
 
         return review;
     }

@@ -7,6 +7,7 @@ import com.campusbridge.mapper.ReviewMapper;
 import com.campusbridge.mapper.TaskMapper;
 import com.campusbridge.pojo.Review;
 import com.campusbridge.pojo.Task;
+import com.campusbridge.service.NotificationService;
 import com.campusbridge.service.impl.ReviewServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,6 +22,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -35,11 +37,14 @@ class BE16ReviewServiceImplTest {
     @Mock
     private TaskMapper taskMapper;
 
+    @Mock
+    private NotificationService notificationService;
+
     private ReviewServiceImpl reviewService;
 
     @BeforeEach
     void setUp() {
-        reviewService = new ReviewServiceImpl(reviewMapper, taskMapper);
+        reviewService = new ReviewServiceImpl(reviewMapper, taskMapper, notificationService);
     }
 
     // ---- createReview ----
@@ -57,6 +62,7 @@ class BE16ReviewServiceImplTest {
         assertThat(review.getTaskId()).isEqualTo(TASK_ID);
         assertThat(review.getReviewerId()).isEqualTo(REQUESTER_ID);
         assertThat(review.getRating()).isEqualTo(5);
+        verify(notificationService).notifyTaskReviewCreated(task, review, REQUESTER_ID);
     }
 
     @Test

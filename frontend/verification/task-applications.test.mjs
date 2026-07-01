@@ -53,6 +53,31 @@ test('接单申请接口路径与任务系统 API 文档一致', async () => {
   assert.match(source, /createTaskApplication:\s*\(taskId,\s*body\)\s*=>\s*request\(`\/tasks\/\$\{taskId\}\/applications`,\s*\{\s*method:\s*'POST'/)
   assert.match(source, /getTaskApplications:\s*\(taskId\)\s*=>\s*request\(`\/tasks\/\$\{taskId\}\/applications`\)/)
   assert.match(source, /acceptTaskApplication:\s*\(taskId,\s*applicationId\)\s*=>\s*request\(`\/tasks\/\$\{taskId\}\/applications\/\$\{applicationId\}\/accept`,\s*\{\s*method:\s*'POST'/)
+  assert.match(source, /getMyTaskApplications:\s*\(\)\s*=>\s*request\('\/task-applications\/mine'\)/)
+  assert.match(source, /withdrawTaskApplication:\s*\(applicationId\)\s*=>\s*[\s\S]*method:\s*'DELETE'/)
+  assert.match(source, /withdrawFromTask:\s*\(taskId,\s*body\)\s*=>[\s\S]*provider-withdrawal[\s\S]*method:\s*'POST'/)
+})
+
+test('发布者取消和接单者退出遵循任务状态规则', async () => {
+  const source = await readFile(new URL('../src/views/TaskListView.vue', import.meta.url), 'utf8')
+
+  assert.match(source, /canWithdrawDetailTask/)
+  assert.match(source, /\['ACCEPTED', 'IN_PROGRESS'\]\.includes\(detailTask\.value\?\.status\)/)
+  assert.match(source, /await api\.withdrawFromTask\(detailTask\.value\.id, \{ reason \}\)/)
+  assert.match(source, /将扣除 1 积分/)
+  assert.match(source, /v-if="canCancelDetailTask \|\| canWithdrawDetailTask"/)
+  assert.match(source, /\{\{ cancelActionTitle \}\}/)
+})
+
+test('我接受的任务展示待处理申请并允许申请人取消', async () => {
+  const source = await readFile(new URL('../src/views/TaskListView.vue', import.meta.url), 'utf8')
+
+  assert.match(source, /api\.getMyTaskApplications\(\)/)
+  assert.match(source, /item\?\.application\?\.status === 'PENDING'/)
+  assert.match(source, /task\.myApplicationStatus === 'PENDING'/)
+  assert.match(source, /async function withdrawPendingApplication\(task\)/)
+  assert.match(source, /await api\.withdrawTaskApplication\(task\.myApplicationId\)/)
+  assert.match(source, /aria-label="取消接单申请"/)
 })
 
 test('候选响应保留完整档案、信用信息和申请留言', () => {

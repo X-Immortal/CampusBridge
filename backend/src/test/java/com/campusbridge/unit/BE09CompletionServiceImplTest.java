@@ -8,6 +8,7 @@ import com.campusbridge.mapper.TaskMapper;
 import com.campusbridge.pojo.CompletionProof;
 import com.campusbridge.pojo.Task;
 import com.campusbridge.service.CreditService;
+import com.campusbridge.service.NotificationService;
 import com.campusbridge.service.TaskHistoryService;
 import com.campusbridge.service.impl.CompletionServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,6 +24,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -46,12 +48,19 @@ class BE09CompletionServiceImplTest {
     @Mock
     private CreditService creditService;
 
+    @Mock
+    private NotificationService notificationService;
+
     private CompletionServiceImpl completionService;
 
     @BeforeEach
     void setUp() {
         completionService = new CompletionServiceImpl(
-                completionProofMapper, taskMapper, taskHistoryService, creditService);
+                completionProofMapper,
+                taskMapper,
+                taskHistoryService,
+                creditService,
+                notificationService);
     }
 
     // ---- submitCompletionProof ----
@@ -73,6 +82,8 @@ class BE09CompletionServiceImplTest {
         verify(taskHistoryService).recordHistory(TASK_ID,
                 "IN_PROGRESS", "PENDING_CONFIRMATION", PROVIDER_ID,
                 "COMPLETION_PROOF_SUBMITTED");
+        verify(notificationService).notifyTaskStatusChanged(
+                eq(task), eq("IN_PROGRESS"), eq("PENDING_CONFIRMATION"), eq(PROVIDER_ID), anyString());
     }
 
     @Test
@@ -125,6 +136,8 @@ class BE09CompletionServiceImplTest {
         verify(taskHistoryService).recordHistory(TASK_ID,
                 "PENDING_CONFIRMATION", "COMPLETED", REQUESTER_ID,
                 "COMPLETION_CONFIRMED");
+        verify(notificationService).notifyTaskStatusChanged(
+                eq(task), eq("PENDING_CONFIRMATION"), eq("COMPLETED"), eq(REQUESTER_ID), anyString());
     }
 
     @Test
@@ -167,6 +180,8 @@ class BE09CompletionServiceImplTest {
         verify(taskHistoryService).recordHistory(TASK_ID,
                 "PENDING_CONFIRMATION", "IN_PROGRESS", REQUESTER_ID,
                 "COMPLETION_REJECTED; REASON=凭证不充分");
+        verify(notificationService).notifyTaskStatusChanged(
+                eq(task), eq("PENDING_CONFIRMATION"), eq("IN_PROGRESS"), eq(REQUESTER_ID), anyString());
     }
 
     @Test
@@ -192,6 +207,8 @@ class BE09CompletionServiceImplTest {
         verify(taskHistoryService).recordHistory(TASK_ID,
                 "PENDING_CONFIRMATION", "DISPUTED", REQUESTER_ID,
                 "COMPLETION_DISPUTED; REASON=任务未按要求完成");
+        verify(notificationService).notifyTaskStatusChanged(
+                eq(task), eq("PENDING_CONFIRMATION"), eq("DISPUTED"), eq(REQUESTER_ID), anyString());
     }
 
     @Test

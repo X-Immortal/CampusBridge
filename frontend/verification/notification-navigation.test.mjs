@@ -31,3 +31,16 @@ test('工作台消息私信和通知中心按各自未读数显示红点', async
   assert.match(sectionNavSource, /class="section-nav__unread-dot"/)
   assert.match(sectionNavSource, /background:\s*var\(--color-danger\)/)
 })
+
+test('系统任务通知进入工作台任务详情以保留接单者操作', async () => {
+  const notificationViewSource = await source('src/views/ReviewNotificationView.vue')
+
+  assert.match(
+    notificationViewSource,
+    /name: 'workspace-task-detail', params: \{ taskId: selectedNotification\.taskId \}/
+  )
+  assert.doesNotMatch(
+    notificationViewSource,
+    /name: 'task-detail', params: \{ taskId: selectedNotification\.taskId \}/
+  )
+})

@@ -9,6 +9,7 @@ import com.campusbridge.pojo.CompletionProof;
 import com.campusbridge.pojo.Task;
 import com.campusbridge.service.CompletionService;
 import com.campusbridge.service.CreditService;
+import com.campusbridge.service.NotificationService;
 import com.campusbridge.service.TaskHistoryService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,16 +34,19 @@ public class CompletionServiceImpl implements CompletionService {
     private final TaskMapper taskMapper;
     private final TaskHistoryService taskHistoryService;
     private final CreditService creditService;
+    private final NotificationService notificationService;
 
     public CompletionServiceImpl(
             CompletionProofMapper completionProofMapper,
             TaskMapper taskMapper,
             TaskHistoryService taskHistoryService,
-            CreditService creditService) {
+            CreditService creditService,
+            NotificationService notificationService) {
         this.completionProofMapper = completionProofMapper;
         this.taskMapper = taskMapper;
         this.taskHistoryService = taskHistoryService;
         this.creditService = creditService;
+        this.notificationService = notificationService;
     }
 
     @Override
@@ -95,6 +99,12 @@ public class CompletionServiceImpl implements CompletionService {
                 STATUS_PENDING_CONFIRMATION,
                 submitterId,
                 "COMPLETION_PROOF_SUBMITTED");
+        notificationService.notifyTaskStatusChanged(
+                task,
+                STATUS_IN_PROGRESS,
+                STATUS_PENDING_CONFIRMATION,
+                submitterId,
+                "接单者已提交完成凭证，请及时查看并确认。");
 
         proof.setSubmittedAt(now);
         return proof;
@@ -137,6 +147,12 @@ public class CompletionServiceImpl implements CompletionService {
                 STATUS_COMPLETED,
                 requesterId,
                 "COMPLETION_CONFIRMED");
+        notificationService.notifyTaskStatusChanged(
+                task,
+                STATUS_PENDING_CONFIRMATION,
+                STATUS_COMPLETED,
+                requesterId,
+                "发布者已确认收到任务成果。");
     }
 
     private void settleReward(Task task) {
@@ -191,6 +207,12 @@ public class CompletionServiceImpl implements CompletionService {
                 STATUS_IN_PROGRESS,
                 requesterId,
                 "COMPLETION_REJECTED; REASON=" + reason);
+        notificationService.notifyTaskStatusChanged(
+                task,
+                STATUS_PENDING_CONFIRMATION,
+                STATUS_IN_PROGRESS,
+                requesterId,
+                "完成凭证被驳回：" + reason);
     }
 
     @Override
@@ -232,6 +254,12 @@ public class CompletionServiceImpl implements CompletionService {
                 STATUS_DISPUTED,
                 participantId,
                 "COMPLETION_DISPUTED; REASON=" + reason);
+        notificationService.notifyTaskStatusChanged(
+                task,
+                fromStatus,
+                STATUS_DISPUTED,
+                participantId,
+                "任务参与者发起争议：" + reason);
     }
 
     private void validateSubmitterId(Long submitterId) {

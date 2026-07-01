@@ -138,6 +138,14 @@ public final class ViewDtos {
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
+    public static class MyTaskApplicationView {
+        private TaskApplication application;
+        private Task task;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class UserProfileView {
         private Long userId;
         private String nickname;

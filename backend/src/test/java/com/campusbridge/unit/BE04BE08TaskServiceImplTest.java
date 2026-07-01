@@ -6,9 +6,12 @@ import com.campusbridge.dto.enums.ApiEnums;
 import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.mapper.CampusVerificationMapper;
 import com.campusbridge.mapper.TaskMapper;
+import com.campusbridge.mapper.TaskApplicationMapper;
 import com.campusbridge.pojo.CampusVerification;
 import com.campusbridge.pojo.Task;
+import com.campusbridge.pojo.TaskApplication;
 import com.campusbridge.service.ContentModerationService;
+import com.campusbridge.service.CreditService;
 import com.campusbridge.service.NotificationService;
 import com.campusbridge.service.TaskHistoryService;
 import com.campusbridge.service.impl.TaskServiceImpl;
@@ -48,6 +51,12 @@ class BE04BE08TaskServiceImplTest {
     @Mock
     private NotificationService notificationService;
 
+    @Mock
+    private TaskApplicationMapper taskApplicationMapper;
+
+    @Mock
+    private CreditService creditService;
+
     private TaskServiceImpl taskService;
 
     @BeforeEach
@@ -57,7 +66,9 @@ class BE04BE08TaskServiceImplTest {
                 campusVerificationMapper,
                 taskHistoryService,
                 contentModerationService,
-                notificationService);
+                notificationService,
+                taskApplicationMapper,
+                creditService);
     }
 
     @Test
@@ -174,6 +185,80 @@ class BE04BE08TaskServiceImplTest {
                 .isInstanceOfSatisfying(BusinessException.class, ex ->
                         assertThat(ex.getErrorCode())
                                 .isEqualTo(ErrorCode.COMMON_001_VALIDATION_ERROR));
+    }
+
+    @Test
+    void requesterCanCancelOpenTaskWithoutReason() {
+        Task openTask = task("OPEN");
+        openTask.setProviderId(null);
+        when(taskMapper.selectById(TASK_ID)).thenReturn(openTask);
+        when(taskMapper.updateStatusById(
+                eq(TASK_ID), eq("OPEN"), eq("CANCELLED"), any()))
+                .thenReturn(1);
+
+        Task result = taskService.cancelTask(REQUESTER_ID, TASK_ID, null);
+
+        assertThat(result.getStatus()).isEqualTo("CANCELLED");
+        verify(notificationService).notifyTaskStatusChanged(
+                openTask,
+                "OPEN",
+                "CANCELLED",
+                REQUESTER_ID,
+                "发布者取消了待接单任务");
+    }
+
+    @Test
+    void requesterCancellingInProgressTaskLosesOnePointAndNotifiesProvider() {
+        Task inProgressTask = task("IN_PROGRESS");
+        when(taskMapper.selectById(TASK_ID)).thenReturn(inProgressTask);
+        when(taskMapper.updateStatusById(
+                eq(TASK_ID), eq("IN_PROGRESS"), eq("CANCELLED"), any()))
+                .thenReturn(1);
+
+        taskService.cancelTask(REQUESTER_ID, TASK_ID, "临时无法继续任务");
+
+        verify(creditService).adjustCredit(
+                REQUESTER_ID,
+                -1,
+                "进行中的任务 #10 被发布者取消",
+                "TASK",
+                TASK_ID);
+        verify(notificationService).notifyTaskStatusChanged(
+                inProgressTask,
+                "IN_PROGRESS",
+                "CANCELLED",
+                REQUESTER_ID,
+                "临时无法继续任务");
+    }
+
+    @Test
+    void providerCanWithdrawAcceptedTaskAndTaskReturnsOpen() {
+        Task acceptedTask = task("ACCEPTED");
+        TaskApplication application = new TaskApplication();
+        application.setId(20L);
+        application.setTaskId(TASK_ID);
+        application.setApplicantId(PROVIDER_ID);
+        application.setStatus("ACCEPTED");
+        when(taskMapper.selectById(TASK_ID)).thenReturn(acceptedTask);
+        when(taskMapper.releaseProviderById(
+                eq(TASK_ID), eq(PROVIDER_ID), eq("ACCEPTED"), any()))
+                .thenReturn(1);
+        when(taskApplicationMapper.selectByTaskIdAndApplicantId(TASK_ID, PROVIDER_ID))
+                .thenReturn(application);
+        when(taskApplicationMapper.updateStatusById(eq(20L), eq("ACCEPTED"), eq("WITHDRAWN"), any()))
+                .thenReturn(1);
+
+        Task result = taskService.withdrawFromTask(PROVIDER_ID, TASK_ID, "时间安排发生变化");
+
+        assertThat(result.getStatus()).isEqualTo("OPEN");
+        assertThat(result.getProviderId()).isNull();
+        verify(taskApplicationMapper).updateStatusById(20L, "ACCEPTED", "WITHDRAWN", result.getUpdatedAt());
+        verify(notificationService).notifyTaskStatusChanged(
+                acceptedTask,
+                "ACCEPTED",
+                "OPEN",
+                PROVIDER_ID,
+                "接单者退出任务：时间安排发生变化");
     }
 
     @Test

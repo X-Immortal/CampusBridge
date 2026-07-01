@@ -19,6 +19,8 @@ public interface TaskApplicationMapper {
 
     List<TaskApplication> selectByTaskId(Long taskId);
 
+    List<TaskApplication> selectByApplicantId(Long applicantId);
+
     List<TaskApplication> selectAll();
 
     int updateById(TaskApplication entity);

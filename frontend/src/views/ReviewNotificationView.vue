@@ -1070,7 +1070,7 @@ onMounted(async () => {
               <RouterLink
                 v-if="selectedNotification.taskId"
                 class="ghost-action"
-                :to="{ name: 'task-detail', params: { taskId: selectedNotification.taskId } }"
+                :to="{ name: 'workspace-task-detail', params: { taskId: selectedNotification.taskId } }"
               >
                 <FileCheck2
                   :size="17"

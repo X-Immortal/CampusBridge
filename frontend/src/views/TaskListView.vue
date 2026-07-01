@@ -255,7 +255,9 @@ const completedTaskCount = computed(() =>
   tasks.value.filter((task) => ['COMPLETED', 'REVIEWED'].includes(task.status)).length
 )
 const requesterTaskCards = computed(() => tasks.value.filter(isRequesterTask))
-const acceptedTaskCards = computed(() => tasks.value.filter(isProviderTask))
+const acceptedTaskCards = computed(() =>
+  tasks.value.filter((task) => isProviderTask(task) || task.myApplicationStatus === 'PENDING')
+)
 const visibleTaskGroups = computed(() => {
   if (!isMineView.value) {
     return [
@@ -283,8 +285,8 @@ const visibleTaskGroups = computed(() => {
     return [
       {
         key: 'accepted',
-        title: '我接受的任务',
-        emptyCopy: '当前筛选下没有你接下的任务。',
+        title: '我申请或接受的任务',
+        emptyCopy: '当前筛选下没有申请中或已经接下的任务。',
         items: acceptedTaskCards.value
       }
     ]
@@ -410,13 +412,26 @@ const canEditDetailTask = computed(
 const canCancelDetailTask = computed(
   () => isDetailOwner.value && cancelableStatuses.has(detailTask.value?.status)
 )
+const canWithdrawDetailTask = computed(
+  () => isDetailProvider.value && ['ACCEPTED', 'IN_PROGRESS'].includes(detailTask.value?.status)
+)
 const canRepostDetailTask = computed(() => {
   if (!isDetailOwner.value || !detailTask.value) return false
   return repostableStatuses.has(detailTask.value.status)
 })
 const hasDetailActions = computed(
-  () => canEditDetailTask.value || canCancelDetailTask.value || canRepostDetailTask.value
+  () =>
+    canEditDetailTask.value ||
+    canCancelDetailTask.value ||
+    canRepostDetailTask.value ||
+    canWithdrawDetailTask.value
 )
+const isProviderWithdrawal = computed(() => canWithdrawDetailTask.value && !isDetailOwner.value)
+const cancelActionTitle = computed(() => {
+  if (detailTask.value?.status === 'DRAFT') return '删除草稿'
+  return isProviderWithdrawal.value ? '退出任务' : '取消任务'
+})
+const cancelActionWillDeductPoint = computed(() => detailTask.value?.status === 'IN_PROGRESS')
 const canStartDetailTask = computed(
   () => isDetailProvider.value && detailTask.value?.status === 'ACCEPTED'
 )
@@ -513,6 +528,7 @@ const proofSubmittedAt = computed(
   () => completionProof.value?.submittedAt || completionProof.value?.createdAt || completionProof.value?.updatedAt || ''
 )
 const hasCurrentUserApplied = computed(() =>
+  detailTask.value?.myApplicationStatus === 'PENDING' ||
   Boolean(submittedApplicationForTask.value) ||
   candidates.value.some(
     (candidate) =>
@@ -803,11 +819,62 @@ function isProviderTask(task = {}) {
   return providerId !== undefined && providerId !== null && String(providerId) === String(currentUserId.value)
 }
 
-function applyTaskResult(result) {
+function matchesCurrentTaskFilters(task) {
+  const keyword = filters.keyword.trim().toLowerCase()
+  const searchable = [task.title, task.description, task.campus, task.location]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase()
+
+  return Boolean(
+    (!keyword || searchable.includes(keyword)) &&
+      (!filters.category || task.category === filters.category) &&
+      (!filters.campus || String(task.campus || '').includes(filters.campus.trim())) &&
+      (!filters.status || task.status === filters.status) &&
+      (!filters.rewardType || task.rewardType === filters.rewardType) &&
+      (filters.requiresProof === '' || task.requiresProof === (filters.requiresProof === 'true'))
+  )
+}
+
+function normalizePendingApplicationTasks(result) {
+  return normalizePagedTasks(result)
+    .filter((item) => item?.application?.status === 'PENDING' && item.task)
+    .map((item) => ({
+      ...normalizeTask(item.task),
+      myApplicationId: item.application.id,
+      myApplicationStatus: item.application.status,
+      myApplicationCreatedAt: item.application.createdAt
+    }))
+    .filter(matchesCurrentTaskFilters)
+}
+
+function applyTaskResult(result, myApplications = []) {
   let items = normalizePagedTasks(result).map(normalizeTask)
 
   if (isMineView.value) {
-    const mineItems = items.filter((task) => isRequesterTask(task) || isProviderTask(task))
+    const pendingApplicationTasks = normalizePendingApplicationTasks(myApplications)
+    const pendingApplicationByTaskId = new Map(
+      pendingApplicationTasks.map((task) => [String(task.id), task])
+    )
+    items = items.map((task) => {
+      const pendingTask = pendingApplicationByTaskId.get(String(task.id))
+      return pendingTask
+        ? {
+            ...task,
+            myApplicationId: pendingTask.myApplicationId,
+            myApplicationStatus: pendingTask.myApplicationStatus,
+            myApplicationCreatedAt: pendingTask.myApplicationCreatedAt
+          }
+        : task
+    })
+    const knownTaskIds = new Set(items.map((task) => String(task.id)))
+    const mergedItems = [
+      ...items,
+      ...pendingApplicationTasks.filter((task) => !knownTaskIds.has(String(task.id)))
+    ]
+    const mineItems = mergedItems.filter(
+      (task) => isRequesterTask(task) || isProviderTask(task) || task.myApplicationStatus === 'PENDING'
+    )
 
     if (isDraftView.value) {
       const draftItems = mineItems.filter((task) => isRequesterTask(task) && task.status === 'DRAFT')
@@ -823,7 +890,9 @@ function applyTaskResult(result) {
 
     const nonDraftMineItems = mineItems.filter((task) => task.status !== 'DRAFT')
     const publishedItems = nonDraftMineItems.filter((task) => isRequesterTask(task))
-    const acceptedItems = nonDraftMineItems.filter((task) => isProviderTask(task))
+    const acceptedItems = nonDraftMineItems.filter(
+      (task) => isProviderTask(task) || task.myApplicationStatus === 'PENDING'
+    )
 
     const activePage = mineSubTab.value === 'published' ? minePublishedPage : mineAcceptedPage
     const activeItems = mineSubTab.value === 'published' ? publishedItems : acceptedItems
@@ -1100,10 +1169,13 @@ async function loadTasks() {
   const requestId = ++listRequestId
 
   try {
-    const result = await api.getTasks(buildTaskQuery())
+    const [result, myApplications] = await Promise.all([
+      api.getTasks(buildTaskQuery()),
+      isMineView.value && !isDraftView.value ? api.getMyTaskApplications() : Promise.resolve([])
+    ])
     if (requestId !== listRequestId) return
 
-    applyTaskResult(result)
+    applyTaskResult(result, myApplications)
   } catch (error) {
     if (requestId !== listRequestId) return
     tasks.value = []
@@ -1140,7 +1212,14 @@ async function loadTaskDetail(taskId) {
   try {
     const result = await api.getTaskDetail(taskId)
     if (requestId !== detailRequestId) return
-    taskDetail.value = normalizeTaskDetail(result)
+    const normalizedDetail = normalizeTaskDetail(result)
+    const listTask = tasks.value.find((task) => String(task.id) === String(taskId))
+    if (normalizedDetail?.task && listTask?.myApplicationStatus) {
+      normalizedDetail.task.myApplicationId = listTask.myApplicationId
+      normalizedDetail.task.myApplicationStatus = listTask.myApplicationStatus
+      normalizedDetail.task.myApplicationCreatedAt = listTask.myApplicationCreatedAt
+    }
+    taskDetail.value = normalizedDetail
     await loadCandidates(taskId)
   } catch (error) {
     if (requestId !== detailRequestId) return
@@ -1331,7 +1410,7 @@ async function handlePublishShortcut() {
 
 function openCancelPanel() {
   if (!requireLoginAction('管理任务')) return
-  if (!canCancelDetailTask.value) return
+  if (!canCancelDetailTask.value && !canWithdrawDetailTask.value) return
   cancelPanelOpen.value = true
   cancelReason.value = ''
   cancelReasonError.value = ''
@@ -1519,6 +1598,26 @@ async function quickDeleteDraft(task) {
   }
 }
 
+async function withdrawPendingApplication(task) {
+  if (!task?.myApplicationId || task.myApplicationStatus !== 'PENDING') return
+  if (!confirm('确认取消这次接单申请？')) return
+
+  operationLoading.value = `withdraw-application-${task.myApplicationId}`
+  try {
+    await api.withdrawTaskApplication(task.myApplicationId)
+    showToast('接单申请已取消。', { type: 'success' })
+    if (String(selectedTaskId.value) === String(task.id)) {
+      await clearSelectedTask()
+    } else {
+      await refreshTasks()
+    }
+  } catch (error) {
+    showToast(error.message || '取消接单申请失败，请稍后重试。', { type: 'danger' })
+  } finally {
+    operationLoading.value = ''
+  }
+}
+
 async function openDraftEditor(task) {
   if (!requireLoginAction('编辑草稿')) return
   if (!task?.id || task.status !== 'DRAFT') return
@@ -1530,28 +1629,50 @@ async function openDraftEditor(task) {
 }
 
 async function submitCancelTask() {
-  if (!detailTask.value?.id || !canCancelDetailTask.value) return
+  if (!detailTask.value?.id || (!canCancelDetailTask.value && !canWithdrawDetailTask.value)) return
 
   const isDraft = detailTask.value.status === 'DRAFT'
   const reason = cancelReason.value.trim()
-  if (!isDraft && reason.length < 4) {
+  const reasonRequired = isProviderWithdrawal.value || !['DRAFT', 'OPEN'].includes(detailTask.value.status)
+  if (reasonRequired && reason.length < 4) {
     cancelReasonError.value = '请用至少 4 个字说明取消原因，方便后续追溯。'
+    return
+  }
+
+  if (
+    cancelActionWillDeductPoint.value &&
+    !confirm(`任务已经开始，${cancelActionTitle.value}将扣除 1 积分。确认继续吗？`)
+  ) {
     return
   }
 
   operationLoading.value = 'cancel'
   cancelReasonError.value = ''
   try {
-    if (isDraft) {
+    if (isProviderWithdrawal.value) {
+      await api.withdrawFromTask(detailTask.value.id, { reason })
+    } else if (isDraft) {
       await api.deleteTaskDraft(detailTask.value.id)
     } else {
       await api.cancelTask(detailTask.value.id, reason)
     }
-    showToast(isDraft ? '草稿已删除。' : '任务已取消，状态记录会保留在任务历史中。', { type: 'success' })
+    showToast(
+      isProviderWithdrawal.value
+        ? '你已退出任务，任务重新开放接单。'
+        : isDraft
+          ? '草稿已删除。'
+          : '任务已取消，状态记录会保留在任务历史中。',
+      { type: 'success' }
+    )
     closeCancelPanel()
-    await refreshTasks()
+    if (isProviderWithdrawal.value) {
+      await clearSelectedTask()
+    } else {
+      await refreshTasks()
+    }
   } catch (error) {
-    showToast(error.message || `${isDraft ? '删除草稿失败' : '取消任务失败'}，请稍后重试。`, { type: 'danger' })
+    const fallback = isProviderWithdrawal.value ? '退出任务失败' : isDraft ? '删除草稿失败' : '取消任务失败'
+    showToast(error.message || `${fallback}，请稍后重试。`, { type: 'danger' })
   } finally {
     operationLoading.value = ''
   }
@@ -2519,8 +2640,8 @@ onMounted(async () => {
                           <strong>{{ task.title || '未命名任务' }}</strong>
                         </span>
                         <StatusBadge
-                          :label="taskStatusLabel(task.status)"
-                          :tone="taskStatusTone(task.status)"
+                          :label="task.myApplicationStatus === 'PENDING' ? '申请中' : taskStatusLabel(task.status)"
+                          :tone="task.myApplicationStatus === 'PENDING' ? 'warning' : taskStatusTone(task.status)"
                         />
                       </span>
 
@@ -2564,6 +2685,27 @@ onMounted(async () => {
                     <span class="task-card-footer">
                       <span>{{ taskCategoryLabel(task) }}</span>
                       <span>发布于 {{ formatCreatedAt(task.createdAt) }}</span>
+                      <button
+                        v-if="task.myApplicationStatus === 'PENDING'"
+                        class="card-delete-btn"
+                        type="button"
+                        aria-label="取消接单申请"
+                        :disabled="operationLoading === `withdraw-application-${task.myApplicationId}`"
+                        @click.stop="withdrawPendingApplication(task)"
+                      >
+                        <LoaderCircle
+                          v-if="operationLoading === `withdraw-application-${task.myApplicationId}`"
+                          class="spinning"
+                          :size="15"
+                          aria-hidden="true"
+                        />
+                        <X
+                          v-else
+                          :size="15"
+                          aria-hidden="true"
+                        />
+                        取消申请
+                      </button>
                       <button
                         v-if="isMineView && task.status === 'DRAFT'"
                         class="card-edit-btn"
@@ -3191,6 +3333,27 @@ onMounted(async () => {
                   :tone="applicationGate.tone"
                 />
                 <button
+                  v-if="detailTask.myApplicationStatus === 'PENDING'"
+                  class="ghost-action workflow-entry__button"
+                  type="button"
+                  :disabled="operationLoading === `withdraw-application-${detailTask.myApplicationId}`"
+                  @click="withdrawPendingApplication(detailTask)"
+                >
+                  <LoaderCircle
+                    v-if="operationLoading === `withdraw-application-${detailTask.myApplicationId}`"
+                    class="spinning"
+                    :size="17"
+                    aria-hidden="true"
+                  />
+                  <X
+                    v-else
+                    :size="17"
+                    aria-hidden="true"
+                  />
+                  取消申请
+                </button>
+                <button
+                  v-else
                   class="primary-action workflow-entry__button"
                   type="button"
                   :disabled="applicationSubmitting"
@@ -3386,10 +3549,11 @@ onMounted(async () => {
           </div>
 
           <footer
-            v-if="canOpenConversation"
+            v-if="canOpenConversation || hasDetailActions"
             class="detail-action-row"
           >
             <button
+              v-if="canOpenConversation"
               class="primary-action detail-primary-action"
               type="button"
               :disabled="operationLoading === 'conversation'"
@@ -3408,8 +3572,136 @@ onMounted(async () => {
               />
               打开任务会话
             </button>
+            <button
+              v-if="canEditDetailTask"
+              class="ghost-action"
+              type="button"
+              @click="openEditTask"
+            >
+              <Pencil
+                :size="17"
+                aria-hidden="true"
+              />
+              编辑任务
+            </button>
+            <button
+              v-if="canRepostDetailTask"
+              class="ghost-action"
+              type="button"
+              @click="openRepostTask"
+            >
+              <Repeat2
+                :size="17"
+                aria-hidden="true"
+              />
+              重新发布
+            </button>
+            <button
+              v-if="canCancelDetailTask || canWithdrawDetailTask"
+              class="danger-action"
+              type="button"
+              @click="openCancelPanel"
+            >
+              <X
+                :size="17"
+                aria-hidden="true"
+              />
+              {{ cancelActionTitle }}
+            </button>
           </footer>
         </template>
+      </section>
+    </div>
+
+    <div
+      v-if="cancelPanelOpen && detailTask"
+      class="workflow-modal-layer"
+      @click.self="closeCancelPanel"
+    >
+      <section
+        class="panel-card workflow-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="task-cancel-title"
+      >
+        <header class="workflow-modal__header">
+          <div>
+            <p class="section-kicker">
+              任务状态变更
+            </p>
+            <h3 id="task-cancel-title">
+              {{ cancelActionTitle }}
+            </h3>
+            <p v-if="cancelActionWillDeductPoint">
+              任务已经开始，本次操作会扣除 1 积分，并通知对方。
+            </p>
+            <p v-else-if="isProviderWithdrawal">
+              退出后任务将重新开放接单，发布者会收到通知。
+            </p>
+            <p v-else>
+              取消后任务不能继续执行；已经选人时，接单者会收到通知。
+            </p>
+          </div>
+          <button
+            class="icon-action"
+            type="button"
+            :aria-label="`关闭${cancelActionTitle}窗口`"
+            @click="closeCancelPanel"
+          >
+            <X
+              :size="18"
+              aria-hidden="true"
+            />
+          </button>
+        </header>
+
+        <form
+          class="application-form"
+          @submit.prevent="submitCancelTask"
+        >
+          <label
+            class="application-field"
+            for="task-cancel-reason"
+          >
+            <span>{{ ['DRAFT', 'OPEN'].includes(detailTask.status) && !isProviderWithdrawal ? '原因（可选）' : '原因' }}</span>
+            <textarea
+              id="task-cancel-reason"
+              v-model.trim="cancelReason"
+              maxlength="300"
+              :aria-invalid="Boolean(cancelReasonError)"
+              placeholder="请说明取消或退出任务的原因"
+            />
+            <small>{{ cancelReason.length }}/300</small>
+            <p
+              v-if="cancelReasonError"
+              class="field-error"
+            >
+              {{ cancelReasonError }}
+            </p>
+          </label>
+          <div class="workflow-modal__footer">
+            <button
+              class="ghost-action"
+              type="button"
+              @click="closeCancelPanel"
+            >
+              返回
+            </button>
+            <button
+              class="danger-action"
+              type="submit"
+              :disabled="operationLoading === 'cancel'"
+            >
+              <LoaderCircle
+                v-if="operationLoading === 'cancel'"
+                class="spinning"
+                :size="17"
+                aria-hidden="true"
+              />
+              确认{{ cancelActionTitle }}
+            </button>
+          </div>
+        </form>
       </section>
     </div>
 
