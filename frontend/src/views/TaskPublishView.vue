@@ -797,6 +797,17 @@ watch(
         :description="pageMeta.copy"
       >
         <template #extra>
+          <button
+            class="ghost-action"
+            type="button"
+            @click="router.push({ name: 'task-list' })"
+          >
+            <ArrowLeft
+              :size="16"
+              aria-hidden="true"
+            />
+            返回广场
+          </button>
           <StatusBadge
             :label="pageMeta.status"
             :tone="canPublish ? 'success' : 'warning'"

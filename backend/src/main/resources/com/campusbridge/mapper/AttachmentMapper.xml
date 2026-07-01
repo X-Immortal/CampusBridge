@@ -20,7 +20,7 @@
     SELECT * FROM attachments
     WHERE owner_type = #{ownerType}
       AND owner_id = #{ownerId}
-      AND status = 'ACTIVE'
+      AND status IN ('ACTIVE', 'BOUND')
     ORDER BY created_at ASC, id ASC
   </select>
 

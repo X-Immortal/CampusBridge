@@ -98,7 +98,7 @@ function handlePublishTask() {
   }
   if (state.verification?.status !== 'VERIFIED') {
     showToast('完成认证后可发布任务', { type: 'warning' })
-    router.push({ name: 'workspace-verification' })
+    router.push({ name: 'workspace' })
     return
   }
   router.push({ name: 'task-publish' })
@@ -127,9 +127,6 @@ const accountMeta = computed(() => {
   return state.profile?.campus || state.profile?.college || state.user?.role || '校园互助账号'
 })
 const notificationBadgeCount = computed(() => notificationUnreadCount.value)
-const notificationBadgeLabel = computed(() =>
-  notificationBadgeCount.value > 99 ? '99+' : String(notificationBadgeCount.value)
-)
 const notificationTarget = computed(() => {
   if (systemUnreadCount.value > 0) return '/workspace/notifications'
   if (privateUnreadCount.value > 0) return '/workspace/messages'
@@ -306,6 +303,7 @@ onBeforeUnmount(() => {
         </button>
         <RouterLink
           class="notice-button"
+          :class="{ 'notice-button--unread': notificationBadgeCount > 0 }"
           :to="notificationTarget"
           :aria-label="notificationBadgeCount ? `消息通知，${notificationBadgeCount} 条未读` : '消息通知'"
         >
@@ -313,7 +311,6 @@ onBeforeUnmount(() => {
             :size="25"
             aria-hidden="true"
           />
-          <span v-if="notificationBadgeCount > 0">{{ notificationBadgeLabel }}</span>
         </RouterLink>
         <div
           ref="preferencesRef"
@@ -846,19 +843,15 @@ onBeforeUnmount(() => {
   color: var(--color-brand);
 }
 
-.notice-button span {
+.notice-button--unread::after {
+  content: '';
   position: absolute;
-  top: 0;
-  right: 2px;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 6px;
-  border-radius: 999px;
-  background: var(--color-brand);
-  color: var(--color-surface);
-  font-size: 0.78rem;
-  font-weight: 800;
-  line-height: 20px;
+  top: 6px;
+  right: 6px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--color-danger, #e03e3e);
 }
 
 .topbar-divider {

@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import {
   BadgeCheck,
   CheckCircle2,
@@ -41,6 +41,7 @@ import { useToast } from '../composables/useToast'
 const { state } = useAuth()
 const { showToast } = useToast()
 const route = useRoute()
+const router = useRouter()
 
 const sections = [
   { key: 'dashboard', label: '数据概览', icon: GaugeCircle },
@@ -415,7 +416,15 @@ async function loadDashboard() {
 }
 
 function handleTodoNavigate(item) {
-  if (!item?.route) return
+  const routeMap = {
+    VERIFICATION: '/admin/verifications',
+    REPORT: '/admin/reports',
+    DISPUTED_TASK: '/admin'
+  }
+  const target = routeMap[item?.type]
+  if (!target) return
+  router.push(target).catch(() => {})
+  window.scrollTo({ top: 0, behavior: 'instant' })
   showToast(`已跳转到「${item.label}」入口。`)
 }
 
@@ -500,7 +509,6 @@ async function punishAppeal(task) {
               :size="18"
               aria-hidden="true"
             />
-            <span>{{ dashboardLoading ? '刷新中' : '刷新' }}</span>
           </button>
           <StatusBadge
             :label="isAdmin ? '管理员权限' : '非管理员账号'"

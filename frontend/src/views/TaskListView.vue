@@ -4332,16 +4332,18 @@ onMounted(async () => {
 
 .primary-action,
 .search-submit {
+  min-width: 132px;
   min-height: 44px;
-  border: 1px solid var(--color-brand-text);
-  background: var(--color-brand-text);
+  padding: 0 16px;
+  border: 1px solid var(--color-brand);
+  background: var(--color-brand);
   color: var(--color-surface);
-  box-shadow: var(--shadow-button);
+  box-shadow: 0 14px 26px var(--shadow-button);
 }
 
 .primary-action:hover:not(:disabled),
 .search-submit:hover:not(:disabled) {
-  background: var(--color-brand-text);
+  background: var(--color-brand-hover);
 }
 
 .ghost-action {
@@ -6293,8 +6295,8 @@ onMounted(async () => {
 }
 
 .report-panel {
-  border-color: var(--color-warning-soft);
-  background: var(--color-warning-bg);
+  border-color: var(--color-border);
+  background: var(--color-surface);
 }
 
 .report-heading > div:first-child {

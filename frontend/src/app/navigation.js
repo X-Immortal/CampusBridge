@@ -164,7 +164,7 @@ export const workspaceNavItems = [
     label: '工作台概览',
     to: '/workspace',
     icon: LayoutDashboard,
-    description: '账户状态与快捷入口'
+    description: '账户与认证状态'
   },
   {
     key: 'profile',
@@ -172,13 +172,6 @@ export const workspaceNavItems = [
     to: '/workspace/profile',
     icon: UserRound,
     description: '昵称、头像、标签与公开档案'
-  },
-  {
-    key: 'verification',
-    label: '校园认证',
-    to: '/workspace/verification',
-    icon: ShieldCheck,
-    description: '提交与查看校内认证资料'
   },
   {
     key: 'messages',
@@ -280,13 +273,6 @@ export const userMenuItems = (auth) => [
     requiresAuth: true
   },
   {
-    key: 'verification',
-    label: '校园认证',
-    icon: ShieldCheck,
-    to: '/workspace/verification',
-    requiresAuth: true
-  },
-  {
     key: 'my-tasks',
     label: '我的任务',
     icon: ClipboardList,
@@ -353,6 +339,8 @@ export function isNavItemActive(item, route) {
   if (!route || !item) return false
   if (item.section && route.meta?.section === item.section) return true
   if (route.path === item.to) return true
-  if (typeof item.to === 'string' && item.to !== '/' && route.path.startsWith(item.to)) return true
+  if (typeof item.to === 'string' && item.to !== '/' && route.path.startsWith(item.to)) {
+    if (!route.meta?.section || route.meta.section === item.section) return true
+  }
   return false
 }

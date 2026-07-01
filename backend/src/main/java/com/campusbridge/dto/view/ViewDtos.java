@@ -88,6 +88,7 @@ public final class ViewDtos {
         private Boolean likedByCurrentUser;
         private Boolean markedByCurrentUser;
         private Long acceptedReplyId;
+        private List<Attachment> attachments;
     }
 
     @Data

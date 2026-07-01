@@ -1,6 +1,5 @@
 <script setup>
 import { computed } from 'vue'
-import { useRouter } from 'vue-router'
 import { ChevronRight, Inbox, ListTodo, RefreshCw } from '@lucide/vue'
 
 const props = defineProps({
@@ -15,8 +14,6 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['navigate'])
-
-const router = useRouter()
 
 const items = computed(() => props.todos || [])
 
@@ -40,10 +37,7 @@ function toneClass(type) {
 }
 
 function navigate(item) {
-  if (!item?.route) return
-  if (item.route.startsWith('/')) {
-    router.push(item.route).catch(() => {})
-  }
+  if (!item?.type) return
   emit('navigate', item)
 }
 </script>

@@ -85,7 +85,7 @@ function toneClass(index) {
       class="admin-distribution-chart__empty"
     >
       <TriangleAlert
-        :size="28"
+        :size="40"
         aria-hidden="true"
       />
       <p>{{ emptyHint }}</p>
@@ -276,7 +276,8 @@ function toneClass(index) {
 .admin-distribution-chart__empty {
   display: grid;
   place-items: center;
-  gap: 8px;
+  align-content: center;
+  gap: 12px;
   min-height: 200px;
   border: 1px dashed var(--color-border-dashed);
   border-radius: 8px;
@@ -287,6 +288,8 @@ function toneClass(index) {
 
 .admin-distribution-chart__empty p {
   margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
 }
 
 @media (max-width: 720px) {
