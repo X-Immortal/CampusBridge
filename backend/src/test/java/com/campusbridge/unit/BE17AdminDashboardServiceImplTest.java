@@ -110,8 +110,10 @@ class BE17AdminDashboardServiceImplTest {
         DashboardTrend trend = service.getTrends(3);
 
         assertThat(trend.getDays()).hasSize(3);
-        assertThat(trend.getDays().get(0)).isEqualTo(start.format(java.time.format.DateTimeFormatter.ofPattern("MM-dd")));
-        assertThat(trend.getDays().get(2)).isEqualTo(today.format(java.time.format.DateTimeFormatter.ofPattern("MM-dd")));
+        assertThat(trend.getDays().get(0))
+                .isEqualTo(start.format(java.time.format.DateTimeFormatter.ofPattern("MM-dd")));
+        assertThat(trend.getDays().get(2))
+                .isEqualTo(today.format(java.time.format.DateTimeFormatter.ofPattern("MM-dd")));
         assertThat(trend.getNewUsers()).containsExactly(3L, 0L, 7L);
         assertThat(trend.getNewTasks()).containsExactly(5L, 9L, 0L);
         assertThat(trend.getNewPosts()).containsExactly(0L, 0L, 2L);
