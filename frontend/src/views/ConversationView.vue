@@ -940,6 +940,40 @@ onMounted(async () => {
           </header>
 
           <div
+            v-if="relatedTask && !isSystemConversation"
+            class="chat-context-bar"
+          >
+            <div class="chat-context-main">
+              <span>{{ relatedTask.title }}</span>
+              <StatusBadge
+                :label="taskStatusLabel(relatedTask.status)"
+                tone="info"
+              />
+            </div>
+            <dl class="chat-context-meta">
+              <div>
+                <dt>类型</dt>
+                <dd>{{ categoryLabel(relatedTask.category) }}</dd>
+              </div>
+              <div>
+                <dt>地点</dt>
+                <dd>{{ relatedTask.campus || '未设置' }} · {{ relatedTask.location || '未设置' }}</dd>
+              </div>
+              <div>
+                <dt>奖励</dt>
+                <dd>{{ rewardTypeLabel(relatedTask.rewardType) }}</dd>
+              </div>
+            </dl>
+            <span class="mode-note">
+              <ShieldCheck
+                :size="16"
+                aria-hidden="true"
+              />
+              {{ onlyInAppActive ? '仅站内沟通' : '可协商沟通方式' }}
+            </span>
+          </div>
+
+          <div
             ref="threadRef"
             class="message-thread"
             :aria-busy="messagesLoading"
@@ -1086,46 +1120,6 @@ onMounted(async () => {
             />
           </div>
         </section>
-
-        <aside
-          v-if="relatedTask && !isSystemConversation"
-          class="task-side-panel panel-card"
-        >
-          <div class="panel-heading panel-heading--tight">
-            <h2>{{ relatedTask.title }}</h2>
-            <StatusBadge
-              :label="taskStatusLabel(relatedTask.status)"
-              tone="info"
-            />
-          </div>
-
-          <dl class="task-detail-list">
-            <div>
-              <dt>类型</dt>
-              <dd>{{ categoryLabel(relatedTask.category) }}</dd>
-            </div>
-            <div>
-              <dt>地点</dt>
-              <dd>{{ relatedTask.campus || '未设置' }} · {{ relatedTask.location || '未设置' }}</dd>
-            </div>
-            <div>
-              <dt>奖励</dt>
-              <dd>{{ rewardTypeLabel(relatedTask.rewardType) }}</dd>
-            </div>
-            <div>
-              <dt>完成标准</dt>
-              <dd>{{ relatedTask.completionStandard || '未填写' }}</dd>
-            </div>
-          </dl>
-
-          <div class="mode-note">
-            <ShieldCheck
-              :size="18"
-              aria-hidden="true"
-            />
-            <span>{{ onlyInAppActive ? '仅站内沟通' : '可协商其他沟通方式' }}</span>
-          </div>
-        </aside>
       </section>
     </main>
   </DashboardShell>
@@ -1134,34 +1128,47 @@ onMounted(async () => {
 <style scoped>
 .message-page {
   display: grid;
-  gap: 18px;
+  gap: 16px;
   align-items: start;
+  width: 100%;
+  min-height: calc(100vh - 134px);
 }
 
 .message-shell {
   display: grid;
-  grid-template-columns: minmax(300px, 0.92fr) minmax(420px, 1.35fr) minmax(260px, 0.78fr);
-  gap: 18px;
-  align-items: start;
+  grid-template-columns: clamp(300px, 28vw, 380px) minmax(0, 1fr);
+  gap: 0;
+  align-items: stretch;
+  min-height: calc(100vh - 262px);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--color-surface);
+  box-shadow: 0 18px 36px var(--shadow-card);
 }
 
 .panel-card {
   display: grid;
   align-content: start;
   gap: 14px;
-  padding: 18px;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-surface);
-  box-shadow: 0 18px 36px var(--shadow-card);
+  min-width: 0;
+  background: transparent;
 }
 
 .conversation-list-panel {
-  min-height: 720px;
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  min-height: 0;
+  padding: 18px 16px;
+  border-right: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 92%, var(--color-bg));
 }
 
 .chat-panel {
-  min-height: 720px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0;
+  background: var(--color-surface);
 }
 
 .panel-heading {
@@ -1243,6 +1250,9 @@ onMounted(async () => {
   display: grid;
   gap: 10px;
   align-content: start;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 2px;
 }
 
 .conversation-card {
@@ -1251,17 +1261,19 @@ onMounted(async () => {
   gap: 12px;
   width: 100%;
   padding: 13px;
-  border: 1px solid var(--color-border);
+  border: 1px solid transparent;
   border-radius: 8px;
-  background: var(--color-surface);
+  background: transparent;
   color: var(--color-text);
+  cursor: pointer;
   text-align: left;
 }
 
 .conversation-card:hover,
 .conversation-card.active {
   border-color: var(--color-brand-border-hover);
-  box-shadow: var(--shadow-card);
+  background: var(--color-surface);
+  box-shadow: 0 10px 24px var(--shadow-card);
 }
 
 .conversation-card-body {
@@ -1372,18 +1384,75 @@ onMounted(async () => {
 
 .chat-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
+  min-height: 76px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .chat-title {
+  min-width: 0;
   display: flex;
   gap: 12px;
+  align-items: center;
 }
 
 .chat-title p {
   margin: 4px 0 0;
+}
+
+.chat-context-bar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.2fr) minmax(260px, 1.8fr) auto;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-bg) 76%, var(--color-surface));
+}
+
+.chat-context-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  color: var(--color-text);
+  font-weight: 800;
+}
+
+.chat-context-main > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-context-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.chat-context-meta div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.chat-context-meta dt {
+  color: var(--color-text-muted);
+  font-size: 0.76rem;
+}
+
+.chat-context-meta dd {
+  margin: 0;
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-size: 0.84rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .date-divider {
@@ -1404,11 +1473,12 @@ onMounted(async () => {
   display: grid;
   align-content: start;
   grid-auto-rows: max-content;
-  gap: 8px;
-  height: 560px;
-  min-height: 0;
+  gap: 10px;
+  flex: 1;
+  min-height: 360px;
   overflow-y: auto;
-  padding-right: 4px;
+  padding: 18px 28px 22px;
+  background: color-mix(in srgb, var(--color-bg) 72%, var(--color-surface));
 }
 
 .message-row {
@@ -1436,15 +1506,16 @@ onMounted(async () => {
   justify-self: start;
   width: fit-content;
   max-width: min(100%, 520px);
-  padding: 7px 12px;
+  padding: 8px 12px;
   border-radius: 16px;
-  background: var(--color-bg);
+  background: var(--color-surface);
   color: var(--color-text);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
 }
 
 .message-row--mine .message-bubble {
   justify-self: end;
-  background: var(--color-brand-soft);
+  background: color-mix(in srgb, var(--color-brand-soft) 86%, var(--color-surface));
 }
 
 .message-bubble p {
@@ -1465,6 +1536,9 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
   gap: 10px;
+  padding: 14px 20px 18px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
 }
 
 .message-composer input[type='text'] {
@@ -1499,13 +1573,17 @@ onMounted(async () => {
 }
 
 .mode-note {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 14px;
+  min-height: 34px;
+  padding: 0 12px;
   border-radius: 8px;
   background: var(--color-brand-soft);
   color: var(--color-text-secondary);
+  font-size: 0.84rem;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .loading-state,
@@ -1553,11 +1631,63 @@ onMounted(async () => {
 @media (max-width: 1200px) {
   .message-shell {
     grid-template-columns: 1fr;
+    min-height: auto;
   }
 
-  .conversation-list-panel,
+  .conversation-list-panel {
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .conversation-list {
+    max-height: 360px;
+  }
+
   .chat-panel {
+    min-height: 620px;
+  }
+
+  .chat-context-bar {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .chat-context-meta {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .message-page {
     min-height: auto;
+  }
+
+  .message-shell {
+    border-radius: 0;
+    border-right: 0;
+    border-left: 0;
+  }
+
+  .chat-header,
+  .message-thread,
+  .message-composer,
+  .chat-context-bar {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .chat-context-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .message-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 12px;
+  }
+
+  .message-bubble {
+    max-width: min(100%, 74vw);
   }
 }
 </style>
