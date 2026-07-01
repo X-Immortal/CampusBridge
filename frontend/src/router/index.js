@@ -306,7 +306,7 @@ const router = createRouter({
         requiresAuth: true,
         section: 'posts',
         subSection: 'marked',
-        title: '我的标价'
+        title: '我的标记'
       }
     },
     {

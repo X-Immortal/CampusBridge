@@ -184,7 +184,7 @@ function getConversationMeta(conversation) {
 function normalizeProfile(result = {}) {
   const source = result?.userProfile || result?.profile || result || {}
   return {
-    nickname: source.nickname || source.username || '',
+    nickname: source.nickname || source.username || '校园用户',
     avatarUrl: source.avatarUrl || ''
   }
 }
@@ -217,7 +217,7 @@ function peerProfile(conversation) {
 function conversationDisplayName(conversation) {
   if (!conversation) return ''
   if (conversation.type === 'SYSTEM') return '系统通知'
-  return peerProfile(conversation)?.nickname || `同学 ${conversation.peerUserId || ''}`.trim()
+  return peerProfile(conversation)?.nickname || '校园用户'
 }
 
 function conversationDisplayTitle(conversation) {
@@ -382,6 +382,7 @@ async function ensureConversationFromRoute() {
     )
     if (!createdConversation.id) return null
 
+    await ensureConversationProfiles([createdConversation])
     conversations.value = [createdConversation, ...conversations.value]
     conversationPage.total = Math.max(conversationPage.total, conversations.value.length)
     return createdConversation

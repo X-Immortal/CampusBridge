@@ -63,7 +63,7 @@ test('用户资料私信入口传递完整会话上下文', async () => {
   assert.match(profileSource, /relatedId:\s*String\(props\.relatedId\)/)
 })
 
-test('社区模块支持加载我的标价并跳转到帖子详情', async () => {
+test('社区模块支持加载我的标记并跳转到帖子详情', async () => {
   const [apiSource, postViewSource, navigationSource, routerSource] = await Promise.all([
     source('src/services/api.js'),
     source('src/views/PostView.vue'),
@@ -73,7 +73,7 @@ test('社区模块支持加载我的标价并跳转到帖子详情', async () =>
 
   assert.match(apiSource, /getMarkedPosts:\s*\(\)\s*=>\s*request\('\/posts\/marked'\)/)
   assert.match(postViewSource, /await api\.getMarkedPosts\(\)/)
-  assert.match(navigationSource, /key:\s*'marked'[\s\S]*?label:\s*'我的标价'/)
+  assert.match(navigationSource, /key:\s*'marked'[\s\S]*?label:\s*'我的标记'/)
   assert.match(routerSource, /path:\s*'\/workspace\/marked-posts'[\s\S]*?subSection:\s*'marked'/)
   assert.match(postViewSource, /readQuery\('postId'/)
 })

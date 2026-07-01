@@ -137,7 +137,7 @@ export const postNavItems = [
   },
   {
     key: 'marked',
-    label: '我的标价',
+    label: '我的标记',
     to: '/workspace/marked-posts',
     publicAccess: false,
     requiresAuth: true,
