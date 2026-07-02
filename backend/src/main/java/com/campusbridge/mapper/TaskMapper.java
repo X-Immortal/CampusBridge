@@ -57,4 +57,10 @@ public interface TaskMapper {
     List<Task> selectRecommendedTasks(
             @Param("status") String status,
             @Param("size") Integer size);
+
+    List<String> selectPreferredCampuses(
+            @Param("userId") Long userId,
+            @Param("limit") int limit);
+
+    List<Task> selectOpenTasksWithDeadline();
 }

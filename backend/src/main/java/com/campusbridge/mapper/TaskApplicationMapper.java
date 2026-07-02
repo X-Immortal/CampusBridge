@@ -37,4 +37,12 @@ public interface TaskApplicationMapper {
             @Param("handledAt") LocalDateTime handledAt);
 
     int deleteById(Long id);
+
+    List<String> selectPreferredCategories(
+            @Param("userId") Long userId,
+            @Param("limit") int limit);
+
+    List<String> selectPreferredRewardTypes(
+            @Param("userId") Long userId,
+            @Param("limit") int limit);
 }

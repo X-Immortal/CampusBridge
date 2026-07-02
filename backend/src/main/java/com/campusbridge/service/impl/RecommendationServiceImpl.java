@@ -1,0 +1,215 @@
+package com.campusbridge.service.impl;
+
+import com.campusbridge.mapper.PostInteractionMapper;
+import com.campusbridge.mapper.PostMapper;
+import com.campusbridge.mapper.TaskApplicationMapper;
+import com.campusbridge.mapper.TaskMapper;
+import com.campusbridge.pojo.Post;
+import com.campusbridge.pojo.Task;
+import com.campusbridge.service.RecommendationService;
+import org.springframework.stereotype.Service;
+
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+@Service
+public class RecommendationServiceImpl implements RecommendationService {
+    private final TaskMapper taskMapper;
+    private final PostMapper postMapper;
+    private final TaskApplicationMapper taskApplicationMapper;
+    private final PostInteractionMapper postInteractionMapper;
+
+    public RecommendationServiceImpl(
+            TaskMapper taskMapper,
+            PostMapper postMapper,
+            TaskApplicationMapper taskApplicationMapper,
+            PostInteractionMapper postInteractionMapper) {
+        this.taskMapper = taskMapper;
+        this.postMapper = postMapper;
+        this.taskApplicationMapper = taskApplicationMapper;
+        this.postInteractionMapper = postInteractionMapper;
+    }
+
+    @Override
+    public Map<String, Object> getUserPreferences(Long userId) {
+        if (userId == null) {
+            return Collections.emptyMap();
+        }
+
+        Map<String, Object> preferences = new HashMap<>();
+
+        // 1. 统计用户最常接的任务分类（前3）
+        List<String> preferredTaskCategories = taskApplicationMapper.selectPreferredCategories(userId, 3);
+        preferences.put("preferredTaskCategories", preferredTaskCategories);
+
+        // 2. 统计用户最活跃的校区（前2）
+        List<String> preferredCampuses = taskMapper.selectPreferredCampuses(userId, 2);
+        preferences.put("preferredCampuses", preferredCampuses);
+
+        // 3. 统计用户偏好的报酬类型（前2）
+        List<String> preferredRewardTypes = taskApplicationMapper.selectPreferredRewardTypes(userId, 2);
+        preferences.put("preferredRewardTypes", preferredRewardTypes);
+
+        // 4. 统计用户互动的帖子分类（前3）
+        List<String> interactionCategories = postInteractionMapper.selectPreferredPostCategories(userId, 3);
+        preferences.put("interactionCategories", interactionCategories);
+
+        return preferences;
+    }
+
+    @Override
+    public List<Task> getRecommendedTasks(Long userId, int limit) {
+        if (userId == null || limit <= 0) {
+            return Collections.emptyList();
+        }
+
+        // 获取用户偏好
+        Map<String, Object> preferences = getUserPreferences(userId);
+        List<String> preferredCategories = (List<String>) preferences
+                .getOrDefault("preferredTaskCategories", Collections.emptyList());
+        List<String> preferredCampuses = (List<String>) preferences
+                .getOrDefault("preferredCampuses", Collections.emptyList());
+        List<String> preferredRewards = (List<String>) preferences
+                .getOrDefault("preferredRewardTypes", Collections.emptyList());
+
+        // 获取所有 OPEN 状态且未截止的任务
+        List<Task> candidates = taskMapper.selectOpenTasksWithDeadline();
+        if (candidates.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // 计算每个任务的推荐分并排序
+        List<TaskScore> scoredTasks = candidates.stream()
+                .map(task -> new TaskScore(task,
+                        calculateTaskScore(task, preferredCategories,
+                                preferredCampuses, preferredRewards)))
+                .sorted((a, b) -> Integer.compare(b.score, a.score))
+                .limit(limit)
+                .collect(Collectors.toList());
+
+        return scoredTasks.stream().map(ts -> ts.task).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<Post> getRecommendedPosts(Long userId, int limit) {
+        if (userId == null || limit <= 0) {
+            return Collections.emptyList();
+        }
+
+        // 获取用户偏好
+        Map<String, Object> preferences = getUserPreferences(userId);
+        List<String> interactionCategories = (List<String>) preferences
+                .getOrDefault("interactionCategories", Collections.emptyList());
+
+        // 获取所有已发布的帖子
+        List<Post> candidates = postMapper.selectAllPublishedPosts();
+        if (candidates.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // 计算每个帖子的推荐分并排序
+        List<PostScore> scoredPosts = candidates.stream()
+                .map(post -> new PostScore(post, calculatePostScore(post, interactionCategories)))
+                .sorted((a, b) -> Integer.compare(b.score, a.score))
+                .limit(limit)
+                .collect(Collectors.toList());
+
+        return scoredPosts.stream().map(ps -> ps.post).collect(Collectors.toList());
+    }
+
+    private int calculateTaskScore(Task task, List<String> preferredCategories,
+                                    List<String> preferredCampuses, List<String> preferredRewards) {
+        int score = 0;
+
+        // 1. 分类匹配 (0-5分)
+        if (task.getCategory() != null && !preferredCategories.isEmpty()) {
+            int categoryIndex = preferredCategories.indexOf(task.getCategory());
+            if (categoryIndex >= 0) {
+                score += (categoryIndex < 3) ? 5 : 3;
+            }
+        }
+
+        // 2. 校区匹配 (0-3分)
+        if (task.getCampus() != null && !preferredCampuses.isEmpty()) {
+            if (preferredCampuses.contains(task.getCampus())) {
+                score += 3;
+            }
+        }
+
+        // 3. 报酬偏好匹配 (0-2分)
+        if (task.getRewardType() != null && !preferredRewards.isEmpty()) {
+            if (preferredRewards.contains(task.getRewardType())) {
+                score += 2;
+            }
+        }
+
+        // 4. 热度衰减分 (0-10分)
+        if (task.getCreatedAt() != null) {
+            long hoursSinceCreated = Duration.between(
+                    task.getCreatedAt(), LocalDateTime.now()).toHours();
+            double heatScore = 10.0 / Math.max(hoursSinceCreated + 2, 2);
+            score += (int) (heatScore * 10);
+        }
+
+        // 5. 时效性分 (0-5分)
+        if (task.getDeadline() != null) {
+            long daysUntilDeadline = Duration.between(
+                    LocalDateTime.now(), task.getDeadline()).toDays();
+            if (daysUntilDeadline > 0 && daysUntilDeadline <= 10) {
+                score += (int) (10 - daysUntilDeadline);
+            }
+        }
+
+        return score;
+    }
+
+    private int calculatePostScore(Post post, List<String> interactionCategories) {
+        int score = 0;
+
+        // 1. 分类匹配 (0-5分)
+        if (post.getCategory() != null && !interactionCategories.isEmpty()) {
+            int categoryIndex = interactionCategories.indexOf(post.getCategory());
+            if (categoryIndex >= 0) {
+                score += (categoryIndex < 3) ? 5 : 3;
+            }
+        }
+
+        // 2. 热度衰减分 (0-10分)
+        if (post.getCreatedAt() != null) {
+            long hoursSinceCreated = Duration.between(
+                    post.getCreatedAt(), LocalDateTime.now()).toHours();
+            int interactions = (post.getReplyCount() != null ? post.getReplyCount() : 0) +
+                    (post.getLikeCount() != null ? post.getLikeCount() : 0) +
+                    (post.getMarkCount() != null ? post.getMarkCount() : 0);
+            double heatScore = (interactions + 1) / Math.max(hoursSinceCreated + 2, 2);
+            score += (int) (heatScore * 10);
+        }
+
+        return score;
+    }
+
+    private static class TaskScore {
+        Task task;
+        int score;
+
+        TaskScore(Task task, int score) {
+            this.task = task;
+            this.score = score;
+        }
+    }
+
+    private static class PostScore {
+        Post post;
+        int score;
+
+        PostScore(Post post, int score) {
+            this.post = post;
+            this.score = score;
+        }
+    }
+}

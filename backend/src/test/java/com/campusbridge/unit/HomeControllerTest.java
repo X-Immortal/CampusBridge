@@ -6,6 +6,8 @@ import com.campusbridge.mapper.TaskMapper;
 import com.campusbridge.pojo.Post;
 import com.campusbridge.pojo.Result;
 import com.campusbridge.pojo.Task;
+import com.campusbridge.service.RecommendationService;
+import com.campusbridge.utils.AuthContextUtil;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -24,6 +26,12 @@ class HomeControllerTest {
 
     @Mock
     private TaskMapper taskMapper;
+
+    @Mock
+    private RecommendationService recommendationService;
+
+    @Mock
+    private AuthContextUtil authContextUtil;
 
     @Test
     @SuppressWarnings("unchecked")
@@ -44,8 +52,10 @@ class HomeControllerTest {
 
         when(postMapper.selectHotPosts(8)).thenReturn(List.of(post));
         when(taskMapper.selectRecommendedTasks("OPEN", 6)).thenReturn(List.of(task));
+        when(authContextUtil.getCurrentUserId()).thenReturn(null);
 
-        Result result = new HomeController(postMapper, taskMapper).getRecommendations();
+        Result result = new HomeController(postMapper, taskMapper,
+                recommendationService, authContextUtil).getRecommendations();
         Map<String, Object> data = (Map<String, Object>) result.getData();
         Map<String, Object> publicPost = ((List<Map<String, Object>>) data.get("hotPosts")).get(0);
         Map<String, Object> publicTask = ((List<Map<String, Object>>) data.get("latestTasks")).get(0);

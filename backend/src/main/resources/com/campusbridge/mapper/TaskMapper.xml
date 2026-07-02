@@ -200,4 +200,26 @@
     LIMIT #{size}
   </select>
 
+  <select id="selectPreferredCampuses" resultType="java.lang.String">
+    SELECT campus
+    FROM (
+      SELECT requester_id AS user_id, campus FROM tasks WHERE campus IS NOT NULL
+      UNION ALL
+      SELECT provider_id AS user_id, campus FROM tasks WHERE provider_id IS NOT NULL AND campus IS NOT NULL
+    ) combined
+    WHERE user_id = #{userId}
+    GROUP BY campus
+    ORDER BY COUNT(*) DESC
+    LIMIT #{limit}
+  </select>
+
+  <select id="selectOpenTasksWithDeadline" resultType="com.campusbridge.pojo.Task">
+    SELECT t.*, req.nickname AS requester_name
+    FROM tasks t
+    LEFT JOIN user_profiles req ON req.user_id = t.requester_id
+    WHERE t.status = 'OPEN'
+      AND t.deadline &gt; NOW()
+    ORDER BY t.created_at DESC
+  </select>
+
 </mapper>

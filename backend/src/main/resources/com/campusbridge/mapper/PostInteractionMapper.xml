@@ -57,4 +57,16 @@
     WHERE id = #{id}
   </delete>
 
+  <select id="selectPreferredPostCategories" resultType="java.lang.String">
+    SELECT p.category
+    FROM post_interactions pi
+    JOIN posts p ON p.id = pi.target_id
+    WHERE pi.user_id = #{userId}
+      AND pi.target_type = 'POST'
+      AND p.category IS NOT NULL
+    GROUP BY p.category
+    ORDER BY COUNT(*) DESC
+    LIMIT #{limit}
+  </select>
+
 </mapper>
