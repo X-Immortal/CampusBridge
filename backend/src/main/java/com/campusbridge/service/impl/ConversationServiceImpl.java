@@ -211,7 +211,12 @@ public class ConversationServiceImpl implements ConversationService {
     @Override
     public Map<String, Object> getUnreadSummary(Long ownerId) {
         requireUserId(ownerId);
-        return Map.of("unreadCount", messageMapper.countOwnerUnread(ownerId));
+        long systemUnread = messageMapper.countOwnerUnreadBySystemType(ownerId, true);
+        long privateUnread = messageMapper.countOwnerUnreadBySystemType(ownerId, false);
+        return Map.of(
+                "total", systemUnread + privateUnread,
+                "system", systemUnread,
+                "private", privateUnread);
     }
 
     private void validateCreateConversationRequest(

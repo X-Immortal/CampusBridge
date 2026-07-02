@@ -59,6 +59,16 @@
       AND m.read_at IS NULL
   </select>
 
+  <select id="countOwnerUnreadBySystemType" resultType="long">
+    SELECT COUNT(*)
+    FROM messages m
+    INNER JOIN conversations c ON c.id = m.conversation_id
+    WHERE c.owner_id = #{ownerId}
+      AND m.read_at IS NULL
+      <if test="isSystem">AND c.type = 'SYSTEM'</if>
+      <if test="!isSystem">AND c.type != 'SYSTEM'</if>
+  </select>
+
   <update id="updateById" parameterType="com.campusbridge.pojo.Message">
     UPDATE messages
     SET conversation_id = #{conversationId},

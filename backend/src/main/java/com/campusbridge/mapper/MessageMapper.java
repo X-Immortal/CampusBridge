@@ -37,6 +37,10 @@ public interface MessageMapper {
 
     long countOwnerUnread(Long ownerId);
 
+    long countOwnerUnreadBySystemType(
+            @Param("ownerId") Long ownerId,
+            @Param("isSystem") boolean isSystem);
+
     int updateById(Message entity);
 
     int deleteById(Long id);

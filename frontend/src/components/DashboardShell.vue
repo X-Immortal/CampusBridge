@@ -50,7 +50,9 @@ const {
   unreadCount: notificationUnreadCount,
   systemUnreadCount,
   privateUnreadCount,
-  refreshNotificationSummary
+  refreshNotificationSummary,
+  startPolling,
+  stopPolling
 } = useNotificationCenter()
 const { showToast } = useToast()
 usePreferences()
@@ -189,8 +191,13 @@ watch(profileAvatarUrl, () => {
 
 watch(
   [isAuthenticated, currentUserId],
-  () => {
+  ([authenticated]) => {
     refreshNotificationSummary()
+    if (authenticated) {
+      startPolling()
+    } else {
+      stopPolling()
+    }
   },
   { immediate: true }
 )
@@ -203,6 +210,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   document.removeEventListener('pointerdown', handleDocumentPointerDown)
   document.removeEventListener('keydown', handleDocumentKeydown)
+  stopPolling()
 })
 </script>
 
