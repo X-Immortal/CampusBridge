@@ -107,11 +107,14 @@ class BE13ConversationReadServiceImplTest {
 
     @Test
     void getUnreadSummaryReturnsOwnerUnreadCount() {
-        when(messageMapper.countOwnerUnread(OWNER_ID)).thenReturn(7L);
+        when(messageMapper.countOwnerUnreadBySystemType(OWNER_ID, true)).thenReturn(3L);
+        when(messageMapper.countOwnerUnreadBySystemType(OWNER_ID, false)).thenReturn(4L);
 
         Map<String, Object> result = conversationService.getUnreadSummary(OWNER_ID);
 
-        assertThat(result).containsEntry("unreadCount", 7L);
+        assertThat(result).containsEntry("total", 7L);
+        assertThat(result).containsEntry("system", 3L);
+        assertThat(result).containsEntry("private", 4L);
     }
 
     @Test
