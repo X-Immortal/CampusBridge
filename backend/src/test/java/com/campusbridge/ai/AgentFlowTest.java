@@ -43,6 +43,8 @@ class AgentFlowTest {
 
     private final EventRecorder events = mock(EventRecorder.class);
     private final TaskCommandPort taskCommands = mock(TaskCommandPort.class);
+    private final com.campusbridge.events.StreamEventLog streamEvents =
+            new com.campusbridge.events.StreamEventLog();
 
     private AgentOrchestrator orchestrator;
 
@@ -122,6 +124,25 @@ class AgentFlowTest {
         assertThat(response.card()).isNotNull();
     }
 
+    @Test
+    void 流事件覆盖五种kind且序号连续() {
+        AssistantResponse start = orchestrator.start(new StartRequest("帮我取个快递", Map.of()));
+        AssistantResponse comparison = answerAllRounds(start);
+        AssistantResponse confirmation = orchestrator.select(comparison.sessionId(), "now");
+        orchestrator.confirm(
+                confirmation.sessionId(), confirmation.card().token().value(), "idem-stream");
+
+        List<com.campusbridge.events.StreamEvent> stream =
+                streamEvents.after(start.sessionId(), 0L);
+        java.util.Set<String> kinds = new java.util.HashSet<>();
+        for (int i = 0; i < stream.size(); i++) {
+            kinds.add(stream.get(i).kind());
+            assertThat(stream.get(i).sequence()).isEqualTo(i + 1L);
+        }
+        assertThat(kinds).contains(
+                "text.delta", "schema.card", "tool.progress", "task.snapshot", "stream.end");
+    }
+
     private AssistantResponse answerAllRounds(AssistantResponse start) {
         AssistantResponse current = start;
         for (int round = 0; round < 4 && "clarification".equals(current.card().kind()); round++) {
@@ -170,7 +191,7 @@ class AgentFlowTest {
                 new SessionStore(),
                 new SchemaValidator(),
                 events,
-                new com.campusbridge.events.StreamEventLog(),
+                streamEvents,
                 AiFixture.CLOCK);
     }
 }

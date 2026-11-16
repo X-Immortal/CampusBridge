@@ -211,10 +211,20 @@ public class AgentOrchestrator {
             }
             events.record("confirm.requested", session.traceId(), session.id(),
                     Map.of("taskVersion", session.draft().version()));
+            streamEvents.append(session.id(), "tool.progress", Map.of(
+                    "toolName", "createTask",
+                    "status", "started",
+                    "progress", 0,
+                    "message", "正在创建任务"));
 
             ToolResult result = toolGateway.execute(
                     session.id(), session.requesterId(), session.draft(),
                     tokenValue, idempotencyKey, session.traceId());
+            streamEvents.append(session.id(), "tool.progress", Map.of(
+                    "toolName", "createTask",
+                    "status", result.ok() ? "done" : "failed",
+                    "progress", 1,
+                    "message", result.message() == null ? "" : result.message()));
 
             if (result.ok()) {
                 session.setTaskId(result.taskId());
@@ -309,6 +319,8 @@ public class AgentOrchestrator {
             return response;
         }
         if (response.card() != null) {
+            streamEvents.append(session.id(), "text.delta",
+                    Map.of("text", assistantText(response.card().kind())));
             streamEvents.append(session.id(), "schema.card", Map.of("card", response.card()));
         }
         if (response.taskId() != null) {
@@ -329,6 +341,23 @@ public class AgentOrchestrator {
             streamEvents.append(session.id(), "stream.end", Map.of("reason", reason));
         }
         return response;
+    }
+
+    /** 流里的助理气泡文案：按卡片类型给一句人话，客户端不用猜。 */
+    private String assistantText(String cardKind) {
+        if ("clarification".equals(cardKind)) {
+            return "还差几项信息，先补全再发布。";
+        }
+        if ("comparison".equals(cardKind)) {
+            return "信息齐了，给你几个方案选。";
+        }
+        if ("confirmation".equals(cardKind)) {
+            return "方案已锁定，请确认后才会写库。";
+        }
+        if ("progress".equals(cardKind)) {
+            return "正在执行，稍等。";
+        }
+        return "正在处理。";
     }
 
     private List<ChoiceOption> optionsFor(TaskDraft draft) {        List<ChoiceOption> options = new ArrayList<>();
