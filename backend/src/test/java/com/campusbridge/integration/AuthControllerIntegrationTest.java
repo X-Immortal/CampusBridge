@@ -72,7 +72,8 @@ class AuthControllerIntegrationTest {
                                   "username": "alice",
                                   "password": "Campus@12345",
                                   "phone": "13800000001",
-                                  "email": "alice@example.edu.cn"
+                                  "email": "alice@example.edu.cn",
+                                  "code": "123456"
                                 }
                                 """))
                 .andExpect(status().isCreated())
@@ -205,7 +206,10 @@ class AuthControllerIntegrationTest {
     void concurrentRegistrationDuplicateReturnsConflictWithoutDatabaseDetails() throws Exception {
         when(authService.register(any())).thenThrow(new DuplicateKeyException("private database detail"));
         mockMvc.perform(post("/api/v1/auth/register")
-                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"username":"alice","password":"pass123","phone":"13800000001",
+                                 "email":"alice@example.edu.cn","code":"123456"}
+                                """))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("COMMON_003_CONFLICT"))
                 .andExpect(jsonPath("$.details").isEmpty());
@@ -232,5 +236,4 @@ class AuthControllerIntegrationTest {
                                 .getBytes(StandardCharsets.UTF_8)))
                 .compact();
     }
-
 }

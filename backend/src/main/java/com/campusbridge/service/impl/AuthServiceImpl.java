@@ -39,14 +39,6 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public Long register(RegisterRequest request) {
-        if (request == null
-                || request.username == null || request.username.isBlank()
-                || request.password == null || request.password.isBlank()
-                || request.email == null || request.email.isBlank()
-                || request.phone == null || request.phone.isBlank()
-                || request.code == null || request.code.isBlank()) {
-            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "注册参数不合法");
-        }
 
         if (userMapper.selectByUsername(request.username) != null) {
             throw new BusinessException(ErrorCode.COMMON_003_CONFLICT, "用户名已存在");
@@ -84,9 +76,6 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public String sendRegistrationCode(String email) {
-        if (email == null || email.isBlank()) {
-            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "邮箱不能为空");
-        }
         String normalizedEmail = normalizeEmail(email);
         String code = String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
         LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(EMAIL_CODE_TTL_MINUTES);
@@ -102,10 +91,6 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public LoginView login(LoginRequest request) {
-        if (request == null || request.username == null || request.username.isBlank()
-                || request.password == null || request.password.isBlank()) {
-            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "登录参数不合法");
-        }
 
         User dbUser = userMapper.selectByUsername(request.username);
         if (dbUser == null) {
@@ -137,9 +122,6 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public String sendAccountEmailCode(Long userId, String email) {
         requireUser(userId);
-        if (email == null || email.isBlank()) {
-            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "邮箱不能为空");
-        }
         email = normalizeEmail(email);
         String code = String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
         LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(EMAIL_CODE_TTL_MINUTES);
@@ -180,9 +162,6 @@ public class AuthServiceImpl implements AuthService {
     private void requireValidCode(AccountEmailRecord record, String code) {
         if (record == null) {
             throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "请先发送邮箱验证码");
-        }
-        if (code == null || code.isBlank()) {
-            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "验证码不能为空");
         }
         if (!record.expiresAt.isAfter(LocalDateTime.now())) {
             throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "验证码已过期，请重新发送");

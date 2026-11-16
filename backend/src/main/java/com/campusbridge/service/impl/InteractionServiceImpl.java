@@ -31,9 +31,6 @@ public class InteractionServiceImpl implements InteractionService {
     @Override
     public PostInteraction createInteraction(
             Long userId, Long postId, CreatePostInteractionRequest request) {
-        if (request == null || request.getType() == null) {
-            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "Interaction type is required");
-        }
         String type = request.getType().name();
 
         Post post = requirePostExists(postId);

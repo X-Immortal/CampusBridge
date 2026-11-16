@@ -41,9 +41,6 @@ public class ReportServiceImpl implements ReportService {
     private static final int DEFAULT_PAGE = 1;
     private static final int DEFAULT_SIZE = 20;
     private static final int MAX_SIZE = 100;
-    private static final int MAX_REASON_LENGTH = 100;
-    private static final int MAX_DESCRIPTION_LENGTH = 1000;
-    private static final int MAX_DECISION_LENGTH = 500;
     private static final int DEFAULT_PUNISHMENT_CREDIT_CHANGE = -10;
 
     private static final String STATUS_PENDING = "PENDING";
@@ -70,7 +67,6 @@ public class ReportServiceImpl implements ReportService {
     @Override
     public Report createReport(Long reporterId, CreateReportRequest request) {
         validateReporterId(reporterId);
-        validateCreateReportRequest(request);
 
         Object target = requireTargetExists(reporterId, request.getTargetType(), request.getTargetId());
         LocalDateTime now = LocalDateTime.now();
@@ -183,34 +179,7 @@ public class ReportServiceImpl implements ReportService {
         return record;
     }
 
-    private void validateCreateReportRequest(CreateReportRequest request) {
-        if (request == null) {
-            throwValidation("Request body must not be null");
-        }
-        if (request.getTargetType() == null) {
-            throwValidation("targetType is required");
-        }
-        if (request.getTargetId() == null) {
-            throwValidation("targetId is required");
-        }
-        if (request.getReason() == null || request.getReason().isBlank()) {
-            throwValidation("reason is required");
-        }
-        validateLength(request.getReason(), MAX_REASON_LENGTH, "reason is too long");
-        validateLength(request.getDescription(), MAX_DESCRIPTION_LENGTH, "description is too long");
-    }
-
     private void validateResolveReportRequest(ResolveReportRequest request) {
-        if (request == null) {
-            throwValidation("Request body must not be null");
-        }
-        if (request.getStatus() == null) {
-            throwValidation("status is required");
-        }
-        if (request.getDecision() == null || request.getDecision().isBlank()) {
-            throwValidation("decision is required");
-        }
-        validateLength(request.getDecision(), MAX_DECISION_LENGTH, "decision is too long");
         if (STATUS_PENDING.equals(request.getStatus().name())
                 || STATUS_PROCESSING.equals(request.getStatus().name())) {
             throwValidation("status must be a final moderation result");
@@ -470,12 +439,6 @@ public class ReportServiceImpl implements ReportService {
     private void validateReportId(Long reportId) {
         if (reportId == null) {
             throwValidation("reportId must not be null");
-        }
-    }
-
-    private void validateLength(String value, int maxLength, String message) {
-        if (value != null && value.length() > maxLength) {
-            throwValidation(message);
         }
     }
 

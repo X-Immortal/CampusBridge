@@ -30,17 +30,9 @@ public class ReviewServiceImpl implements ReviewService {
 
     @Override
     public Review createReview(Long reviewerId, Long taskId, CreateReviewRequest request) {
-        if (reviewerId == null || taskId == null || request == null) {
+        if (reviewerId == null || taskId == null) {
             throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR,
-                    "reviewerId, taskId and request body are required");
-        }
-        if (request.getRevieweeId() == null || request.getRating() == null) {
-            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR,
-                    "revieweeId and rating are required");
-        }
-        if (request.getRating() < 1 || request.getRating() > 5) {
-            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR,
-                    "rating must be between 1 and 5");
+                    "reviewerId and taskId are required");
         }
 
         Task task = taskMapper.selectById(taskId);
@@ -65,9 +57,6 @@ public class ReviewServiceImpl implements ReviewService {
         if (!request.getRevieweeId().equals(otherParticipantId)) {
             throw new BusinessException(ErrorCode.TASK_003_PERMISSION_DENIED,
                     "Only the other task participant can be reviewed");
-        }
-        if (request.getComment() != null && request.getComment().length() > 500) {
-            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "comment is too long");
         }
 
         List<Review> existingReviews = reviewMapper.selectByTaskId(taskId);

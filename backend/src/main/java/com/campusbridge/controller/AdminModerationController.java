@@ -7,6 +7,7 @@ import com.campusbridge.common.PagedResult;
 import com.campusbridge.dto.query.TaskQuery;
 import com.campusbridge.dto.request.ReasonRequest;
 import com.campusbridge.dto.request.ResolveReportRequest;
+import com.campusbridge.dto.request.TaskReasonRequest;
 import com.campusbridge.dto.view.TaskView;
 import com.campusbridge.dto.view.VerificationReviewView;
 import com.campusbridge.entity.CampusVerification;
@@ -18,6 +19,7 @@ import com.campusbridge.service.ReportService;
 import com.campusbridge.service.VerificationService;
 import com.campusbridge.service.impl.TaskModerationService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -73,7 +75,7 @@ public class AdminModerationController {
     public ApiResponse<Task> rejectTask(
             HttpServletRequest servletRequest,
             @PathVariable Long taskId,
-            @RequestBody(required = false) ReasonRequest request) {
+            @Valid @RequestBody(required = false) TaskReasonRequest request) {
 
         Long adminUserId = currentUserResolver.requireCurrentUserId(servletRequest);
         String reason = request == null ? null : request.reason();
@@ -92,7 +94,7 @@ public class AdminModerationController {
     public ApiResponse<ModerationRecord> resolveReport(
             HttpServletRequest servletRequest,
             @PathVariable Long reportId,
-            @RequestBody ResolveReportRequest request) {
+            @Valid @RequestBody ResolveReportRequest request) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
         return ApiResponse.success(reportService.resolveReport(currentUserId, reportId, request));
     }

@@ -5,7 +5,7 @@ import com.campusbridge.dto.view.PostView;
 import com.campusbridge.dto.view.TaskPageView;
 import com.campusbridge.entity.Task;
 import io.swagger.v3.core.converter.ModelConverters;
-import io.swagger.v3.core.util.Yaml;
+import io.swagger.v3.core.util.Yaml31;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
@@ -31,6 +31,7 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Set;
 import java.util.TreeSet;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -57,7 +58,7 @@ class OpenApiExportTest {
     void exportEveryApplicationRoute() throws Exception {
         byte[] yaml = mockMvc.perform(get("/v3/api-docs.yaml"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
-        OpenAPI api = Yaml.mapper().readValue(yaml, OpenAPI.class);
+        OpenAPI api = Yaml31.mapper().readValue(yaml, OpenAPI.class);
         var expected = new TreeSet<String>();
         requestMappingHandlerMapping.getHandlerMethods().forEach((mapping, method) -> {
             mapping.getPatternValues().stream().filter(path -> path.startsWith("/api/v1/"))
@@ -85,9 +86,32 @@ class OpenApiExportTest {
                 .get(postPageRef.substring(postPageRef.lastIndexOf('/') + 1));
         assertEquals("#/components/schemas/PostView", postPage.getProperties().get("items").getItems().get$ref(),
                 "Nested generic pagination must retain its item schema");
+        Schema<?> update = api.getComponents().getSchemas().get("UpdateTaskRequest");
+        assertEquals(Set.of("title", "description", "deadline", "rewardType", "completionStandard",
+                        "requiresProof", "onlyInAppContact", "allowOfflineContact"),
+                Set.copyOf(update.getRequired()));
+        assertEquals(Set.of("string", "null"),
+                update.getProperties().get("rewardDescription").getTypes());
+        Schema<?> draft = api.getComponents().getSchemas().get("SaveTaskDraftRequest");
+        assertEquals("#/components/schemas/SaveTaskDraftRequest",
+                api.getPaths().get("/api/v1/tasks/drafts").getPost()
+                        .getRequestBody().getContent().get("application/json").getSchema().get$ref());
+        assertEquals(null, draft.getRequired());
+        assertEquals(null, draft.getProperties().get("title").getPattern());
+        assertEquals("#/components/schemas/CreateTaskRequest",
+                api.getPaths().get("/api/v1/tasks/{taskId}/resend").getPost()
+                        .getRequestBody().getContent().get("application/json").getSchema().get$ref());
+        assertEquals(null, api.getPaths().get("/api/v1/posts/{postId}").getPatch());
+        assertEquals("#/components/schemas/UpdatePostRequest",
+                api.getPaths().get("/api/v1/posts/{postId}").getPut()
+                        .getRequestBody().getContent().get("application/json").getSchema().get$ref());
+        assertEquals(Set.of("title", "content"),
+                Set.copyOf(api.getComponents().getSchemas().get("UpdatePostRequest").getRequired()));
+        assertEquals(false, api.getComponents().getSchemas().get("CreateVerificationRequest")
+                .getProperties().containsKey("campusEmailValid"));
         Path output = Path.of("../docs/openapi.yaml");
         Files.createDirectories(output.getParent());
-        Files.writeString(output, Yaml.pretty(api));
+        Files.writeString(output, Yaml31.pretty(api));
     }
 
     @TestConfiguration
@@ -131,6 +155,23 @@ class OpenApiExportTest {
                         operation.getResponses().get("204").setContent(null);
                     }
                 }));
+            };
+        }
+
+        @Bean
+        OpenApiCustomizer taskUpdateSchema() {
+            return api -> {
+                var schemas = api.getComponents().getSchemas();
+                Schema<?> update = schemas.get("UpdateTaskRequest");
+                Schema<?> description = update.getProperties().get("rewardDescription");
+                description.setType(null);
+                description.setTypes(Set.of("string", "null"));
+                Schema<?> amount = update.getProperties().get("rewardAmount");
+                amount.setType(null);
+                amount.setTypes(Set.of("integer", "null"));
+                amount.setMinimum(java.math.BigDecimal.ONE);
+                amount.setDescription("正整数；传 null 或省略时清除原金额");
+                description.setDescription("传 null 或省略时清除原奖励说明");
             };
         }
 

@@ -32,7 +32,6 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class TaskApplicationServiceImpl implements TaskApplicationService {
-    private static final int MAX_MESSAGE_LENGTH = 300;
 
     private static final String STATUS_OPEN = "OPEN";
     private static final String STATUS_ACCEPTED = "ACCEPTED";
@@ -55,7 +54,7 @@ public class TaskApplicationServiceImpl implements TaskApplicationService {
             Long applicantId,
             Long taskId,
             CreateTaskApplicationRequest request) {
-        validateApplicationRequest(applicantId, taskId, request);
+        validateApplicationIds(applicantId, taskId);
 
         Task task = requireTaskForUpdate(taskId);
         if (!STATUS_OPEN.equals(task.getStatus())) {
@@ -242,21 +241,9 @@ public class TaskApplicationServiceImpl implements TaskApplicationService {
         return application;
     }
 
-    private void validateApplicationRequest(
-            Long applicantId,
-            Long taskId,
-            CreateTaskApplicationRequest request) {
+    private void validateApplicationIds(Long applicantId, Long taskId) {
         if (applicantId == null || taskId == null) {
             throwValidation("applicantId and taskId are required");
-        }
-        if (request == null) {
-            throwValidation("Request body must not be null");
-        }
-        if (isBlank(request.getMessage())) {
-            throwValidation("message is required");
-        }
-        if (request.getMessage().length() > MAX_MESSAGE_LENGTH) {
-            throwValidation("message is too long");
         }
     }
 

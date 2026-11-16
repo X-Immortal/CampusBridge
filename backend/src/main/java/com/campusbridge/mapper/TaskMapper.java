@@ -21,15 +21,6 @@ public interface TaskMapper extends BaseMapper<Task> {
         return selectOne(Wrappers.<Task>lambdaQuery().eq(Task::getId, id).last("FOR UPDATE"));
     }
 
-    default int reopenById(Long id, String fromStatus, LocalDateTime updatedAt) {
-        return update(null, Wrappers.<Task>lambdaUpdate()
-                .set(Task::getProviderId, null)
-                .set(Task::getStatus, "OPEN")
-                .set(Task::getUpdatedAt, updatedAt)
-                .eq(Task::getId, id)
-                .eq(Task::getStatus, fromStatus));
-    }
-
     default int updateStatusById(Long id, String fromStatus, String toStatus, LocalDateTime updatedAt) {
         return update(null, Wrappers.<Task>lambdaUpdate()
                 .set(Task::getStatus, toStatus)

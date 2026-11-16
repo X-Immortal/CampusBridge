@@ -1,4 +1,10 @@
 package com.campusbridge.dto.request;
 
-public record EmailCodeRequest(String code) {
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+
+public record EmailCodeRequest(
+        @NotNull(message = "验证码不能为空")
+        @Pattern(regexp = "(?s).*\\P{javaWhitespace}.*", message = "验证码不能为空")
+        String code) {
 }

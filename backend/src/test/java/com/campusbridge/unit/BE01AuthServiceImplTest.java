@@ -82,22 +82,6 @@ class BE01AuthServiceImplTest {
     }
 
     @Test
-    void registerRejectsNullRequest() {
-        assertThatThrownBy(() -> authService.register(null))
-                .isInstanceOf(BusinessException.class)
-                .extracting("errorCode").isEqualTo(ErrorCode.COMMON_001_VALIDATION_ERROR);
-    }
-
-    @Test
-    void registerRejectsBlankUsername() {
-        RegisterRequest request =
-                registerRequest("  ", "pass123", "13800000001", "alice@test.com", "000000");
-        assertThatThrownBy(() -> authService.register(request))
-                .isInstanceOf(BusinessException.class)
-                .extracting("errorCode").isEqualTo(ErrorCode.COMMON_001_VALIDATION_ERROR);
-    }
-
-    @Test
     void registerRejectsDuplicateUsername() {
         RegisterRequest request =
                 registerRequest("alice", "pass123", "13800000001", "alice@test.com", "000000");
@@ -138,14 +122,6 @@ class BE01AuthServiceImplTest {
         assertThatThrownBy(() -> authService.register(request))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.COMMON_999_INTERNAL_ERROR);
-    }
-
-    @Test
-    void registerRejectsMissingCodeWithoutThrowingNullPointer() {
-        assertThatThrownBy(() -> authService.register(
-                registerRequest("alice", "pass123", "13800000001", "alice@test.com", null)))
-                .isInstanceOf(BusinessException.class)
-                .extracting("errorCode").isEqualTo(ErrorCode.COMMON_001_VALIDATION_ERROR);
     }
 
     @Test
@@ -218,21 +194,6 @@ class BE01AuthServiceImplTest {
         assertThat(payload.role()).isEqualTo("USER");
         assertThat(payload.token()).isEqualTo("jwt-token");
         assertThat(payload.refreshToken()).isEqualTo("refresh-token");
-    }
-
-    @Test
-    void loginRejectsNullRequest() {
-        assertThatThrownBy(() -> authService.login(null))
-                .isInstanceOf(BusinessException.class)
-                .extracting("errorCode").isEqualTo(ErrorCode.COMMON_001_VALIDATION_ERROR);
-    }
-
-    @Test
-    void loginRejectsBlankUsername() {
-        LoginRequest request = loginRequest("  ", "pass123");
-        assertThatThrownBy(() -> authService.login(request))
-                .isInstanceOf(BusinessException.class)
-                .extracting("errorCode").isEqualTo(ErrorCode.COMMON_001_VALIDATION_ERROR);
     }
 
     @Test

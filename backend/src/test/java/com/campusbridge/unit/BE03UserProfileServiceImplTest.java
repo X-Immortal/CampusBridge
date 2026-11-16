@@ -102,19 +102,6 @@ class BE03UserProfileServiceImplTest {
     }
 
     @Test
-    void updateMyProfileRejectsTooLongBio() {
-        when(userMapper.selectById(USER_ID)).thenReturn(user());
-
-        UpdateUserProfileRequest request = new UpdateUserProfileRequest();
-        request.setBio("x".repeat(501));
-
-        assertThatThrownBy(() -> userProfileService.updateMyProfile(USER_ID, request))
-                .isInstanceOfSatisfying(BusinessException.class, ex ->
-                        assertThat(ex.getErrorCode())
-                                .isEqualTo(ErrorCode.COMMON_001_VALIDATION_ERROR));
-    }
-
-    @Test
     void getUserHomepageReturnsPublicSummaryOnly() {
         when(userMapper.selectById(USER_ID)).thenReturn(user());
         when(userProfileMapper.selectByUserId(USER_ID)).thenReturn(profile());

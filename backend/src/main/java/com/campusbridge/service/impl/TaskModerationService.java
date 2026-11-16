@@ -29,9 +29,6 @@ public class TaskModerationService {
     }
 
     public Task rejectTask(Long adminUserId, Long taskId, String reason) {
-        if (reason != null && reason.length() > 300) {
-            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "reason is too long");
-        }
         Task task = transition(taskId, "PENDING_REVIEW", "REJECTED");
         String note = reason == null || reason.isBlank() ? "ADMIN_REJECTED" : "ADMIN_REJECTED; REASON=" + reason;
         taskHistoryService.recordHistory(taskId, "PENDING_REVIEW", "REJECTED", adminUserId, note);

@@ -2,6 +2,7 @@ package com.campusbridge.service;
 
 import com.campusbridge.dto.query.TaskQuery;
 import com.campusbridge.dto.request.CreateTaskRequest;
+import com.campusbridge.dto.request.SaveTaskDraftRequest;
 import com.campusbridge.dto.request.TaskStatusTransitionRequest;
 import com.campusbridge.dto.request.UpdateTaskRequest;
 import com.campusbridge.dto.view.TaskPageView;
@@ -31,7 +32,7 @@ public interface TaskService {
 
     void deleteDraft(Long operatorId, Long taskId);
 
-    TaskView saveDraft(Long requesterId, CreateTaskRequest request);
+    TaskView saveDraft(Long requesterId, SaveTaskDraftRequest request);
 
-    TaskView resendTask(Long operatorId, Long taskId);
+    TaskView resendTask(Long operatorId, Long taskId, CreateTaskRequest request);
 }

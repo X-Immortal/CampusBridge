@@ -6,6 +6,7 @@ import com.campusbridge.dto.request.CreateReviewRequest;
 import com.campusbridge.entity.Review;
 import com.campusbridge.service.ReviewService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -31,7 +32,7 @@ public class ReviewController {
     public ApiResponse<Review> createReview(
             HttpServletRequest servletRequest,
             @PathVariable Long taskId,
-            @RequestBody CreateReviewRequest request) {
+            @Valid @RequestBody CreateReviewRequest request) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
         return ApiResponse.success(reviewService.createReview(currentUserId, taskId, request));
     }

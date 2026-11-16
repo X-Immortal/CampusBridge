@@ -31,14 +31,6 @@ import java.util.Set;
 @Service
 @RequiredArgsConstructor
 public class UserProfileServiceImpl implements UserProfileService {
-    private static final int MAX_NICKNAME_LENGTH = 50;
-    private static final int MAX_BIO_LENGTH = 500;
-    private static final int MAX_CAMPUS_LENGTH = 100;
-    private static final int MAX_COLLEGE_LENGTH = 100;
-    private static final int MAX_CONTACT_INFO_LENGTH = 255;
-    private static final int MAX_AVATAR_URL_LENGTH = 500;
-    private static final int MAX_TAG_COUNT = 20;
-    private static final int MAX_TAG_LENGTH = 30;
     private static final long MAX_AVATAR_SIZE = 5 * 1024 * 1024; // 5MB
     private static final Set<String> ALLOWED_AVATAR_TYPES =
             Set.of("image/png", "image/jpeg", "image/webp");
@@ -68,7 +60,6 @@ public class UserProfileServiceImpl implements UserProfileService {
             Long currentUserId,
             UpdateUserProfileRequest request) {
         requireUser(currentUserId);
-        validateProfileRequest(request);
 
         UserProfile profile = getOrCreateProfile(currentUserId);
         profile.setNickname(request.getNickname());
@@ -254,49 +245,6 @@ public class UserProfileServiceImpl implements UserProfileService {
                 verified,
                 creditLevel,
                 points);
-    }
-
-    private void validateProfileRequest(UpdateUserProfileRequest request) {
-        if (request == null) {
-            throw new BusinessException(
-                    ErrorCode.COMMON_001_VALIDATION_ERROR,
-                    "Request body must not be null");
-        }
-
-        validateLength(request.getNickname(), MAX_NICKNAME_LENGTH, "nickname is too long");
-        validateLength(request.getBio(), MAX_BIO_LENGTH, "bio is too long");
-        validateLength(request.getCampus(), MAX_CAMPUS_LENGTH, "campus is too long");
-        validateLength(request.getCollege(), MAX_COLLEGE_LENGTH, "college is too long");
-        validateLength(request.getContactInfo(), MAX_CONTACT_INFO_LENGTH, "contactInfo is too long");
-        validateLength(request.getAvatarUrl(), MAX_AVATAR_URL_LENGTH, "avatarUrl is too long");
-        validateTags(request.getInterestTags(), "interestTags");
-        validateTags(request.getSkillTags(), "skillTags");
-    }
-
-    private void validateLength(String value, int maxLength, String message) {
-        if (value != null && value.length() > maxLength) {
-            throw new BusinessException(
-                    ErrorCode.COMMON_001_VALIDATION_ERROR,
-                    message);
-        }
-    }
-
-    private void validateTags(List<String> tags, String fieldName) {
-        if (tags == null) {
-            return;
-        }
-        if (tags.size() > MAX_TAG_COUNT) {
-            throw new BusinessException(
-                    ErrorCode.COMMON_001_VALIDATION_ERROR,
-                    fieldName + " count exceeds limit");
-        }
-        for (String tag : tags) {
-            if (tag != null && tag.length() > MAX_TAG_LENGTH) {
-                throw new BusinessException(
-                        ErrorCode.COMMON_001_VALIDATION_ERROR,
-                        fieldName + " length exceeds limit");
-            }
-        }
     }
 
     private String toJson(List<String> tags) {

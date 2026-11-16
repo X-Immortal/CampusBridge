@@ -128,7 +128,7 @@ export default {
   createPost: (body) => request('/posts', { method: 'POST', body }),
   getPosts: (params) => request(`/posts${buildQuery(params)}`),
   getPostDetail: (postId) => request(`/posts/${postId}`),
-  updatePost: (postId, body) => request(`/posts/${postId}`, { method: 'PATCH', body }),
+  updatePost: (postId, body) => request(`/posts/${postId}`, { method: 'PUT', body }),
   deletePost: (postId) => request(`/posts/${postId}`, { method: 'DELETE' }),
   getMyRepliedPosts: (params) => request(`/posts/replied${buildQuery(params)}`),
   createPostReply: (postId, body) =>
@@ -148,7 +148,7 @@ export default {
   withdrawFromTask: (taskId, body) =>
     request(`/tasks/${taskId}/provider-withdrawal`, { method: 'POST', body }),
   deleteTaskDraft: (taskId) => request(`/tasks/${taskId}/draft`, { method: 'DELETE' }),
-  resendTask: (taskId) => request(`/tasks/${taskId}/resend`, { method: 'POST' }),
+  resendTask: (taskId, body) => request(`/tasks/${taskId}/resend`, { method: 'POST', body }),
   transitionTaskStatus: (taskId, body) =>
     request(`/tasks/${taskId}/status-transitions`, { method: 'POST', body }),
   submitTaskCompletion: (taskId, body) =>

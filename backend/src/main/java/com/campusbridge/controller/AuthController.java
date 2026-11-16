@@ -8,6 +8,7 @@ import com.campusbridge.dto.view.EmailCodeSentView;
 import com.campusbridge.dto.view.LoginView;
 import com.campusbridge.service.AuthService;
 import com.campusbridge.service.impl.EmailVerificationCodeSender;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -25,7 +26,7 @@ public class AuthController {
     private final EmailVerificationCodeSender emailCodeSender;
 
     @PostMapping("/register/send-code")
-    public ApiResponse<EmailCodeSentView> sendRegistrationCode(@RequestBody EmailRequest body) {
+    public ApiResponse<EmailCodeSentView> sendRegistrationCode(@Valid @RequestBody EmailRequest body) {
         String code = authService.sendRegistrationCode(body.email());
         return ApiResponse.success(new EmailCodeSentView(emailCodeSender.isDeliveryRequired(),
                 emailCodeSender.isDebugCodeEnabled() ? code : null));
@@ -33,12 +34,12 @@ public class AuthController {
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
-    public ApiResponse<Long> register(@RequestBody RegisterRequest request) {
+    public ApiResponse<Long> register(@Valid @RequestBody RegisterRequest request) {
         return ApiResponse.success(authService.register(request));
     }
 
     @PostMapping("/login")
-    public ApiResponse<LoginView> login(@RequestBody LoginRequest request) {
+    public ApiResponse<LoginView> login(@Valid @RequestBody LoginRequest request) {
         return ApiResponse.success(authService.login(request));
     }
 }

@@ -115,15 +115,6 @@ class BE09CompletionServiceImplTest {
     }
 
     @Test
-    void submitProofRejectsNullDescription() {
-        assertThatThrownBy(() -> completionService.submitCompletionProof(
-                PROVIDER_ID, TASK_ID, submitRequest(null)))
-                .isInstanceOf(BusinessException.class)
-                .extracting("errorCode")
-                .isEqualTo(ErrorCode.COMMON_001_VALIDATION_ERROR);
-    }
-
-    @Test
     void submitProofBindsOwnedTemporaryAttachments() {
         Task task = task(TASK_ID, REQUESTER_ID, PROVIDER_ID, "IN_PROGRESS", "POINTS", 20);
         Attachment attachment = new Attachment();
@@ -211,14 +202,6 @@ class BE09CompletionServiceImplTest {
                 "COMPLETION_REJECTED; REASON=凭证不充分");
         verify(notificationService).notifyTaskStatusChanged(
                 eq(task), eq("PENDING_CONFIRMATION"), eq("IN_PROGRESS"), eq(REQUESTER_ID), anyString());
-    }
-
-    @Test
-    void rejectCompletionRequiresReason() {
-        assertThatThrownBy(() -> completionService.rejectCompletion(REQUESTER_ID, TASK_ID, "  "))
-                .isInstanceOf(BusinessException.class)
-                .extracting("errorCode")
-                .isEqualTo(ErrorCode.COMMON_001_VALIDATION_ERROR);
     }
 
     // ---- disputeCompletion ----

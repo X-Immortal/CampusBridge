@@ -11,6 +11,7 @@ import com.campusbridge.dto.view.UnreadSummaryView;
 import com.campusbridge.entity.Message;
 import com.campusbridge.service.ConversationService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -42,7 +43,7 @@ public class ConversationController {
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<ConversationView> createConversation(
             HttpServletRequest servletRequest,
-            @RequestBody CreateConversationRequest request) {
+            @Valid @RequestBody CreateConversationRequest request) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
         return ApiResponse.success(conversationService.createConversation(currentUserId, request));
     }
@@ -63,7 +64,7 @@ public class ConversationController {
     public ApiResponse<Message> sendMessage(
             HttpServletRequest servletRequest,
             @PathVariable Long conversationId,
-            @RequestBody SendMessageRequest request) {
+            @Valid @RequestBody SendMessageRequest request) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
         return ApiResponse.success(
                 conversationService.sendMessage(currentUserId, conversationId, request));

@@ -3,6 +3,7 @@ package com.campusbridge.unit;
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
 import com.campusbridge.dto.request.CreateTaskRequest;
+import com.campusbridge.dto.request.SaveTaskDraftRequest;
 import com.campusbridge.dto.request.TaskStatusTransitionRequest;
 import com.campusbridge.dto.view.TaskView;
 import com.campusbridge.entity.CampusVerification;
@@ -97,20 +98,6 @@ class BE04BE08TaskServiceImplTest {
                 .assertTaskPublishAllowed(eq(REQUESTER_ID), any(CreateTaskRequest.class));
         verify(taskHistoryService)
                 .recordHistory(TASK_ID, null, "OPEN", REQUESTER_ID, "TASK_CREATED");
-    }
-
-    @Test
-    void createTaskRejectsMissingRequiredField() {
-        CreateTaskRequest request = normalCreateRequest();
-        request.setTitle(" ");
-
-        when(campusVerificationMapper.selectLatestByUserId(REQUESTER_ID))
-                .thenReturn(verifiedRecord());
-
-        assertThatThrownBy(() -> taskService.createTask(REQUESTER_ID, request))
-                .isInstanceOfSatisfying(BusinessException.class, ex ->
-                        assertThat(ex.getErrorCode())
-                                .isEqualTo(ErrorCode.COMMON_001_VALIDATION_ERROR));
     }
 
     @Test
@@ -277,7 +264,9 @@ class BE04BE08TaskServiceImplTest {
             return 1;
         });
 
-        TaskView draft = taskService.saveDraft(REQUESTER_ID, normalCreateRequest());
+        SaveTaskDraftRequest request = new SaveTaskDraftRequest();
+        request.setDeliveryLocation("5号宿舍楼");
+        TaskView draft = taskService.saveDraft(REQUESTER_ID, request);
 
         assertThat(draft.getStatus()).isEqualTo("DRAFT");
         assertThat(draft.getDeliveryLocation()).isEqualTo("5号宿舍楼");
@@ -293,6 +282,33 @@ class BE04BE08TaskServiceImplTest {
 
         verify(taskHistoryService).deleteByTaskId(TASK_ID);
         verify(taskMapper).deleteById(TASK_ID);
+    }
+
+    @Test
+    void saveDraftAllowsIncompleteFieldsAndPastDeadline() {
+        when(campusVerificationMapper.selectLatestByUserId(REQUESTER_ID)).thenReturn(verifiedRecord());
+        when(taskMapper.insert(any(Task.class))).thenReturn(1);
+        SaveTaskDraftRequest request = new SaveTaskDraftRequest();
+        request.setDeadline(LocalDateTime.now().minusDays(1));
+
+        TaskView draft = taskService.saveDraft(REQUESTER_ID, request);
+
+        assertThat(draft.getStatus()).isEqualTo("DRAFT");
+        assertThat(draft.getTitle()).isNull();
+    }
+
+    @Test
+    void resendRejectsExcessivePointsRewardBeforeWriting() {
+        when(campusVerificationMapper.selectLatestByUserId(REQUESTER_ID)).thenReturn(verifiedRecord());
+        when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(task("DRAFT"));
+        CreateTaskRequest request = normalCreateRequest();
+        request.setRewardAmount(11);
+
+        assertThatThrownBy(() -> taskService.resendTask(REQUESTER_ID, TASK_ID, request))
+                .isInstanceOfSatisfying(BusinessException.class, ex ->
+                        assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.COMMON_001_VALIDATION_ERROR));
+        verify(contentModerationService, org.mockito.Mockito.never())
+                .assertTaskPublishAllowed(any(), any());
     }
 
     private CreateTaskRequest normalCreateRequest() {

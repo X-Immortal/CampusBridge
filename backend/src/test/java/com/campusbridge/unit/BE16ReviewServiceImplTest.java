@@ -79,24 +79,6 @@ class BE16ReviewServiceImplTest {
     }
 
     @Test
-    void createReviewRejectsInvalidRating() {
-        assertThatThrownBy(() -> reviewService.createReview(
-                REQUESTER_ID, TASK_ID, reviewRequest(PROVIDER_ID, 0, "too low")))
-                .isInstanceOf(BusinessException.class)
-                .extracting("errorCode")
-                .isEqualTo(ErrorCode.COMMON_001_VALIDATION_ERROR);
-    }
-
-    @Test
-    void createReviewRejectsRatingAboveFive() {
-        assertThatThrownBy(() -> reviewService.createReview(
-                REQUESTER_ID, TASK_ID, reviewRequest(PROVIDER_ID, 6, "too high")))
-                .isInstanceOf(BusinessException.class)
-                .extracting("errorCode")
-                .isEqualTo(ErrorCode.COMMON_001_VALIDATION_ERROR);
-    }
-
-    @Test
     void createReviewRejectsNonParticipant() {
         Task task = task(TASK_ID, REQUESTER_ID, PROVIDER_ID, "COMPLETED");
         when(taskMapper.selectById(TASK_ID)).thenReturn(task);

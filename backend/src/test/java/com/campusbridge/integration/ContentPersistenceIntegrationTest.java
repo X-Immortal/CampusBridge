@@ -691,5 +691,4 @@ class ContentPersistenceIntegrationTest {
             assertThat(beyondLastPage.getPage()).isEqualTo(3);
         }
     }
-
 }

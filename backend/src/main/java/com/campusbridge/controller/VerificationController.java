@@ -10,6 +10,7 @@ import com.campusbridge.dto.view.VerificationSubmissionView;
 import com.campusbridge.entity.CampusVerification;
 import com.campusbridge.service.VerificationService;
 import com.campusbridge.utils.AuthContextUtil;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -30,7 +31,7 @@ public class VerificationController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.ACCEPTED)
-    public ApiResponse<VerificationSubmissionView> submitVerification(@RequestBody CreateVerificationRequest request) {
+    public ApiResponse<VerificationSubmissionView> submitVerification(@Valid @RequestBody CreateVerificationRequest request) {
         Long userId = authContextUtil.getCurrentUserId();
         return ApiResponse.success(verificationService.submit(userId, request));
     }
@@ -44,7 +45,7 @@ public class VerificationController {
 
     @PostMapping("/email/confirm")
     public ApiResponse<VerificationSubmissionView> confirmEmailVerification(
-            @RequestBody ConfirmEmailVerificationRequest request) {
+            @Valid @RequestBody ConfirmEmailVerificationRequest request) {
         Long userId = authContextUtil.getCurrentUserId();
         return ApiResponse.success(verificationService.confirmEmail(userId, request));
     }

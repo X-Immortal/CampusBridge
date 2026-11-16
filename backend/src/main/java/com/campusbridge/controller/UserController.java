@@ -11,6 +11,7 @@ import com.campusbridge.entity.Review;
 import com.campusbridge.service.ReviewService;
 import com.campusbridge.service.UserProfileService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -47,7 +48,7 @@ public class UserController {
     @PutMapping("/me/profile")
     public ApiResponse<UserProfileView> updateMyProfile(
             HttpServletRequest request,
-            @RequestBody UpdateUserProfileRequest requestBody) {
+            @Valid @RequestBody UpdateUserProfileRequest requestBody) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(request);
         return ApiResponse.success(userProfileService.updateMyProfile(currentUserId, requestBody));
     }

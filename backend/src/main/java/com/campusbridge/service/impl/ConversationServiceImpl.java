@@ -42,9 +42,6 @@ public class ConversationServiceImpl implements ConversationService {
     private static final int DEFAULT_PAGE = 1;
     private static final int DEFAULT_SIZE = 20;
     private static final int MAX_SIZE = 100;
-    private static final int MAX_MESSAGE_LENGTH = 2000;
-    private static final int MAX_INITIAL_MESSAGE_LENGTH = 1000;
-    private static final int MAX_ATTACHMENT_COUNT = 9;
 
     private static final String TYPE_PRIVATE = "PRIVATE";
     private static final String RELATED_POST = "POST";
@@ -199,48 +196,16 @@ public class ConversationServiceImpl implements ConversationService {
     private void validateCreateConversationRequest(
             Long ownerId,
             CreateConversationRequest request) {
-        if (request == null) {
-            throwValidation("Request body must not be null");
-        }
-        if (request.getPeerUserId() == null) {
-            throwValidation("peerUserId is required");
-        }
         requireExistingEnabledUser(request.getPeerUserId());
         if (ownerId.equals(request.getPeerUserId())) {
             throwValidation("peerUserId must not be current user");
         }
-        if (isBlank(request.getRelatedType())) {
-            throwValidation("relatedType is required");
-        }
-        if (request.getRelatedId() == null) {
-            throwValidation("relatedId is required");
-        }
         normalizeRelatedType(request.getRelatedType());
-        if (request.getInitialMessage() != null
-                && request.getInitialMessage().length() > MAX_INITIAL_MESSAGE_LENGTH) {
-            throwValidation("initialMessage is too long");
-        }
     }
 
     private void validateSendMessageRequest(SendMessageRequest request) {
-        if (request == null) {
-            throwValidation("Request body must not be null");
-        }
-        if (request.getType() == null) {
-            throwValidation("type is required");
-        }
         if (request.getType() == MessageType.SYSTEM_NOTIFICATION) {
             throwValidation("system notification cannot be sent manually");
-        }
-        if (isBlank(request.getContent())) {
-            throwValidation("content is required");
-        }
-        if (request.getContent().length() > MAX_MESSAGE_LENGTH) {
-            throwValidation("content is too long");
-        }
-        if (request.getAttachmentIds() != null
-                && request.getAttachmentIds().size() > MAX_ATTACHMENT_COUNT) {
-            throwValidation("attachmentIds exceeds limit");
         }
     }
 

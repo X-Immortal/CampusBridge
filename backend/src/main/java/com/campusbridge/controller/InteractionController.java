@@ -9,6 +9,7 @@ import com.campusbridge.mapper.PostInteractionMapper;
 import com.campusbridge.mapper.PostMapper;
 import com.campusbridge.service.InteractionService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -38,7 +39,7 @@ public class InteractionController {
     public ApiResponse<PostInteraction> createInteraction(
             HttpServletRequest servletRequest,
             @PathVariable Long postId,
-            @RequestBody CreatePostInteractionRequest request) {
+            @Valid @RequestBody CreatePostInteractionRequest request) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
         return ApiResponse.success(interactionService.createInteraction(currentUserId, postId, request));
     }

@@ -261,8 +261,8 @@ function createApiRecorder() {
       calls.push({ method: 'updateTask', taskId, body })
       return Promise.resolve({ id: Number(taskId), status: 'OPEN', ...body })
     },
-    resendTask(taskId) {
-      calls.push({ method: 'resendTask', taskId })
+    resendTask(taskId, body) {
+      calls.push({ method: 'resendTask', taskId, body })
       return Promise.resolve({ id: Number(taskId), status: 'OPEN' })
     }
   }
@@ -304,7 +304,7 @@ async function simulateSubmitTask({
   }
 
   if (mode === 'repost') {
-    const resentTask = await api.resendTask(sourceTaskId)
+    const resentTask = await api.resendTask(sourceTaskId, buildPayload(form))
     return {
       feedback: '任务已重新发布，新的接单流程已经开始。',
       lastTask: normalizeTaskResult(resentTask),
@@ -358,7 +358,7 @@ test('API 封装使用任务发布文档里的端点和 HTTP 方法', async () =
   assert.match(source, /createTask:\s*\(body\)\s*=>\s*request\('\/tasks',\s*\{\s*method:\s*'POST'/)
   assert.match(source, /saveTaskDraft:\s*\(body\)\s*=>\s*request\('\/tasks\/drafts',\s*\{\s*method:\s*'POST'/)
   assert.match(source, /updateTask:\s*\(taskId,\s*body\)\s*=>\s*request\(`\/tasks\/\$\{taskId\}`,\s*\{\s*method:\s*'PUT'/)
-  assert.match(source, /resendTask:\s*\(taskId\)\s*=>\s*request\(`\/tasks\/\$\{taskId\}\/resend`,\s*\{\s*method:\s*'POST'/)
+  assert.match(source, /resendTask:\s*\(taskId,\s*body\)\s*=>\s*request\(`\/tasks\/\$\{taskId\}\/resend`,\s*\{\s*method:\s*'POST'/)
 })
 
 test('创建模式会校验必填项、未来截止时间和即时任务路线', () => {
@@ -576,6 +576,7 @@ test('提交创建、编辑、重发时分别调用 createTask、updateTask、re
   assert.equal(repostApi.calls.length, 1)
   assert.equal(repostApi.calls[0].method, 'resendTask')
   assert.equal(repostApi.calls[0].taskId, '77')
+  assert.equal(repostApi.calls[0].body.title, baseForm().title.trim())
 })
 
 test('未通过发布门禁或源任务缺失时不会调用发布接口', async () => {
@@ -634,6 +635,45 @@ test('draft cards can reopen a server draft in the publish form', async () => {
   assert.match(listSource, /aria-label="编辑草稿"[\s\S]*@click\.stop="openDraftEditor\(task\)"/)
   assert.match(publishSource, /route\.params\.taskId \|\| route\.query\.draftId/)
   assert.match(publishSource, /await api\.getTaskDetail\(sourceTaskId\.value\)/)
-  assert.match(publishSource, /await api\.deleteTaskDraft\(sourceTaskId\.value\)/)
+  assert.doesNotMatch(publishSource, /await api\.deleteTaskDraft\(sourceTaskId\.value\)/)
   assert.match(publishSource, /route\.name, route\.params\.taskId, route\.query\.draftId/)
 })
+
+
+test('production edit payload sends explicit nulls to clear optional fields', async () => {
+  const source = await readFile(new URL('../src/views/TaskPublishView.vue', import.meta.url), 'utf8')
+  const build = source.match(/function buildUpdatePayload\(\) \{[\s\S]*?\n\}/)[0]
+  const payload = new Function(
+    'taskForm', 'normalizeDeadline', 'optionalText', 'optionalNumber',
+    build + '\nreturn buildUpdatePayload()'
+  )(baseForm({ rewardDescription: '', rewardAmount: '' }), normalizeDeadline, optionalText, optionalNumber)
+  const wire = JSON.parse(JSON.stringify(payload))
+  assert.equal(wire.rewardDescription, null)
+  assert.equal(wire.rewardAmount, null)
+  assert.equal(wire.title, '南门快递柜取件')
+  assert.equal(Object.keys(wire).length, 10)
+})
+
+
+for (const mode of ['repost', 'draft']) {
+  test('production ' + mode + ' submission sends the form and retains the task ID', async () => {
+    const source = await readFile(new URL('../src/views/TaskPublishView.vue', import.meta.url), 'utf8')
+    const submit = source.match(/async function handleSubmitTask\(\) \{[\s\S]*?\n\}/)[0]
+    const body = buildPayload(baseForm({ title: '修订后的任务', deadline: futureDeadline(240) }))
+    const calls = []
+    const context = {
+      lastCreatedTask: { value: null }, loadingSource: { value: false },
+      isEditMode: { value: false }, isRepostMode: { value: mode === 'repost' },
+      isRestoringServerDraft: { value: mode === 'draft' }, sourceTask: { value: { id: 77 } },
+      sourceTaskId: { value: '77' }, canPublish: { value: true }, submitting: { value: false },
+      validateForm: () => true, buildPayload: () => body,
+      api: { resendTask: async (...args) => { calls.push(args); return { id: 77, ...body } } },
+      normalizeTaskResult: value => value, clearSavedDraft: () => {}, showToast: () => {},
+      scheduleRedirectToTask: id => { assert.equal(id, '77') }
+    }
+    await new Function(...Object.keys(context), submit + '\nreturn handleSubmitTask()')(...Object.values(context))
+    assert.deepEqual(calls, [['77', body]])
+    assert.equal(context.lastCreatedTask.value.id, 77)
+    assert.equal(context.submitting.value, false)
+  })
+}

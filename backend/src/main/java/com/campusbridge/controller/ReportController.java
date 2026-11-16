@@ -7,6 +7,7 @@ import com.campusbridge.dto.request.CreateReportRequest;
 import com.campusbridge.entity.Report;
 import com.campusbridge.service.ReportService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,7 +29,7 @@ public class ReportController {
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<Report> createReport(
             HttpServletRequest servletRequest,
-            @RequestBody CreateReportRequest request) {
+            @Valid @RequestBody CreateReportRequest request) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
         return ApiResponse.success(reportService.createReport(currentUserId, request));
     }

@@ -47,15 +47,7 @@ public class VerificationServiceImpl implements VerificationService {
 
     @Override
     public VerificationSubmissionView submit(Long userId, CreateVerificationRequest request) {
-        if (userId == null || request == null || request.method == null
-                || isBlank(request.realName) || isBlank(request.studentNumber) || isBlank(request.school)) {
-            throw new BusinessException(ErrorCode.VERIFY_001_INVALID_INPUT);
-        }
-        if (requiresEvidenceUrl(request.method) && isBlank(request.evidenceUrl)) {
-            throw new BusinessException(ErrorCode.VERIFY_001_INVALID_INPUT);
-        }
-        if (request.method == VerificationMethod.CAMPUS_EMAIL
-                && !isValidEmail(request.campusEmail)) {
+        if (userId == null) {
             throw new BusinessException(ErrorCode.VERIFY_001_INVALID_INPUT);
         }
 
@@ -92,7 +84,7 @@ public class VerificationServiceImpl implements VerificationService {
 
     @Override
     public VerificationSubmissionView confirmEmail(Long userId, ConfirmEmailVerificationRequest request) {
-        if (userId == null || request == null || isBlank(request.code)) {
+        if (userId == null) {
             throw new BusinessException(ErrorCode.VERIFY_001_INVALID_INPUT);
         }
 
@@ -282,11 +274,6 @@ public class VerificationServiceImpl implements VerificationService {
     private VerificationSubmissionView buildPayload(CampusVerification entity) {
         return new VerificationSubmissionView(entity.getId(), entity.getStatus(), entity.getUserId(),
                 entity.getMethod(), entity.getCreatedAt(), entity.getReviewedAt(), null, null, null);
-    }
-
-    private boolean requiresEvidenceUrl(VerificationMethod method) {
-        return method == VerificationMethod.STUDENT_CARD_IMAGE
-                || method == VerificationMethod.MANUAL_REVIEW;
     }
 
     private boolean isValidEmail(String value) {

@@ -158,15 +158,6 @@ class BE07TaskApplicationServiceImplTest {
     }
 
     @Test
-    void createApplicationRejectsBlankMessage() {
-        assertThatThrownBy(() -> applicationService.createApplication(
-                APPLICANT_ID, TASK_ID, appRequest("  ")))
-                .isInstanceOf(BusinessException.class)
-                .extracting("errorCode")
-                .isEqualTo(ErrorCode.COMMON_001_VALIDATION_ERROR);
-    }
-
-    @Test
     void createApplicationRejectsTaskNotFound() {
         when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(null);
 

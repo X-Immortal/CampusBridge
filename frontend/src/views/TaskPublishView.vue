@@ -654,8 +654,8 @@ function buildUpdatePayload() {
     description: taskForm.description.trim(),
     deadline: normalizeDeadline(taskForm.deadline),
     rewardType: taskForm.rewardType,
-    rewardDescription: optionalText(taskForm.rewardDescription),
-    rewardAmount: optionalNumber(taskForm.rewardAmount),
+    rewardDescription: optionalText(taskForm.rewardDescription) ?? null,
+    rewardAmount: optionalNumber(taskForm.rewardAmount) ?? null,
     completionStandard: taskForm.completionStandard.trim(),
     requiresProof: taskForm.requiresProof,
     onlyInAppContact: taskForm.onlyInAppContact,
@@ -721,24 +721,17 @@ async function handleSubmitTask() {
       return
     }
 
-    if (isRepostMode.value) {
-      const resentTask = await api.resendTask(sourceTaskId.value)
+    if (isRepostMode.value || isRestoringServerDraft.value) {
+      const resentTask = await api.resendTask(sourceTaskId.value, buildPayload())
       lastCreatedTask.value = normalizeTaskResult(resentTask)
       clearSavedDraft()
-      showToast('任务已重新发布，3 秒后返回任务详情。', { type: 'success' })
+      showToast(isRestoringServerDraft.value ? '任务已发布，3 秒后返回任务详情。' : '任务已重新发布，3 秒后返回任务详情。', { type: 'success' })
       scheduleRedirectToTask(sourceTaskId.value)
       return
     }
 
     const createdTask = await api.createTask(buildPayload())
     lastCreatedTask.value = normalizeTaskResult(createdTask)
-    if (isRestoringServerDraft.value) {
-      try {
-        await api.deleteTaskDraft(sourceTaskId.value)
-      } catch {
-        showToast('任务已发布，但原草稿未能自动删除，请稍后在草稿栏手动删除。', { type: 'warning' })
-      }
-    }
     clearSavedDraft()
     resetForm()
     clearErrors()

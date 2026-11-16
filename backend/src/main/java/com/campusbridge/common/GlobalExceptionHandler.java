@@ -1,5 +1,7 @@
 package com.campusbridge.common;
 
+import com.campusbridge.dto.request.ConfirmEmailVerificationRequest;
+import com.campusbridge.dto.request.CreateVerificationRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
@@ -9,6 +11,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.ServletRequestBindingException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
@@ -32,16 +35,20 @@ public class GlobalExceptionHandler {
             IllegalArgumentException.class,
             HttpMessageNotReadableException.class,
             MethodArgumentNotValidException.class,
+            HandlerMethodValidationException.class,
             ServletRequestBindingException.class,
             MethodArgumentTypeMismatchException.class,
             MissingServletRequestPartException.class
     })
     public ResponseEntity<ErrorResponse> handleBadRequest(Exception ex) {
-        ErrorResponse body = ErrorResponse.of(
-                ErrorCode.COMMON_001_VALIDATION_ERROR,
-                ErrorCode.COMMON_001_VALIDATION_ERROR.getDefaultMessage(),
-                detailsOf(ex)
-        );
+        ErrorCode code = ErrorCode.COMMON_001_VALIDATION_ERROR;
+        if (ex instanceof MethodArgumentNotValidException validationException) {
+            Object request = validationException.getBindingResult().getTarget();
+            if (request instanceof CreateVerificationRequest || request instanceof ConfirmEmailVerificationRequest) {
+                code = ErrorCode.VERIFY_001_INVALID_INPUT;
+            }
+        }
+        ErrorResponse body = ErrorResponse.of(code, code.getDefaultMessage(), detailsOf(ex));
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
@@ -76,6 +83,11 @@ public class GlobalExceptionHandler {
                     .getFieldErrors()
                     .stream()
                     .map(error -> error.getField() + ": " + error.getDefaultMessage())
+                    .toList();
+        }
+        if (ex instanceof HandlerMethodValidationException validationException) {
+            return validationException.getAllErrors().stream()
+                    .map(org.springframework.context.MessageSourceResolvable::getDefaultMessage)
                     .toList();
         }
         if (!(ex instanceof IllegalArgumentException)

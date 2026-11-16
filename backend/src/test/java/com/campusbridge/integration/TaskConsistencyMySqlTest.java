@@ -11,6 +11,7 @@ import com.campusbridge.dto.query.TaskQuery;
 import com.campusbridge.dto.request.CreateReviewRequest;
 import com.campusbridge.dto.request.CreateTaskApplicationRequest;
 import com.campusbridge.dto.request.CreateTaskRequest;
+import com.campusbridge.dto.request.SaveTaskDraftRequest;
 import com.campusbridge.dto.request.SubmitCompletionRequest;
 import com.campusbridge.dto.request.TaskStatusTransitionRequest;
 import com.campusbridge.dto.request.UpdateTaskRequest;
@@ -42,6 +43,7 @@ import com.campusbridge.service.impl.TaskHistoryServiceImpl;
 import com.campusbridge.service.impl.TaskModerationService;
 import com.campusbridge.service.impl.TaskServiceImpl;
 import com.campusbridge.service.impl.TaskTimeoutServiceImpl;
+import javax.sql.DataSource;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -80,7 +82,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import javax.sql.DataSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -164,8 +165,8 @@ class TaskConsistencyMySqlTest {
     }
 
     @Test
-    void incompleteDraftIsPrivateAndCannotPublishUntilRequiredFieldsExist() {
-        TaskView draft = tasks.saveDraft(1L, new CreateTaskRequest());
+    void incompleteDraftIsPrivateAndPublishesWithSubmittedCompleteForm() {
+        TaskView draft = tasks.saveDraft(1L, new SaveTaskDraftRequest());
         assertThat(tasks.getTaskDetail(draft.getId(), 1L).getStatus()).isEqualTo("DRAFT");
         assertThatThrownBy(() -> tasks.getTaskDetail(draft.getId(), null))
                 .isInstanceOf(BusinessException.class);
@@ -173,24 +174,100 @@ class TaskConsistencyMySqlTest {
                 .isInstanceOf(BusinessException.class);
         assertThat(tasks.listTasks(new TaskQuery()).getTasks()).isEmpty();
         assertThat(tasks.listTasks(TaskQuery.builder().status("DRAFT").build()).getTasks()).isEmpty();
-        assertThatThrownBy(() -> tasks.resendTask(1L, draft.getId()))
+        TaskView published = tasks.resendTask(1L, draft.getId(), request());
+        assertThat(published.getId()).isEqualTo(draft.getId());
+        assertThat(published.getStatus()).isEqualTo("OPEN");
+        assertThat(published.getTitle()).isEqualTo(request().getTitle());
+    }
+
+    @Test
+    void expiredCancelledTaskRepostsWithNewContentAndPreservesIdentity() {
+        CreateTaskRequest original = request();
+        original.setRewardDescription("Old reward");
+        original.setRewardAmount(5);
+        TaskView created = tasks.createTask(1L, original);
+        jdbc.update("UPDATE tasks SET status='CANCELLED',provider_id=2,deadline=? WHERE id=?",
+                LocalDateTime.now().minusDays(1), created.getId());
+        TaskMapper mapper = context.getBean(TaskMapper.class);
+        LocalDateTime createdAt = mapper.selectById(created.getId()).getCreatedAt();
+        CreateTaskRequest revised = request();
+        revised.setTitle("Revised title");
+        revised.setCampus("New campus");
+        revised.setDeadline(LocalDateTime.now().plusDays(3).withNano(0));
+        revised.setRewardDescription(null);
+        revised.setRewardAmount(null);
+
+        TaskView published = tasks.resendTask(1L, created.getId(), revised);
+
+        Task stored = mapper.selectById(created.getId());
+        assertThat(published.getId()).isEqualTo(created.getId());
+        assertThat(stored.getTitle()).isEqualTo("Revised title");
+        assertThat(stored.getCampus()).isEqualTo("New campus");
+        assertThat(stored.getDeadline()).isEqualTo(revised.getDeadline());
+        assertThat(stored.getRewardDescription()).isNull();
+        assertThat(stored.getRewardAmount()).isNull();
+        assertThat(stored.getProviderId()).isNull();
+        assertThat(stored.getRequesterId()).isEqualTo(1L);
+        assertThat(stored.getCreatedAt()).isEqualTo(createdAt);
+        assertThat(stored.getStatus()).isEqualTo("OPEN");
+        assertThat(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM task_histories WHERE task_id=? AND note='TASK_RESENT'",
+                Integer.class, created.getId())).isEqualTo(1);
+    }
+
+    @Test
+    void repostRejectsOtherOwnersAndOpenTasksWithoutChangingContent() {
+        TaskView draft = tasks.saveDraft(1L, new SaveTaskDraftRequest());
+        assertThatThrownBy(() -> tasks.resendTask(3L, draft.getId(), request()))
                 .isInstanceOf(BusinessException.class);
         assertThat(status(draft.getId())).isEqualTo("DRAFT");
+        tasks.resendTask(1L, draft.getId(), request());
+        CreateTaskRequest changed = request();
+        changed.setTitle("Must not overwrite");
+        assertThatThrownBy(() -> tasks.resendTask(1L, draft.getId(), changed))
+                .isInstanceOf(BusinessException.class);
+        assertThat(tasks.getTaskDetail(draft.getId(), 1L).getTitle()).isEqualTo(request().getTitle());
+    }
 
-        TaskView completeDraft = tasks.saveDraft(1L, request());
-        assertThat(tasks.resendTask(1L, completeDraft.getId()).getStatus()).isEqualTo("OPEN");
+    @Test
+    void completeEditClearsOptionalValuesAndPreservesNonEditableFields() {
+        CreateTaskRequest initial = request();
+        initial.setRewardAmount(5);
+        initial.setRewardDescription("Old reward");
+        TaskView task = tasks.createTask(1L, initial);
+        UpdateTaskRequest edit = editRequest();
+        edit.setTitle("Updated parcel");
+        edit.setRewardType(RewardType.FREE);
+
+        tasks.updateTask(1L, task.getId(), edit);
+
+        Task stored = context.getBean(TaskMapper.class).selectById(task.getId());
+        assertThat(stored.getTitle()).isEqualTo("Updated parcel");
+        assertThat(stored.getRewardAmount()).isNull();
+        assertThat(stored.getRewardDescription()).isNull();
+        assertThat(stored.getCampus()).isEqualTo(initial.getCampus());
+        assertThat(stored.getCategory()).isEqualTo(initial.getCategory().name());
+        assertThat(stored.getRequesterId()).isEqualTo(1L);
+        assertThat(stored.getStatus()).isEqualTo("OPEN");
+    }
+
+    private UpdateTaskRequest editRequest() {
+        CreateTaskRequest input = request();
+        return new UpdateTaskRequest(input.getTitle(), input.getDescription(), input.getDeadline(),
+                input.getRewardType(), null, null, input.getCompletionStandard(), true, true, false);
     }
 
     @Test
     void invalidPublishedEditRollsBackAndAcceptedTaskCannotBeReopenedByEdit() throws Exception {
         TaskView task = tasks.createTask(1L, request());
-        UpdateTaskRequest edit = new UpdateTaskRequest();
-        edit.setTitle(" ");
+        UpdateTaskRequest edit = editRequest();
+        edit.setRewardAmount(11);
         assertThatThrownBy(() -> tasks.updateTask(1L, task.getId(), edit))
                 .isInstanceOf(BusinessException.class);
         assertThat(jdbc.queryForObject("SELECT title FROM tasks WHERE id=?", String.class, task.getId()))
                 .isEqualTo("Collect test parcel");
 
+        edit.setRewardAmount(null);
         edit.setTitle("Changed title");
         ExecutorService executor = Executors.newSingleThreadExecutor();
         try {
@@ -377,15 +454,6 @@ class TaskConsistencyMySqlTest {
                 .containsExactlyInAnyOrder(true, false);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM completion_proofs", Integer.class)).isEqualTo(1);
         assertThat(status(task.getId())).isEqualTo("PENDING_CONFIRMATION");
-    }
-
-    @Test
-    void taskPublicationRejectsAttachmentsThatWouldOtherwiseBeSilentlyDiscarded() {
-        CreateTaskRequest unsupported = request();
-        unsupported.setAttachmentIds(List.of(1L));
-        assertThatThrownBy(() -> tasks.createTask(1L, unsupported)).isInstanceOf(BusinessException.class);
-        assertThatThrownBy(() -> tasks.saveDraft(1L, unsupported)).isInstanceOf(BusinessException.class);
-        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM tasks", Integer.class)).isZero();
     }
 
     @Test
@@ -598,6 +666,7 @@ class TaskConsistencyMySqlTest {
             CreditServiceImpl.class, ReviewServiceImpl.class, TaskHistoryServiceImpl.class,
             TaskTimeoutServiceImpl.class, TaskModerationService.class})
     static class TestConfig {
+
         @Bean
         DataSource dataSource() {
             DriverManagerDataSource source = new DriverManagerDataSource();

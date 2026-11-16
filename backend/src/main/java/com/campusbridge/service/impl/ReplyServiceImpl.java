@@ -26,9 +26,6 @@ public class ReplyServiceImpl implements ReplyService {
 
     @Override
     public ReplyView createReply(Long userId, Long postId, CreateReplyRequest request) {
-        if (request == null || request.getContent() == null || request.getContent().isBlank()) {
-            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "Reply content is required");
-        }
         Post post = postMapper.selectById(postId);
         if (post == null || !"PUBLISHED".equals(post.getStatus())) {
             throw new BusinessException(ErrorCode.POST_001_NOT_FOUND);

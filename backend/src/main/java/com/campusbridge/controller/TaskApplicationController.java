@@ -7,6 +7,7 @@ import com.campusbridge.dto.view.TaskApplicationCandidateView;
 import com.campusbridge.entity.TaskApplication;
 import com.campusbridge.service.TaskApplicationService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -31,7 +32,7 @@ public class TaskApplicationController {
     public ApiResponse<TaskApplication> createApplication(
             HttpServletRequest servletRequest,
             @PathVariable Long taskId,
-            @RequestBody CreateTaskApplicationRequest request) {
+            @Valid @RequestBody CreateTaskApplicationRequest request) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
         return ApiResponse.success(taskApplicationService.createApplication(currentUserId, taskId, request));
     }

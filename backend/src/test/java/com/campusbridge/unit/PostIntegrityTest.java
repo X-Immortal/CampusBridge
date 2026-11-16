@@ -54,17 +54,9 @@ class PostIntegrityTest {
     }
 
     @Test
-    void blankPostCannotReachPersistence() {
-        CreatePostRequest request = request();
-        request.setTitle(" ");
-        assertThatThrownBy(() -> service.createPost(1L, request)).isInstanceOf(BusinessException.class);
-        verify(posts, never()).insert(any(Post.class));
-    }
-
-    @Test
     void editingCannotBypassPublishModeration() {
         when(posts.selectById(10L)).thenReturn(post("PUBLISHED"));
-        UpdatePostRequest request = new UpdatePostRequest();
+        UpdatePostRequest request = new UpdatePostRequest("Updated title", "Updated content", null);
         request.setContent("代考");
         assertThatThrownBy(() -> service.updatePost(1L, 10L, request)).isInstanceOf(BusinessException.class);
         verify(posts, never()).updateContent(any(), any());
@@ -73,7 +65,7 @@ class PostIntegrityTest {
     @Test
     void authorCannotPublishModeratedPostOrSetModerationStatus() {
         when(posts.selectById(10L)).thenReturn(post("HIDDEN"), post("PUBLISHED"));
-        UpdatePostRequest request = new UpdatePostRequest();
+        UpdatePostRequest request = new UpdatePostRequest("Updated title", "Updated content", null);
         request.setStatus(PostStatus.PUBLISHED);
         assertThatThrownBy(() -> service.updatePost(1L, 10L, request)).isInstanceOf(BusinessException.class);
         request.setStatus(PostStatus.HIDDEN);

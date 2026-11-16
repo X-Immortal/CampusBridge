@@ -14,7 +14,6 @@ import com.campusbridge.entity.Attachment;
 import com.campusbridge.entity.Post;
 import com.campusbridge.entity.PostInteraction;
 import com.campusbridge.enums.AttachmentStatus;
-import com.campusbridge.enums.PostCategory;
 import com.campusbridge.enums.PostStatus;
 import com.campusbridge.mapper.AttachmentMapper;
 import com.campusbridge.mapper.PostInteractionMapper;
@@ -52,7 +51,6 @@ public class PostServiceImpl implements PostService {
 
     @Override
     public PostView createPost(Long userId, CreatePostRequest request) {
-        validatePostRequest(request);
         contentModerationService.assertPostPublishAllowed(userId, request);
 
         LocalDateTime now = LocalDateTime.now();
@@ -159,16 +157,9 @@ public class PostServiceImpl implements PostService {
             throw new BusinessException(ErrorCode.POST_002_PERMISSION_DENIED);
         }
 
-        if (request == null) {
-            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "Request body is required");
-        }
         String expectedStatus = post.getStatus();
-        if (request.getTitle() != null) {
-            post.setTitle(request.getTitle());
-        }
-        if (request.getContent() != null) {
-            post.setContent(request.getContent());
-        }
+        post.setTitle(request.getTitle());
+        post.setContent(request.getContent());
         if (request.getStatus() != null) {
             boolean authorStatus = request.getStatus() == PostStatus.PUBLISHED
                     || request.getStatus() == PostStatus.CLOSED;
@@ -178,12 +169,7 @@ public class PostServiceImpl implements PostService {
             }
             post.setStatus(request.getStatus().name());
         }
-        CreatePostRequest content = new CreatePostRequest();
-        content.setCategory(PostCategory.valueOf(post.getCategory()));
-        content.setTitle(post.getTitle());
-        content.setContent(post.getContent());
-        validatePostRequest(content);
-        contentModerationService.assertPostPublishAllowed(userId, content);
+        contentModerationService.assertPostUpdateAllowed(userId, request);
         post.setUpdatedAt(LocalDateTime.now());
 
         if (postMapper.updateContent(post, expectedStatus) != 1) {
@@ -245,16 +231,6 @@ public class PostServiceImpl implements PostService {
 
     private boolean isPublic(Post post) {
         return "PUBLISHED".equals(post.getStatus()) || "CLOSED".equals(post.getStatus());
-    }
-
-    private void validatePostRequest(CreatePostRequest request) {
-        if (request == null || request.getCategory() == null
-                || request.getTitle() == null || request.getTitle().isBlank()
-                || request.getTitle().length() > 100
-                || request.getContent() == null || request.getContent().isBlank()) {
-            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR,
-                    "Post category, title and content are required; title limit is 100");
-        }
     }
 
     private Post requirePostExists(Long postId) {

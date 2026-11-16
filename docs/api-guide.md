@@ -120,6 +120,10 @@ ErrorResponse 没有 data；details 是字符串列表或 null。业务失败由
 
 学生证或人工认证提交提供 evidenceUrl，进入待审；该 URL 不等同于通过 attachmentIds 完成业务绑定。当前提交路径不触发 OCR 自动审核。
 
+帖子编辑使用 PUT /api/v1/posts/{postId}，完整提交 title 和 content；两者均非空，title 最长 100 字符。status 可选，提供时按作者可执行的状态变更规则处理，省略时保留原状态。请求字段校验由入口完成，业务服务检查归属、状态权限和内容审核后保存。
+
+输入校验统一在 Controller 执行：请求 DTO 使用 Validation 约束，草稿保存与正式发布分别使用独立请求 DTO，取消原因的查询参数最多 300 字符。校园认证的字段及认证方式相关输入约束失败时返回 VERIFY_001_INVALID_INPUT，其余普通输入校验失败返回 COMMON_001_VALIDATION_ERROR；错误详情放在 details 中。
+
 ## 5. 任务主流程调用
 
 调用前准备两个登录用户，发布者须 VERIFIED。以下仅列主流程操作，完整路径和请求形状查 OpenAPI。
@@ -164,7 +168,9 @@ ErrorResponse 没有 data；details 是字符串列表或 null。业务失败由
 
 重复确认返回冲突，客户端应重新读取当前状态。
 
-重发接口没有补充字段的请求体，直接验证原任务保存的数据。过期 CANCELLED 任务不能在重发请求里顺便改 deadline；现有编辑接口仅允许 DRAFT/OPEN。
+PUT /api/v1/tasks/{taskId} 完整替换任务的可编辑字段。请求必须提供 title、description、deadline、rewardType、completionStandard、requiresProof、onlyInAppContact、allowOfflineContact；rewardDescription 和 rewardAmount 为可选值，传 null 或省略均表示清除，不保留旧值。category、campus、location、发布者及任务状态等不属于此接口的可编辑字段。服务端检查任务归属及 DRAFT/OPEN 状态，OPEN 任务的更新内容须通过内容审核。草稿保存使用 POST /api/v1/tasks/drafts，允许字段未填完整。
+
+POST /api/v1/tasks/{taskId}/resend 接受与正式创建任务相同的完整发布请求。DRAFT 或 CANCELLED 的发布者可提交修订后的内容和未来截止时间；服务端重新检查校园认证、请求约束、奖励及内容审核，在同一事务中保存新内容、清空接单者、将状态设为 OPEN 并记录历史。任务编号、发布者和原创建时间保留，可选字段省略或传 null 时按本次表单保存。草稿恢复发布也使用此接口。
 
 ## 6. 文件上传与图片消息
 

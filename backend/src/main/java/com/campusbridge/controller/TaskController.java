@@ -4,9 +4,11 @@ import com.campusbridge.common.ApiResponse;
 import com.campusbridge.common.CurrentUserResolver;
 import com.campusbridge.common.GuestTaskMasker;
 import com.campusbridge.dto.query.TaskQuery;
+import com.campusbridge.dto.request.CompletionReasonRequest;
 import com.campusbridge.dto.request.CreateTaskRequest;
-import com.campusbridge.dto.request.ReasonRequest;
+import com.campusbridge.dto.request.SaveTaskDraftRequest;
 import com.campusbridge.dto.request.SubmitCompletionRequest;
+import com.campusbridge.dto.request.TaskReasonRequest;
 import com.campusbridge.dto.request.TaskStatusTransitionRequest;
 import com.campusbridge.dto.request.UpdateTaskRequest;
 import com.campusbridge.dto.view.TaskDetailView;
@@ -17,6 +19,8 @@ import com.campusbridge.service.CompletionService;
 import com.campusbridge.service.TaskDetailService;
 import com.campusbridge.service.TaskService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -43,7 +47,7 @@ public class TaskController {
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<TaskView> createTask(
             HttpServletRequest servletRequest,
-            @RequestBody CreateTaskRequest request) {
+            @Valid @RequestBody CreateTaskRequest request) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
         return ApiResponse.success(taskService.createTask(currentUserId, request));
     }
@@ -52,7 +56,7 @@ public class TaskController {
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<TaskView> saveDraft(
             HttpServletRequest servletRequest,
-            @RequestBody CreateTaskRequest request) {
+            @Valid @RequestBody SaveTaskDraftRequest request) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
         return ApiResponse.success(taskService.saveDraft(currentUserId, request));
     }
@@ -100,7 +104,7 @@ public class TaskController {
     public ApiResponse<TaskView> updateTask(
             HttpServletRequest servletRequest,
             @PathVariable Long taskId,
-            @RequestBody UpdateTaskRequest request) {
+            @Valid @RequestBody UpdateTaskRequest request) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
         return ApiResponse.success(taskService.updateTask(currentUserId, taskId, request));
     }
@@ -110,7 +114,7 @@ public class TaskController {
     public ApiResponse<TaskView> cancelTask(
             HttpServletRequest servletRequest,
             @PathVariable Long taskId,
-            @RequestParam(required = false) String reason) {
+            @Size(max = 300, message = "reason is too long") @RequestParam(required = false) String reason) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
         return ApiResponse.success(taskService.cancelTask(currentUserId, taskId, reason));
     }
@@ -119,7 +123,7 @@ public class TaskController {
     public ApiResponse<TaskView> withdrawProvider(
             HttpServletRequest servletRequest,
             @PathVariable Long taskId,
-            @RequestBody ReasonRequest request) {
+            @Valid @RequestBody TaskReasonRequest request) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
         return ApiResponse.success(
                 taskService.withdrawFromTask(currentUserId, taskId, request.reason()));
@@ -138,16 +142,17 @@ public class TaskController {
     @PostMapping("/{taskId}/resend")
     public ApiResponse<TaskView> resendTask(
             HttpServletRequest servletRequest,
-            @PathVariable Long taskId) {
+            @PathVariable Long taskId,
+            @Valid @RequestBody CreateTaskRequest request) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
-        return ApiResponse.success(taskService.resendTask(currentUserId, taskId));
+        return ApiResponse.success(taskService.resendTask(currentUserId, taskId, request));
     }
 
     @PostMapping("/{taskId}/status-transitions")
     public ApiResponse<TaskView> transitionTaskStatus(
             HttpServletRequest servletRequest,
             @PathVariable Long taskId,
-            @RequestBody TaskStatusTransitionRequest request) {
+            @Valid @RequestBody TaskStatusTransitionRequest request) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
         return ApiResponse.success(taskService.transitionTaskStatus(currentUserId, taskId, request));
     }
@@ -156,7 +161,7 @@ public class TaskController {
     public ApiResponse<CompletionProof> submitCompletion(
             HttpServletRequest servletRequest,
             @PathVariable Long taskId,
-            @RequestBody SubmitCompletionRequest request) {
+            @Valid @RequestBody SubmitCompletionRequest request) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
         return ApiResponse.success(completionService.submitCompletionProof(currentUserId, taskId, request));
     }
@@ -174,7 +179,7 @@ public class TaskController {
     public ApiResponse<Void> rejectCompletion(
             HttpServletRequest servletRequest,
             @PathVariable Long taskId,
-            @RequestBody ReasonRequest request) {
+            @Valid @RequestBody CompletionReasonRequest request) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
         String reason = request.reason();
         completionService.rejectCompletion(currentUserId, taskId, reason);
@@ -185,7 +190,7 @@ public class TaskController {
     public ApiResponse<Void> disputeCompletion(
             HttpServletRequest servletRequest,
             @PathVariable Long taskId,
-            @RequestBody ReasonRequest request) {
+            @Valid @RequestBody CompletionReasonRequest request) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
         String reason = request.reason();
         completionService.disputeCompletion(currentUserId, taskId, reason);

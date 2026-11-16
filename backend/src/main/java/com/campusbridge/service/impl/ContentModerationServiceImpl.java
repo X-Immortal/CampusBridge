@@ -4,6 +4,8 @@ import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
 import com.campusbridge.dto.request.CreatePostRequest;
 import com.campusbridge.dto.request.CreateTaskRequest;
+import com.campusbridge.dto.request.UpdatePostRequest;
+import com.campusbridge.dto.request.UpdateTaskRequest;
 import com.campusbridge.service.ContentModerationService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -53,7 +55,13 @@ public class ContentModerationServiceImpl implements ContentModerationService {
             return;
         }
 
-        assertPublishAllowed(operatorId, TARGET_TYPE_POST, buildPostContent(request), true);
+        assertPublishAllowed(operatorId, TARGET_TYPE_POST, buildPostContent(request.getTitle(), request.getContent()), true);
+    }
+
+    @Override
+    public void assertPostUpdateAllowed(Long operatorId, UpdatePostRequest request) {
+        assertPublishAllowed(operatorId, TARGET_TYPE_POST,
+                buildPostContent(request.getTitle(), request.getContent()), true);
     }
 
     @Override
@@ -64,12 +72,21 @@ public class ContentModerationServiceImpl implements ContentModerationService {
             return;
         }
 
-        String content = buildTaskContent(request);
+        String content = buildTaskContent(request.getTitle(), request.getDescription(),
+                request.getRewardDescription(), request.getCompletionStandard(), request.getSensitiveReason());
         assertPublishAllowed(
                 operatorId,
                 TARGET_TYPE_TASK,
                 content,
                 defaultBoolean(request.getOnlyInAppContact(), true));
+    }
+
+    @Override
+    public void assertTaskUpdateAllowed(
+            Long operatorId, UpdateTaskRequest request, String sensitiveReason) {
+        String content = buildTaskContent(request.getTitle(), request.getDescription(),
+                request.getRewardDescription(), request.getCompletionStandard(), sensitiveReason);
+        assertPublishAllowed(operatorId, TARGET_TYPE_TASK, content, request.getOnlyInAppContact());
     }
 
     private void assertPublishAllowed(
@@ -100,20 +117,18 @@ public class ContentModerationServiceImpl implements ContentModerationService {
                 List.of("ruleCode=" + hit.ruleCode(), "keyword=" + hit.keyword()));
     }
 
-    private String buildPostContent(CreatePostRequest request) {
+    private String buildPostContent(String title, String content) {
         StringBuilder builder = new StringBuilder();
-        append(builder, request.getTitle());
-        append(builder, request.getContent());
+        append(builder, title);
+        append(builder, content);
         return builder.toString();
     }
 
-    private String buildTaskContent(CreateTaskRequest request) {
+    private String buildTaskContent(String... fields) {
         StringBuilder builder = new StringBuilder();
-        append(builder, request.getTitle());
-        append(builder, request.getDescription());
-        append(builder, request.getRewardDescription());
-        append(builder, request.getCompletionStandard());
-        append(builder, request.getSensitiveReason());
+        for (String field : fields) {
+            append(builder, field);
+        }
         return builder.toString();
     }
 

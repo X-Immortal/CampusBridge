@@ -27,6 +27,18 @@ class BE10ContentModerationServiceImplTest {
     // ---- Task publish moderation ----
 
     @Test
+    void updateChecksSubmittedContentAndRetainedSensitiveReason() {
+        var request = new com.campusbridge.dto.request.UpdateTaskRequest();
+        request.setOnlyInAppContact(true);
+        request.setTitle("帮取快递");
+        assertThatThrownBy(() -> moderationService.assertTaskUpdateAllowed(1L, request, "加我微信"))
+                .isInstanceOf(BusinessException.class);
+        request.setTitle("代考");
+        assertThatThrownBy(() -> moderationService.assertTaskUpdateAllowed(1L, request, null))
+                .isInstanceOf(BusinessException.class);
+    }
+
+    @Test
     void allowsCleanTaskContent() {
         CreateTaskRequest request = taskRequest("帮取快递", "从校门口取包裹");
 

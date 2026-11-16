@@ -30,9 +30,6 @@ public class CompletionServiceImpl implements CompletionService {
     private static final String STATUS_PENDING_CONFIRMATION = "PENDING_CONFIRMATION";
     private static final String STATUS_COMPLETED = "COMPLETED";
     private static final String STATUS_DISPUTED = "DISPUTED";
-    private static final int MAX_DESCRIPTION_LENGTH = 1000;
-    private static final int MAX_REASON_LENGTH = 500;
-    private static final int MAX_ATTACHMENT_COUNT = 9;
     private static final String ATTACHMENT_OWNER_TYPE = "COMPLETION_PROOF";
     private static final String ATTACHMENT_STATUS_TEMPORARY = "TEMPORARY";
 
@@ -50,7 +47,6 @@ public class CompletionServiceImpl implements CompletionService {
             SubmitCompletionRequest request) {
         validateSubmitterId(submitterId);
         validateTaskId(taskId);
-        validateSubmitCompletionRequest(request);
 
         Task task = taskMapper.selectByIdForUpdate(taskId);
         if (task == null) {
@@ -112,11 +108,6 @@ public class CompletionServiceImpl implements CompletionService {
             List<Long> attachmentIds) {
         if (attachmentIds == null || attachmentIds.isEmpty()) {
             return;
-        }
-        if (attachmentIds.size() > MAX_ATTACHMENT_COUNT) {
-            throw new BusinessException(
-                    ErrorCode.COMMON_001_VALIDATION_ERROR,
-                    "attachmentIds exceeds limit");
         }
 
         Set<Long> uniqueIds = new HashSet<>(attachmentIds);
@@ -199,7 +190,6 @@ public class CompletionServiceImpl implements CompletionService {
     public void rejectCompletion(Long requesterId, Long taskId, String reason) {
         validateOperatorId(requesterId);
         validateTaskId(taskId);
-        validateReason(reason, true);
 
         Task task = taskMapper.selectByIdForUpdate(taskId);
         if (task == null) {
@@ -242,7 +232,6 @@ public class CompletionServiceImpl implements CompletionService {
     public void disputeCompletion(Long participantId, Long taskId, String reason) {
         validateOperatorId(participantId);
         validateTaskId(taskId);
-        validateReason(reason, true);
 
         Task task = taskMapper.selectByIdForUpdate(taskId);
         if (task == null) {
@@ -300,31 +289,6 @@ public class CompletionServiceImpl implements CompletionService {
     private void validateOperatorId(Long operatorId) {
         if (operatorId == null) {
             throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "operatorId must not be null");
-        }
-    }
-
-    private void validateSubmitCompletionRequest(SubmitCompletionRequest request) {
-        if (request == null) {
-            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "Request body must not be null");
-        }
-        if (request.getDescription() == null || request.getDescription().isBlank()) {
-            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "description is required");
-        }
-        if (request.getDescription().length() > MAX_DESCRIPTION_LENGTH) {
-            throw new BusinessException(
-                    ErrorCode.COMMON_001_VALIDATION_ERROR,
-                    "description is too long (max " + MAX_DESCRIPTION_LENGTH + " characters)");
-        }
-    }
-
-    private void validateReason(String reason, boolean required) {
-        if (required && (reason == null || reason.isBlank())) {
-            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "reason is required");
-        }
-        if (reason != null && reason.length() > MAX_REASON_LENGTH) {
-            throw new BusinessException(
-                    ErrorCode.COMMON_001_VALIDATION_ERROR,
-                    "reason is too long (max " + MAX_REASON_LENGTH + " characters)");
         }
     }
 }

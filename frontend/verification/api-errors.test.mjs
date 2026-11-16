@@ -37,3 +37,27 @@ for (const [status, code] of [
     }
   })
 }
+
+
+test('post update uses PUT and transmits the complete edit body', async (context) => {
+  const body = { title: 'New title', content: 'New content', status: 'PUBLISHED' }
+  context.mock.method(globalThis, 'fetch', async (url, options) => {
+    assert.ok(url.endsWith('/posts/7'))
+    assert.equal(options.method, 'PUT')
+    assert.deepEqual(JSON.parse(options.body), body)
+    return new Response(JSON.stringify({ code: 'SUCCESS', data: { id: 7, ...body } }), {
+      status: 200, headers: { 'Content-Type': 'application/json' }
+    })
+  })
+  const originalWindow = globalThis.window
+  const originalStorage = globalThis.localStorage
+  globalThis.window = { setTimeout, clearTimeout }
+  globalThis.localStorage = { getItem: () => null }
+  try {
+    const result = await api.updatePost(7, body)
+    assert.equal(result.title, body.title)
+  } finally {
+    globalThis.window = originalWindow
+    globalThis.localStorage = originalStorage
+  }
+})
