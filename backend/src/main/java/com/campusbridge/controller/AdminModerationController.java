@@ -1,5 +1,6 @@
 package com.campusbridge.controller;
 
+import com.campusbridge.enums.ReportStatus;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.campusbridge.common.ApiResponse;
 import com.campusbridge.common.CurrentUserResolver;
@@ -14,6 +15,7 @@ import com.campusbridge.entity.CampusVerification;
 import com.campusbridge.entity.ModerationRecord;
 import com.campusbridge.entity.Report;
 import com.campusbridge.entity.Task;
+import com.campusbridge.enums.TaskStatus;
 import com.campusbridge.mapper.TaskMapper;
 import com.campusbridge.service.ReportService;
 import com.campusbridge.service.VerificationService;
@@ -35,8 +37,6 @@ import java.util.List;
 @RequestMapping("/api/v1/admin")
 @RequiredArgsConstructor
 public class AdminModerationController {
-    private static final String STATUS_PENDING_REVIEW = "PENDING_REVIEW";
-    private static final String STATUS_DISPUTED = "DISPUTED";
 
     private final CurrentUserResolver currentUserResolver;
     private final ReportService reportService;
@@ -52,7 +52,7 @@ public class AdminModerationController {
         int safeSize = size == null || size < 1 ? 20 : Math.min(size, 100);
 
         TaskQuery query = TaskQuery.builder()
-                .status(STATUS_PENDING_REVIEW)
+                .status(TaskStatus.PENDING_REVIEW)
                 .page(safePage)
                 .size(safeSize)
                 .includePrivate(true)
@@ -84,7 +84,7 @@ public class AdminModerationController {
 
     @GetMapping("/reports")
     public ApiResponse<PagedResult<Report>> listReports(
-            @RequestParam(required = false) String status,
+            @RequestParam(required = false) ReportStatus status,
             @RequestParam(required = false, defaultValue = "1") Integer page,
             @RequestParam(required = false, defaultValue = "20") Integer size) {
         return ApiResponse.success(reportService.listReportsForAdmin(status, page, size));
@@ -138,7 +138,7 @@ public class AdminModerationController {
         int safeSize = size == null || size < 1 ? 20 : Math.min(size, 100);
 
         TaskQuery query = TaskQuery.builder()
-                .status(STATUS_DISPUTED)
+                .status(TaskStatus.DISPUTED)
                 .page(safePage)
                 .size(safeSize)
                 .build();

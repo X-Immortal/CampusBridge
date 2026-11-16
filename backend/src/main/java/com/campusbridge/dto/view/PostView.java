@@ -1,6 +1,8 @@
 package com.campusbridge.dto.view;
 
 import com.campusbridge.entity.Post;
+import com.campusbridge.enums.PostCategory;
+import com.campusbridge.enums.PostStatus;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -12,10 +14,10 @@ public class PostView {
     private Long id;
     private Long authorId;
     private String authorName;
-    private String category;
+    private PostCategory category;
     private String title;
     private String content;
-    private String status;
+    private PostStatus status;
     private Integer replyCount;
     private Integer likeCount;
     private Integer markCount;

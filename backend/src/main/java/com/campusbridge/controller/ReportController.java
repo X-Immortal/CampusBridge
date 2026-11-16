@@ -1,5 +1,6 @@
 package com.campusbridge.controller;
 
+import com.campusbridge.enums.ReportStatus;
 import com.campusbridge.common.ApiResponse;
 import com.campusbridge.common.CurrentUserResolver;
 import com.campusbridge.common.PagedResult;
@@ -37,7 +38,7 @@ public class ReportController {
     @GetMapping
     public ApiResponse<PagedResult<Report>> listReports(
             HttpServletRequest servletRequest,
-            @RequestParam(required = false) String status,
+            @RequestParam(required = false) ReportStatus status,
             @RequestParam(required = false, defaultValue = "1") Integer page,
             @RequestParam(required = false, defaultValue = "20") Integer size) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);

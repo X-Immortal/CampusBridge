@@ -1,5 +1,6 @@
 package com.campusbridge.unit;
 
+import com.campusbridge.enums.DashboardTodoType;
 import com.campusbridge.dto.view.CategoryCount;
 import com.campusbridge.dto.view.DailyCount;
 import com.campusbridge.dto.view.DashboardDistributionItem;
@@ -130,75 +131,20 @@ class BE17AdminDashboardServiceImplTest {
     }
 
     @Test
-    void taskStatusStatsFillsAllKnownStatuses() {
-        List<CategoryCount> rows = new ArrayList<>();
-        rows.add(row("OPEN", 48L));
-        rows.add(row("COMPLETED", 210L));
+    void distributionsReturnRawCodesAndCountsForEachDomain() {
+        when(adminDashboardMapper.countTasksByStatus()).thenReturn(List.of(row("OPEN", 48L)));
+        when(adminDashboardMapper.countReportsByStatus()).thenReturn(List.of(row("REJECTED", 2L)));
+        when(adminDashboardMapper.countReportsByTargetType()).thenReturn(List.of(row("TASK", 12L)));
 
-        when(adminDashboardMapper.countTasksByStatus()).thenReturn(rows);
-
-        List<DashboardDistributionItem> stats = service.getTaskStatusStats();
-
-        assertThat(stats).hasSize(11);
-        DashboardDistributionItem open = stats.stream()
-                .filter((item) -> "OPEN".equals(item.getStatus()))
-                .findFirst()
-                .orElseThrow();
-        assertThat(open.getCount()).isEqualTo(48L);
-        assertThat(open.getLabel()).isEqualTo("待接单");
-
-        DashboardDistributionItem completed = stats.stream()
-                .filter((item) -> "COMPLETED".equals(item.getStatus()))
-                .findFirst()
-                .orElseThrow();
-        assertThat(completed.getCount()).isEqualTo(210L);
-
-        DashboardDistributionItem cancelled = stats.stream()
-                .filter((item) -> "CANCELLED".equals(item.getStatus()))
-                .findFirst()
-                .orElseThrow();
-        assertThat(cancelled.getCount()).isZero();
+        assertThat(service.getTaskStatusStats()).containsExactly(new DashboardDistributionItem("OPEN", 48L));
+        assertThat(service.getReportStatusStats()).containsExactly(new DashboardDistributionItem("REJECTED", 2L));
+        assertThat(service.getReportTargetTypeStats()).containsExactly(new DashboardDistributionItem("TASK", 12L));
     }
 
     @Test
-    void taskStatusStatsKeepsUnknownStatusForCompatibility() {
-        List<CategoryCount> rows = new ArrayList<>();
-        rows.add(row("FUTURE_STATUS", 9L));
-
-        when(adminDashboardMapper.countTasksByStatus()).thenReturn(rows);
-
-        List<DashboardDistributionItem> stats = service.getTaskStatusStats();
-
-        assertThat(stats).hasSize(12);
-        DashboardDistributionItem future = stats.stream()
-                .filter((item) -> "FUTURE_STATUS".equals(item.getStatus()))
-                .findFirst()
-                .orElseThrow();
-        assertThat(future.getCount()).isEqualTo(9L);
-        assertThat(future.getLabel()).isEqualTo("FUTURE_STATUS");
-    }
-
-    @Test
-    void reportStatusStatsFillsAllKnownStatuses() {
-        List<CategoryCount> rows = new ArrayList<>();
-        rows.add(row("PENDING", 4L));
-        rows.add(row("RESOLVED", 18L));
-
-        when(adminDashboardMapper.countReportsByStatus()).thenReturn(rows);
-
-        List<DashboardDistributionItem> stats = service.getReportStatusStats();
-
-        assertThat(stats).hasSize(6);
-        assertThat(stats.stream()
-                .filter((item) -> "PENDING".equals(item.getStatus()))
-                .findFirst()
-                .orElseThrow()
-                .getCount()).isEqualTo(4L);
-        assertThat(stats.stream()
-                .filter((item) -> "REJECTED".equals(item.getStatus()))
-                .findFirst()
-                .orElseThrow()
-                .getCount()).isZero();
+    void emptyDistributionDoesNotInventZeroCountRows() {
+        when(adminDashboardMapper.countTasksByStatus()).thenReturn(List.of());
+        assertThat(service.getTaskStatusStats()).isEmpty();
     }
 
     @Test
@@ -210,12 +156,12 @@ class BE17AdminDashboardServiceImplTest {
         List<DashboardTodo> todos = service.getTodos();
 
         assertThat(todos).hasSize(3);
-        assertThat(todos.get(0).getType()).isEqualTo("VERIFICATION");
+        assertThat(todos.get(0).getType()).isEqualTo(DashboardTodoType.VERIFICATION);
         assertThat(todos.get(0).getCount()).isEqualTo(6L);
         assertThat(todos.get(0).getRoute()).isEqualTo("/admin?section=verifications");
-        assertThat(todos.get(1).getType()).isEqualTo("REPORT");
+        assertThat(todos.get(1).getType()).isEqualTo(DashboardTodoType.REPORT);
         assertThat(todos.get(1).getCount()).isEqualTo(4L);
-        assertThat(todos.get(2).getType()).isEqualTo("DISPUTED_TASK");
+        assertThat(todos.get(2).getType()).isEqualTo(DashboardTodoType.DISPUTED_TASK);
         assertThat(todos.get(2).getCount()).isEqualTo(2L);
     }
 

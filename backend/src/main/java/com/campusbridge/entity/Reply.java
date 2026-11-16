@@ -1,5 +1,6 @@
 package com.campusbridge.entity;
 
+import com.campusbridge.enums.ReplyStatus;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
@@ -20,7 +21,7 @@ public class Reply {
     private Long authorId;
     private Long parentReplyId;
     private String content;
-    private String status;
+    private ReplyStatus status;
     private Integer likeCount;
     private LocalDateTime createdAt;
 }

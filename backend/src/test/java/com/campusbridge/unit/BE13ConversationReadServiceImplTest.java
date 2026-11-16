@@ -1,5 +1,6 @@
 package com.campusbridge.unit;
 
+import com.campusbridge.enums.ContentItemType;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
@@ -8,11 +9,14 @@ import com.campusbridge.dto.request.CreateConversationRequest;
 import com.campusbridge.dto.request.SendMessageRequest;
 import com.campusbridge.dto.view.ConversationView;
 import com.campusbridge.dto.view.ReadAllConversationsView;
-import com.campusbridge.dto.view.UnreadSummaryView;
+import com.campusbridge.dto.view.UnreadCountView;
 import com.campusbridge.entity.Attachment;
 import com.campusbridge.entity.Conversation;
 import com.campusbridge.entity.Message;
 import com.campusbridge.entity.User;
+import com.campusbridge.enums.AttachmentOwnerType;
+import com.campusbridge.enums.AttachmentStatus;
+import com.campusbridge.enums.ConversationType;
 import com.campusbridge.enums.MessageType;
 import com.campusbridge.mapper.AttachmentMapper;
 import com.campusbridge.mapper.ConversationMapper;
@@ -116,14 +120,11 @@ class BE13ConversationReadServiceImplTest {
 
     @Test
     void getUnreadSummaryReturnsOwnerUnreadCount() {
-        when(messageMapper.countOwnerUnreadBySystemType(OWNER_ID, true)).thenReturn(3L);
-        when(messageMapper.countOwnerUnreadBySystemType(OWNER_ID, false)).thenReturn(4L);
+        when(messageMapper.countOwnerUnread(OWNER_ID)).thenReturn(4L);
 
-        UnreadSummaryView result = conversationService.getUnreadSummary(OWNER_ID);
+        UnreadCountView result = conversationService.getUnreadSummary(OWNER_ID);
 
-        assertThat(result.total()).isEqualTo(7L);
-        assertThat(result.system()).isEqualTo(3L);
-        assertThat(result.privateCount()).isEqualTo(4L);
+        assertThat(result.unreadCount()).isEqualTo(4L);
     }
 
     @Test
@@ -163,16 +164,15 @@ class BE13ConversationReadServiceImplTest {
         Attachment attachment = new Attachment();
         attachment.setId(30L);
         attachment.setUploaderId(OWNER_ID);
-        attachment.setOwnerType("MESSAGE");
-        attachment.setType("IMAGE");
-        attachment.setStatus("TEMPORARY");
+        attachment.setOwnerType(AttachmentOwnerType.MESSAGE);
+        attachment.setStatus(AttachmentStatus.TEMPORARY);
         attachment.setFileUrl("https://cdn.example/image.png");
 
         when(conversationMapper.selectOwnedById(CONVERSATION_ID, OWNER_ID)).thenReturn(ownerConversation);
         when(conversationMapper.selectPrivateByOwnerAndPeer(2L, OWNER_ID))
                 .thenReturn(peerConversation);
         when(attachmentMapper.selectById(30L)).thenReturn(attachment);
-        when(attachmentMapper.bindTemporaryToOwner(30L, OWNER_ID, "MESSAGE", 100L)).thenReturn(1);
+        when(attachmentMapper.bindTemporaryToOwner(30L, OWNER_ID, AttachmentOwnerType.MESSAGE, 100L)).thenReturn(1);
         when(messageMapper.insert(any(Message.class))).thenAnswer(invocation -> {
             Message inserted = invocation.getArgument(0);
             if (inserted.getId() == null) {
@@ -188,7 +188,7 @@ class BE13ConversationReadServiceImplTest {
 
         conversationService.sendMessage(OWNER_ID, CONVERSATION_ID, request);
 
-        verify(attachmentMapper).bindTemporaryToOwner(30L, OWNER_ID, "MESSAGE", 100L);
+        verify(attachmentMapper).bindTemporaryToOwner(30L, OWNER_ID, AttachmentOwnerType.MESSAGE, 100L);
     }
 
     @Test
@@ -210,7 +210,7 @@ class BE13ConversationReadServiceImplTest {
 
         CreateConversationRequest request = new CreateConversationRequest();
         request.setPeerUserId(2L);
-        request.setRelatedType("POST");
+        request.setRelatedType(ContentItemType.POST);
         request.setRelatedId(99L);
 
         when(conversationMapper.selectOwnedViewById(CONVERSATION_ID, OWNER_ID))
@@ -218,7 +218,7 @@ class BE13ConversationReadServiceImplTest {
         ConversationView result = conversationService.createConversation(OWNER_ID, request);
 
         assertThat(result.getId()).isEqualTo(CONVERSATION_ID);
-        assertThat(result.getRelatedType()).isEqualTo("TASK");
+        assertThat(result.getRelatedType()).isEqualTo(ContentItemType.TASK);
         verify(conversationMapper).selectPrivateByOwnerAndPeer(OWNER_ID, 2L);
         verify(conversationMapper).selectPrivateByOwnerAndPeer(2L, OWNER_ID);
     }
@@ -248,8 +248,8 @@ class BE13ConversationReadServiceImplTest {
         conversation.setId(CONVERSATION_ID);
         conversation.setOwnerId(OWNER_ID);
         conversation.setPeerUserId(2L);
-        conversation.setType("PRIVATE");
-        conversation.setRelatedType("TASK");
+        conversation.setType(ConversationType.PRIVATE);
+        conversation.setRelatedType(ContentItemType.TASK);
         conversation.setRelatedId(20L);
         conversation.setReplyable(1);
         return conversation;
@@ -260,8 +260,8 @@ class BE13ConversationReadServiceImplTest {
         view.setId(CONVERSATION_ID);
         view.setOwnerId(OWNER_ID);
         view.setPeerUserId(2L);
-        view.setType("PRIVATE");
-        view.setRelatedType("TASK");
+        view.setType(ConversationType.PRIVATE);
+        view.setRelatedType(ContentItemType.TASK);
         view.setRelatedId(20L);
         view.setReplyable(1);
         return view;
@@ -272,7 +272,7 @@ class BE13ConversationReadServiceImplTest {
         message.setId(100L);
         message.setConversationId(CONVERSATION_ID);
         message.setSenderId(2L);
-        message.setType("TEXT");
+        message.setType(MessageType.TEXT);
         message.setContent("我已到达取件点。");
         message.setCreatedAt(LocalDateTime.now());
         return message;

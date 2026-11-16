@@ -1,5 +1,6 @@
 package com.campusbridge.dto.view;
 
+import com.campusbridge.enums.ApplicationStatus;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -22,6 +23,6 @@ public class TaskApplicationCandidateView {
     private Integer creditLevel;
     private Integer points;
     private String message;
-    private String status;
+    private ApplicationStatus status;
     private LocalDateTime createdAt;
 }

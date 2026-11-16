@@ -15,6 +15,10 @@ const props = defineProps({
     type: Array,
     default: () => []
   },
+  options: {
+    type: Array,
+    required: true
+  },
   loading: {
     type: Boolean,
     default: false
@@ -25,15 +29,24 @@ const props = defineProps({
   }
 })
 
+const distribution = computed(() => {
+  const counts = new Map(props.data.map((item) => [item.code, Number(item.count) || 0]))
+  return props.options.map((option) => ({
+    code: option.value,
+    label: option.label,
+    count: counts.get(option.value) ?? 0
+  }))
+})
+
 const total = computed(() =>
-  props.data.reduce((acc, item) => acc + (Number(item?.count) || 0), 0)
+  distribution.value.reduce((acc, item) => acc + (Number(item?.count) || 0), 0)
 )
 
 const sortedData = computed(() => {
-  return [...props.data].sort((a, b) => (Number(b?.count) || 0) - (Number(a?.count) || 0))
+  return [...distribution.value].sort((a, b) => (Number(b?.count) || 0) - (Number(a?.count) || 0))
 })
 
-const topItem = computed(() => sortedData.value[0] || null)
+const topItem = computed(() => sortedData.value.find((item) => item.count > 0) ?? null)
 
 const hasData = computed(() => sortedData.value.some((item) => Number(item?.count) > 0))
 
@@ -97,12 +110,12 @@ function toneClass(index) {
     >
       <li
         v-for="(item, index) in sortedData"
-        :key="item.status || item.label || index"
+        :key="item.code || item.label || index"
         class="admin-dist-row"
         :class="toneClass(index)"
       >
         <div class="admin-dist-row__head">
-          <span class="admin-dist-row__label">{{ item.label || item.status || '未分类' }}</span>
+          <span class="admin-dist-row__label">{{ item.label || item.code || '未分类' }}</span>
           <strong class="admin-dist-row__value">
             {{ item.count }}
             <em>{{ percent(item.count) }}%</em>

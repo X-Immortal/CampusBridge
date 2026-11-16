@@ -6,6 +6,7 @@ import com.campusbridge.dto.request.LoginRequest;
 import com.campusbridge.dto.request.RegisterRequest;
 import com.campusbridge.dto.view.LoginView;
 import com.campusbridge.entity.User;
+import com.campusbridge.enums.UserRole;
 import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.service.AuthService;
 import com.campusbridge.utils.JwtUtil;
@@ -62,7 +63,7 @@ public class AuthServiceImpl implements AuthService {
         user.setPhoneCipher(request.phone);
         user.setPhoneHash(phoneHash);
         user.setEmail(email);
-        user.setRole("USER");
+        user.setRole(UserRole.USER);
         user.setEnabled(1);
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());

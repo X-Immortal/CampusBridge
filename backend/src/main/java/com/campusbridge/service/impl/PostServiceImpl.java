@@ -1,5 +1,6 @@
 package com.campusbridge.service.impl;
 
+import com.campusbridge.enums.InteractionTargetType;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
@@ -13,7 +14,10 @@ import com.campusbridge.dto.view.ReplyView;
 import com.campusbridge.entity.Attachment;
 import com.campusbridge.entity.Post;
 import com.campusbridge.entity.PostInteraction;
+import com.campusbridge.enums.AttachmentOwnerType;
 import com.campusbridge.enums.AttachmentStatus;
+import com.campusbridge.enums.PostCategory;
+import com.campusbridge.enums.PostInteractionType;
 import com.campusbridge.enums.PostStatus;
 import com.campusbridge.mapper.AttachmentMapper;
 import com.campusbridge.mapper.PostInteractionMapper;
@@ -41,7 +45,6 @@ public class PostServiceImpl implements PostService {
     private static final int DEFAULT_SIZE = 20;
     private static final int MAX_SIZE = 100;
     private static final int MAX_ATTACHMENT_COUNT = 9;
-    private static final String ATTACHMENT_OWNER_TYPE = "POST";
 
     private final PostMapper postMapper;
     private final ReplyMapper replyMapper;
@@ -56,10 +59,10 @@ public class PostServiceImpl implements PostService {
         LocalDateTime now = LocalDateTime.now();
         Post post = new Post();
         post.setAuthorId(userId);
-        post.setCategory(request.getCategory().name());
+        post.setCategory(request.getCategory());
         post.setTitle(request.getTitle());
         post.setContent(request.getContent());
-        post.setStatus("PUBLISHED");
+        post.setStatus(PostStatus.PUBLISHED);
         post.setReplyCount(0);
         post.setLikeCount(0);
         post.setMarkCount(0);
@@ -76,7 +79,7 @@ public class PostServiceImpl implements PostService {
 
     @Override
     public PagedResult<PostView> listPosts(
-            String keyword, String category, String status, Integer page, Integer size) {
+            String keyword, PostCategory category, PostStatus status, Integer page, Integer size) {
         int safePage = page == null || page < 1 ? DEFAULT_PAGE : page;
         int safeSize = size == null || size < 1 ? DEFAULT_SIZE : Math.min(size, MAX_SIZE);
 
@@ -86,7 +89,7 @@ public class PostServiceImpl implements PostService {
 
     @Override
     public PagedResult<MyReplyPostView> listPostsRepliedByUser(
-            Long userId, String keyword, String category, String status, Integer page, Integer size) {
+            Long userId, String keyword, PostCategory category, PostStatus status, Integer page, Integer size) {
         if (userId == null) {
             throw new BusinessException(ErrorCode.AUTH_001_UNAUTHORIZED);
         }
@@ -127,10 +130,10 @@ public class PostServiceImpl implements PostService {
     @Override
     public PostDetailView getPostDetail(Long postId, Long currentUserId) {
         PostView post = postMapper.selectDetailById(postId);
-        if (post == null || "DELETED".equals(post.getStatus())) {
+        if (post == null || post.getStatus() == PostStatus.DELETED) {
             throw new BusinessException(ErrorCode.POST_001_NOT_FOUND);
         }
-        if (!("PUBLISHED".equals(post.getStatus()) || "CLOSED".equals(post.getStatus()))
+        if ((post.getStatus() != PostStatus.PUBLISHED && post.getStatus() != PostStatus.CLOSED)
                 && !post.getAuthorId().equals(currentUserId)) {
             throw new BusinessException(ErrorCode.POST_001_NOT_FOUND);
         }
@@ -139,15 +142,15 @@ public class PostServiceImpl implements PostService {
         boolean markedByCurrentUser = false;
         if (currentUserId != null) {
             PostInteraction likeInteraction = postInteractionMapper.selectByUserTargetType(
-                    currentUserId, "POST", postId, "LIKE");
+                    currentUserId, InteractionTargetType.POST, postId, PostInteractionType.LIKE);
             likedByCurrentUser = likeInteraction != null;
             PostInteraction markInteraction = postInteractionMapper.selectByUserTargetType(
-                    currentUserId, "POST", postId, "MARK");
+                    currentUserId, InteractionTargetType.POST, postId, PostInteractionType.MARK);
             markedByCurrentUser = markInteraction != null;
         }
         return new PostDetailView(
                 post, replies, likedByCurrentUser, markedByCurrentUser,
-                post.getAcceptedReplyId(), attachmentMapper.selectByOwner("POST", postId));
+                post.getAcceptedReplyId(), attachmentMapper.selectByOwner(AttachmentOwnerType.POST, postId));
     }
 
     @Override
@@ -157,17 +160,19 @@ public class PostServiceImpl implements PostService {
             throw new BusinessException(ErrorCode.POST_002_PERMISSION_DENIED);
         }
 
-        String expectedStatus = post.getStatus();
+        PostStatus expectedStatus = post.getStatus();
         post.setTitle(request.getTitle());
         post.setContent(request.getContent());
         if (request.getStatus() != null) {
-            boolean authorStatus = request.getStatus() == PostStatus.PUBLISHED
+            boolean editableStatus = expectedStatus == PostStatus.DRAFT
+                    || expectedStatus == PostStatus.PUBLISHED || expectedStatus == PostStatus.CLOSED;
+            boolean publishOrClose = request.getStatus() == PostStatus.PUBLISHED
                     || request.getStatus() == PostStatus.CLOSED;
-            if (!authorStatus || (!isPublic(post) && !"DRAFT".equals(post.getStatus()))) {
+            if (!editableStatus || !publishOrClose) {
                 throw new BusinessException(ErrorCode.POST_002_PERMISSION_DENIED,
                         "Only an available post or draft can be published or closed by its author");
             }
-            post.setStatus(request.getStatus().name());
+            post.setStatus(request.getStatus());
         }
         contentModerationService.assertPostUpdateAllowed(userId, request);
         post.setUpdatedAt(LocalDateTime.now());
@@ -209,7 +214,7 @@ public class PostServiceImpl implements PostService {
         for (Long attachmentId : attachmentIds) {
             Attachment attachment = attachmentMapper.selectById(attachmentId);
             validateAttachmentOwnership(attachment, userId);
-            if (attachmentMapper.bindTemporaryToOwner(attachmentId, userId, ATTACHMENT_OWNER_TYPE, postId) != 1) {
+            if (attachmentMapper.bindTemporaryToOwner(attachmentId, userId, AttachmentOwnerType.POST, postId) != 1) {
                 throw new BusinessException(
                         ErrorCode.COMMON_999_INTERNAL_ERROR,
                         "Failed to bind post attachment");
@@ -220,22 +225,18 @@ public class PostServiceImpl implements PostService {
     private void validateAttachmentOwnership(Attachment attachment, Long userId) {
         if (attachment == null
                 || !userId.equals(attachment.getUploaderId())
-                || !ATTACHMENT_OWNER_TYPE.equals(attachment.getOwnerType())
+                || attachment.getOwnerType() != AttachmentOwnerType.POST
                 || attachment.getOwnerId() != null
-                || !AttachmentStatus.TEMPORARY.name().equals(attachment.getStatus())) {
+                || attachment.getStatus() != AttachmentStatus.TEMPORARY) {
             throw new BusinessException(
                     ErrorCode.FILE_004_INVALID_ATTACHMENT,
                     "Post attachment is unavailable");
         }
     }
 
-    private boolean isPublic(Post post) {
-        return "PUBLISHED".equals(post.getStatus()) || "CLOSED".equals(post.getStatus());
-    }
-
     private Post requirePostExists(Long postId) {
         Post post = postMapper.selectById(postId);
-        if (post == null || "DELETED".equals(post.getStatus())) {
+        if (post == null || post.getStatus() == PostStatus.DELETED) {
             throw new BusinessException(ErrorCode.POST_001_NOT_FOUND);
         }
         return post;

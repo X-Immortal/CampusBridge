@@ -5,7 +5,7 @@ import com.campusbridge.dto.request.CreateConversationRequest;
 import com.campusbridge.dto.request.SendMessageRequest;
 import com.campusbridge.dto.view.ConversationView;
 import com.campusbridge.dto.view.ReadAllConversationsView;
-import com.campusbridge.dto.view.UnreadSummaryView;
+import com.campusbridge.dto.view.UnreadCountView;
 import com.campusbridge.entity.Message;
 
 public interface ConversationService {
@@ -35,5 +35,5 @@ public interface ConversationService {
 
     ReadAllConversationsView markAllConversationsRead(Long ownerId);
 
-    UnreadSummaryView getUnreadSummary(Long ownerId);
+    UnreadCountView getUnreadSummary(Long ownerId);
 }

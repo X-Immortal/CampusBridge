@@ -1,5 +1,6 @@
 package com.campusbridge.dto.view;
 
+import com.campusbridge.enums.UserRole;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -12,7 +13,7 @@ import java.time.LocalDateTime;
 public class UserView {
     private Long id;
     private String username;
-    private String role;
+    private UserRole role;
     private Boolean enabled;
     private LocalDateTime createdAt;
 }

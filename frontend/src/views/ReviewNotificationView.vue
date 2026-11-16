@@ -11,9 +11,9 @@ import {
   FileText,
   Inbox,
   LoaderCircle,
+  MessageCircle,
   RefreshCw,
   Search,
-  Sparkles,
   Star,
   UserRound
 } from '@lucide/vue'
@@ -22,6 +22,7 @@ import DashboardShell from '../components/DashboardShell.vue'
 import ModuleTopbar from '../components/layout/ModuleTopbar.vue'
 import ModuleEntryCard from '../components/layout/ModuleEntryCard.vue'
 import StatusBadge from '../components/StatusBadge.vue'
+import { presentNotification, NOTIFICATION_PRESENTATION } from '../constants/notifications'
 import { useNotificationCenter } from '../composables/useNotificationCenter'
 import { useToast } from '../composables/useToast'
 import { optionLabel, TASK_CATEGORY_OPTIONS, TASK_STATUS_OPTIONS, statusTone } from '../constants'
@@ -32,9 +33,9 @@ const route = useRoute()
 const { currentUserId } = useAuth()
 const { showToast } = useToast()
 const {
-  markConversationRead: markConversationReadOnServer,
+  systemUnreadCount,
+  markNotificationRead: markNotificationReadOnServer,
   markAllNotificationsRead: markAllNotificationsReadOnServer,
-  replaceNotificationSummary,
   refreshNotificationSummary
 } = useNotificationCenter()
 
@@ -60,8 +61,7 @@ const notificationFilters = [
   { value: 'UNREAD', label: '未读' },
   { value: 'TASK', label: '任务' },
   { value: 'POST', label: '帖子' },
-  { value: 'REVIEW', label: '评价' },
-  { value: 'CREDIT', label: '信用' }
+  { value: 'REVIEW', label: '评价' }
 ]
 
 const activeSection = computed(() =>
@@ -78,6 +78,10 @@ const loadingReviews = ref(false)
 const loadingNotifications = ref(false)
 const notificationSearch = ref('')
 const notificationFilter = ref('ALL')
+const notificationPage = ref(1)
+const notificationTotal = ref(0)
+const notificationError = ref('')
+const notificationPageSize = 20
 
 const reviewForm = reactive({
   rating: 5,
@@ -137,30 +141,11 @@ const selectedTaskReviews = computed(() => selectedTask.value?.reviews || [])
 
 const decoratedNotifications = computed(() =>
   notifications.value
-    .map((notification) => ({
-      ...notification,
-      read: Number(notification.unreadCount || 0) <= 0
-    }))
+    .map(presentNotification)
     .sort((current, next) => new Date(next.createdAt) - new Date(current.createdAt))
 )
 const unreadNotifications = computed(() => decoratedNotifications.value.filter((notification) => !notification.read))
-const filteredNotifications = computed(() => {
-  const keyword = notificationSearch.value.trim().toLowerCase()
-  return decoratedNotifications.value.filter((notification) => {
-    const matchesFilter =
-      notificationFilter.value === 'ALL' ||
-      (notificationFilter.value === 'UNREAD' ? !notification.read : notification.type === notificationFilter.value)
-    const matchesKeyword =
-      !keyword ||
-      [notification.title, notification.content, notification.source, notification.taskId, notification.postId]
-        .filter((value) => value !== undefined && value !== null)
-        .join(' ')
-        .toLowerCase()
-        .includes(keyword)
-
-    return matchesFilter && matchesKeyword
-  })
-})
+const filteredNotifications = computed(() => decoratedNotifications.value)
 
 function normalizePagedItems(result) {
   if (Array.isArray(result)) return result
@@ -388,57 +373,9 @@ function appendReviewToTask(taskId, review) {
   })
 }
 
-function normalizeNotificationFromConversation(conversation = {}) {
-  if (conversation.type !== 'SYSTEM') return null
-  const conversationId = conversation.id || conversation.conversationId
-  if (!conversationId) return null
-  const id = `conversation-${conversationId}`
-  const unreadCount = Number(conversation.unreadCount || 0)
-  const content =
-    conversation.lastMessagePreview ||
-    conversation.lastMessageContent ||
-    conversation.lastMessage ||
-    conversation.preview ||
-    '有新的站内协作动态。'
-  return {
-    id,
-    type: conversation.relatedType === 'POST' ? 'POST' : inferNotificationType(content),
-    tone: unreadCount > 0 ? inferNotificationTone(content) : 'muted',
-    title: inferNotificationTitle(content, conversation.title || '站内协作动态'),
-    content,
-    source: conversation.relatedType === 'POST' ? '帖子通知' : '任务通知',
-    taskId: conversation.relatedType === 'TASK' ? conversation.relatedId : null,
-    postId: conversation.relatedType === 'POST' ? conversation.relatedId : null,
-    conversationId,
-    createdAt: conversation.lastMessageAt || conversation.updatedAt || conversation.createdAt || new Date().toISOString(),
-    unreadCount,
-    readAt: unreadCount > 0 ? null : conversation.lastReadAt || conversation.readAt || conversation.lastMessageAt
-  }
-}
-
-function inferNotificationType(content) {
-  if (/评价|互评/.test(content)) return 'REVIEW'
-  if (/信用|积分/.test(content)) return 'CREDIT'
-  return 'TASK'
-}
-
-function inferNotificationTone(content) {
-  if (/争议|驳回|失败|超时/.test(content)) return 'danger'
-  if (/确认|待处理|提醒/.test(content)) return 'warning'
-  if (/完成|通过|更新/.test(content)) return 'success'
-  return 'info'
-}
-
-function inferNotificationTitle(content, fallback) {
-  if (/评价|互评/.test(content)) return '评价提醒'
-  if (/信用|积分/.test(content)) return '信用记录更新'
-  if (/完成|凭证/.test(content)) return '任务完成动态'
-  return fallback || '系统通知'
-}
-
 function notificationTypeLabel(type) {
   if (type === 'REVIEW') return '评价提醒'
-  if (type === 'CREDIT') return '信用动态'
+  if (type === 'POST') return '帖子回复'
   if (type === 'TASK') return '任务动态'
   return '系统通知'
 }
@@ -449,42 +386,48 @@ function relatedContentLabel(notification) {
   return '系统消息'
 }
 
-function applyConversationRead(conversationId) {
-  const readAt = new Date().toISOString()
-  notifications.value = notifications.value.map((notification) =>
-    String(notification.conversationId) === String(conversationId)
-      ? {
-          ...notification,
-          unreadCount: 0,
-          readAt,
-          tone: notification.tone === 'info' ? 'muted' : notification.tone
-        }
-      : notification
-  )
-}
-
 async function loadNotifications() {
   loadingNotifications.value = true
+  notificationError.value = ''
   const requestId = ++notificationRequestId
-
   try {
-    const result = await api.getConversations({ page: 1, size: 100 })
+    const types = ['TASK', 'POST', 'REVIEW'].includes(notificationFilter.value)
+      ? Object.entries(NOTIFICATION_PRESENTATION)
+          .filter(([, presentation]) => presentation.category === notificationFilter.value)
+          .map(([type]) => type)
+      : undefined
+    const result = await api.getNotifications({
+      page: notificationPage.value, size: notificationPageSize, types,
+      unreadOnly: notificationFilter.value === 'UNREAD', keyword: notificationSearch.value
+    })
     if (requestId !== notificationRequestId) return
-    const conversations = normalizePagedItems(result)
-    replaceNotificationSummary(conversations)
-    notifications.value = conversations
-      .filter((conversation) => conversation.type === 'SYSTEM')
-      .map(normalizeNotificationFromConversation)
-      .filter(Boolean)
+    if (result.items.length === 0 && notificationPage.value > 1) {
+      notificationPage.value = Math.max(1, Math.ceil(result.total / notificationPageSize))
+      return loadNotifications()
+    }
+    notifications.value = result.items
+    notificationTotal.value = result.total
     selectDefaultNotification()
-  } catch {
+    await refreshNotificationSummary()
+  } catch (error) {
     if (requestId !== notificationRequestId) return
-    replaceNotificationSummary([])
-    notifications.value = []
-    selectDefaultNotification()
+    notificationError.value = error.message || '通知加载失败，请重试。'
   } finally {
     if (requestId === notificationRequestId) loadingNotifications.value = false
   }
+}
+
+function searchNotifications() {
+  notificationPage.value = 1
+  loadNotifications()
+}
+
+watch(notificationFilter, searchNotifications)
+
+function changeNotificationPage(delta) {
+  notificationPage.value += delta
+  selectedNotificationId.value = ''
+  loadNotifications()
 }
 
 function selectDefaultNotification() {
@@ -504,8 +447,9 @@ function selectNotification(notification) {
 async function markNotificationRead(notification) {
   if (!notification?.id || notification.read) return
   try {
-    await markConversationReadOnServer(notification.conversationId)
-    applyConversationRead(notification.conversationId)
+    const updated = await markNotificationReadOnServer(notification.id)
+    notifications.value = notifications.value.map((item) => item.id === updated.id ? updated : item)
+    if (notificationFilter.value === 'UNREAD') await loadNotifications()
     showToast('已标记为已读。')
   } catch (error) {
     showToast(error.message || '标记已读失败，请稍后重试。', { type: 'danger' })
@@ -515,13 +459,7 @@ async function markNotificationRead(notification) {
 async function markAllNotificationsRead() {
   try {
     await markAllNotificationsReadOnServer()
-    const readAt = new Date().toISOString()
-    notifications.value = notifications.value.map((notification) => ({
-      ...notification,
-      unreadCount: 0,
-      readAt,
-      tone: notification.tone === 'info' ? 'muted' : notification.tone
-    }))
+    await loadNotifications()
     showToast('全部通知已标记为已读。')
   } catch (error) {
     showToast(error.message || '全部已读失败，请稍后重试。', { type: 'danger' })
@@ -531,7 +469,6 @@ async function markAllNotificationsRead() {
 function notificationIcon(type) {
   if (type === 'POST') return FileText
   if (type === 'REVIEW') return Star
-  if (type === 'CREDIT') return Sparkles
   return ClipboardCheck
 }
 
@@ -540,6 +477,10 @@ function notificationToneClass(notification) {
 }
 
 watch(currentUser, () => {
+  notifications.value = []
+  selectedNotificationId.value = ''
+  notificationPage.value = 1
+  if (currentUser.value) loadNotifications()
   refreshNotificationSummary()
 })
 
@@ -884,12 +825,12 @@ onMounted(async () => {
               <p class="section-kicker">
                 通知列表
               </p>
-              <h2>关键事件不会丢</h2>
+              <h2>通知记录</h2>
             </div>
             <button
               class="ghost-action ghost-action--compact"
               type="button"
-              :disabled="!unreadNotifications.length || loadingNotifications"
+              :disabled="!systemUnreadCount || loadingNotifications"
               @click="markAllNotificationsRead"
             >
               <CheckCheck
@@ -913,7 +854,8 @@ onMounted(async () => {
                 id="notification-search"
                 v-model.trim="notificationSearch"
                 type="search"
-                placeholder="搜索任务标题、内容或关键词"
+                placeholder="搜索通知标题或内容，回车查询"
+                @keyup.enter="searchNotifications"
               >
             </label>
             <button
@@ -948,6 +890,12 @@ onMounted(async () => {
             </button>
           </div>
 
+          <p
+            v-if="notificationError"
+            role="alert"
+          >
+            {{ notificationError }}
+          </p>
           <div
             v-if="loadingNotifications && !notifications.length"
             class="loading-state"
@@ -990,7 +938,7 @@ onMounted(async () => {
                 :class="notificationToneClass(notification)"
               >
                 <component
-                  :is="notificationIcon(notification.type)"
+                  :is="notificationIcon(notification.category)"
                   :size="22"
                   aria-hidden="true"
                 />
@@ -1010,6 +958,26 @@ onMounted(async () => {
                 class="unread-dot"
                 aria-label="未读通知"
               />
+            </button>
+          </div>
+          <div
+            v-if="notificationTotal > notificationPageSize"
+            class="detail-actions"
+          >
+            <button
+              class="ghost-action"
+              :disabled="notificationPage === 1 || loadingNotifications"
+              @click="changeNotificationPage(-1)"
+            >
+              上一页
+            </button>
+            <span>第 {{ notificationPage }} 页 · 共 {{ notificationTotal }} 条</span>
+            <button
+              class="ghost-action"
+              :disabled="notificationPage * notificationPageSize >= notificationTotal || loadingNotifications"
+              @click="changeNotificationPage(1)"
+            >
+              下一页
             </button>
           </div>
         </section>
@@ -1035,7 +1003,7 @@ onMounted(async () => {
                 :class="notificationToneClass(selectedNotification)"
               >
                 <component
-                  :is="notificationIcon(selectedNotification.type)"
+                  :is="notificationIcon(selectedNotification.category)"
                   :size="30"
                   aria-hidden="true"
                 />
@@ -1052,7 +1020,7 @@ onMounted(async () => {
             <dl class="notification-meta-list">
               <div>
                 <dt>分类</dt>
-                <dd>{{ notificationTypeLabel(selectedNotification.type) }}</dd>
+                <dd>{{ notificationTypeLabel(selectedNotification.category) }}</dd>
               </div>
               <div>
                 <dt>关联内容</dt>

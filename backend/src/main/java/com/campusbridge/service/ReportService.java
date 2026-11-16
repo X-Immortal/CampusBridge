@@ -1,5 +1,6 @@
 package com.campusbridge.service;
 
+import com.campusbridge.enums.ReportStatus;
 import com.campusbridge.common.PagedResult;
 import com.campusbridge.dto.request.CreateReportRequest;
 import com.campusbridge.dto.request.ResolveReportRequest;
@@ -11,12 +12,12 @@ public interface ReportService {
 
     PagedResult<Report> listReports(
             Long reporterId,
-            String status,
+            ReportStatus status,
             Integer page,
             Integer size);
 
     PagedResult<Report> listReportsForAdmin(
-            String status,
+            ReportStatus status,
             Integer page,
             Integer size);
 

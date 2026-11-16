@@ -468,8 +468,7 @@ async function handlePostAttachmentFileChange(event) {
       const previewUrl = await readFileAsDataUri(file)
       const uploaded = await api.uploadAttachment({
         file,
-        expectedOwnerType: 'POST',
-        type: 'IMAGE'
+        expectedOwnerType: 'POST'
       })
 
       const id = uploaded?.id ?? uploaded?.attachmentId ?? null
@@ -1833,7 +1832,7 @@ onMounted(() => {
                 ref="postAttachmentFileInput"
                 type="file"
                 multiple
-                accept="image/*"
+                accept="image/png,image/jpeg,image/webp"
                 hidden
                 :disabled="postUploading || publishing"
                 @change="handlePostAttachmentFileChange"

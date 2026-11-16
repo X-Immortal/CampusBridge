@@ -1,10 +1,12 @@
 package com.campusbridge.service.impl;
 
+import com.campusbridge.enums.CreditSourceType;
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
 import com.campusbridge.entity.CreditRecord;
 import com.campusbridge.entity.Task;
 import com.campusbridge.entity.UserCredit;
+import com.campusbridge.enums.RewardType;
 import com.campusbridge.mapper.CreditRecordMapper;
 import com.campusbridge.mapper.UserCreditMapper;
 import com.campusbridge.service.CreditService;
@@ -19,7 +21,6 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class CreditServiceImpl implements CreditService {
     private static final int MAX_REASON_LENGTH = 255;
-    private static final int MAX_SOURCE_TYPE_LENGTH = 50;
 
     private final UserCreditMapper userCreditMapper;
     private final CreditRecordMapper creditRecordMapper;
@@ -29,7 +30,7 @@ public class CreditServiceImpl implements CreditService {
             Long userId,
             int changeValue,
             String reason,
-            String sourceType,
+            CreditSourceType sourceType,
             Long sourceId) {
         if (userId == null) {
             throw new BusinessException(
@@ -57,7 +58,7 @@ public class CreditServiceImpl implements CreditService {
         record.setUserId(userId);
         record.setChangeValue(changeValue);
         record.setReason(abbreviate(defaultIfBlank(reason, "CREDIT_ADJUSTED"), MAX_REASON_LENGTH));
-        record.setSourceType(abbreviate(defaultIfBlank(sourceType, "SYSTEM"), MAX_SOURCE_TYPE_LENGTH));
+        record.setSourceType(sourceType);
         record.setSourceId(sourceId);
         record.setCreatedAt(now);
 
@@ -71,9 +72,9 @@ public class CreditServiceImpl implements CreditService {
     @Override
     public void awardTaskReward(Task task) {
         Integer amount = task.getRewardAmount();
-        if ("POINTS".equals(task.getRewardType()) && amount != null && amount > 0) {
+        if (task.getRewardType() == RewardType.POINTS && amount != null && amount > 0) {
             adjustCredit(task.getProviderId(), amount,
-                    "任务 #" + task.getId() + " 积分报酬收入", "TASK", task.getId());
+                    "任务 #" + task.getId() + " 积分报酬收入", CreditSourceType.TASK, task.getId());
         }
     }
 

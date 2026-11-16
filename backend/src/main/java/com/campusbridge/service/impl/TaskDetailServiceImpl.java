@@ -6,6 +6,7 @@ import com.campusbridge.dto.view.TaskDetailView;
 import com.campusbridge.dto.view.TaskView;
 import com.campusbridge.entity.Attachment;
 import com.campusbridge.entity.CompletionProof;
+import com.campusbridge.enums.AttachmentOwnerType;
 import com.campusbridge.mapper.AttachmentMapper;
 import com.campusbridge.mapper.CompletionProofMapper;
 import com.campusbridge.mapper.ReviewMapper;
@@ -21,7 +22,6 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class TaskDetailServiceImpl implements TaskDetailService {
-    private static final String OWNER_TYPE_COMPLETION_PROOF = "COMPLETION_PROOF";
 
     private final TaskService taskService;
     private final CompletionProofMapper completionProofMapper;
@@ -52,7 +52,7 @@ public class TaskDetailServiceImpl implements TaskDetailService {
         CompletionProof proof = completionProofMapper.selectByTaskId(taskId);
         List<Attachment> attachments = proof == null
                 ? Collections.emptyList()
-                : attachmentMapper.selectByOwner(OWNER_TYPE_COMPLETION_PROOF, proof.getId());
+                : attachmentMapper.selectByOwner(AttachmentOwnerType.COMPLETION_PROOF, proof.getId());
 
         return new TaskDetailView(
                 task,

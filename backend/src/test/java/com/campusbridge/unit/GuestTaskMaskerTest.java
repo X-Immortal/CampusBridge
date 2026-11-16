@@ -2,6 +2,7 @@ package com.campusbridge.unit;
 
 import com.campusbridge.common.GuestTaskMasker;
 import com.campusbridge.dto.view.TaskView;
+import com.campusbridge.enums.TaskStatus;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -58,7 +59,7 @@ class GuestTaskMaskerTest {
         task.setRouteHint("走西门");
         task.setSensitiveReason("仅站内沟通");
         task.setTitle("帮取快递");
-        task.setStatus("OPEN");
+        task.setStatus(TaskStatus.OPEN);
         return task;
     }
 }

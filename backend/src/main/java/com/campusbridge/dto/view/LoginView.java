@@ -1,4 +1,6 @@
 package com.campusbridge.dto.view;
 
-public record LoginView(Long userId, String username, String role, String token, String refreshToken) {
+import com.campusbridge.enums.UserRole;
+
+public record LoginView(Long userId, String username, UserRole role, String token, String refreshToken) {
 }

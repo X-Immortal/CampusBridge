@@ -1,18 +1,21 @@
 package com.campusbridge.unit;
 
+import com.campusbridge.enums.TaskHistoryEventType;
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
 import com.campusbridge.dto.request.CreateTaskApplicationRequest;
 import com.campusbridge.dto.view.TaskView;
 import com.campusbridge.entity.Task;
 import com.campusbridge.entity.TaskApplication;
+import com.campusbridge.enums.ApplicationStatus;
+import com.campusbridge.enums.TaskStatus;
 import com.campusbridge.mapper.CampusVerificationMapper;
 import com.campusbridge.mapper.TaskApplicationMapper;
 import com.campusbridge.mapper.TaskMapper;
 import com.campusbridge.mapper.UserCreditMapper;
 import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.mapper.UserProfileMapper;
-import com.campusbridge.service.NotificationService;
+import com.campusbridge.service.TaskNotificationService;
 import com.campusbridge.service.TaskHistoryService;
 import com.campusbridge.service.impl.TaskApplicationServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -60,7 +63,7 @@ class BE07TaskApplicationServiceImplTest {
     private TaskHistoryService taskHistoryService;
 
     @Mock
-    private NotificationService notificationService;
+    private TaskNotificationService notificationService;
 
     private TaskApplicationServiceImpl applicationService;
 
@@ -85,7 +88,7 @@ class BE07TaskApplicationServiceImplTest {
 
         assertThat(result.getTaskId()).isEqualTo(TASK_ID);
         assertThat(result.getApplicantId()).isEqualTo(APPLICANT_ID);
-        assertThat(result.getStatus()).isEqualTo("PENDING");
+        assertThat(result.getStatus()).isEqualTo(ApplicationStatus.PENDING);
         verify(notificationService)
                 .notifyTaskApplicationCreated(any(Task.class), any(TaskApplication.class), eq(APPLICANT_ID));
     }
@@ -132,7 +135,7 @@ class BE07TaskApplicationServiceImplTest {
     void createApplicationReactivatesWithdrawnApplication() {
         Task task = task(TASK_ID, REQUESTER_ID, "OPEN");
         TaskApplication application = pendingApplication(APPLICATION_ID, TASK_ID, APPLICANT_ID);
-        application.setStatus("WITHDRAWN");
+        application.setStatus(ApplicationStatus.WITHDRAWN);
         when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(task);
         when(taskApplicationMapper.selectByTaskIdAndApplicantId(TASK_ID, APPLICANT_ID))
                 .thenReturn(application);
@@ -141,7 +144,7 @@ class BE07TaskApplicationServiceImplTest {
         TaskApplication result = applicationService.createApplication(
                 APPLICANT_ID, TASK_ID, appRequest("重新申请"));
 
-        assertThat(result.getStatus()).isEqualTo("PENDING");
+        assertThat(result.getStatus()).isEqualTo(ApplicationStatus.PENDING);
         assertThat(result.getMessage()).isEqualTo("重新申请");
         assertThat(result.getHandledAt()).isNull();
         verify(notificationService)
@@ -179,16 +182,16 @@ class BE07TaskApplicationServiceImplTest {
         when(taskMapper.acceptProviderById(
                 eq(TASK_ID), eq(REQUESTER_ID), eq(APPLICANT_ID), any())).thenReturn(1);
         when(taskApplicationMapper.updateStatusById(
-                eq(APPLICATION_ID), eq("PENDING"), eq("ACCEPTED"), any())).thenReturn(1);
+                eq(APPLICATION_ID), eq(ApplicationStatus.PENDING), eq(ApplicationStatus.ACCEPTED), any())).thenReturn(1);
 
         TaskApplication result =
                 applicationService.acceptApplication(REQUESTER_ID, TASK_ID, APPLICATION_ID);
 
-        assertThat(result.getStatus()).isEqualTo("ACCEPTED");
+        assertThat(result.getStatus()).isEqualTo(ApplicationStatus.ACCEPTED);
         verify(taskApplicationMapper)
                 .rejectOtherPendingByTaskId(eq(TASK_ID), eq(APPLICATION_ID), any());
         verify(taskHistoryService)
-                .recordHistory(TASK_ID, "OPEN", "ACCEPTED", REQUESTER_ID, "APPLICATION_ACCEPTED");
+                .recordHistory(TASK_ID, TaskStatus.OPEN, TaskStatus.ACCEPTED, REQUESTER_ID, TaskHistoryEventType.APPLICATION_ACCEPTED, null);
         verify(notificationService)
                 .notifyTaskApplicationAccepted(any(Task.class), any(TaskApplication.class), eq(REQUESTER_ID));
     }
@@ -243,13 +246,13 @@ class BE07TaskApplicationServiceImplTest {
         when(taskApplicationMapper.selectById(APPLICATION_ID)).thenReturn(application);
         when(taskMapper.selectById(TASK_ID)).thenReturn(task);
         when(taskApplicationMapper.updateStatusById(
-                eq(APPLICATION_ID), eq("PENDING"), eq("WITHDRAWN"), any()))
+                eq(APPLICATION_ID), eq(ApplicationStatus.PENDING), eq(ApplicationStatus.WITHDRAWN), any()))
                 .thenReturn(1);
 
         TaskApplication result =
                 applicationService.withdrawApplication(APPLICANT_ID, APPLICATION_ID);
 
-        assertThat(result.getStatus()).isEqualTo("WITHDRAWN");
+        assertThat(result.getStatus()).isEqualTo(ApplicationStatus.WITHDRAWN);
         assertThat(result.getHandledAt()).isNotNull();
         verify(notificationService)
                 .notifyTaskApplicationWithdrawn(task, application, APPLICANT_ID);
@@ -269,7 +272,7 @@ class BE07TaskApplicationServiceImplTest {
     @Test
     void withdrawApplicationRejectsAcceptedApplication() {
         TaskApplication application = pendingApplication(APPLICATION_ID, TASK_ID, APPLICANT_ID);
-        application.setStatus("ACCEPTED");
+        application.setStatus(ApplicationStatus.ACCEPTED);
         when(taskApplicationMapper.selectById(APPLICATION_ID)).thenReturn(application);
 
         assertThatThrownBy(() -> applicationService.withdrawApplication(APPLICANT_ID, APPLICATION_ID))
@@ -290,7 +293,7 @@ class BE07TaskApplicationServiceImplTest {
         Task task = new Task();
         task.setId(id);
         task.setRequesterId(requesterId);
-        task.setStatus(status);
+        task.setStatus(TaskStatus.valueOf(status));
         task.setUpdatedAt(LocalDateTime.now());
         return task;
     }
@@ -301,7 +304,7 @@ class BE07TaskApplicationServiceImplTest {
         application.setTaskId(taskId);
         application.setApplicantId(applicantId);
         application.setMessage("我能帮忙");
-        application.setStatus("PENDING");
+        application.setStatus(ApplicationStatus.PENDING);
         application.setCreatedAt(LocalDateTime.now());
         return application;
     }

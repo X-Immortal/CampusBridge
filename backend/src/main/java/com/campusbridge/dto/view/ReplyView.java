@@ -1,5 +1,6 @@
 package com.campusbridge.dto.view;
 
+import com.campusbridge.enums.ReplyStatus;
 import com.campusbridge.entity.Reply;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -14,7 +15,7 @@ public class ReplyView {
     private Long authorId;
     private Long parentReplyId;
     private String content;
-    private String status;
+    private ReplyStatus status;
     private Integer likeCount;
     private LocalDateTime createdAt;
     private String authorName;

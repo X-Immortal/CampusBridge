@@ -1,9 +1,13 @@
 package com.campusbridge.service.impl;
 
+import com.campusbridge.enums.InteractionTargetType;
+import com.campusbridge.enums.ReplyStatus;
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
 import com.campusbridge.dto.request.CreatePostInteractionRequest;
+import com.campusbridge.dto.view.AcceptedReplyView;
 import com.campusbridge.entity.Post;
+import com.campusbridge.enums.PostStatus;
 import com.campusbridge.entity.PostInteraction;
 import com.campusbridge.entity.Reply;
 import com.campusbridge.enums.PostInteractionType;
@@ -22,7 +26,6 @@ import java.time.LocalDateTime;
 @Service
 @RequiredArgsConstructor
 public class InteractionServiceImpl implements InteractionService {
-    private static final String TARGET_TYPE_POST = "POST";
 
     private final PostInteractionMapper interactionMapper;
     private final PostMapper postMapper;
@@ -31,12 +34,12 @@ public class InteractionServiceImpl implements InteractionService {
     @Override
     public PostInteraction createInteraction(
             Long userId, Long postId, CreatePostInteractionRequest request) {
-        String type = request.getType().name();
+        PostInteractionType type = request.getType();
 
         Post post = requirePostExists(postId);
 
         PostInteraction existing = interactionMapper.selectByUserTargetType(
-                userId, TARGET_TYPE_POST, postId, type);
+                userId, InteractionTargetType.POST, postId, type);
         if (existing != null) {
             throw new BusinessException(ErrorCode.COMMON_003_CONFLICT,
                     "Already interacted with this post");
@@ -44,7 +47,7 @@ public class InteractionServiceImpl implements InteractionService {
 
         PostInteraction interaction = new PostInteraction();
         interaction.setUserId(userId);
-        interaction.setTargetType(TARGET_TYPE_POST);
+        interaction.setTargetType(InteractionTargetType.POST);
         interaction.setTargetId(postId);
         interaction.setType(type);
         interaction.setCreatedAt(LocalDateTime.now());
@@ -62,15 +65,11 @@ public class InteractionServiceImpl implements InteractionService {
     }
 
     @Override
-    public void cancelInteraction(Long userId, Long postId, String type) {
-        if (!PostInteractionType.LIKE.name().equals(type)
-                && !PostInteractionType.MARK.name().equals(type)) {
-            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "Interaction type must be LIKE or MARK");
-        }
+    public void cancelInteraction(Long userId, Long postId, PostInteractionType type) {
         requirePostExists(postId);
 
         int deleted = interactionMapper.deleteByUserTargetType(
-                userId, TARGET_TYPE_POST, postId, type);
+                userId, InteractionTargetType.POST, postId, type);
         if (deleted == 0) {
             throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR,
                     "Interaction not found");
@@ -83,14 +82,14 @@ public class InteractionServiceImpl implements InteractionService {
     }
 
     @Override
-    public PostInteraction acceptReply(Long userId, Long postId, Long replyId) {
+    public AcceptedReplyView acceptReply(Long userId, Long postId, Long replyId) {
         Post post = requirePostExists(postId);
         if (!userId.equals(post.getAuthorId())) {
             throw new BusinessException(ErrorCode.POST_002_PERMISSION_DENIED);
         }
 
         Reply reply = replyMapper.selectById(replyId);
-        if (reply == null || !"PUBLISHED".equals(reply.getStatus())) {
+        if (reply == null || reply.getStatus() != ReplyStatus.PUBLISHED) {
             throw new BusinessException(ErrorCode.POST_003_REPLY_NOT_FOUND);
         }
         if (!reply.getPostId().equals(postId)) {
@@ -103,25 +102,18 @@ public class InteractionServiceImpl implements InteractionService {
                     "Failed to accept reply");
         }
 
-        PostInteraction interaction = new PostInteraction();
-        interaction.setUserId(userId);
-        interaction.setTargetType(TARGET_TYPE_POST);
-        interaction.setTargetId(postId);
-        interaction.setType("ACCEPT_REPLY");
-        interaction.setCreatedAt(LocalDateTime.now());
-        // Acceptance is stored in posts.accepted_reply_id; interactions persist only LIKE and MARK.
-        return interaction;
+        return new AcceptedReplyView(postId, replyId);
     }
 
     private Post requirePostExists(Long postId) {
         Post post = postMapper.selectById(postId);
-        if (post == null || !("PUBLISHED".equals(post.getStatus()) || "CLOSED".equals(post.getStatus()))) {
+        if (post == null || (post.getStatus() != PostStatus.PUBLISHED && post.getStatus() != PostStatus.CLOSED)) {
             throw new BusinessException(ErrorCode.POST_001_NOT_FOUND);
         }
         return post;
     }
 
-    private void updatePostCount(Post post, String type, int delta) {
+    private void updatePostCount(Post post, PostInteractionType type, int delta) {
         if (postMapper.adjustInteractionCount(post.getId(), type, delta) != 1) {
             throw new BusinessException(ErrorCode.COMMON_003_CONFLICT, "Post is no longer available");
         }

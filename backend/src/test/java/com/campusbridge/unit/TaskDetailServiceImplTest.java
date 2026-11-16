@@ -3,6 +3,8 @@ package com.campusbridge.unit;
 import com.campusbridge.dto.view.TaskView;
 import com.campusbridge.entity.Attachment;
 import com.campusbridge.entity.CompletionProof;
+import com.campusbridge.enums.AttachmentOwnerType;
+import com.campusbridge.enums.TaskStatus;
 import com.campusbridge.mapper.AttachmentMapper;
 import com.campusbridge.mapper.CompletionProofMapper;
 import com.campusbridge.mapper.ReviewMapper;
@@ -63,7 +65,7 @@ class TaskDetailServiceImplTest {
         attachment.setId(30L);
         when(taskService.getTaskDetail(TASK_ID, REQUESTER_ID)).thenReturn(task);
         when(completionProofMapper.selectByTaskId(TASK_ID)).thenReturn(proof);
-        when(attachmentMapper.selectByOwner("COMPLETION_PROOF", proof.getId()))
+        when(attachmentMapper.selectByOwner(AttachmentOwnerType.COMPLETION_PROOF, proof.getId()))
                 .thenReturn(List.of(attachment));
         when(taskHistoryMapper.selectByTaskId(TASK_ID)).thenReturn(List.of());
         when(reviewMapper.selectByTaskId(TASK_ID)).thenReturn(List.of());
@@ -80,7 +82,7 @@ class TaskDetailServiceImplTest {
         CompletionProof proof = proof();
         when(taskService.getTaskDetail(TASK_ID, PROVIDER_ID)).thenReturn(task);
         when(completionProofMapper.selectByTaskId(TASK_ID)).thenReturn(proof);
-        when(attachmentMapper.selectByOwner("COMPLETION_PROOF", proof.getId()))
+        when(attachmentMapper.selectByOwner(AttachmentOwnerType.COMPLETION_PROOF, proof.getId()))
                 .thenReturn(List.of());
         when(taskHistoryMapper.selectByTaskId(TASK_ID)).thenReturn(List.of());
         when(reviewMapper.selectByTaskId(TASK_ID)).thenReturn(List.of());
@@ -106,7 +108,7 @@ class TaskDetailServiceImplTest {
         task.setId(TASK_ID);
         task.setRequesterId(REQUESTER_ID);
         task.setProviderId(PROVIDER_ID);
-        task.setStatus("PENDING_CONFIRMATION");
+        task.setStatus(TaskStatus.PENDING_CONFIRMATION);
         return task;
     }
 

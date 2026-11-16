@@ -19,16 +19,6 @@
       AND m.read_at IS NULL
   </select>
 
-  <select id="countOwnerUnreadBySystemType" resultType="long">
-    SELECT COUNT(*)
-    FROM messages m
-    INNER JOIN conversations c ON c.id = m.conversation_id
-    WHERE c.owner_id = #{ownerId}
-      AND m.read_at IS NULL
-      <if test="isSystem">AND c.type = 'SYSTEM'</if>
-      <if test="!isSystem">AND c.type != 'SYSTEM'</if>
-  </select>
-
   <select id="selectOwnedById" resultType="com.campusbridge.entity.Message">
     SELECT m.* FROM messages m INNER JOIN conversations c ON c.id = m.conversation_id
     WHERE m.id = #{id} AND c.owner_id = #{ownerId}

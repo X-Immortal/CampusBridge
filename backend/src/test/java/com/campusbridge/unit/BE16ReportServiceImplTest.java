@@ -1,5 +1,7 @@
 package com.campusbridge.unit;
 
+import com.campusbridge.enums.TaskHistoryEventType;
+import com.campusbridge.enums.CreditSourceType;
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
 import com.campusbridge.dto.request.CreateReportRequest;
@@ -8,8 +10,9 @@ import com.campusbridge.entity.ModerationRecord;
 import com.campusbridge.entity.Report;
 import com.campusbridge.entity.Task;
 import com.campusbridge.entity.User;
-import com.campusbridge.enums.ModerationStatus;
+import com.campusbridge.enums.ReportStatus;
 import com.campusbridge.enums.ReportTargetType;
+import com.campusbridge.enums.TaskStatus;
 import com.campusbridge.mapper.MessageMapper;
 import com.campusbridge.mapper.ModerationRecordMapper;
 import com.campusbridge.mapper.PostMapper;
@@ -18,11 +21,13 @@ import com.campusbridge.mapper.ReportMapper;
 import com.campusbridge.mapper.TaskMapper;
 import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.service.CreditService;
-import com.campusbridge.service.NotificationService;
+import com.campusbridge.service.TaskNotificationService;
 import com.campusbridge.service.TaskHistoryService;
 import com.campusbridge.service.impl.ReportServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -72,7 +77,7 @@ class BE16ReportServiceImplTest {
     private TaskHistoryService taskHistoryService;
 
     @Mock
-    private NotificationService notificationService;
+    private TaskNotificationService notificationService;
 
     @Mock
     private CreditService creditService;
@@ -96,45 +101,46 @@ class BE16ReportServiceImplTest {
 
     @Test
     void createTaskReportTurnsParticipantTaskDisputed() {
-        Task task = task("IN_PROGRESS");
+        Task task = task(TaskStatus.IN_PROGRESS);
         when(taskMapper.selectById(TASK_ID)).thenReturn(task);
         when(reportMapper.insert(any(Report.class))).thenAnswer(invocation -> {
             Report report = invocation.getArgument(0);
             report.setId(REPORT_ID);
             return 1;
         });
-        when(taskMapper.updateStatusById(eq(TASK_ID), eq("IN_PROGRESS"), eq("DISPUTED"), any()))
+        when(taskMapper.updateStatusById(eq(TASK_ID), eq(TaskStatus.IN_PROGRESS), eq(TaskStatus.DISPUTED), any()))
                 .thenReturn(1);
 
         Report report = reportService.createReport(REPORTER_ID, taskReportRequest());
 
         assertThat(report.getId()).isEqualTo(REPORT_ID);
         assertThat(report.getReporterId()).isEqualTo(REPORTER_ID);
-        assertThat(report.getTargetType()).isEqualTo("TASK");
-        assertThat(report.getStatus()).isEqualTo("PENDING");
+        assertThat(report.getTargetType()).isEqualTo(ReportTargetType.TASK);
+        assertThat(report.getStatus()).isEqualTo(ReportStatus.PENDING);
         verify(taskHistoryService).recordHistory(
                 TASK_ID,
-                "IN_PROGRESS",
-                "DISPUTED",
+                TaskStatus.IN_PROGRESS,
+                TaskStatus.DISPUTED,
                 REPORTER_ID,
-                "REPORT_CREATED; REPORT_ID=20; REASON=provider disappeared");
+                TaskHistoryEventType.REPORT_CREATED, "举报 #20；原因：provider disappeared");
         verify(notificationService).notifyTaskStatusChanged(
                 task,
-                "IN_PROGRESS",
-                "DISPUTED",
+                TaskStatus.DISPUTED,
                 REPORTER_ID,
                 "provider disappeared");
     }
 
-    @Test
-    void resolvePunishedTaskReportWritesRecordAndPenalizesCounterparty() {
-        Report report = taskReport("PENDING");
-        Task task = task("DISPUTED");
+    @ParameterizedTest
+    @CsvSource(value = {"DEFAULT,-10", "-3,-3"}, nullValues = "DEFAULT")
+    void resolvePunishedTaskReportWritesRecordAndPenalizesCounterparty(
+            Integer requestedChange, int expectedChange) {
+        Report report = taskReport(ReportStatus.PENDING);
+        Task task = task(TaskStatus.DISPUTED);
         User punishedUser = new User();
         punishedUser.setId(PROVIDER_ID);
 
         when(reportMapper.selectById(REPORT_ID)).thenReturn(report);
-        when(reportMapper.updateStatusById(REPORT_ID, "PUNISHED")).thenReturn(1);
+        when(reportMapper.updateStatusById(REPORT_ID, ReportStatus.PUNISHED)).thenReturn(1);
         when(moderationRecordMapper.insert(any(ModerationRecord.class))).thenAnswer(invocation -> {
             ModerationRecord record = invocation.getArgument(0);
             record.setId(MODERATION_RECORD_ID);
@@ -143,41 +149,40 @@ class BE16ReportServiceImplTest {
         when(taskMapper.selectById(TASK_ID)).thenReturn(task);
         when(userMapper.selectById(PROVIDER_ID)).thenReturn(punishedUser);
 
-        ModerationRecord record = reportService.resolveReport(
-                ADMIN_ID,
-                REPORT_ID,
-                resolveRequest(ModerationStatus.PUNISHED, "confirmed no-show"));
+        ResolveReportRequest request = resolveRequest(ReportStatus.PUNISHED, "confirmed no-show");
+        request.setCreditChange(requestedChange);
+        ModerationRecord record = reportService.resolveReport(ADMIN_ID, REPORT_ID, request);
 
         assertThat(record.getId()).isEqualTo(MODERATION_RECORD_ID);
         assertThat(record.getReportId()).isEqualTo(REPORT_ID);
-        assertThat(record.getStatus()).isEqualTo("PUNISHED");
+        assertThat(record.getStatus()).isEqualTo(ReportStatus.PUNISHED);
         assertThat(record.getHandlerId()).isEqualTo(ADMIN_ID);
         verify(creditService).adjustCredit(
                 PROVIDER_ID,
-                -10,
+                expectedChange,
                 "REPORT_PUNISHED: confirmed no-show",
-                "REPORT",
+                CreditSourceType.REPORT,
                 REPORT_ID);
     }
 
     @Test
     void resolveReportRejectsAlreadyResolvedReport() {
-        when(reportMapper.selectById(REPORT_ID)).thenReturn(taskReport("RESOLVED"));
+        when(reportMapper.selectById(REPORT_ID)).thenReturn(taskReport(ReportStatus.RESOLVED));
 
         assertThatThrownBy(() -> reportService.resolveReport(
                 ADMIN_ID,
                 REPORT_ID,
-                resolveRequest(ModerationStatus.PUNISHED, "duplicate handling")))
+                resolveRequest(ReportStatus.PUNISHED, "duplicate handling")))
                 .isInstanceOfSatisfying(BusinessException.class, ex ->
                         assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.COMMON_003_CONFLICT));
     }
 
     @Test
     void resolveRaceDoesNotWriteModerationOrRepeatCreditChange() {
-        when(reportMapper.selectById(REPORT_ID)).thenReturn(taskReport("PENDING"));
-        when(reportMapper.updateStatusById(REPORT_ID, "PUNISHED")).thenReturn(0);
+        when(reportMapper.selectById(REPORT_ID)).thenReturn(taskReport(ReportStatus.PENDING));
+        when(reportMapper.updateStatusById(REPORT_ID, ReportStatus.PUNISHED)).thenReturn(0);
         assertThatThrownBy(() -> reportService.resolveReport(
-                ADMIN_ID, REPORT_ID, resolveRequest(ModerationStatus.PUNISHED, "race")))
+                ADMIN_ID, REPORT_ID, resolveRequest(ReportStatus.PUNISHED, "race")))
                 .isInstanceOfSatisfying(BusinessException.class, ex ->
                         assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.COMMON_003_CONFLICT));
         verifyNoInteractions(moderationRecordMapper, creditService);
@@ -195,6 +200,17 @@ class BE16ReportServiceImplTest {
         verify(reportMapper, never()).insert(any(Report.class));
     }
 
+    @Test
+    void resolveReportRejectsNonTerminalTargetStatusBeforeWriting() {
+        for (ReportStatus status : java.util.List.of(ReportStatus.PENDING, ReportStatus.PROCESSING)) {
+            assertThatThrownBy(() -> reportService.resolveReport(
+                    ADMIN_ID, REPORT_ID, resolveRequest(status, "Not a final result")))
+                    .isInstanceOfSatisfying(BusinessException.class, error ->
+                            assertThat(error.getErrorCode()).isEqualTo(ErrorCode.COMMON_001_VALIDATION_ERROR));
+        }
+        verifyNoInteractions(reportMapper, moderationRecordMapper, creditService);
+    }
+
     private CreateReportRequest taskReportRequest() {
         CreateReportRequest request = new CreateReportRequest();
         request.setTargetType(ReportTargetType.TASK);
@@ -205,7 +221,7 @@ class BE16ReportServiceImplTest {
     }
 
     private ResolveReportRequest resolveRequest(
-            ModerationStatus status,
+            ReportStatus status,
             String decision) {
         ResolveReportRequest request = new ResolveReportRequest();
         request.setStatus(status);
@@ -213,11 +229,11 @@ class BE16ReportServiceImplTest {
         return request;
     }
 
-    private Report taskReport(String status) {
+    private Report taskReport(ReportStatus status) {
         Report report = new Report();
         report.setId(REPORT_ID);
         report.setReporterId(REPORTER_ID);
-        report.setTargetType("TASK");
+        report.setTargetType(ReportTargetType.TASK);
         report.setTargetId(TASK_ID);
         report.setReason("provider disappeared");
         report.setDescription("No response after accepting the task.");
@@ -226,7 +242,7 @@ class BE16ReportServiceImplTest {
         return report;
     }
 
-    private Task task(String status) {
+    private Task task(TaskStatus status) {
         Task task = new Task();
         task.setId(TASK_ID);
         task.setRequesterId(REPORTER_ID);

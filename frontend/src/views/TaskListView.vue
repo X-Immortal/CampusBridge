@@ -1080,10 +1080,6 @@ function normalizeProofAttachments(value = []) {
     .filter(Boolean)
 }
 
-function inferAttachmentType(file = {}) {
-  return String(file.type || '').toLowerCase().startsWith('image/') ? 'IMAGE' : 'FILE'
-}
-
 function completionAttachmentIds() {
   return completionAttachments.value
     .map((item) => Number(item.id ?? item.attachmentId))
@@ -1744,17 +1740,20 @@ async function handleCompletionFiles(event) {
   completionUploading.value = true
   try {
     for (const file of selectedFiles) {
+      if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+        setCompletionError('attachments', '请选择 PNG、JPEG 或 WebP 图片。')
+        continue
+      }
       if (file.size > 4 * 1024 * 1024) {
         setCompletionError('attachments', '单张图片请控制在 4MB 以内，避免提交失败。')
         continue
       }
 
       try {
-        const previewUrl = file.type.startsWith('image/') ? await readFileAsDataUri(file) : ''
+        const previewUrl = await readFileAsDataUri(file)
         const uploaded = await api.uploadAttachment({
           file,
-          expectedOwnerType: 'COMPLETION_PROOF',
-          type: inferAttachmentType(file)
+          expectedOwnerType: 'COMPLETION_PROOF'
         })
         const normalized = normalizeAttachmentItem(
           {
@@ -3135,11 +3134,12 @@ onMounted(async () => {
                       aria-hidden="true"
                     />
                     <span>
-                      <strong>{{ completionUploading ? '正在上传...' : '上传凭证附件' }}</strong>
-                      <small>图片或文件，单个不超过 4MB，最多 9 个。</small>
+                      <strong>{{ completionUploading ? '正在上传...' : '上传凭证图片' }}</strong>
+                      <small>PNG、JPEG、WebP 图片，单张不超过 4MB，最多 9 张。</small>
                     </span>
                     <input
                       type="file"
+                      accept="image/png,image/jpeg,image/webp"
                       multiple
                       :disabled="completionSubmitting || completionUploading"
                       @change="handleCompletionFiles"

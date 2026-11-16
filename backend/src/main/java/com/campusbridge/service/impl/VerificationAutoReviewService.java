@@ -2,6 +2,7 @@ package com.campusbridge.service.impl;
 
 import com.campusbridge.dto.response.OcrExtractResult;
 import com.campusbridge.entity.CampusVerification;
+import com.campusbridge.enums.VerificationStatus;
 import com.campusbridge.mapper.CampusVerificationMapper;
 import com.campusbridge.service.VerificationOcrClient;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +31,7 @@ public class VerificationAutoReviewService {
     private void reviewStudentCard(Long verificationId) {
         try {
             CampusVerification entity = campusVerificationMapper.selectById(verificationId);
-            if (entity == null || !"PENDING".equals(entity.getStatus())) {
+            if (entity == null || entity.getStatus() != VerificationStatus.PENDING) {
                 return;
             }
 
@@ -55,14 +56,14 @@ public class VerificationAutoReviewService {
     }
 
     private void markAsVerified(CampusVerification entity) {
-        entity.setStatus("VERIFIED");
+        entity.setStatus(VerificationStatus.VERIFIED);
         entity.setRejectReason(null);
         entity.setReviewedAt(LocalDateTime.now());
         campusVerificationMapper.updatePending(entity);
     }
 
     private void markAsRejected(CampusVerification entity, String reason) {
-        entity.setStatus("REJECTED");
+        entity.setStatus(VerificationStatus.REJECTED);
         entity.setRejectReason(reason);
         entity.setReviewedAt(LocalDateTime.now());
         campusVerificationMapper.updatePending(entity);

@@ -104,7 +104,6 @@ const activeConversation = computed(() => {
 
 const activeConversationMeta = computed(() => getConversationMeta(activeConversation.value))
 const conversationReplyable = computed(() => activeConversation.value?.replyable ?? true)
-const isSystemConversation = computed(() => activeConversation.value?.type === 'SYSTEM')
 const onlyInAppActive = computed(() => Boolean(relatedTask.value?.onlyInAppContact))
 const totalConversationPages = computed(() => Math.max(1, Math.ceil(conversationPage.total / conversationPage.size)))
 const currentUserProfile = computed(() => ({
@@ -217,18 +216,16 @@ function peerProfile(conversation) {
 
 function conversationDisplayName(conversation) {
   if (!conversation) return ''
-  if (conversation.type === 'SYSTEM') return '系统通知'
   return peerProfile(conversation)?.nickname || '校园用户'
 }
 
 function conversationDisplayTitle(conversation) {
   if (!conversation) return ''
-  if (conversation.type === 'SYSTEM') return conversation.title || '系统通知'
   return `和${conversationDisplayName(conversation)}的对话`
 }
 
 function conversationAvatarUrl(conversation) {
-  if (!conversation || conversation.type === 'SYSTEM') return ''
+  if (!conversation) return ''
   const avatarUrl = peerProfile(conversation)?.avatarUrl || ''
   if (!avatarUrl || hasBrokenAvatar('conversation', conversation.peerUserId || conversation.id, avatarUrl)) return ''
   return avatarUrl
@@ -275,7 +272,7 @@ function normalizeConversation(conversation = {}) {
   const id = conversation.id ?? conversation.conversationId
   const relatedId = conversation.relatedId
   const type = conversation.type || 'TASK'
-  const relatedType = conversation.relatedType || (type === 'SYSTEM' ? 'SYSTEM' : 'TASK')
+  const relatedType = conversation.relatedType || 'TASK'
   const lastMessageAt = conversation.lastMessageAt || conversation.updatedAt || conversation.createdAt || ''
   const lastMessagePreview =
     conversation.lastMessagePreview ||
@@ -313,8 +310,7 @@ function normalizeMessage(message = {}) {
   }
 }
 
-function formatConversationTitle(relatedType, relatedId, type) {
-  if (type === 'SYSTEM' || relatedType === 'SYSTEM') return '系统通知'
+function formatConversationTitle(relatedType, relatedId) {
   if (relatedType === 'POST') return '帖子私聊'
   if (relatedType === 'TASK' || relatedId) return '任务会话'
   return '站内会话'
@@ -397,7 +393,7 @@ async function ensureConversationFromRoute() {
 async function applyConversationPage(paged) {
   conversations.value = paged.items
     .map(normalizeConversation)
-    .filter((conversation) => conversation.id && conversation.type !== 'SYSTEM')
+    .filter((conversation) => conversation.id)
   await ensureConversationProfiles(conversations.value)
   conversationPage.page = paged.page || 1
   conversationPage.size = paged.size || conversationPage.size
@@ -568,7 +564,7 @@ async function sendMessage() {
 }
 
 function triggerImageUpload() {
-  if (isSystemConversation.value || !conversationReplyable.value) return
+  if (!conversationReplyable.value) return
   composerImageInputRef.value?.click()
 }
 
@@ -591,8 +587,7 @@ async function handleImageSelected(event) {
   try {
     const attachment = await api.uploadAttachment({
       file,
-      expectedOwnerType: 'MESSAGE',
-      type: 'IMAGE'
+      expectedOwnerType: 'MESSAGE'
     })
     const attachmentId = attachment?.id || attachment?.attachmentId
     const payload = {
@@ -694,7 +689,6 @@ function buildRenderedMessages(items = []) {
 
 function conversationSubtitle(conversation) {
   if (!conversation) return ''
-  if (conversation.type === 'SYSTEM') return conversation.pinned ? '置顶通知' : '系统通知'
   if (conversation.relatedType === 'POST') return '帖子相关会话'
   if (conversation.relatedId) return '任务相关会话'
   return '站内会话'
@@ -848,19 +842,12 @@ onMounted(async () => {
                   :alt="`${conversationDisplayName(conversation)}头像`"
                   @error="markAvatarBroken('conversation', conversation.peerUserId || conversation.id, conversationAvatarUrl(conversation))"
                 >
-                <component
-                  :is="getConversationMeta(conversation).icon"
-                  v-else-if="conversation.type === 'SYSTEM'"
-                  :size="20"
-                  aria-hidden="true"
-                />
                 <span v-else>{{ profileInitial(conversationDisplayName(conversation)) }}</span>
               </span>
               <span class="conversation-card-body">
                 <span class="conversation-card-top">
                   <strong>
                     {{ conversationDisplayTitle(conversation) }}
-                    <em v-if="conversation.type === 'SYSTEM'">置顶</em>
                   </strong>
                   <small>{{ conversation.timeLabel || formatConversationTime(conversation.lastMessageAt) }}</small>
                 </span>
@@ -918,12 +905,6 @@ onMounted(async () => {
                   :alt="`${conversationDisplayName(activeConversation)}头像`"
                   @error="markAvatarBroken('conversation', activeConversation.peerUserId || activeConversation.id, conversationAvatarUrl(activeConversation))"
                 >
-                <component
-                  :is="activeConversationMeta.icon"
-                  v-else-if="activeConversation.type === 'SYSTEM'"
-                  :size="22"
-                  aria-hidden="true"
-                />
                 <span v-else>
                   {{ profileInitial(conversationDisplayName(activeConversation)) }}
                 </span>
@@ -934,13 +915,13 @@ onMounted(async () => {
               </div>
             </div>
             <StatusBadge
-              :label="isSystemConversation ? '系统' : '会话'"
-              :tone="isSystemConversation ? 'warning' : 'success'"
+              label="会话"
+              tone="success"
             />
           </header>
 
           <div
-            v-if="relatedTask && !isSystemConversation"
+            v-if="relatedTask"
             class="chat-context-bar"
           >
             <div class="chat-context-main">
@@ -1064,7 +1045,6 @@ onMounted(async () => {
           </div>
 
           <form
-            v-if="!isSystemConversation"
             class="message-composer"
             @submit.prevent="sendMessage"
           >
@@ -1079,7 +1059,7 @@ onMounted(async () => {
             <input
               ref="composerImageInputRef"
               type="file"
-              accept="image/*"
+              accept="image/png,image/jpeg,image/webp"
               class="hidden-input"
               @change="handleImageSelected"
             >

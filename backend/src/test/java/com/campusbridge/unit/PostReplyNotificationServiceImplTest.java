@@ -1,98 +1,69 @@
 package com.campusbridge.unit;
 
-import com.campusbridge.entity.Conversation;
-import com.campusbridge.entity.Message;
+import com.campusbridge.enums.ReplyStatus;
+import com.campusbridge.dto.request.CreateReplyRequest;
 import com.campusbridge.entity.Post;
 import com.campusbridge.entity.Reply;
-import com.campusbridge.mapper.ConversationMapper;
-import com.campusbridge.mapper.MessageMapper;
-import com.campusbridge.mapper.UserMapper;
-import com.campusbridge.service.impl.NotificationServiceImpl;
+import com.campusbridge.enums.PostStatus;
+import com.campusbridge.enums.NotificationType;
+import com.campusbridge.mapper.PostMapper;
+import com.campusbridge.mapper.ReplyMapper;
+import com.campusbridge.service.NotificationService;
+import com.campusbridge.service.ReplyNotificationService;
+import com.campusbridge.service.impl.ReplyServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 class PostReplyNotificationServiceImplTest {
-    private ConversationMapper conversationMapper;
-    private MessageMapper messageMapper;
-    private NotificationServiceImpl service;
+    private final PostMapper posts = mock(PostMapper.class);
+    private final ReplyMapper replies = mock(ReplyMapper.class);
+    private final NotificationService notifications = mock(NotificationService.class);
+    private final ReplyServiceImpl service = new ReplyServiceImpl(replies, posts, new ReplyNotificationService(notifications));
 
     @BeforeEach
     void setUp() {
-        conversationMapper = mock(ConversationMapper.class);
-        messageMapper = mock(MessageMapper.class);
-        UserMapper userMapper = mock(UserMapper.class);
-        service = new NotificationServiceImpl(conversationMapper, messageMapper, userMapper);
-        when(conversationMapper.insert(any(Conversation.class))).thenAnswer(invocation -> {
-            Conversation conversation = invocation.getArgument(0);
-            conversation.setId(88L);
-            return 1;
-        });
-        when(messageMapper.insert(any(Message.class))).thenReturn(1);
+        Post post = new Post();
+        post.setId(7L);
+        post.setAuthorId(10L);
+        post.setTitle("Campus post");
+        post.setStatus(PostStatus.PUBLISHED);
+        when(posts.selectById(7L)).thenReturn(post);
+        when(posts.incrementReplyCount(7L)).thenReturn(1);
+        when(replies.insert(any(Reply.class))).thenReturn(1);
     }
 
     @Test
     void topLevelReplyNotifiesPostAuthorAndLinksPost() {
-        Post post = post(7L, 10L);
-        Reply reply = reply(20L, 7L, 30L, null);
-
-        service.notifyPostReplyCreated(post, reply, null, 30L);
-
-        ArgumentCaptor<Conversation> captor = ArgumentCaptor.forClass(Conversation.class);
-        verify(conversationMapper).insert(captor.capture());
-        assertEquals(10L, captor.getValue().getOwnerId());
-        assertEquals("SYSTEM", captor.getValue().getType());
-        assertEquals("POST", captor.getValue().getRelatedType());
-        assertEquals(7L, captor.getValue().getRelatedId());
-        assertEquals(0, captor.getValue().getReplyable());
+        service.createReply(30L, 7L, request(null));
+        verify(notifications).create(eq(10L), eq(NotificationType.POST_REPLY),
+                eq("帖子收到新回复"), contains("A new reply"), eq(7L));
     }
 
     @Test
     void nestedReplyNotifiesParentReplyAuthor() {
-        Post post = post(7L, 10L);
-        Reply parent = reply(19L, 7L, 40L, null);
-        Reply reply = reply(20L, 7L, 30L, 19L);
-
-        service.notifyPostReplyCreated(post, reply, parent, 30L);
-
-        ArgumentCaptor<Conversation> captor = ArgumentCaptor.forClass(Conversation.class);
-        verify(conversationMapper).insert(captor.capture());
-        assertEquals(40L, captor.getValue().getOwnerId());
+        Reply parent = new Reply();
+        parent.setId(19L);
+        parent.setPostId(7L);
+        parent.setAuthorId(40L);
+        parent.setStatus(ReplyStatus.PUBLISHED);
+        when(replies.selectById(19L)).thenReturn(parent);
+        service.createReply(30L, 7L, request(19L));
+        verify(notifications).create(eq(40L), eq(NotificationType.POST_REPLY),
+                eq("你的回复收到新回复"), anyString(), eq(7L));
     }
 
     @Test
     void selfReplyDoesNotCreateNotification() {
-        Post post = post(7L, 30L);
-        Reply reply = reply(20L, 7L, 30L, null);
-
-        service.notifyPostReplyCreated(post, reply, null, 30L);
-
-        verify(conversationMapper, never()).insert(any(Conversation.class));
-        verify(messageMapper, never()).insert(any(Message.class));
+        service.createReply(10L, 7L, request(null));
+        verifyNoInteractions(notifications);
     }
 
-    private Post post(Long id, Long authorId) {
-        Post post = new Post();
-        post.setId(id);
-        post.setAuthorId(authorId);
-        post.setTitle("Campus post");
-        return post;
-    }
-
-    private Reply reply(Long id, Long postId, Long authorId, Long parentReplyId) {
-        Reply reply = new Reply();
-        reply.setId(id);
-        reply.setPostId(postId);
-        reply.setAuthorId(authorId);
-        reply.setParentReplyId(parentReplyId);
-        reply.setContent("A new reply");
-        return reply;
+    private CreateReplyRequest request(Long parentId) {
+        CreateReplyRequest request = new CreateReplyRequest();
+        request.setContent("A new reply");
+        request.setParentReplyId(parentId);
+        return request;
     }
 }

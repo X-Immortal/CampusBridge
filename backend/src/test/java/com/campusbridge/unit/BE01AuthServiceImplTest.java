@@ -6,6 +6,7 @@ import com.campusbridge.dto.request.LoginRequest;
 import com.campusbridge.dto.request.RegisterRequest;
 import com.campusbridge.dto.view.LoginView;
 import com.campusbridge.entity.User;
+import com.campusbridge.enums.UserRole;
 import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.service.impl.AuthServiceImpl;
 import com.campusbridge.service.impl.EmailVerificationCodeSender;
@@ -184,14 +185,14 @@ class BE01AuthServiceImplTest {
         User dbUser = user(100L, "alice", "hashed-pass", "USER");
         when(userMapper.selectByUsername("alice")).thenReturn(dbUser);
         when(passwordEncoder.matches("pass123", "hashed-pass")).thenReturn(true);
-        when(jwtUtil.generateToken(100L, "USER")).thenReturn("jwt-token");
+        when(jwtUtil.generateToken(100L, UserRole.USER)).thenReturn("jwt-token");
         when(jwtUtil.generateRefreshToken(100L)).thenReturn("refresh-token");
 
         LoginView payload = authService.login(request);
 
         assertThat(payload.userId()).isEqualTo(100L);
         assertThat(payload.username()).isEqualTo("alice");
-        assertThat(payload.role()).isEqualTo("USER");
+        assertThat(payload.role()).isEqualTo(UserRole.USER);
         assertThat(payload.token()).isEqualTo("jwt-token");
         assertThat(payload.refreshToken()).isEqualTo("refresh-token");
     }
@@ -266,7 +267,7 @@ class BE01AuthServiceImplTest {
         user.setId(id);
         user.setUsername(username);
         user.setPasswordHash(passwordHash);
-        user.setRole(role);
+        user.setRole(UserRole.valueOf(role));
         user.setEnabled(1);
         return user;
     }

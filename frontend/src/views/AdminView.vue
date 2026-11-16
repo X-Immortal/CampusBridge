@@ -32,6 +32,7 @@ import {
   MODERATION_STATUS_OPTIONS,
   optionLabel,
   REPORT_TARGET_TYPE_OPTIONS,
+  TASK_STATUS_OPTIONS,
   VERIFICATION_METHODS
 } from '../constants'
 import api from '../services/api'
@@ -609,6 +610,7 @@ async function punishAppeal(task) {
             kicker="任务状态分布"
             title="当前任务状态占比"
             :data="taskStatusStats"
+            :options="TASK_STATUS_OPTIONS"
             :loading="dashboardLoading"
             empty-hint="任务状态数据为空"
           />
@@ -619,6 +621,7 @@ async function punishAppeal(task) {
             kicker="举报状态分布"
             title="举报处理进度"
             :data="reportStatusStats"
+            :options="MODERATION_STATUS_OPTIONS"
             :loading="dashboardLoading"
             empty-hint="举报数据为空"
           />
@@ -626,6 +629,7 @@ async function punishAppeal(task) {
             kicker="举报对象分布"
             title="高风险对象来源"
             :data="reportTargetTypeStats"
+            :options="REPORT_TARGET_TYPE_OPTIONS"
             :loading="dashboardLoading"
             empty-hint="暂无举报对象分布"
           />

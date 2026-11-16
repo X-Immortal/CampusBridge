@@ -1,11 +1,11 @@
 package com.campusbridge.service.impl;
 
-import com.campusbridge.common.BusinessException;
-import com.campusbridge.common.ErrorCode;
 import com.campusbridge.entity.Task;
+import com.campusbridge.enums.TaskStatus;
+import com.campusbridge.enums.TaskHistoryEventType;
 import com.campusbridge.mapper.TaskMapper;
 import com.campusbridge.service.CreditService;
-import com.campusbridge.service.NotificationService;
+import com.campusbridge.service.TaskNotificationService;
 import com.campusbridge.service.TaskHistoryService;
 import com.campusbridge.service.TaskTimeoutService;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,18 +20,9 @@ import java.util.List;
 
 @Service
 public class TaskTimeoutServiceImpl implements TaskTimeoutService {
-    private static final String STATUS_OPEN = "OPEN";
-    private static final String STATUS_PENDING_CONFIRMATION = "PENDING_CONFIRMATION";
-    private static final String STATUS_CANCELLED = "CANCELLED";
-    private static final String STATUS_COMPLETED = "COMPLETED";
-    private static final String NOTE_OPEN_TIMEOUT_REMINDER = "TIMEOUT_REMINDER_OPEN";
-    private static final String NOTE_OPEN_TIMEOUT_CANCELLED = "TIMEOUT_CANCELLED_OPEN";
-    private static final String NOTE_CONFIRMATION_TIMEOUT_REMINDER = "TIMEOUT_REMINDER_PENDING_CONFIRMATION";
-    private static final String NOTE_CONFIRMATION_TIMEOUT_COMPLETED = "TIMEOUT_AUTO_COMPLETED_PENDING_CONFIRMATION";
-
     private final TaskMapper taskMapper;
     private final TaskHistoryService taskHistoryService;
-    private final NotificationService notificationService;
+    private final TaskNotificationService notificationService;
     private final CreditService creditService;
     private final TransactionTemplate transactions;
     private final int scanLimit;
@@ -41,7 +32,7 @@ public class TaskTimeoutServiceImpl implements TaskTimeoutService {
     public TaskTimeoutServiceImpl(
             TaskMapper taskMapper,
             TaskHistoryService taskHistoryService,
-            NotificationService notificationService,
+            TaskNotificationService notificationService,
             CreditService creditService,
             PlatformTransactionManager transactionManager,
             @Value("${task.timeout.scan-limit:100}") int scanLimit,
@@ -67,76 +58,117 @@ public class TaskTimeoutServiceImpl implements TaskTimeoutService {
 
     @Override
     public int processTimeouts(LocalDateTime now) {
-        if (now == null) {
-            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "now must not be null");
-        }
-        int processed = remindTasks(STATUS_OPEN, now, NOTE_OPEN_TIMEOUT_REMINDER);
-        processed += transitionTasks(STATUS_OPEN, STATUS_CANCELLED,
-                NOTE_OPEN_TIMEOUT_REMINDER, NOTE_OPEN_TIMEOUT_CANCELLED, now);
-        processed += remindTasks(STATUS_PENDING_CONFIRMATION,
-                now.minusHours(confirmationReminderHours), NOTE_CONFIRMATION_TIMEOUT_REMINDER);
-        processed += transitionTasks(STATUS_PENDING_CONFIRMATION, STATUS_COMPLETED,
-                NOTE_CONFIRMATION_TIMEOUT_REMINDER, NOTE_CONFIRMATION_TIMEOUT_COMPLETED, now);
-        return processed;
+        return processUnacceptedTimeouts(now) + processConfirmationTimeouts(now);
     }
 
-    private int remindTasks(String expectedStatus, LocalDateTime referenceTime, String reminderNote) {
-        List<Task> candidates = taskMapper.selectTasksNeedingTimeoutReminder(
-                expectedStatus, referenceTime, reminderNote, scanLimit);
+    private int processUnacceptedTimeouts(LocalDateTime now) {
         int processed = 0;
-        for (Task candidate : candidates) {
-            processed += transactions.execute(transaction -> {
-                Task task = taskMapper.selectByIdForUpdate(candidate.getId());
-                if (task == null || !expectedStatus.equals(task.getStatus())) {
-                    return 0;
-                }
-                LocalDateTime relevantTime = STATUS_OPEN.equals(expectedStatus)
-                        ? task.getDeadline() : task.getUpdatedAt();
-                if (relevantTime == null || relevantTime.isAfter(referenceTime)
-                        || taskHistoryService.hasReminder(task.getId(), reminderNote, task.getUpdatedAt(), null)) {
-                    return 0;
-                }
-                taskHistoryService.recordHistory(
-                        task.getId(), expectedStatus, expectedStatus, null, reminderNote);
-                notificationService.notifyTaskTimeoutReminder(
-                        task, task.getRequesterId(), null, reminderNote);
-                return 1;
-            });
+        List<Task> overdueTasks = taskMapper.selectOpenTasksNeedingTimeoutReminder(
+                now, TaskHistoryEventType.OPEN_TIMEOUT_REMINDER, scanLimit);
+        for (Task candidate : overdueTasks) {
+            processed += transactions.execute(transaction -> remindUnacceptedTask(candidate.getId(), now));
         }
-        return processed;
-    }
 
-    private int transitionTasks(
-            String fromStatus, String toStatus, String reminderNote, String historyNote, LocalDateTime now) {
         LocalDateTime reminderCreatedBefore = now.minusHours(transitionGraceHours);
-        List<Task> candidates = taskMapper.selectTasksReadyForTimeoutTransition(
-                fromStatus, reminderNote, reminderCreatedBefore, scanLimit);
-        int processed = 0;
-        for (Task candidate : candidates) {
-            processed += transactions.execute(transaction -> {
-                Task task = taskMapper.selectByIdForUpdate(candidate.getId());
-                if (task == null || !fromStatus.equals(task.getStatus())
-                        || !taskHistoryService.hasReminder(
-                                task.getId(), reminderNote, task.getUpdatedAt(), reminderCreatedBefore)) {
-                    return 0;
-                }
-                LocalDateTime updatedAt = LocalDateTime.now();
-                if (taskMapper.updateStatusById(task.getId(), fromStatus, toStatus, updatedAt) != 1) {
-                    return 0;
-                }
-                if (STATUS_COMPLETED.equals(toStatus)) {
-                    creditService.awardTaskReward(task);
-                }
-                taskHistoryService.recordHistory(task.getId(), fromStatus, toStatus, null, historyNote);
-                task.setStatus(toStatus);
-                task.setUpdatedAt(updatedAt);
-                notificationService.notifyTaskStatusChanged(task, fromStatus, toStatus, null,
-                        STATUS_COMPLETED.equals(toStatus)
-                                ? "Requester did not confirm before timeout."
-                                : "Task timed out before a helper was accepted.");
-                return 1;
-            });
+        List<Task> tasksToCancel = taskMapper.selectTasksReadyForTimeoutTransition(
+                TaskStatus.OPEN, TaskHistoryEventType.OPEN_TIMEOUT_REMINDER, reminderCreatedBefore, scanLimit);
+        for (Task candidate : tasksToCancel) {
+            processed += transactions.execute(transaction -> cancelUnacceptedTask(candidate.getId(), reminderCreatedBefore));
         }
         return processed;
+    }
+
+    private int processConfirmationTimeouts(LocalDateTime now) {
+        int processed = 0;
+        LocalDateTime confirmationBefore = now.minusHours(confirmationReminderHours);
+        List<Task> unconfirmedTasks = taskMapper.selectUnconfirmedTasksNeedingTimeoutReminder(
+                confirmationBefore, TaskHistoryEventType.CONFIRMATION_TIMEOUT_REMINDER, scanLimit);
+        for (Task candidate : unconfirmedTasks) {
+            processed += transactions.execute(transaction -> remindUnconfirmedTask(candidate.getId(), confirmationBefore));
+        }
+
+        LocalDateTime reminderCreatedBefore = now.minusHours(transitionGraceHours);
+        List<Task> tasksToComplete = taskMapper.selectTasksReadyForTimeoutTransition(
+                TaskStatus.PENDING_CONFIRMATION, TaskHistoryEventType.CONFIRMATION_TIMEOUT_REMINDER,
+                reminderCreatedBefore, scanLimit);
+        for (Task candidate : tasksToComplete) {
+            processed += transactions.execute(transaction -> completeUnconfirmedTask(candidate.getId(), reminderCreatedBefore));
+        }
+        return processed;
+    }
+
+    private int remindUnacceptedTask(Long taskId, LocalDateTime now) {
+        Task task = taskMapper.selectByIdForUpdate(taskId);
+        if (task == null || task.getStatus() != TaskStatus.OPEN
+                || task.getDeadline() == null || task.getDeadline().isAfter(now)
+                || taskHistoryService.hasReminder(
+                        taskId, TaskHistoryEventType.OPEN_TIMEOUT_REMINDER, task.getUpdatedAt(), null)) {
+            return 0;
+        }
+
+        taskHistoryService.recordHistory(taskId, TaskStatus.OPEN, TaskStatus.OPEN, null,
+                TaskHistoryEventType.OPEN_TIMEOUT_REMINDER, null);
+        notificationService.notifyOpenTaskTimeoutReminder(task);
+        return 1;
+    }
+
+    private int cancelUnacceptedTask(Long taskId, LocalDateTime reminderCreatedBefore) {
+        Task task = taskMapper.selectByIdForUpdate(taskId);
+        if (task == null || task.getStatus() != TaskStatus.OPEN
+                || !taskHistoryService.hasReminder(
+                        taskId, TaskHistoryEventType.OPEN_TIMEOUT_REMINDER, task.getUpdatedAt(), reminderCreatedBefore)) {
+            return 0;
+        }
+
+        LocalDateTime updatedAt = LocalDateTime.now();
+        if (taskMapper.updateStatusById(taskId, TaskStatus.OPEN, TaskStatus.CANCELLED, updatedAt) != 1) {
+            return 0;
+        }
+        String reason = "Task timed out before a helper was accepted.";
+        taskHistoryService.recordHistory(taskId, TaskStatus.OPEN, TaskStatus.CANCELLED, null,
+                TaskHistoryEventType.OPEN_TIMEOUT_CANCELLED, reason);
+        task.setStatus(TaskStatus.CANCELLED);
+        task.setUpdatedAt(updatedAt);
+        notificationService.notifyTaskStatusChanged(task, TaskStatus.CANCELLED, null, reason);
+        return 1;
+    }
+
+    private int remindUnconfirmedTask(Long taskId, LocalDateTime confirmationBefore) {
+        Task task = taskMapper.selectByIdForUpdate(taskId);
+        if (task == null || task.getStatus() != TaskStatus.PENDING_CONFIRMATION
+                || task.getUpdatedAt() == null || task.getUpdatedAt().isAfter(confirmationBefore)
+                || taskHistoryService.hasReminder(
+                        taskId, TaskHistoryEventType.CONFIRMATION_TIMEOUT_REMINDER, task.getUpdatedAt(), null)) {
+            return 0;
+        }
+
+        taskHistoryService.recordHistory(taskId, TaskStatus.PENDING_CONFIRMATION, TaskStatus.PENDING_CONFIRMATION, null,
+                TaskHistoryEventType.CONFIRMATION_TIMEOUT_REMINDER, null);
+        notificationService.notifyTaskConfirmationReminder(task);
+        return 1;
+    }
+
+    private int completeUnconfirmedTask(Long taskId, LocalDateTime reminderCreatedBefore) {
+        Task task = taskMapper.selectByIdForUpdate(taskId);
+        if (task == null || task.getStatus() != TaskStatus.PENDING_CONFIRMATION
+                || !taskHistoryService.hasReminder(
+                        taskId, TaskHistoryEventType.CONFIRMATION_TIMEOUT_REMINDER,
+                        task.getUpdatedAt(), reminderCreatedBefore)) {
+            return 0;
+        }
+
+        LocalDateTime updatedAt = LocalDateTime.now();
+        if (taskMapper.updateStatusById(
+                taskId, TaskStatus.PENDING_CONFIRMATION, TaskStatus.COMPLETED, updatedAt) != 1) {
+            return 0;
+        }
+        creditService.awardTaskReward(task);
+        String reason = "Requester did not confirm before timeout.";
+        taskHistoryService.recordHistory(taskId, TaskStatus.PENDING_CONFIRMATION, TaskStatus.COMPLETED, null,
+                TaskHistoryEventType.CONFIRMATION_TIMEOUT_COMPLETED, reason);
+        task.setStatus(TaskStatus.COMPLETED);
+        task.setUpdatedAt(updatedAt);
+        notificationService.notifyTaskStatusChanged(task, TaskStatus.COMPLETED, null, reason);
+        return 1;
     }
 }

@@ -109,6 +109,10 @@ class OpenApiExportTest {
                 Set.copyOf(api.getComponents().getSchemas().get("UpdatePostRequest").getRequired()));
         assertEquals(false, api.getComponents().getSchemas().get("CreateVerificationRequest")
                 .getProperties().containsKey("campusEmailValid"));
+        assertEquals(Set.of("page", "size", "types", "unreadOnly", "keyword"),
+                api.getPaths().get("/api/v1/notifications").getGet().getParameters().stream()
+                        .map(io.swagger.v3.oas.models.parameters.Parameter::getName)
+                        .collect(java.util.stream.Collectors.toSet()));
         Path output = Path.of("../docs/openapi.yaml");
         Files.createDirectories(output.getParent());
         Files.writeString(output, Yaml31.pretty(api));
@@ -175,8 +179,33 @@ class OpenApiExportTest {
             };
         }
 
+        @Bean
+        OpenApiCustomizer notificationSchema() {
+            return api -> {
+                var schemas = api.getComponents().getSchemas();
+                Schema<?> query = schemas.get("NotificationQuery");
+                var parameters = new java.util.ArrayList<io.swagger.v3.oas.models.parameters.Parameter>();
+                query.getProperties().forEach((name, schema) -> parameters.add(
+                        new io.swagger.v3.oas.models.parameters.QueryParameter()
+                                .name(name).required(false).schema(schema)));
+                api.getPaths().get("/api/v1/notifications").getGet().setParameters(parameters);
+                Schema<?> view = schemas.get("NotificationView");
+                Schema<?> readAt = view.getProperties().get("readAt");
+                readAt.setType(null);
+                readAt.setTypes(Set.of("string", "null"));
+                Schema<?> history = schemas.get("TaskHistory");
+                history.addRequiredItem("eventType");
+                Schema<?> note = history.getProperties().get("note");
+                note.setType(null);
+                note.setTypes(Set.of("string", "null"));
+                note.setMaxLength(300);
+            };
+        }
+
         private List<Integer> businessErrorStatuses(String path, String method) {
             return switch (path) {
+                case "/api/v1/notifications" -> List.of(400);
+                case "/api/v1/notifications/{notificationId}/read" -> List.of(400, 404);
                 case "/api/v1/auth/login" -> List.of(400, 401, 500);
                 case "/api/v1/auth/register" -> List.of(400, 409, 500);
                 case "/api/v1/auth/register/send-code" -> List.of(400, 500);

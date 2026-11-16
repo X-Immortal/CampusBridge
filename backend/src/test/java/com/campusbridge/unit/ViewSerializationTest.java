@@ -1,11 +1,17 @@
 package com.campusbridge.unit;
 
+import com.campusbridge.common.ErrorCode;
 import com.campusbridge.common.GuestTaskMasker;
+import com.campusbridge.dto.request.ResolveReportRequest;
+import com.campusbridge.dto.view.AcceptedReplyView;
 import com.campusbridge.dto.view.ConversationView;
 import com.campusbridge.dto.view.PostView;
 import com.campusbridge.dto.view.ReplyView;
 import com.campusbridge.dto.view.TaskView;
 import com.campusbridge.entity.Task;
+import com.campusbridge.enums.ReportStatus;
+import com.campusbridge.enums.TaskCategory;
+import com.campusbridge.enums.TaskStatus;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -52,8 +58,23 @@ class ViewSerializationTest {
         assertThat(entity.getSensitiveReason()).isEqualTo("Contact details");
     }
 
+    @Test
+    void enumsKeepStableJsonCodes() throws Exception {
+        TaskView task = new TaskView();
+        task.setStatus(TaskStatus.OPEN);
+        task.setCategory(TaskCategory.ERRAND);
+        JsonNode node = json.valueToTree(task);
+        assertThat(node.get("status").asText()).isEqualTo("OPEN");
+        assertThat(node.get("category").asText()).isEqualTo("ERRAND");
+        assertThat(ErrorCode.COMMON_001_VALIDATION_ERROR.getCode()).isEqualTo("COMMON_001_VALIDATION_ERROR");
+        assertThat(json.readValue("{\"status\":\"REJECTED\"}", ResolveReportRequest.class).getStatus())
+                .isEqualTo(ReportStatus.REJECTED);
+    }
+
     private static Stream<Arguments> existingResponseFields() {
         return Stream.of(
+                Arguments.of(new AcceptedReplyView(1L, 2L), List.of(
+                        "postId", "acceptedReplyId")),
                 Arguments.of(new TaskView(), List.of(
                         "id", "requesterId", "providerId", "requesterName", "providerName", "category", "title",
                         "description", "campus", "location", "deliveryLocation", "deadline", "rewardType",

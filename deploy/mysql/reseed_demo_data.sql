@@ -8,6 +8,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 DELETE FROM moderation_records;
 DELETE FROM reports;
 DELETE FROM attachments;
+DELETE FROM notifications;
 DELETE FROM messages;
 DELETE FROM conversations;
 DELETE FROM reviews;
@@ -40,6 +41,7 @@ ALTER TABLE task_histories AUTO_INCREMENT = 1;
 ALTER TABLE reviews AUTO_INCREMENT = 1;
 ALTER TABLE conversations AUTO_INCREMENT = 1;
 ALTER TABLE messages AUTO_INCREMENT = 1;
+ALTER TABLE notifications AUTO_INCREMENT = 1;
 ALTER TABLE attachments AUTO_INCREMENT = 1;
 ALTER TABLE reports AUTO_INCREMENT = 1;
 ALTER TABLE moderation_records AUTO_INCREMENT = 1;
@@ -343,16 +345,35 @@ FROM tasks t
 WHERE t.id BETWEEN 41 AND 49
 ORDER BY t.id;
 
-INSERT INTO task_histories (id, task_id, from_status, to_status, operator_id, note, created_at)
+INSERT INTO task_histories (id, task_id, from_status, to_status, operator_id, event_type, note, created_at)
 SELECT
   t.id - 20,
   t.id,
-  CASE
-    WHEN t.status = 'PENDING_REVIEW' THEN 'DRAFT'
-    ELSE 'OPEN'
+  CASE t.status
+    WHEN 'ACCEPTED' THEN 'OPEN'
+    WHEN 'IN_PROGRESS' THEN 'ACCEPTED'
+    WHEN 'PENDING_CONFIRMATION' THEN 'IN_PROGRESS'
+    WHEN 'REVIEWED' THEN 'COMPLETED'
+    WHEN 'COMPLETED' THEN 'PENDING_CONFIRMATION'
+    WHEN 'CANCELLED' THEN 'OPEN'
+    WHEN 'DISPUTED' THEN 'IN_PROGRESS'
+    WHEN 'REJECTED' THEN 'PENDING_REVIEW'
+    ELSE NULL
   END,
   t.status,
   t.requester_id,
+  CASE t.status
+    WHEN 'DRAFT' THEN 'DRAFT_SAVED'
+    WHEN 'ACCEPTED' THEN 'APPLICATION_ACCEPTED'
+    WHEN 'IN_PROGRESS' THEN 'STARTED'
+    WHEN 'PENDING_CONFIRMATION' THEN 'COMPLETION_PROOF_SUBMITTED'
+    WHEN 'REVIEWED' THEN 'REVIEWED'
+    WHEN 'COMPLETED' THEN 'COMPLETION_CONFIRMED'
+    WHEN 'CANCELLED' THEN 'CANCELLED'
+    WHEN 'DISPUTED' THEN 'DISPUTED'
+    WHEN 'REJECTED' THEN 'MODERATION_REJECTED'
+    ELSE 'CREATED'
+  END,
   CASE t.status
     WHEN 'PENDING_REVIEW' THEN '等待管理员审核'
     WHEN 'ACCEPTED' THEN '已选定帮忙同学'

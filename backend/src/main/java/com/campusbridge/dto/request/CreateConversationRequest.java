@@ -1,7 +1,7 @@
 package com.campusbridge.dto.request;
 
+import com.campusbridge.enums.ContentItemType;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -12,8 +12,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class CreateConversationRequest {
     @NotNull(message = "relatedType is required")
-    @Pattern(regexp = "(?s).*\\P{javaWhitespace}.*", message = "relatedType is required")
-    public String relatedType;
+    public ContentItemType relatedType;
 
     @NotNull(message = "relatedId is required")
     public Long relatedId;

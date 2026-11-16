@@ -37,13 +37,13 @@
       SELECT 'POST' AS item_type, p.id AS source_id, p.title,
         CASE WHEN CHAR_LENGTH(p.content) &gt; 120 THEN CONCAT(LEFT(p.content, 120), '...')
           ELSE p.content END AS summary,
-        p.author_id, NULL AS author_name, p.category AS category_name, p.status AS status_label,
+        p.author_id, NULL AS author_name, p.category AS category, p.status AS status,
         p.created_at,
         <choose>
           <when test="orderByDeadline">NULL AS sort_time,</when>
           <otherwise>p.created_at AS sort_time,</otherwise>
         </choose>
-        NULL AS reward_label, NULL AS deadline
+        NULL AS reward_type, NULL AS reward_amount, NULL AS reward_description, NULL AS deadline
       FROM posts p WHERE <include refid="postFilters"/>
     </if>
     <if test="includePosts and includeTasks">UNION ALL</if>
@@ -51,23 +51,21 @@
       SELECT 'TASK' AS item_type, t.id AS source_id, t.title,
         CASE WHEN CHAR_LENGTH(t.description) &gt; 120 THEN CONCAT(LEFT(t.description, 120), '...')
           ELSE t.description END AS summary,
-        t.requester_id AS author_id, NULL AS author_name, t.category AS category_name, t.status AS status_label,
+        t.requester_id AS author_id, NULL AS author_name, t.category AS category, t.status AS status,
         t.created_at,
         <choose>
           <when test="orderByDeadline">t.deadline AS sort_time,</when>
           <otherwise>t.created_at AS sort_time,</otherwise>
         </choose>
-        CASE WHEN t.reward_description IS NOT NULL AND TRIM(t.reward_description) != ''
-          THEN CONCAT(COALESCE(CONCAT(t.reward_type, ' · '), ''), t.reward_description)
-          ELSE t.reward_type END AS reward_label,
+        t.reward_type, t.reward_amount, t.reward_description,
         t.deadline
       FROM tasks t WHERE <include refid="taskFilters"/>
     </if>
   </sql>
 
   <select id="selectPage" resultType="com.campusbridge.dto.view.ContentItemView">
-    SELECT item_type, source_id, title, summary, author_id, author_name, category_name,
-      status_label, created_at, sort_time, reward_label
+    SELECT item_type, source_id, title, summary, author_id, author_name, category,
+      status, created_at, sort_time, reward_type, reward_amount, reward_description
     FROM (<include refid="contentRows"/>) content
     <choose>
       <when test="orderByDeadline">

@@ -1,5 +1,6 @@
 package com.campusbridge.service;
 
+import com.campusbridge.enums.CreditSourceType;
 import com.campusbridge.entity.Task;
 
 public interface CreditService {
@@ -9,6 +10,6 @@ public interface CreditService {
             Long userId,
             int changeValue,
             String reason,
-            String sourceType,
+            CreditSourceType sourceType,
             Long sourceId);
 }

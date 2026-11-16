@@ -113,14 +113,12 @@ export const APPLICATION_STATUS_OPTIONS = [
 
 export const CONVERSATION_TYPE_OPTIONS = [
   { value: 'TASK', label: '任务会话', tone: 'info' },
-  { value: 'PRIVATE', label: '私信会话', tone: 'accent' },
-  { value: 'SYSTEM', label: '系统会话', tone: 'muted' }
+  { value: 'PRIVATE', label: '私信会话', tone: 'accent' }
 ]
 
 export const MESSAGE_TYPE_OPTIONS = [
   { value: 'TEXT', label: '文字消息' },
-  { value: 'IMAGE', label: '图片消息' },
-  { value: 'SYSTEM_NOTIFICATION', label: '系统通知' }
+  { value: 'IMAGE', label: '图片消息' }
 ]
 
 export const TASK_SORT_OPTIONS = [

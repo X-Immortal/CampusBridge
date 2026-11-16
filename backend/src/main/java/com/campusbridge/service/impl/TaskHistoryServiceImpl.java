@@ -3,6 +3,8 @@ package com.campusbridge.service.impl;
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
 import com.campusbridge.entity.TaskHistory;
+import com.campusbridge.enums.TaskStatus;
+import com.campusbridge.enums.TaskHistoryEventType;
 import com.campusbridge.mapper.TaskHistoryMapper;
 import com.campusbridge.service.TaskHistoryService;
 import lombok.RequiredArgsConstructor;
@@ -17,18 +19,19 @@ public class TaskHistoryServiceImpl implements TaskHistoryService {
 
     @Override
     public boolean hasReminder(
-            Long taskId, String note, LocalDateTime activeSince, LocalDateTime createdBefore) {
-        return taskHistoryMapper.existsReminder(taskId, note, activeSince, createdBefore);
+            Long taskId, TaskHistoryEventType eventType, LocalDateTime activeSince, LocalDateTime createdBefore) {
+        return taskHistoryMapper.existsReminder(taskId, eventType, activeSince, createdBefore);
     }
 
     @Override
     public void recordHistory(
             Long taskId,
-            String fromStatus,
-            String toStatus,
+            TaskStatus fromStatus,
+            TaskStatus toStatus,
             Long operatorId,
+            TaskHistoryEventType eventType,
             String note) {
-        if (taskId == null || toStatus == null || toStatus.isBlank()) {
+        if (taskId == null || toStatus == null || eventType == null) {
             throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "任务历史记录参数不完整");
         }
 
@@ -37,6 +40,7 @@ public class TaskHistoryServiceImpl implements TaskHistoryService {
         history.setFromStatus(fromStatus);
         history.setToStatus(toStatus);
         history.setOperatorId(operatorId);
+        history.setEventType(eventType);
         history.setNote(note);
         history.setCreatedAt(LocalDateTime.now());
 

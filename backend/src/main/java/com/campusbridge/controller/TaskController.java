@@ -1,5 +1,6 @@
 package com.campusbridge.controller;
 
+import com.campusbridge.enums.TaskSort;
 import com.campusbridge.common.ApiResponse;
 import com.campusbridge.common.CurrentUserResolver;
 import com.campusbridge.common.GuestTaskMasker;
@@ -15,6 +16,9 @@ import com.campusbridge.dto.view.TaskDetailView;
 import com.campusbridge.dto.view.TaskPageView;
 import com.campusbridge.dto.view.TaskView;
 import com.campusbridge.entity.CompletionProof;
+import com.campusbridge.enums.RewardType;
+import com.campusbridge.enums.TaskCategory;
+import com.campusbridge.enums.TaskStatus;
 import com.campusbridge.service.CompletionService;
 import com.campusbridge.service.TaskDetailService;
 import com.campusbridge.service.TaskService;
@@ -65,13 +69,13 @@ public class TaskController {
     public ApiResponse<TaskPageView> listTasks(
             HttpServletRequest servletRequest,
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) String category,
+            @RequestParam(required = false) TaskCategory category,
             @RequestParam(required = false) String campus,
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false) String rewardType,
+            @RequestParam(required = false) TaskStatus status,
+            @RequestParam(required = false) RewardType rewardType,
             @RequestParam(required = false) Boolean requiresProof,
             @RequestParam(required = false, defaultValue = "false") Boolean excludeExpired,
-            @RequestParam(required = false, defaultValue = "CREATED_AT_DESC") String sortBy,
+            @RequestParam(required = false, defaultValue = "CREATED_AT_DESC") TaskSort sortBy,
             @RequestParam(required = false, defaultValue = "1") Integer page,
             @RequestParam(required = false, defaultValue = "20") Integer size) {
         TaskQuery query = TaskQuery.builder()

@@ -25,7 +25,7 @@ test('附件上传接口使用 /attachments multipart 表单并允许传完成�
 
   assert.match(source, /body instanceof FormData/)
   assert.match(source, /if \(!isFormData\) \{[\s\S]*?requestHeaders\['Content-Type'\] = 'application\/json'/)
-  assert.match(source, /uploadAttachment:\s*\(\{ file,\s*expectedOwnerType,\s*type \} = \{\}\) => \{/)
+  assert.match(source, /uploadAttachment:\s*\(\{ file,\s*expectedOwnerType \} = \{\}\) => \{/)
   assert.match(source, /formData\.append\('file', file\)/)
   assert.match(source, /extraHeaders\['X-Expected-Owner-Type'\] = expectedOwnerType/)
   assert.match(source, /request\('\/attachments',\s*\{\s*method:\s*'POST',\s*body:\s*formData,.*timeoutMs:\s*60000\s*\}\)/)

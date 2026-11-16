@@ -1,8 +1,11 @@
 package com.campusbridge.mapper;
 
+import com.campusbridge.enums.InteractionTargetType;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.campusbridge.entity.PostInteraction;
+import com.campusbridge.enums.PostCategory;
+import com.campusbridge.enums.PostInteractionType;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -13,9 +16,9 @@ public interface PostInteractionMapper extends BaseMapper<PostInteraction> {
 
     default PostInteraction selectByUserTargetType(
             Long userId,
-            String targetType,
+            InteractionTargetType targetType,
             Long targetId,
-            String type) {
+            PostInteractionType type) {
         return selectOne(Wrappers.<PostInteraction>lambdaQuery()
                 .eq(PostInteraction::getUserId, userId).eq(PostInteraction::getTargetType, targetType)
                 .eq(PostInteraction::getTargetId, targetId).eq(PostInteraction::getType, type).last("LIMIT 1"));
@@ -23,9 +26,9 @@ public interface PostInteractionMapper extends BaseMapper<PostInteraction> {
 
     default int deleteByUserTargetType(
             Long userId,
-            String targetType,
+            InteractionTargetType targetType,
             Long targetId,
-            String type) {
+            PostInteractionType type) {
         return delete(Wrappers.<PostInteraction>lambdaQuery()
                 .eq(PostInteraction::getUserId, userId).eq(PostInteraction::getTargetType, targetType)
                 .eq(PostInteraction::getTargetId, targetId).eq(PostInteraction::getType, type));
@@ -33,8 +36,8 @@ public interface PostInteractionMapper extends BaseMapper<PostInteraction> {
 
     default List<Long> selectTargetIdsByUserAndType(
             Long userId,
-            String targetType,
-            String type) {
+            InteractionTargetType targetType,
+            PostInteractionType type) {
         return selectList(Wrappers.<PostInteraction>lambdaQuery()
                 .select(PostInteraction::getTargetId)
                 .eq(PostInteraction::getUserId, userId).eq(PostInteraction::getTargetType, targetType)
@@ -42,7 +45,7 @@ public interface PostInteractionMapper extends BaseMapper<PostInteraction> {
                 .stream().map(PostInteraction::getTargetId).toList();
     }
 
-    List<String> selectPreferredPostCategories(
+    List<PostCategory> selectPreferredPostCategories(
             @Param("userId") Long userId,
             @Param("limit") int limit);
 }

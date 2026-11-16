@@ -1,10 +1,12 @@
 package com.campusbridge.integration;
 
+import com.campusbridge.enums.DashboardTodoType;
 import com.campusbridge.dto.view.DashboardDistributionItem;
 import com.campusbridge.dto.view.DashboardSummary;
 import com.campusbridge.dto.view.DashboardTodo;
 import com.campusbridge.dto.view.DashboardTrend;
 import com.campusbridge.entity.User;
+import com.campusbridge.enums.UserRole;
 import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.service.AdminDashboardService;
 import com.campusbridge.utils.JwtUtil;
@@ -52,10 +54,10 @@ class AdminDashboardControllerIntegrationTest {
     void setUp() {
         User admin = new User();
         admin.setId(ADMIN_ID);
-        admin.setRole("ADMIN");
+        admin.setRole(UserRole.ADMIN);
         admin.setEnabled(1);
         when(userMapper.selectById(ADMIN_ID)).thenReturn(admin);
-        adminAuthHeader = "Bearer " + jwtUtil.generateToken(ADMIN_ID, "ADMIN");
+        adminAuthHeader = "Bearer " + jwtUtil.generateToken(ADMIN_ID, UserRole.ADMIN);
     }
 
     @Test
@@ -121,44 +123,44 @@ class AdminDashboardControllerIntegrationTest {
     @Test
     void taskStatusStatsReturnsDistributionList() throws Exception {
         List<DashboardDistributionItem> stats = List.of(
-                new DashboardDistributionItem("OPEN", "待接单", 48L),
-                new DashboardDistributionItem("COMPLETED", "已完成", 210L));
+                new DashboardDistributionItem("OPEN", 48L),
+                new DashboardDistributionItem("COMPLETED", 210L));
         when(adminDashboardService.getTaskStatusStats()).thenReturn(stats);
 
         mockMvc.perform(get("/api/v1/admin/dashboard/task-status")
                         .header("Authorization", adminAuthHeader))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("SUCCESS"))
-                .andExpect(jsonPath("$.data[0].status").value("OPEN"))
-                .andExpect(jsonPath("$.data[0].label").value("待接单"))
+                .andExpect(jsonPath("$.data[0].code").value("OPEN"))
+                .andExpect(jsonPath("$.data[0].label").doesNotExist())
                 .andExpect(jsonPath("$.data[1].count").value(210));
     }
 
     @Test
     void reportStatusAndTargetTypeEndpointsReturnLists() throws Exception {
         when(adminDashboardService.getReportStatusStats()).thenReturn(List.of(
-                new DashboardDistributionItem("PENDING", "待处理", 4L)));
+                new DashboardDistributionItem("PENDING", 4L)));
         when(adminDashboardService.getReportTargetTypeStats()).thenReturn(List.of(
-                new DashboardDistributionItem("TASK", "任务", 12L)));
+                new DashboardDistributionItem("TASK", 12L)));
 
         mockMvc.perform(get("/api/v1/admin/dashboard/report-status")
                         .header("Authorization", adminAuthHeader))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data[0].status").value("PENDING"));
+                .andExpect(jsonPath("$.data[0].code").value("PENDING"));
 
         mockMvc.perform(get("/api/v1/admin/dashboard/report-target-type")
                         .header("Authorization", adminAuthHeader))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data[0].status").value("TASK"))
-                .andExpect(jsonPath("$.data[0].label").value("任务"));
+                .andExpect(jsonPath("$.data[0].code").value("TASK"))
+                .andExpect(jsonPath("$.data[0].label").doesNotExist());
     }
 
     @Test
     void todosReturnsPendingAdminSummary() throws Exception {
         List<DashboardTodo> todos = List.of(
-                new DashboardTodo("VERIFICATION", "待认证申请", 6L, "/admin?section=verifications"),
-                new DashboardTodo("REPORT", "待处理举报", 4L, "/admin?section=reports"),
-                new DashboardTodo("DISPUTED_TASK", "争议任务", 2L, "/admin?section=dashboard"));
+                new DashboardTodo(DashboardTodoType.VERIFICATION, "待认证申请", 6L, "/admin?section=verifications"),
+                new DashboardTodo(DashboardTodoType.REPORT, "待处理举报", 4L, "/admin?section=reports"),
+                new DashboardTodo(DashboardTodoType.DISPUTED_TASK, "争议任务", 2L, "/admin?section=dashboard"));
         when(adminDashboardService.getTodos()).thenReturn(todos);
 
         mockMvc.perform(get("/api/v1/admin/dashboard/todos")
@@ -182,10 +184,10 @@ class AdminDashboardControllerIntegrationTest {
     void adminEndpointRejectsNonAdminRole() throws Exception {
         User user = new User();
         user.setId(ADMIN_ID);
-        user.setRole("USER");
+        user.setRole(UserRole.USER);
         user.setEnabled(1);
         when(userMapper.selectById(ADMIN_ID)).thenReturn(user);
-        String userToken = "Bearer " + jwtUtil.generateToken(ADMIN_ID, "USER");
+        String userToken = "Bearer " + jwtUtil.generateToken(ADMIN_ID, UserRole.USER);
 
         mockMvc.perform(get("/api/v1/admin/dashboard/summary")
                         .header("Authorization", userToken))

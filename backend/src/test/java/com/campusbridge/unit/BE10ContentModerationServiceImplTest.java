@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -51,9 +52,10 @@ class BE10ContentModerationServiceImplTest {
         CreateTaskRequest request = taskRequest("代考高数期末", "帮忙代考高数");
 
         assertThatThrownBy(() -> moderationService.assertTaskPublishAllowed(1L, request))
-                .isInstanceOf(BusinessException.class)
-                .extracting("errorCode")
-                .isEqualTo(ErrorCode.CONTENT_001_BLOCKED);
+                .isInstanceOfSatisfying(BusinessException.class, error -> {
+                    assertThat(error.getErrorCode()).isEqualTo(ErrorCode.CONTENT_001_BLOCKED);
+                    assertThat(error.getDetails()).containsExactly("ruleCode=PROHIBITED_KEYWORD", "keyword=代考");
+                });
     }
 
     @Test
@@ -62,9 +64,10 @@ class BE10ContentModerationServiceImplTest {
         request.setOnlyInAppContact(true);
 
         assertThatThrownBy(() -> moderationService.assertTaskPublishAllowed(1L, request))
-                .isInstanceOf(BusinessException.class)
-                .extracting("errorCode")
-                .isEqualTo(ErrorCode.CONTENT_001_BLOCKED);
+                .isInstanceOfSatisfying(BusinessException.class, error -> {
+                    assertThat(error.getErrorCode()).isEqualTo(ErrorCode.CONTENT_001_BLOCKED);
+                    assertThat(error.getDetails()).containsExactly("ruleCode=CONTACT_LEAK", "keyword=微信");
+                });
     }
 
     @Test

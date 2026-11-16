@@ -1,5 +1,7 @@
 package com.campusbridge.config;
 
+import com.campusbridge.enums.UserRole;
+
 import com.campusbridge.common.ErrorCode;
 import com.campusbridge.common.ErrorResponse;
 import com.campusbridge.filter.JwtAuthFilter;
@@ -8,7 +10,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -67,7 +68,7 @@ public class SecurityConfig {
                             "/api/v1/users/*/profile",
                             "/api/v1/users/*/reviews"
                     ).permitAll();
-                    auth.requestMatchers("/api/v1/admin/**").hasRole("ADMIN");
+                    auth.requestMatchers("/api/v1/admin/**").hasRole(UserRole.ADMIN.name());
                     auth.anyRequest().authenticated();
                 })
                 .formLogin(form -> form.disable())
@@ -78,7 +79,7 @@ public class SecurityConfig {
     @Bean
     public AuthenticationEntryPoint unauthorizedEntryPoint() {
         return (request, response, authException) -> {
-            response.setStatus(HttpStatus.UNAUTHORIZED.value());
+            response.setStatus(ErrorCode.AUTH_001_UNAUTHORIZED.getHttpStatus().value());
             response.setContentType("application/json;charset=UTF-8");
             objectMapper.writeValue(response.getWriter(), ErrorResponse.of(
                     ErrorCode.AUTH_001_UNAUTHORIZED, "Missing or invalid JWT token", null));
@@ -88,7 +89,7 @@ public class SecurityConfig {
     @Bean
     public AccessDeniedHandler accessDeniedHandler() {
         return (request, response, exception) -> {
-            response.setStatus(HttpStatus.FORBIDDEN.value());
+            response.setStatus(ErrorCode.MOD_001_PERMISSION_DENIED.getHttpStatus().value());
             response.setContentType("application/json;charset=UTF-8");
             objectMapper.writeValue(response.getWriter(), ErrorResponse.of(
                     ErrorCode.MOD_001_PERMISSION_DENIED,

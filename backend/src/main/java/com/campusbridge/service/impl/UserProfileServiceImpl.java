@@ -10,6 +10,7 @@ import com.campusbridge.entity.CampusVerification;
 import com.campusbridge.entity.User;
 import com.campusbridge.entity.UserCredit;
 import com.campusbridge.entity.UserProfile;
+import com.campusbridge.enums.VerificationStatus;
 import com.campusbridge.mapper.CampusVerificationMapper;
 import com.campusbridge.mapper.UserCreditMapper;
 import com.campusbridge.mapper.UserMapper;
@@ -97,7 +98,7 @@ public class UserProfileServiceImpl implements UserProfileService {
                 ? 1
                 : credit.getLevel();
         boolean verified = verification != null
-                && "VERIFIED".equals(verification.getStatus());
+                && verification.getStatus() == VerificationStatus.VERIFIED;
 
         return new UserHomepageView(
                 profile.getUserId(),
@@ -230,7 +231,7 @@ public class UserProfileServiceImpl implements UserProfileService {
                 ? 1
                 : credit.getLevel();
         boolean verified = verification != null
-                && "VERIFIED".equals(verification.getStatus());
+                && verification.getStatus() == VerificationStatus.VERIFIED;
 
         return new UserProfileView(
                 profile.getUserId(),

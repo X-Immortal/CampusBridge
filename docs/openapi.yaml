@@ -516,6 +516,13 @@ paths:
         required: false
         schema:
           type: string
+          enum:
+          - PENDING
+          - PROCESSING
+          - APPROVED
+          - REJECTED
+          - RESOLVED
+          - PUNISHED
       - in: query
         name: page
         required: false
@@ -772,11 +779,14 @@ paths:
         required: false
         schema:
           type: string
-      - in: header
-        name: X-Attachment-Type
-        required: false
-        schema:
-          type: string
+          enum:
+          - POST
+          - REPLY
+          - TASK
+          - COMPLETION_PROOF
+          - MESSAGE
+          - REPORT
+          - VERIFICATION
       requestBody:
         content:
           application/json:
@@ -1038,7 +1048,13 @@ paths:
         name: itemTypes
         required: false
         schema:
-          type: string
+          type: array
+          items:
+            type: string
+            enum:
+            - POST
+            - TASK
+          uniqueItems: true
       - in: query
         name: categoryCode
         required: false
@@ -1064,12 +1080,20 @@ paths:
         required: false
         schema:
           type: string
+          enum:
+          - FREE
+          - POINTS
+          - CASH
+          - NEGOTIABLE
       - in: query
         name: sortBy
         required: false
         schema:
           type: string
           default: CREATED_AT
+          enum:
+          - CREATED_AT
+          - DEADLINE
       - in: query
         name: page
         required: false
@@ -1181,7 +1205,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/ApiResponseUnreadSummaryView"
+                $ref: "#/components/schemas/ApiResponseUnreadCountView"
           description: OK
         "401":
           content:
@@ -1305,6 +1329,165 @@ paths:
           description: OK
       tags:
       - home-controller
+  /api/v1/notifications:
+    get:
+      operationId: list
+      parameters:
+      - in: query
+        name: page
+        required: false
+        schema:
+          type: integer
+          format: int32
+          minimum: 1
+      - in: query
+        name: size
+        required: false
+        schema:
+          type: integer
+          format: int32
+          maximum: 100
+          minimum: 1
+      - in: query
+        name: unreadOnly
+        required: false
+        schema:
+          type: boolean
+      - in: query
+        name: types
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+            enum:
+            - POST_REPLY
+            - TASK_APPLICATION_CREATED
+            - TASK_APPLICATION_ACCEPTED
+            - TASK_APPLICATION_REJECTED
+            - TASK_APPLICATION_WITHDRAWN
+            - TASK_PUBLISHED
+            - TASK_PENDING_REVIEW
+            - TASK_ACCEPTED
+            - TASK_STARTED
+            - TASK_PENDING_CONFIRMATION
+            - TASK_COMPLETED
+            - TASK_REVIEWED
+            - TASK_CANCELLED
+            - TASK_DISPUTED
+            - TASK_REJECTED
+            - TASK_OPEN_TIMEOUT
+            - TASK_CONFIRMATION_REMINDER
+          uniqueItems: true
+      - in: query
+        name: keyword
+        required: false
+        schema:
+          type: string
+          maxLength: 100
+          minLength: 0
+      responses:
+        "200":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponsePagedResultNotificationView"
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: 业务请求失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: 未认证或访问令牌无效
+      security:
+      - bearerAuth: []
+      tags:
+      - notification-controller
+  /api/v1/notifications/read-all:
+    post:
+      operationId: markAllRead
+      responses:
+        "200":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseReadAllNotificationsView"
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: 未认证或访问令牌无效
+      security:
+      - bearerAuth: []
+      tags:
+      - notification-controller
+  /api/v1/notifications/unread-count:
+    get:
+      operationId: unreadCount
+      responses:
+        "200":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseUnreadCountView"
+          description: OK
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: 未认证或访问令牌无效
+      security:
+      - bearerAuth: []
+      tags:
+      - notification-controller
+  /api/v1/notifications/{notificationId}/read:
+    post:
+      operationId: markRead
+      parameters:
+      - in: path
+        name: notificationId
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiResponseNotificationView"
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: 业务请求失败
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: 未认证或访问令牌无效
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: 业务请求失败
+      security:
+      - bearerAuth: []
+      tags:
+      - notification-controller
   /api/v1/posts:
     get:
       operationId: listPosts
@@ -1319,11 +1502,24 @@ paths:
         required: false
         schema:
           type: string
+          enum:
+          - INQUIRY_HELP
+          - SECOND_HAND
+          - TEAM_FRIEND
+          - CAMPUS_SOCIAL
       - in: query
         name: status
         required: false
         schema:
           type: string
+          enum:
+          - DRAFT
+          - PUBLISHED
+          - PENDING_REVIEW
+          - HIDDEN
+          - CLOSED
+          - DELETED
+          - REJECTED
       - in: query
         name: page
         required: false
@@ -1406,11 +1602,24 @@ paths:
         required: false
         schema:
           type: string
+          enum:
+          - INQUIRY_HELP
+          - SECOND_HAND
+          - TEAM_FRIEND
+          - CAMPUS_SOCIAL
       - in: query
         name: status
         required: false
         schema:
           type: string
+          enum:
+          - DRAFT
+          - PUBLISHED
+          - PENDING_REVIEW
+          - HIDDEN
+          - CLOSED
+          - DELETED
+          - REJECTED
       - in: query
         name: page
         required: false
@@ -1530,6 +1739,9 @@ paths:
         required: true
         schema:
           type: string
+          enum:
+          - LIKE
+          - MARK
       responses:
         "204":
           description: No Content
@@ -1629,7 +1841,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/ApiResponsePostInteraction"
+                $ref: "#/components/schemas/ApiResponseAcceptedReplyView"
           description: OK
         "401":
           content:
@@ -1650,6 +1862,13 @@ paths:
         required: false
         schema:
           type: string
+          enum:
+          - PENDING
+          - PROCESSING
+          - APPROVED
+          - REJECTED
+          - RESOLVED
+          - PUNISHED
       - in: query
         name: page
         required: false
@@ -1767,6 +1986,9 @@ paths:
         required: false
         schema:
           type: string
+          enum:
+          - ERRAND
+          - AGENCY
       - in: query
         name: campus
         required: false
@@ -1777,11 +1999,28 @@ paths:
         required: false
         schema:
           type: string
+          enum:
+          - DRAFT
+          - OPEN
+          - PENDING_REVIEW
+          - ACCEPTED
+          - IN_PROGRESS
+          - PENDING_CONFIRMATION
+          - COMPLETED
+          - REVIEWED
+          - CANCELLED
+          - DISPUTED
+          - REJECTED
       - in: query
         name: rewardType
         required: false
         schema:
           type: string
+          enum:
+          - FREE
+          - POINTS
+          - CASH
+          - NEGOTIABLE
       - in: query
         name: requiresProof
         required: false
@@ -1799,6 +2038,10 @@ paths:
         schema:
           type: string
           default: CREATED_AT_DESC
+          enum:
+          - CREATED_AT_DESC
+          - DEADLINE_ASC
+          - DEADLINE_DESC
       - in: query
         name: page
         required: false
@@ -2707,6 +2950,26 @@ paths:
       - verification-controller
 components:
   schemas:
+    AcceptedReplyView:
+      type: object
+      properties:
+        acceptedReplyId:
+          type: integer
+          format: int64
+        postId:
+          type: integer
+          format: int64
+    ApiResponseAcceptedReplyView:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/AcceptedReplyView"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
     ApiResponseAttachment:
       type: object
       properties:
@@ -2977,6 +3240,17 @@ components:
           type: string
         meta:
           $ref: "#/components/schemas/ResponseMeta"
+    ApiResponseNotificationView:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/NotificationView"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
     ApiResponsePagedResultCampusVerification:
       type: object
       properties:
@@ -3028,6 +3302,17 @@ components:
           type: string
         data:
           $ref: "#/components/schemas/PagedResultMyReplyPostView"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponsePagedResultNotificationView:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/PagedResultNotificationView"
         message:
           type: string
         meta:
@@ -3105,6 +3390,17 @@ components:
           type: string
         data:
           $ref: "#/components/schemas/ReadAllConversationsView"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponseReadAllNotificationsView:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/ReadAllNotificationsView"
         message:
           type: string
         meta:
@@ -3208,13 +3504,13 @@ components:
           type: string
         meta:
           $ref: "#/components/schemas/ResponseMeta"
-    ApiResponseUnreadSummaryView:
+    ApiResponseUnreadCountView:
       type: object
       properties:
         code:
           type: string
         data:
-          $ref: "#/components/schemas/UnreadSummaryView"
+          $ref: "#/components/schemas/UnreadCountView"
         message:
           type: string
         meta:
@@ -3315,13 +3611,23 @@ components:
           format: int64
         ownerType:
           type: string
+          enum:
+          - POST
+          - REPLY
+          - TASK
+          - COMPLETION_PROOF
+          - MESSAGE
+          - REPORT
+          - VERIFICATION
         size:
           type: integer
           format: int64
         status:
           type: string
-        type:
-          type: string
+          enum:
+          - TEMPORARY
+          - BOUND
+          - DELETED
         uploaderId:
           type: integer
           format: int64
@@ -3350,6 +3656,10 @@ components:
           format: int64
         method:
           type: string
+          enum:
+          - STUDENT_CARD_IMAGE
+          - CAMPUS_EMAIL
+          - MANUAL_REVIEW
         realNameCipher:
           type: string
         rejectReason:
@@ -3364,6 +3674,11 @@ components:
           type: string
         status:
           type: string
+          enum:
+          - UNVERIFIED
+          - PENDING
+          - VERIFIED
+          - REJECTED
         studentNumberCipher:
           type: string
         studentNumberHash:
@@ -3428,7 +3743,7 @@ components:
           format: int64
         authorName:
           type: string
-        categoryName:
+        category:
           type: string
         createdAt:
           type: string
@@ -3438,15 +3753,25 @@ components:
           enum:
           - POST
           - TASK
-        rewardLabel:
+        rewardAmount:
+          type: integer
+          format: int32
+        rewardDescription:
           type: string
+        rewardType:
+          type: string
+          enum:
+          - FREE
+          - POINTS
+          - CASH
+          - NEGOTIABLE
         sortTime:
           type: string
           format: date-time
         sourceId:
           type: integer
           format: int64
-        statusLabel:
+        status:
           type: string
         summary:
           type: string
@@ -3480,6 +3805,9 @@ components:
           format: int64
         relatedType:
           type: string
+          enum:
+          - POST
+          - TASK
         replyable:
           type: integer
           format: int32
@@ -3487,6 +3815,9 @@ components:
           type: string
         type:
           type: string
+          enum:
+          - PRIVATE
+          - TASK
         unreadCount:
           type: integer
           format: int32
@@ -3505,7 +3836,9 @@ components:
           format: int64
         relatedType:
           type: string
-          pattern: "(?s).*\\P{javaWhitespace}.*"
+          enum:
+          - POST
+          - TASK
       required:
       - peerUserId
       - relatedId
@@ -3735,13 +4068,11 @@ components:
     DashboardDistributionItem:
       type: object
       properties:
+        code:
+          type: string
         count:
           type: integer
           format: int64
-        label:
-          type: string
-        status:
-          type: string
     DashboardSummary:
       type: object
       properties:
@@ -3787,6 +4118,10 @@ components:
           type: string
         type:
           type: string
+          enum:
+          - VERIFICATION
+          - REPORT
+          - DISPUTED_TASK
     DashboardTrend:
       type: object
       properties:
@@ -3863,6 +4198,11 @@ components:
           type: string
         category:
           type: string
+          enum:
+          - INQUIRY_HELP
+          - SECOND_HAND
+          - TEAM_FRIEND
+          - CAMPUS_SOCIAL
         content:
           type: string
         createdAt:
@@ -3897,6 +4237,9 @@ components:
           type: string
         category:
           type: string
+          enum:
+          - ERRAND
+          - AGENCY
         deadline:
           type: string
           format: date-time
@@ -3916,6 +4259,11 @@ components:
           type: string
         rewardType:
           type: string
+          enum:
+          - FREE
+          - POINTS
+          - CASH
+          - NEGOTIABLE
         title:
           type: string
     LoginRequest:
@@ -3937,6 +4285,9 @@ components:
           type: string
         role:
           type: string
+          enum:
+          - USER
+          - ADMIN
         token:
           type: string
         userId:
@@ -3966,6 +4317,9 @@ components:
           format: int64
         type:
           type: string
+          enum:
+          - TEXT
+          - IMAGE
     ModerationRecord:
       type: object
       properties:
@@ -3985,11 +4339,24 @@ components:
           format: int64
         status:
           type: string
+          enum:
+          - PENDING
+          - PROCESSING
+          - APPROVED
+          - REJECTED
+          - RESOLVED
+          - PUNISHED
         targetId:
           type: integer
           format: int64
         targetType:
           type: string
+          enum:
+          - POST
+          - REPLY
+          - TASK
+          - USER
+          - MESSAGE
     MyReplyPostView:
       type: object
       properties:
@@ -4012,6 +4379,93 @@ components:
           $ref: "#/components/schemas/TaskApplication"
         task:
           $ref: "#/components/schemas/TaskView"
+    NotificationQuery:
+      type: object
+      properties:
+        keyword:
+          type: string
+          maxLength: 100
+          minLength: 0
+        page:
+          type: integer
+          format: int32
+          minimum: 1
+        size:
+          type: integer
+          format: int32
+          maximum: 100
+          minimum: 1
+        types:
+          type: array
+          items:
+            type: string
+            enum:
+            - POST_REPLY
+            - TASK_APPLICATION_CREATED
+            - TASK_APPLICATION_ACCEPTED
+            - TASK_APPLICATION_REJECTED
+            - TASK_APPLICATION_WITHDRAWN
+            - TASK_PUBLISHED
+            - TASK_PENDING_REVIEW
+            - TASK_ACCEPTED
+            - TASK_STARTED
+            - TASK_PENDING_CONFIRMATION
+            - TASK_COMPLETED
+            - TASK_REVIEWED
+            - TASK_CANCELLED
+            - TASK_DISPUTED
+            - TASK_REJECTED
+            - TASK_OPEN_TIMEOUT
+            - TASK_CONFIRMATION_REMINDER
+          uniqueItems: true
+        unreadOnly:
+          type: boolean
+    NotificationView:
+      type: object
+      properties:
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        id:
+          type: integer
+          format: int64
+        readAt:
+          type:
+          - string
+          - "null"
+          format: date-time
+        relatedId:
+          type: integer
+          format: int64
+        relatedType:
+          type: string
+          enum:
+          - POST
+          - TASK
+        title:
+          type: string
+        type:
+          type: string
+          enum:
+          - POST_REPLY
+          - TASK_APPLICATION_CREATED
+          - TASK_APPLICATION_ACCEPTED
+          - TASK_APPLICATION_REJECTED
+          - TASK_APPLICATION_WITHDRAWN
+          - TASK_PUBLISHED
+          - TASK_PENDING_REVIEW
+          - TASK_ACCEPTED
+          - TASK_STARTED
+          - TASK_PENDING_CONFIRMATION
+          - TASK_COMPLETED
+          - TASK_REVIEWED
+          - TASK_CANCELLED
+          - TASK_DISPUTED
+          - TASK_REJECTED
+          - TASK_OPEN_TIMEOUT
+          - TASK_CONFIRMATION_REMINDER
     PagedResultCampusVerification:
       type: object
       properties:
@@ -4083,6 +4537,22 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/MyReplyPostView"
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        total:
+          type: integer
+          format: int64
+    PagedResultNotificationView:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/NotificationView"
         page:
           type: integer
           format: int32
@@ -4174,8 +4644,14 @@ components:
           format: int64
         targetType:
           type: string
+          enum:
+          - POST
+          - REPLY
         type:
           type: string
+          enum:
+          - LIKE
+          - MARK
         userId:
           type: integer
           format: int64
@@ -4192,6 +4668,11 @@ components:
           type: string
         category:
           type: string
+          enum:
+          - INQUIRY_HELP
+          - SECOND_HAND
+          - TEAM_FRIEND
+          - CAMPUS_SOCIAL
         content:
           type: string
         createdAt:
@@ -4211,6 +4692,14 @@ components:
           format: int32
         status:
           type: string
+          enum:
+          - DRAFT
+          - PUBLISHED
+          - PENDING_REVIEW
+          - HIDDEN
+          - CLOSED
+          - DELETED
+          - REJECTED
         title:
           type: string
         updatedAt:
@@ -4222,6 +4711,12 @@ components:
         unreadCount:
           type: integer
           format: int64
+        updatedCount:
+          type: integer
+          format: int32
+    ReadAllNotificationsView:
+      type: object
+      properties:
         updatedCount:
           type: integer
           format: int32
@@ -4281,6 +4776,14 @@ components:
           format: int64
         status:
           type: string
+          enum:
+          - DRAFT
+          - PUBLISHED
+          - PENDING_REVIEW
+          - HIDDEN
+          - CLOSED
+          - DELETED
+          - REJECTED
     Report:
       type: object
       properties:
@@ -4299,11 +4802,24 @@ components:
           format: int64
         status:
           type: string
+          enum:
+          - PENDING
+          - PROCESSING
+          - APPROVED
+          - REJECTED
+          - RESOLVED
+          - PUNISHED
         targetId:
           type: integer
           format: int64
         targetType:
           type: string
+          enum:
+          - POST
+          - REPLY
+          - TASK
+          - USER
+          - MESSAGE
     ResolveReportRequest:
       type: object
       properties:
@@ -4458,7 +4974,6 @@ components:
           enum:
           - TEXT
           - IMAGE
-          - SYSTEM_NOTIFICATION
       required:
       - content
       - type
@@ -4489,6 +5004,9 @@ components:
           type: string
         category:
           type: string
+          enum:
+          - ERRAND
+          - AGENCY
         completionStandard:
           type: string
         createdAt:
@@ -4528,6 +5046,11 @@ components:
           type: string
         rewardType:
           type: string
+          enum:
+          - FREE
+          - POINTS
+          - CASH
+          - NEGOTIABLE
         riskDisclosureConfirmed:
           type: integer
           format: int32
@@ -4537,6 +5060,18 @@ components:
           type: string
         status:
           type: string
+          enum:
+          - DRAFT
+          - OPEN
+          - PENDING_REVIEW
+          - ACCEPTED
+          - IN_PROGRESS
+          - PENDING_CONFIRMATION
+          - COMPLETED
+          - REVIEWED
+          - CANCELLED
+          - DISPUTED
+          - REJECTED
         title:
           type: string
         updatedAt:
@@ -4561,6 +5096,11 @@ components:
           type: string
         status:
           type: string
+          enum:
+          - PENDING
+          - ACCEPTED
+          - REJECTED
+          - WITHDRAWN
         taskId:
           type: integer
           format: int64
@@ -4596,6 +5136,11 @@ components:
           format: int32
         status:
           type: string
+          enum:
+          - PENDING
+          - ACCEPTED
+          - REJECTED
+          - WITHDRAWN
         username:
           type: string
         verified:
@@ -4629,13 +5174,54 @@ components:
         createdAt:
           type: string
           format: date-time
+        eventType:
+          type: string
+          enum:
+          - CREATED
+          - UPDATED
+          - DRAFT_SAVED
+          - REPOSTED
+          - APPLICATION_ACCEPTED
+          - STARTED
+          - COMPLETION_PROOF_SUBMITTED
+          - COMPLETION_CONFIRMED
+          - COMPLETION_REJECTED
+          - DISPUTED
+          - CANCELLED
+          - PROVIDER_WITHDRAWN
+          - MODERATION_APPROVED
+          - MODERATION_REJECTED
+          - APPEAL_DISMISSED
+          - APPEAL_PUNISHED
+          - REPORT_CREATED
+          - REPORT_RESOLVED
+          - OPEN_TIMEOUT_REMINDER
+          - OPEN_TIMEOUT_CANCELLED
+          - CONFIRMATION_TIMEOUT_REMINDER
+          - CONFIRMATION_TIMEOUT_COMPLETED
+          - REVIEWED
         fromStatus:
           type: string
+          enum:
+          - DRAFT
+          - OPEN
+          - PENDING_REVIEW
+          - ACCEPTED
+          - IN_PROGRESS
+          - PENDING_CONFIRMATION
+          - COMPLETED
+          - REVIEWED
+          - CANCELLED
+          - DISPUTED
+          - REJECTED
         id:
           type: integer
           format: int64
         note:
-          type: string
+          type:
+          - string
+          - "null"
+          maxLength: 300
         operatorId:
           type: integer
           format: int64
@@ -4644,6 +5230,20 @@ components:
           format: int64
         toStatus:
           type: string
+          enum:
+          - DRAFT
+          - OPEN
+          - PENDING_REVIEW
+          - ACCEPTED
+          - IN_PROGRESS
+          - PENDING_CONFIRMATION
+          - COMPLETED
+          - REVIEWED
+          - CANCELLED
+          - DISPUTED
+          - REJECTED
+      required:
+      - eventType
     TaskPageView:
       type: object
       properties:
@@ -4694,6 +5294,9 @@ components:
           type: string
         category:
           type: string
+          enum:
+          - ERRAND
+          - AGENCY
         completionStandard:
           type: string
         createdAt:
@@ -4737,6 +5340,11 @@ components:
           type: string
         rewardType:
           type: string
+          enum:
+          - FREE
+          - POINTS
+          - CASH
+          - NEGOTIABLE
         riskDisclosureConfirmed:
           type: integer
           format: int32
@@ -4746,21 +5354,27 @@ components:
           type: string
         status:
           type: string
+          enum:
+          - DRAFT
+          - OPEN
+          - PENDING_REVIEW
+          - ACCEPTED
+          - IN_PROGRESS
+          - PENDING_CONFIRMATION
+          - COMPLETED
+          - REVIEWED
+          - CANCELLED
+          - DISPUTED
+          - REJECTED
         title:
           type: string
         updatedAt:
           type: string
           format: date-time
-    UnreadSummaryView:
+    UnreadCountView:
       type: object
       properties:
-        private:
-          type: integer
-          format: int64
-        system:
-          type: integer
-          format: int64
-        total:
+        unreadCount:
           type: integer
           format: int64
     UpdatePhoneRequest:
@@ -4988,6 +5602,9 @@ components:
           format: int64
         role:
           type: string
+          enum:
+          - USER
+          - ADMIN
         username:
           type: string
     VerificationCancelledView:
@@ -5012,6 +5629,11 @@ components:
           format: int64
         status:
           type: string
+          enum:
+          - UNVERIFIED
+          - PENDING
+          - VERIFIED
+          - REJECTED
     VerificationSubmissionView:
       type: object
       properties:
@@ -5024,16 +5646,28 @@ components:
           type: string
         emailDelivery:
           type: string
+          enum:
+          - SENT
+          - DEV_FALLBACK
         id:
           type: integer
           format: int64
         method:
           type: string
+          enum:
+          - STUDENT_CARD_IMAGE
+          - CAMPUS_EMAIL
+          - MANUAL_REVIEW
         reviewedAt:
           type: string
           format: date-time
         status:
           type: string
+          enum:
+          - UNVERIFIED
+          - PENDING
+          - VERIFIED
+          - REJECTED
         userId:
           type: integer
           format: int64

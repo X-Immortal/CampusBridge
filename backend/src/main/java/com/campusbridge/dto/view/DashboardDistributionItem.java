@@ -8,7 +8,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class DashboardDistributionItem {
-    private String status;
-    private String label;
+    private String code;
     private Long count;
 }

@@ -4,10 +4,10 @@
 
   <sql id="postFilters">
     AND p.status IN ('PUBLISHED', 'CLOSED')
-    <if test="category != null and category != ''">
+    <if test="category != null">
       AND p.category = #{category}
     </if>
-    <if test="status != null and status != ''">
+    <if test="status != null">
       AND p.status = #{status}
     </if>
     <if test="keyword != null and keyword != ''">
@@ -91,7 +91,7 @@
     UPDATE posts
     <set>
       <choose>
-        <when test="type == 'LIKE'">like_count = GREATEST(0, like_count + #{delta})</when>
+        <when test="type.name() == 'LIKE'">like_count = GREATEST(0, like_count + #{delta})</when>
         <otherwise>mark_count = GREATEST(0, mark_count + #{delta})</otherwise>
       </choose>
     </set>

@@ -11,13 +11,17 @@ import com.campusbridge.entity.TaskApplication;
 import com.campusbridge.entity.User;
 import com.campusbridge.entity.UserCredit;
 import com.campusbridge.entity.UserProfile;
+import com.campusbridge.enums.ApplicationStatus;
+import com.campusbridge.enums.TaskStatus;
+import com.campusbridge.enums.TaskHistoryEventType;
+import com.campusbridge.enums.VerificationStatus;
 import com.campusbridge.mapper.CampusVerificationMapper;
 import com.campusbridge.mapper.TaskApplicationMapper;
 import com.campusbridge.mapper.TaskMapper;
 import com.campusbridge.mapper.UserCreditMapper;
 import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.mapper.UserProfileMapper;
-import com.campusbridge.service.NotificationService;
+import com.campusbridge.service.TaskNotificationService;
 import com.campusbridge.service.TaskApplicationService;
 import com.campusbridge.service.TaskHistoryService;
 import lombok.RequiredArgsConstructor;
@@ -33,12 +37,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class TaskApplicationServiceImpl implements TaskApplicationService {
 
-    private static final String STATUS_OPEN = "OPEN";
-    private static final String STATUS_ACCEPTED = "ACCEPTED";
-    private static final String STATUS_PENDING = "PENDING";
-    private static final String STATUS_WITHDRAWN = "WITHDRAWN";
-    private static final String VERIFICATION_STATUS_VERIFIED = "VERIFIED";
-    private static final String HISTORY_NOTE_ACCEPTED = "APPLICATION_ACCEPTED";
 
     private final TaskApplicationMapper taskApplicationMapper;
     private final TaskMapper taskMapper;
@@ -47,7 +45,7 @@ public class TaskApplicationServiceImpl implements TaskApplicationService {
     private final UserCreditMapper userCreditMapper;
     private final CampusVerificationMapper campusVerificationMapper;
     private final TaskHistoryService taskHistoryService;
-    private final NotificationService notificationService;
+    private final TaskNotificationService notificationService;
 
     @Override
     public TaskApplication createApplication(
@@ -57,7 +55,7 @@ public class TaskApplicationServiceImpl implements TaskApplicationService {
         validateApplicationIds(applicantId, taskId);
 
         Task task = requireTaskForUpdate(taskId);
-        if (!STATUS_OPEN.equals(task.getStatus())) {
+        if (task.getStatus() != TaskStatus.OPEN) {
             throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
         }
         if (applicantId.equals(task.getRequesterId())) {
@@ -67,13 +65,13 @@ public class TaskApplicationServiceImpl implements TaskApplicationService {
         }
         TaskApplication existingApplication =
                 taskApplicationMapper.selectByTaskIdAndApplicantId(taskId, applicantId);
-        if (existingApplication != null && !STATUS_WITHDRAWN.equals(existingApplication.getStatus())) {
+        if (existingApplication != null && existingApplication.getStatus() != ApplicationStatus.WITHDRAWN) {
             throw new BusinessException(ErrorCode.TASK_007_ALREADY_APPLIED);
         }
 
         if (existingApplication != null) {
             existingApplication.setMessage(request.getMessage());
-            existingApplication.setStatus(STATUS_PENDING);
+            existingApplication.setStatus(ApplicationStatus.PENDING);
             existingApplication.setCreatedAt(LocalDateTime.now());
             existingApplication.setHandledAt(null);
             if (taskApplicationMapper.updateById(existingApplication) != 1) {
@@ -92,7 +90,7 @@ public class TaskApplicationServiceImpl implements TaskApplicationService {
         application.setTaskId(taskId);
         application.setApplicantId(applicantId);
         application.setMessage(request.getMessage());
-        application.setStatus(STATUS_PENDING);
+        application.setStatus(ApplicationStatus.PENDING);
         application.setCreatedAt(LocalDateTime.now());
         application.setHandledAt(null);
 
@@ -151,7 +149,7 @@ public class TaskApplicationServiceImpl implements TaskApplicationService {
         if (!applicantId.equals(application.getApplicantId())) {
             throw new BusinessException(ErrorCode.TASK_003_PERMISSION_DENIED);
         }
-        if (!STATUS_PENDING.equals(application.getStatus())) {
+        if (application.getStatus() != ApplicationStatus.PENDING) {
             throw new BusinessException(
                     ErrorCode.COMMON_003_CONFLICT,
                     "Only pending application can be withdrawn");
@@ -162,8 +160,8 @@ public class TaskApplicationServiceImpl implements TaskApplicationService {
         LocalDateTime handledAt = LocalDateTime.now();
         int affectedRows = taskApplicationMapper.updateStatusById(
                 applicationId,
-                STATUS_PENDING,
-                STATUS_WITHDRAWN,
+                ApplicationStatus.PENDING,
+                ApplicationStatus.WITHDRAWN,
                 handledAt);
         if (affectedRows != 1) {
             throw new BusinessException(
@@ -171,7 +169,7 @@ public class TaskApplicationServiceImpl implements TaskApplicationService {
                     "Application status changed before withdrawal");
         }
 
-        application.setStatus(STATUS_WITHDRAWN);
+        application.setStatus(ApplicationStatus.WITHDRAWN);
         application.setHandledAt(handledAt);
         notificationService.notifyTaskApplicationWithdrawn(task, application, applicantId);
         return application;
@@ -193,7 +191,7 @@ public class TaskApplicationServiceImpl implements TaskApplicationService {
         if (application == null || !taskId.equals(application.getTaskId())) {
             throw new BusinessException(ErrorCode.TASK_004_APPLICATION_NOT_FOUND);
         }
-        if (!STATUS_PENDING.equals(application.getStatus())) {
+        if (application.getStatus() != ApplicationStatus.PENDING) {
             throw new BusinessException(
                     ErrorCode.COMMON_003_CONFLICT,
                     "Only pending application can be accepted");
@@ -211,8 +209,8 @@ public class TaskApplicationServiceImpl implements TaskApplicationService {
 
         int applicationUpdated = taskApplicationMapper.updateStatusById(
                 applicationId,
-                STATUS_PENDING,
-                STATUS_ACCEPTED,
+                ApplicationStatus.PENDING,
+                ApplicationStatus.ACCEPTED,
                 now);
         if (applicationUpdated != 1) {
             throw new BusinessException(
@@ -222,18 +220,18 @@ public class TaskApplicationServiceImpl implements TaskApplicationService {
 
         List<TaskApplication> rejectedApplications = taskApplicationMapper.selectByTaskId(taskId)
                 .stream()
-                .filter(item -> STATUS_PENDING.equals(item.getStatus()))
+                .filter(item -> item.getStatus() == ApplicationStatus.PENDING)
                 .filter(item -> !applicationId.equals(item.getId()))
                 .toList();
         taskApplicationMapper.rejectOtherPendingByTaskId(taskId, applicationId, now);
         taskHistoryService.recordHistory(
                 taskId,
-                STATUS_OPEN,
-                STATUS_ACCEPTED,
+                TaskStatus.OPEN,
+                TaskStatus.ACCEPTED,
                 requesterId,
-                HISTORY_NOTE_ACCEPTED);
+                TaskHistoryEventType.APPLICATION_ACCEPTED, null);
 
-        application.setStatus(STATUS_ACCEPTED);
+        application.setStatus(ApplicationStatus.ACCEPTED);
         application.setHandledAt(now);
         notificationService.notifyTaskApplicationAccepted(task, application, requesterId);
         rejectedApplications.forEach(rejected ->
@@ -294,7 +292,7 @@ public class TaskApplicationServiceImpl implements TaskApplicationService {
                 profile == null ? null : profile.getCampus(),
                 profile == null ? null : profile.getCollege(),
                 verification != null
-                        && VERIFICATION_STATUS_VERIFIED.equals(verification.getStatus()),
+                        && verification.getStatus() == VerificationStatus.VERIFIED,
                 credit == null || credit.getLevel() == null ? 1 : credit.getLevel(),
                 credit == null || credit.getPoints() == null ? 0 : credit.getPoints(),
                 application.getMessage(),

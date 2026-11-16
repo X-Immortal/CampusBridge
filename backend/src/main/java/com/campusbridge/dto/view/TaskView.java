@@ -1,6 +1,9 @@
 package com.campusbridge.dto.view;
 
 import com.campusbridge.entity.Task;
+import com.campusbridge.enums.RewardType;
+import com.campusbridge.enums.TaskCategory;
+import com.campusbridge.enums.TaskStatus;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -14,14 +17,14 @@ public class TaskView {
     private Long providerId;
     private String requesterName;
     private String providerName;
-    private String category;
+    private TaskCategory category;
     private String title;
     private String description;
     private String campus;
     private String location;
     private String deliveryLocation;
     private LocalDateTime deadline;
-    private String rewardType;
+    private RewardType rewardType;
     private String rewardDescription;
     private Integer rewardAmount;
     private String completionStandard;
@@ -32,7 +35,7 @@ public class TaskView {
     private String routeHint;
     private Integer riskDisclosureConfirmed;
     private String sensitiveReason;
-    private String status;
+    private TaskStatus status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 

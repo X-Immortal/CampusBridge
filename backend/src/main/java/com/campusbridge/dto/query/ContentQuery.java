@@ -1,5 +1,6 @@
 package com.campusbridge.dto.query;
 
+import com.campusbridge.enums.RewardType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -17,7 +18,7 @@ public class ContentQuery {
     private String campus;
     private String locationKeyword;
     private String status;
-    private String rewardType;
+    private RewardType rewardType;
     private boolean orderByDeadline;
     private long offset;
     private int limit;

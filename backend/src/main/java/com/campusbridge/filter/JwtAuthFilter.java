@@ -1,6 +1,7 @@
 package com.campusbridge.filter;
 
 import com.campusbridge.entity.User;
+import com.campusbridge.enums.UserRole;
 import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.utils.JwtUtil;
 import io.jsonwebtoken.JwtException;
@@ -38,8 +39,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             if (accountId != null) {
                 User user = userMapper.selectById(accountId);
                 if (user != null && Integer.valueOf(1).equals(user.getEnabled())
-                        && ("USER".equals(user.getRole()) || "ADMIN".equals(user.getRole()))) {
-                    String role = user.getRole();
+                        && (user.getRole() == UserRole.USER || user.getRole() == UserRole.ADMIN)) {
+                    UserRole role = user.getRole();
                     UsernamePasswordAuthenticationToken authentication =
                             new UsernamePasswordAuthenticationToken(
                                     accountId, null, List.of(new SimpleGrantedAuthority("ROLE_" + role)));

@@ -1,5 +1,6 @@
 package com.campusbridge.unit;
 
+import com.campusbridge.enums.CreditSourceType;
 import com.campusbridge.entity.CreditRecord;
 import com.campusbridge.entity.UserCredit;
 import com.campusbridge.mapper.CreditRecordMapper;
@@ -53,7 +54,7 @@ class BE16CreditServiceImplTest {
                 USER_ID,
                 -10,
                 "REPORT_PUNISHED",
-                "REPORT",
+                CreditSourceType.REPORT,
                 REPORT_ID);
 
         ArgumentCaptor<UserCredit> creditCaptor = ArgumentCaptor.forClass(UserCredit.class);
@@ -66,7 +67,7 @@ class BE16CreditServiceImplTest {
         assertThat(recordCaptor.getValue().getUserId()).isEqualTo(USER_ID);
         assertThat(recordCaptor.getValue().getChangeValue()).isEqualTo(-10);
         assertThat(recordCaptor.getValue().getReason()).isEqualTo("REPORT_PUNISHED");
-        assertThat(recordCaptor.getValue().getSourceType()).isEqualTo("REPORT");
+        assertThat(recordCaptor.getValue().getSourceType()).isEqualTo(CreditSourceType.REPORT);
         assertThat(recordCaptor.getValue().getSourceId()).isEqualTo(REPORT_ID);
     }
 }

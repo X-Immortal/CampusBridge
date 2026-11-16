@@ -3,6 +3,9 @@ package com.campusbridge.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.campusbridge.enums.RewardType;
+import com.campusbridge.enums.TaskCategory;
+import com.campusbridge.enums.TaskStatus;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -18,14 +21,14 @@ public class Task {
     private Long id;
     private Long requesterId;
     private Long providerId;
-    private String category;
+    private TaskCategory category;
     private String title;
     private String description;
     private String campus;
     private String location;
     private String deliveryLocation;
     private LocalDateTime deadline;
-    private String rewardType;
+    private RewardType rewardType;
     private String rewardDescription;
     private Integer rewardAmount;
     private String completionStandard;
@@ -36,7 +39,7 @@ public class Task {
     private String routeHint;
     private Integer riskDisclosureConfirmed;
     private String sensitiveReason;
-    private String status;
+    private TaskStatus status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

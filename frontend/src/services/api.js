@@ -197,6 +197,10 @@ export default {
   getMyTaskApplications: () => request('/task-applications/mine'),
   withdrawTaskApplication: (applicationId) =>
     request(`/task-applications/${applicationId}`, { method: 'DELETE' }),
+  getNotifications: (params) => request('/notifications' + buildQuery(params)),
+  getNotificationUnreadCount: () => request('/notifications/unread-count'),
+  markNotificationRead: (id) => request('/notifications/' + id + '/read', { method: 'POST' }),
+  markAllNotificationsRead: () => request('/notifications/read-all', { method: 'POST' }),
   getConversations: (params) => request(`/conversations${buildQuery(params)}`),
   getConversationUnreadCount: () => request('/conversations/unread-count'),
   createConversation: (body) => request('/conversations', { method: 'POST', body }),
@@ -206,12 +210,11 @@ export default {
     request(`/conversations/${conversationId}/messages${buildQuery(params)}`),
   sendConversationMessage: (conversationId, body) =>
     request(`/conversations/${conversationId}/messages`, { method: 'POST', body }),
-  uploadAttachment: ({ file, expectedOwnerType, type } = {}) => {
+  uploadAttachment: ({ file, expectedOwnerType } = {}) => {
     const formData = new FormData()
     formData.append('file', file)
     const extraHeaders = {}
     if (expectedOwnerType) extraHeaders['X-Expected-Owner-Type'] = expectedOwnerType
-    if (type) extraHeaders['X-Attachment-Type'] = type
     return request('/attachments', { method: 'POST', body: formData, headers: extraHeaders, timeoutMs: 60000 })
   },
   uploadAvatar: (file) => {

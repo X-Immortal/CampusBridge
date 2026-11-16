@@ -1,5 +1,6 @@
 package com.campusbridge.service.impl;
 
+import com.campusbridge.enums.EmailDeliveryStatus;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.campusbridge.common.BusinessException;
@@ -12,6 +13,7 @@ import com.campusbridge.dto.view.VerificationReviewView;
 import com.campusbridge.dto.view.VerificationSubmissionView;
 import com.campusbridge.entity.CampusVerification;
 import com.campusbridge.enums.VerificationMethod;
+import com.campusbridge.enums.VerificationStatus;
 import com.campusbridge.mapper.CampusVerificationMapper;
 import com.campusbridge.service.VerificationService;
 import lombok.RequiredArgsConstructor;
@@ -30,9 +32,6 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class VerificationServiceImpl implements VerificationService {
 
-    private static final String STATUS_PENDING = "PENDING";
-    private static final String STATUS_VERIFIED = "VERIFIED";
-    private static final String STATUS_REJECTED = "REJECTED";
     private static final String EMAIL_EVIDENCE_PREFIX = "EMAIL_CODE";
     private static final int EMAIL_CODE_TTL_MINUTES = 10;
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
@@ -52,12 +51,12 @@ public class VerificationServiceImpl implements VerificationService {
         }
 
         CampusVerification latest = campusVerificationMapper.selectLatestByUserId(userId);
-        if (latest != null && STATUS_VERIFIED.equals(latest.getStatus())) {
+        if (latest != null && latest.getStatus() == VerificationStatus.VERIFIED) {
             throw new BusinessException(ErrorCode.VERIFY_002_ALREADY_PENDING_OR_VERIFIED);
         }
-        if (latest != null && STATUS_PENDING.equals(latest.getStatus())) {
+        if (latest != null && latest.getStatus() == VerificationStatus.PENDING) {
             if (request.method == VerificationMethod.CAMPUS_EMAIL
-                    && VerificationMethod.CAMPUS_EMAIL.name().equals(latest.getMethod())) {
+                    && latest.getMethod() == VerificationMethod.CAMPUS_EMAIL) {
                 applyRequestToEntity(latest, request);
                 return persistEmailCode(latest, request.campusEmail, false);
             }
@@ -92,8 +91,8 @@ public class VerificationServiceImpl implements VerificationService {
         if (latest == null) {
             throw new BusinessException(ErrorCode.VERIFY_004_NOT_FOUND);
         }
-        if (!STATUS_PENDING.equals(latest.getStatus())
-                || !VerificationMethod.CAMPUS_EMAIL.name().equals(latest.getMethod())) {
+        if (latest.getStatus() != VerificationStatus.PENDING
+                || latest.getMethod() != VerificationMethod.CAMPUS_EMAIL) {
             throw new BusinessException(ErrorCode.VERIFY_006_EMAIL_CODE_NOT_PENDING);
         }
 
@@ -108,7 +107,7 @@ public class VerificationServiceImpl implements VerificationService {
             throw new BusinessException(ErrorCode.VERIFY_008_EMAIL_CODE_MISMATCH);
         }
 
-        latest.setStatus(STATUS_VERIFIED);
+        latest.setStatus(VerificationStatus.VERIFIED);
         latest.setReviewerId(null);
         latest.setRejectReason(null);
         latest.setEvidenceUrl(record.email());
@@ -130,8 +129,8 @@ public class VerificationServiceImpl implements VerificationService {
         if (latest == null) {
             throw new BusinessException(ErrorCode.VERIFY_004_NOT_FOUND);
         }
-        if (!STATUS_PENDING.equals(latest.getStatus())
-                || !VerificationMethod.CAMPUS_EMAIL.name().equals(latest.getMethod())) {
+        if (latest.getStatus() != VerificationStatus.PENDING
+                || latest.getMethod() != VerificationMethod.CAMPUS_EMAIL) {
             throw new BusinessException(ErrorCode.VERIFY_006_EMAIL_CODE_NOT_PENDING);
         }
 
@@ -152,7 +151,7 @@ public class VerificationServiceImpl implements VerificationService {
         if (latest == null) {
             throw new BusinessException(ErrorCode.VERIFY_004_NOT_FOUND);
         }
-        if (!STATUS_PENDING.equals(latest.getStatus())) {
+        if (latest.getStatus() != VerificationStatus.PENDING) {
             throw new BusinessException(ErrorCode.VERIFY_009_CANNOT_CANCEL);
         }
 
@@ -181,7 +180,7 @@ public class VerificationServiceImpl implements VerificationService {
         Page<CampusVerification> result = campusVerificationMapper.selectPage(
                 new Page<>(safePage, safeSize),
                 Wrappers.<CampusVerification>lambdaQuery()
-                        .eq(CampusVerification::getStatus, STATUS_PENDING)
+                        .eq(CampusVerification::getStatus, VerificationStatus.PENDING)
                         .orderByDesc(CampusVerification::getCreatedAt));
         List<CampusVerification> list = result.getRecords();
         long total = result.getTotal();
@@ -199,17 +198,17 @@ public class VerificationServiceImpl implements VerificationService {
         if (entity == null) {
             throw new BusinessException(ErrorCode.VERIFY_004_NOT_FOUND);
         }
-        if (!STATUS_PENDING.equals(entity.getStatus())) {
+        if (entity.getStatus() != VerificationStatus.PENDING) {
             throw new BusinessException(ErrorCode.COMMON_003_CONFLICT);
         }
 
         entity.setReviewerId(adminUserId);
         entity.setReviewedAt(LocalDateTime.now());
         if (approved) {
-            entity.setStatus(STATUS_VERIFIED);
+            entity.setStatus(VerificationStatus.VERIFIED);
             entity.setRejectReason(null);
         } else {
-            entity.setStatus(STATUS_REJECTED);
+            entity.setStatus(VerificationStatus.REJECTED);
             entity.setRejectReason(isBlank(rejectReason) ? "管理员拒绝" : rejectReason);
         }
 
@@ -225,14 +224,14 @@ public class VerificationServiceImpl implements VerificationService {
     private void applyRequestToEntity(
             CampusVerification entity,
             CreateVerificationRequest request) {
-        entity.setMethod(request.method.name());
+        entity.setMethod(request.method);
         entity.setRealNameCipher(request.realName);
         entity.setStudentNumberCipher(request.studentNumber);
         entity.setStudentNumberHash(sha256(request.studentNumber));
         entity.setSchool(request.school);
         entity.setDepartment(request.department);
         entity.setEvidenceUrl(request.evidenceUrl);
-        entity.setStatus(STATUS_PENDING);
+        entity.setStatus(VerificationStatus.PENDING);
         entity.setRejectReason(null);
         entity.setReviewerId(null);
         entity.setReviewedAt(null);
@@ -258,12 +257,12 @@ public class VerificationServiceImpl implements VerificationService {
 
         return new VerificationSubmissionView(entity.getId(), entity.getStatus(), entity.getUserId(),
                 entity.getMethod(), entity.getCreatedAt(), entity.getReviewedAt(), email,
-                sent ? "SENT" : "DEV_FALLBACK",
+                sent ? EmailDeliveryStatus.SENT : EmailDeliveryStatus.DEV_FALLBACK,
                 !sent && emailVerificationCodeSender.isDebugCodeEnabled() ? code : null);
     }
 
     private void hideEmailChallenge(CampusVerification verification) {
-        if (verification != null && VerificationMethod.CAMPUS_EMAIL.name().equals(verification.getMethod())) {
+        if (verification != null && verification.getMethod() == VerificationMethod.CAMPUS_EMAIL) {
             EmailCodeRecord record = parseEmailCodeRecord(verification.getEvidenceUrl());
             if (record != null) {
                 verification.setEvidenceUrl(record.email());

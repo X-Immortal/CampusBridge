@@ -1,6 +1,7 @@
 package com.campusbridge.dto.view;
 
 import com.campusbridge.enums.ContentItemType;
+import com.campusbridge.enums.RewardType;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -17,9 +18,11 @@ public class ContentItemView {
     private String summary;
     private Long authorId;
     private String authorName;
-    private String categoryName;
-    private String statusLabel;
+    private String category;
+    private String status;
     private LocalDateTime createdAt;
     private LocalDateTime sortTime;
-    private String rewardLabel;
+    private RewardType rewardType;
+    private Integer rewardAmount;
+    private String rewardDescription;
 }

@@ -5,6 +5,7 @@ import com.campusbridge.controller.AttachmentController;
 import com.campusbridge.controller.VerificationController;
 import com.campusbridge.entity.Attachment;
 import com.campusbridge.entity.CampusVerification;
+import com.campusbridge.enums.VerificationStatus;
 import com.campusbridge.mapper.AttachmentMapper;
 import com.campusbridge.mapper.CampusVerificationMapper;
 import com.campusbridge.service.impl.AttachmentServiceImpl;
@@ -71,7 +72,7 @@ class TypedResponseErrorIntegrationTest {
     @Test
     void repeatedVerificationReturnsConflict() throws Exception {
         CampusVerification existing = new CampusVerification();
-        existing.setStatus("VERIFIED");
+        existing.setStatus(VerificationStatus.VERIFIED);
         when(verifications.selectLatestByUserId(7L)).thenReturn(existing);
         mvc.perform(post("/api/v1/verifications").contentType(MediaType.APPLICATION_JSON).content(EMAIL_REQUEST))
                 .andExpect(status().isConflict())
@@ -112,12 +113,11 @@ class TypedResponseErrorIntegrationTest {
     }
 
     @Test
-    void invalidAttachmentTypeReturns400InsteadOfCreated() throws Exception {
+    void nonImageUploadReturns400InsteadOfCreated() throws Exception {
         mvc.perform(multipart("/api/v1/attachments")
-                        .file(new MockMultipartFile("file", "card.png", "image/png", new byte[]{1}))
-                        .header("X-Attachment-Type", "INVALID"))
+                        .file(new MockMultipartFile("file", "proof.pdf", "application/pdf", new byte[]{1})))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("ATTACH_003_INVALID_TYPE"));
+                .andExpect(jsonPath("$.code").value("FILE_002_UNSUPPORTED_TYPE"));
     }
 
     @Test

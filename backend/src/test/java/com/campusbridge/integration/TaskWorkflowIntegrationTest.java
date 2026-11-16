@@ -12,6 +12,10 @@ import com.campusbridge.entity.CompletionProof;
 import com.campusbridge.entity.Review;
 import com.campusbridge.entity.TaskApplication;
 import com.campusbridge.entity.User;
+import com.campusbridge.enums.ApplicationStatus;
+import com.campusbridge.enums.RewardType;
+import com.campusbridge.enums.TaskStatus;
+import com.campusbridge.enums.UserRole;
 import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.service.CompletionService;
 import com.campusbridge.service.ReviewService;
@@ -92,12 +96,12 @@ class TaskWorkflowIntegrationTest {
         for (Long id : new Long[]{REQUESTER_ID, PROVIDER_ID}) {
             User user = new User();
             user.setId(id);
-            user.setRole("USER");
+            user.setRole(UserRole.USER);
             user.setEnabled(1);
             when(userMapper.selectById(id)).thenReturn(user);
         }
-        requesterToken = "Bearer " + jwtUtil.generateToken(REQUESTER_ID, "USER");
-        providerToken = "Bearer " + jwtUtil.generateToken(PROVIDER_ID, "USER");
+        requesterToken = "Bearer " + jwtUtil.generateToken(REQUESTER_ID, UserRole.USER);
+        providerToken = "Bearer " + jwtUtil.generateToken(PROVIDER_ID, UserRole.USER);
     }
 
     // ==================== Normal Flow ====================
@@ -124,7 +128,7 @@ class TaskWorkflowIntegrationTest {
         // Mock status transition: START → IN_PROGRESS
         when(taskService.transitionTaskStatus(eq(PROVIDER_ID), eq(TASK_ID),
                 any(TaskStatusTransitionRequest.class)))
-                .thenReturn(taskWithStatus("IN_PROGRESS"));
+                .thenReturn(taskWithStatus(TaskStatus.IN_PROGRESS));
 
         // Mock completion proof
         CompletionProof proof = new CompletionProof();
@@ -292,14 +296,14 @@ class TaskWorkflowIntegrationTest {
         TaskView task = new TaskView();
         task.setId(TASK_ID);
         task.setRequesterId(REQUESTER_ID);
-        task.setStatus("OPEN");
-        task.setRewardType("POINTS");
+        task.setStatus(TaskStatus.OPEN);
+        task.setRewardType(RewardType.POINTS);
         task.setRewardAmount(20);
         task.setUpdatedAt(LocalDateTime.now());
         return task;
     }
 
-    private TaskView taskWithStatus(String status) {
+    private TaskView taskWithStatus(TaskStatus status) {
         TaskView task = openTask();
         task.setStatus(status);
         return task;
@@ -310,13 +314,13 @@ class TaskWorkflowIntegrationTest {
         app.setId(APPLICATION_ID);
         app.setTaskId(TASK_ID);
         app.setApplicantId(PROVIDER_ID);
-        app.setStatus("PENDING");
+        app.setStatus(ApplicationStatus.PENDING);
         return app;
     }
 
     private TaskApplication acceptedApplication() {
         TaskApplication app = pendingApplication();
-        app.setStatus("ACCEPTED");
+        app.setStatus(ApplicationStatus.ACCEPTED);
         return app;
     }
 

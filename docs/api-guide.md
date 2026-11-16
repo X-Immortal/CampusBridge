@@ -95,7 +95,7 @@ ErrorResponse 没有 data；details 是字符串列表或 null。业务失败由
 
 | HTTP | 具体含义或代表错误码 |
 | --- | --- |
-| 400 | COMMON_001_VALIDATION_ERROR、ATTACH_001_INVALID_INPUT、ATTACH_002_INVALID_OWNER_TYPE、ATTACH_003_INVALID_TYPE、VERIFY_001_INVALID_INPUT、VERIFY_007_EMAIL_CODE_EXPIRED、VERIFY_008_EMAIL_CODE_MISMATCH；文件大小和附件校验失败也映射为 400 |
+| 400 | COMMON_001_VALIDATION_ERROR、ATTACH_001_INVALID_INPUT、ATTACH_002_INVALID_OWNER_TYPE、VERIFY_001_INVALID_INPUT、VERIFY_007_EMAIL_CODE_EXPIRED、VERIFY_008_EMAIL_CODE_MISMATCH；文件大小和附件校验失败也映射为 400 |
 | 401 | AUTH_001_UNAUTHORIZED、AUTH_002_INVALID_CREDENTIALS |
 | 403 | USER_002_NOT_VERIFIED、TASK_003_PERMISSION_DENIED、CONV_003_BLOCKED、MOD_001_PERMISSION_DENIED 等 |
 | 404 | TASK_001_NOT_FOUND、POST_001_NOT_FOUND、CONV_001_NOT_FOUND、VERIFY_004_NOT_FOUND 等 |
@@ -168,36 +168,62 @@ ErrorResponse 没有 data；details 是字符串列表或 null。业务失败由
 
 重复确认返回冲突，客户端应重新读取当前状态。
 
+任务详情的 history 数组使用 eventType 标识历史事件，取值见 OpenAPI 的 TaskHistory 定义；fromStatus、toStatus 保留动作前后状态。note 是可选的补充说明或操作原因，可为 null，客户端按 eventType 映射展示名称，并单独显示 note。
+
 PUT /api/v1/tasks/{taskId} 完整替换任务的可编辑字段。请求必须提供 title、description、deadline、rewardType、completionStandard、requiresProof、onlyInAppContact、allowOfflineContact；rewardDescription 和 rewardAmount 为可选值，传 null 或省略均表示清除，不保留旧值。category、campus、location、发布者及任务状态等不属于此接口的可编辑字段。服务端检查任务归属及 DRAFT/OPEN 状态，OPEN 任务的更新内容须通过内容审核。草稿保存使用 POST /api/v1/tasks/drafts，允许字段未填完整。
 
 POST /api/v1/tasks/{taskId}/resend 接受与正式创建任务相同的完整发布请求。DRAFT 或 CANCELLED 的发布者可提交修订后的内容和未来截止时间；服务端重新检查校园认证、请求约束、奖励及内容审核，在同一事务中保存新内容、清空接单者、将状态设为 OPEN 并记录历史。任务编号、发布者和原创建时间保留，可选字段省略或传 null 时按本次表单保存。草稿恢复发布也使用此接口。
 
-## 6. 文件上传与图片消息
+## 6. 图片上传与图片消息
 
-附件上传使用 multipart 字段 file，用途及类型使用请求头：
+附件仅支持 PNG、JPEG、WebP 图片，使用 multipart 字段 file，用途使用请求头：
 
 ```bash
 curl --fail-with-body \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
   -H "X-Expected-Owner-Type: COMPLETION_PROOF" \
-  -H "X-Attachment-Type: IMAGE" \
   -F "file=@/absolute/path/proof.png" \
   http://localhost:8081/api/v1/attachments
 ```
 
 ACCESS_TOKEN 由调用者在当前终端设置。curl 的 --fail-with-body 只检查 HTTP 错误，仍须检查返回 JSON 的 code。
 
-上传成功返回附件元数据，保存 id；完成提交使用 attachmentIds 引用。帖子上传使用 POST 用途，图片消息使用 MESSAGE 用途。类型可省略，由 Content-Type 推断；用途也可省略，但后续绑定要求与业务用途一致，调用者应明确提供。
+上传成功返回附件元数据，保存 id；完成提交使用 attachmentIds 引用。帖子上传使用 POST 用途，图片消息使用 MESSAGE 用途。附件元数据保留 contentType，不另设 type 分类。用途可省略，但后续绑定要求与业务用途一致，调用者应明确提供。
 
 图片消息需同时提交 type=IMAGE、content=上传结果中的 fileUrl、attachmentIds=[上传结果中的 id]。文本消息使用 TEXT 和正文，不带附件。当前没有通用附件列表或签名下载接口；业务详情返回可见附件的元数据和 URL。
 
-## 7. 会话与已读副作用
+## 7. 私聊、通知与已读
 
 POST /conversations 接受 relatedType、relatedId、peerUserId、可选 initialMessage。当前按用户对复用会话，relatedType 只允许 POST/TASK；关联对象存在性及双方可见性未校验，不能将传入 relatedId 当作后端已验证的资源授权。
 
-GET /conversations/{conversationId}/messages 在分页前标记整会话已读。需要显示全局未读数时调用 /conversations/unread-count，data 含 total、system、private；读消息后应刷新相应未读展示。系统会话不可回复，不能向它发送 TEXT、IMAGE 或 SYSTEM_NOTIFICATION。
+GET /conversations/{conversationId}/messages 在分页前标记整会话已读。GET /conversations/unread-count 返回 data.unreadCount，表示当前用户全部私聊未读消息数。消息类型为 TEXT 或 IMAGE。
 
-## 8. 导出和维护
+站内通知使用独立接口，下表路径均以 /api/v1 为前缀。
+
+| 方法与路径 | 请求与响应 |
+| --- | --- |
+| GET /notifications | page 默认 1，size 默认 20、上限 100；可传 types（NotificationType 编码逗号分隔）、unreadOnly 和 keyword。返回 items/page/size/total，按 createdAt、id 倒序 |
+| GET /notifications/unread-count | 返回 data.unreadCount，统计本人所有未读通知 |
+| POST /notifications/{notificationId}/read | 返回该通知的当前数据；重复操作保持首次 readAt；非本人或不存在的记录返回 NOTICE_001_NOT_FOUND |
+| POST /notifications/read-all | 标记本人全部未读通知，返回 data.updatedCount；不受列表分页或筛选限制 |
+
+NotificationView 返回 id、type、title、content、relatedType、relatedId、readAt、createdAt。readAt 为 null 表示未读。relatedType 为 TASK 或 POST，relatedId 对应业务对象编号。type 表示具体通知事件，枚举值以 OpenAPI 为准；客户端按类型决定分类和样式，直接显示 title/content，并根据关联对象跳转详情。列表查询不改变已读状态，已读操作不影响私聊。导航总未读数为两个 unread-count 接口结果之和。
+
+## 8. 内容查询、采纳回复与统计
+
+GET /api/v1/content 返回混合内容列表。itemType 区分 POST 和 TASK，sourceId 为对应业务编号；category 和 status 返回该业务类型的编码。任务奖励分别通过 rewardType、rewardAmount、rewardDescription 返回，帖子这三个字段为 null。客户端负责将编码映射为显示文案并组织奖励说明。
+
+POST /api/v1/posts/{postId}/replies/{replyId}/accept 成功后，data 返回 postId 和 acceptedReplyId，表示该帖子当前采纳的回复。
+
+后台任务状态、举报状态及举报对象分布接口返回 code/count 列表，仅包含查询所得的分组计数。前端分别使用任务状态、举报状态和举报对象选项生成标签、补齐零计数项及排序。
+
+举报裁决请求使用 ReportStatus 编码，只允许 APPROVED、REJECTED、RESOLVED、PUNISHED 四种终态；PENDING 和 PROCESSING 不能作为裁决结果。
+
+内容列表的 itemTypes 使用 POST、TASK，多个类型以逗号分隔；rewardType 使用奖励类型枚举；sortBy 使用 CREATED_AT、DEADLINE。非法枚举编码返回 HTTP 400。
+
+任务列表的 sortBy 使用 CREATED_AT_DESC、DEADLINE_ASC、DEADLINE_DESC。举报查询 status、会话 relatedType、附件 X-Expected-Owner-Type 均按 OpenAPI 中的大写枚举编码传入；非法编码返回 HTTP 400。附件用途可省略；上传服务检查图片 Content-Type，非支持格式返回 FILE_002_UNSUPPORTED_TYPE。
+
+## 9. 导出和维护
 
 从仓库根目录执行：
 

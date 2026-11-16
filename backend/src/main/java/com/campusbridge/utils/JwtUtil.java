@@ -1,5 +1,7 @@
 package com.campusbridge.utils;
 
+import com.campusbridge.enums.UserRole;
+import com.campusbridge.enums.TokenType;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -7,8 +9,8 @@ import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import java.security.Key;
 import java.nio.charset.StandardCharsets;
+import java.security.Key;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -54,11 +56,12 @@ public class JwtUtil {
 
     public Long extractAccessAccountId(String token) {
         Claims claims = extractAllClaims(token);
-        String type = claims.get("tokenType", String.class);
+        String typeClaim = claims.get("tokenType", String.class);
+        TokenType type = typeClaim == null ? null : TokenType.valueOf(typeClaim);
         String role = claims.get("role", String.class);
         // Legacy access tokens have a role; legacy refresh tokens do not.
-        boolean legacyAccess = type == null && ("USER".equals(role) || "ADMIN".equals(role));
-        if (!"ACCESS".equals(type) && !legacyAccess) {
+        boolean legacyAccess = type == null && (UserRole.USER.name().equals(role) || UserRole.ADMIN.name().equals(role));
+        if (type != TokenType.ACCESS && !legacyAccess) {
             throw new IllegalArgumentException("Access token required");
         }
         Long accountId = claims.get("accountId", Long.class);
@@ -71,8 +74,9 @@ public class JwtUtil {
     /**
      * 从 token 中提取角色
      */
-    public String extractRole(String token) {
-        return extractClaim(token, claims -> claims.get("role", String.class));
+    public UserRole extractRole(String token) {
+        String role = extractClaim(token, claims -> claims.get("role", String.class));
+        return role == null ? null : UserRole.valueOf(role);
     }
 
     /**
@@ -110,11 +114,11 @@ public class JwtUtil {
     /**
      * 生成普通 Token（24 小时有效）
      */
-    public String generateToken(Long accountId, String role) {
+    public String generateToken(Long accountId, UserRole role) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("accountId", accountId);
-        claims.put("role", role);
-        claims.put("tokenType", "ACCESS");
+        claims.put("role", role.name());
+        claims.put("tokenType", TokenType.ACCESS.name());
         return createToken(claims, accountId.toString(), expiration);
     }
 
@@ -124,7 +128,7 @@ public class JwtUtil {
     public String generateRefreshToken(Long accountId) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("accountId", accountId);
-        claims.put("tokenType", "REFRESH");
+        claims.put("tokenType", TokenType.REFRESH.name());
         return createToken(claims, accountId.toString(), refreshExpiration);
     }
 
@@ -160,6 +164,6 @@ public class JwtUtil {
         Claims claims = extractAllClaims(token);
         Long accountId = claims.get("accountId", Long.class);
         String role = claims.get("role", String.class);
-        return generateToken(accountId, role);
+        return generateToken(accountId, UserRole.valueOf(role));
     }
 }

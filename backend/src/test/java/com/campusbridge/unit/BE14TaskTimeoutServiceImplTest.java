@@ -1,9 +1,11 @@
 package com.campusbridge.unit;
 
+import com.campusbridge.enums.TaskHistoryEventType;
 import com.campusbridge.entity.Task;
+import com.campusbridge.enums.TaskStatus;
 import com.campusbridge.mapper.TaskMapper;
 import com.campusbridge.service.CreditService;
-import com.campusbridge.service.NotificationService;
+import com.campusbridge.service.TaskNotificationService;
 import com.campusbridge.service.TaskHistoryService;
 import com.campusbridge.service.impl.TaskTimeoutServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,12 +34,12 @@ class BE14TaskTimeoutServiceImplTest {
     private static final int CONFIRMATION_REMINDER_HOURS = 24;
     private static final int TRANSITION_GRACE_HOURS = 24;
 
-    private static final String NOTE_OPEN_TIMEOUT_REMINDER = "TIMEOUT_REMINDER_OPEN";
-    private static final String NOTE_OPEN_TIMEOUT_CANCELLED = "TIMEOUT_CANCELLED_OPEN";
-    private static final String NOTE_CONFIRMATION_TIMEOUT_REMINDER =
-            "TIMEOUT_REMINDER_PENDING_CONFIRMATION";
-    private static final String NOTE_CONFIRMATION_TIMEOUT_COMPLETED =
-            "TIMEOUT_AUTO_COMPLETED_PENDING_CONFIRMATION";
+    private static final TaskHistoryEventType EVENT_OPEN_TIMEOUT_REMINDER = TaskHistoryEventType.OPEN_TIMEOUT_REMINDER;
+    private static final TaskHistoryEventType EVENT_OPEN_TIMEOUT_CANCELLED = TaskHistoryEventType.OPEN_TIMEOUT_CANCELLED;
+    private static final TaskHistoryEventType EVENT_CONFIRMATION_TIMEOUT_REMINDER =
+            TaskHistoryEventType.CONFIRMATION_TIMEOUT_REMINDER;
+    private static final TaskHistoryEventType EVENT_CONFIRMATION_TIMEOUT_COMPLETED =
+            TaskHistoryEventType.CONFIRMATION_TIMEOUT_COMPLETED;
 
     @Mock
     private TaskMapper taskMapper;
@@ -46,7 +48,7 @@ class BE14TaskTimeoutServiceImplTest {
     private TaskHistoryService taskHistoryService;
 
     @Mock
-    private NotificationService notificationService;
+    private TaskNotificationService notificationService;
 
     @Mock
     private CreditService creditService;
@@ -69,13 +71,12 @@ class BE14TaskTimeoutServiceImplTest {
     @Test
     void processTimeoutsRemindsOpenTaskBeforeCancelling() {
         LocalDateTime now = LocalDateTime.now();
-        Task task = task("OPEN");
+        Task task = task(TaskStatus.OPEN);
         when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(task);
         stubNoTransitionCandidates();
-        when(taskMapper.selectTasksNeedingTimeoutReminder(
-                "OPEN",
+        when(taskMapper.selectOpenTasksNeedingTimeoutReminder(
                 now,
-                NOTE_OPEN_TIMEOUT_REMINDER,
+                EVENT_OPEN_TIMEOUT_REMINDER,
                 SCAN_LIMIT))
                 .thenReturn(List.of(task));
 
@@ -84,33 +85,29 @@ class BE14TaskTimeoutServiceImplTest {
         assertThat(processedCount).isEqualTo(1);
         verify(taskHistoryService).recordHistory(
                 TASK_ID,
-                "OPEN",
-                "OPEN",
+                TaskStatus.OPEN,
+                TaskStatus.OPEN,
                 null,
-                NOTE_OPEN_TIMEOUT_REMINDER);
-        verify(notificationService).notifyTaskTimeoutReminder(
-                task,
-                REQUESTER_ID,
-                null,
-                NOTE_OPEN_TIMEOUT_REMINDER);
+                EVENT_OPEN_TIMEOUT_REMINDER, null);
+        verify(notificationService).notifyOpenTaskTimeoutReminder(task);
     }
 
     @Test
     void processTimeoutsCancelsOpenTaskAfterReminderGracePeriod() {
         LocalDateTime now = LocalDateTime.now();
-        Task task = task("OPEN");
+        Task task = task(TaskStatus.OPEN);
         when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(task);
         stubNoReminderCandidates(now);
         when(taskMapper.selectTasksReadyForTimeoutTransition(
-                "OPEN",
-                NOTE_OPEN_TIMEOUT_REMINDER,
+                TaskStatus.OPEN,
+                EVENT_OPEN_TIMEOUT_REMINDER,
                 now.minusHours(TRANSITION_GRACE_HOURS),
                 SCAN_LIMIT))
                 .thenReturn(List.of(task));
-        when(taskMapper.updateStatusById(eq(TASK_ID), eq("OPEN"), eq("CANCELLED"), any()))
+        when(taskMapper.updateStatusById(eq(TASK_ID), eq(TaskStatus.OPEN), eq(TaskStatus.CANCELLED), any()))
                 .thenReturn(1);
 
-        when(taskHistoryService.hasReminder(TASK_ID, NOTE_OPEN_TIMEOUT_REMINDER,
+        when(taskHistoryService.hasReminder(TASK_ID, EVENT_OPEN_TIMEOUT_REMINDER,
                 task.getUpdatedAt(), now.minusHours(TRANSITION_GRACE_HOURS))).thenReturn(true);
 
         int processedCount = taskTimeoutService.processTimeouts(now);
@@ -118,14 +115,13 @@ class BE14TaskTimeoutServiceImplTest {
         assertThat(processedCount).isEqualTo(1);
         verify(taskHistoryService).recordHistory(
                 TASK_ID,
-                "OPEN",
-                "CANCELLED",
+                TaskStatus.OPEN,
+                TaskStatus.CANCELLED,
                 null,
-                NOTE_OPEN_TIMEOUT_CANCELLED);
+                EVENT_OPEN_TIMEOUT_CANCELLED, "Task timed out before a helper was accepted.");
         verify(notificationService).notifyTaskStatusChanged(
                 task,
-                "OPEN",
-                "CANCELLED",
+                TaskStatus.CANCELLED,
                 null,
                 "Task timed out before a helper was accepted.");
     }
@@ -133,29 +129,29 @@ class BE14TaskTimeoutServiceImplTest {
     @Test
     void processTimeoutsAutoCompletesPendingConfirmationAfterReminderGracePeriod() {
         LocalDateTime now = LocalDateTime.now();
-        Task task = task("PENDING_CONFIRMATION");
+        Task task = task(TaskStatus.PENDING_CONFIRMATION);
         when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(task);
         stubNoReminderCandidates(now);
         when(taskMapper.selectTasksReadyForTimeoutTransition(
-                "OPEN",
-                NOTE_OPEN_TIMEOUT_REMINDER,
+                TaskStatus.OPEN,
+                EVENT_OPEN_TIMEOUT_REMINDER,
                 now.minusHours(TRANSITION_GRACE_HOURS),
                 SCAN_LIMIT))
                 .thenReturn(List.of());
         when(taskMapper.selectTasksReadyForTimeoutTransition(
-                "PENDING_CONFIRMATION",
-                NOTE_CONFIRMATION_TIMEOUT_REMINDER,
+                TaskStatus.PENDING_CONFIRMATION,
+                EVENT_CONFIRMATION_TIMEOUT_REMINDER,
                 now.minusHours(TRANSITION_GRACE_HOURS),
                 SCAN_LIMIT))
                 .thenReturn(List.of(task));
         when(taskMapper.updateStatusById(
                 eq(TASK_ID),
-                eq("PENDING_CONFIRMATION"),
-                eq("COMPLETED"),
+                eq(TaskStatus.PENDING_CONFIRMATION),
+                eq(TaskStatus.COMPLETED),
                 any()))
                 .thenReturn(1);
 
-        when(taskHistoryService.hasReminder(TASK_ID, NOTE_CONFIRMATION_TIMEOUT_REMINDER,
+        when(taskHistoryService.hasReminder(TASK_ID, EVENT_CONFIRMATION_TIMEOUT_REMINDER,
                 task.getUpdatedAt(), now.minusHours(TRANSITION_GRACE_HOURS))).thenReturn(true);
 
         int processedCount = taskTimeoutService.processTimeouts(now);
@@ -164,55 +160,51 @@ class BE14TaskTimeoutServiceImplTest {
         verify(creditService).awardTaskReward(task);
         verify(taskHistoryService).recordHistory(
                 TASK_ID,
-                "PENDING_CONFIRMATION",
-                "COMPLETED",
+                TaskStatus.PENDING_CONFIRMATION,
+                TaskStatus.COMPLETED,
                 null,
-                NOTE_CONFIRMATION_TIMEOUT_COMPLETED);
+                EVENT_CONFIRMATION_TIMEOUT_COMPLETED, "Requester did not confirm before timeout.");
         verify(notificationService).notifyTaskStatusChanged(
                 task,
-                "PENDING_CONFIRMATION",
-                "COMPLETED",
+                TaskStatus.COMPLETED,
                 null,
                 "Requester did not confirm before timeout.");
     }
 
     private void stubNoReminderCandidates(LocalDateTime now) {
-        when(taskMapper.selectTasksNeedingTimeoutReminder(
-                "OPEN",
+        when(taskMapper.selectOpenTasksNeedingTimeoutReminder(
                 now,
-                NOTE_OPEN_TIMEOUT_REMINDER,
+                EVENT_OPEN_TIMEOUT_REMINDER,
                 SCAN_LIMIT))
                 .thenReturn(List.of());
-        when(taskMapper.selectTasksNeedingTimeoutReminder(
-                "PENDING_CONFIRMATION",
+        when(taskMapper.selectUnconfirmedTasksNeedingTimeoutReminder(
                 now.minusHours(CONFIRMATION_REMINDER_HOURS),
-                NOTE_CONFIRMATION_TIMEOUT_REMINDER,
+                EVENT_CONFIRMATION_TIMEOUT_REMINDER,
                 SCAN_LIMIT))
                 .thenReturn(List.of());
     }
 
     private void stubNoTransitionCandidates() {
         when(taskMapper.selectTasksReadyForTimeoutTransition(
-                eq("OPEN"),
-                eq(NOTE_OPEN_TIMEOUT_REMINDER),
+                eq(TaskStatus.OPEN),
+                eq(EVENT_OPEN_TIMEOUT_REMINDER),
                 any(LocalDateTime.class),
                 eq(SCAN_LIMIT)))
                 .thenReturn(List.of());
-        when(taskMapper.selectTasksNeedingTimeoutReminder(
-                eq("PENDING_CONFIRMATION"),
+        when(taskMapper.selectUnconfirmedTasksNeedingTimeoutReminder(
                 any(LocalDateTime.class),
-                eq(NOTE_CONFIRMATION_TIMEOUT_REMINDER),
+                eq(EVENT_CONFIRMATION_TIMEOUT_REMINDER),
                 eq(SCAN_LIMIT)))
                 .thenReturn(List.of());
         when(taskMapper.selectTasksReadyForTimeoutTransition(
-                eq("PENDING_CONFIRMATION"),
-                eq(NOTE_CONFIRMATION_TIMEOUT_REMINDER),
+                eq(TaskStatus.PENDING_CONFIRMATION),
+                eq(EVENT_CONFIRMATION_TIMEOUT_REMINDER),
                 any(LocalDateTime.class),
                 eq(SCAN_LIMIT)))
                 .thenReturn(List.of());
     }
 
-    private Task task(String status) {
+    private Task task(TaskStatus status) {
         Task task = new Task();
         task.setId(TASK_ID);
         task.setRequesterId(REQUESTER_ID);

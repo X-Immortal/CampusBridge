@@ -5,7 +5,7 @@ import com.campusbridge.common.ErrorCode;
 import com.campusbridge.common.ErrorResponse;
 import com.campusbridge.common.PagedResult;
 import com.campusbridge.dto.view.PostView;
-import com.campusbridge.dto.view.UnreadSummaryView;
+import com.campusbridge.dto.view.UnreadCountView;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -43,13 +43,11 @@ class ApiResponseSerializationTest {
     }
 
     @Test
-    void unreadSummaryPreservesPrivateFieldName() {
-        JsonNode json = mapper.valueToTree(ApiResponse.success(new UnreadSummaryView(7, 3, 4)));
+    void unreadCountUsesIndependentResourceCount() {
+        JsonNode json = mapper.valueToTree(ApiResponse.success(new UnreadCountView(4)));
 
-        assertThat(json.at("/data/total").asLong()).isEqualTo(7);
-        assertThat(json.at("/data/system").asLong()).isEqualTo(3);
-        assertThat(json.at("/data/private").asLong()).isEqualTo(4);
-        assertThat(json.at("/data").has("privateCount")).isFalse();
+        assertThat(json.at("/data/unreadCount").asLong()).isEqualTo(4);
+        assertThat(json.at("/data").size()).isEqualTo(1);
     }
 
     @Test

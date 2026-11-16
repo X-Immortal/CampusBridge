@@ -1,5 +1,6 @@
 package com.campusbridge.entity;
 
+import com.campusbridge.enums.CreditSourceType;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
@@ -19,7 +20,7 @@ public class CreditRecord {
     private Long userId;
     private Integer changeValue;
     private String reason;
-    private String sourceType;
+    private CreditSourceType sourceType;
     private Long sourceId;
     private LocalDateTime createdAt;
 }

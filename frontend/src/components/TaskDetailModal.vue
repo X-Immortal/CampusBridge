@@ -292,11 +292,16 @@ async function withdrawPendingApplication(task) {
   finally { operationLoading.value = '' }
 }
 async function handleCompletionFiles(e) {
-  const files = Array.from(e.target.files || []).filter(f => f.type.startsWith('image/'))
+  const files = Array.from(e.target.files || [])
+  if (files.some(file => !['image/png', 'image/jpeg', 'image/webp'].includes(file.type))) {
+    showToast('请选择 PNG、JPEG 或 WebP 图片。', { type: 'warning' })
+    e.target.value = ''
+    return
+  }
   if (completionAttachments.value.length + files.length > 9) { showToast('最多上传9张', { type: 'warning' }); return }
   completionUploading.value = true
   try {
-    for (const f of files) { const r = await api.uploadAttachment({ file: f, expectedOwnerType: 'COMPLETION_PROOF', type: 'IMAGE' }); completionAttachments.value.push({ id: r?.id, file: f, name: r?.fileName || f.name, url: r?.fileUrl || r?.url }) }
+    for (const f of files) { const r = await api.uploadAttachment({ file: f, expectedOwnerType: 'COMPLETION_PROOF' }); completionAttachments.value.push({ id: r?.id, file: f, name: r?.fileName || f.name, url: r?.fileUrl || r?.url }) }
   } catch (err) { showToast(err.message || '上传失败', { type: 'danger' }) }
   finally { completionUploading.value = false; e.target.value = '' }
 }
@@ -768,11 +773,12 @@ function normalizeCandidate(app = {}) {
                       aria-hidden="true"
                     />
                     <span>
-                      <strong>{{ completionUploading ? '正在上传...' : '上传凭证附件' }}</strong>
-                      <small>图片或文件，单个不超过 4MB，最多 9 个。</small>
+                      <strong>{{ completionUploading ? '正在上传...' : '上传凭证图片' }}</strong>
+                      <small>PNG、JPEG、WebP 图片，单张不超过 4MB，最多 9 张。</small>
                     </span>
                     <input
                       type="file"
+                      accept="image/png,image/jpeg,image/webp"
                       multiple
                       :disabled="completionSubmitting || completionUploading"
                       @change="handleCompletionFiles"

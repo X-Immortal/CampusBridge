@@ -8,6 +8,7 @@ import com.campusbridge.dto.response.OcrExtractResult;
 import com.campusbridge.dto.view.VerificationSubmissionView;
 import com.campusbridge.entity.CampusVerification;
 import com.campusbridge.enums.VerificationMethod;
+import com.campusbridge.enums.VerificationStatus;
 import com.campusbridge.mapper.CampusVerificationMapper;
 import com.campusbridge.service.VerificationOcrClient;
 import com.campusbridge.service.impl.EmailVerificationCodeSender;
@@ -51,7 +52,7 @@ class VerificationSafetyTest {
 
         ReflectionTestUtils.invokeMethod(autoReview, "reviewStudentCard", 1L);
 
-        assertThat(pending.getStatus()).isEqualTo("PENDING");
+        assertThat(pending.getStatus()).isEqualTo(VerificationStatus.PENDING);
         verify(mapper, never()).updatePending(any());
     }
 
@@ -72,7 +73,7 @@ class VerificationSafetyTest {
         when(ocr.extractStudentCard(any())).thenReturn(
                 OcrExtractResult.of("Student", "12345678", "Campus"));
         ReflectionTestUtils.invokeMethod(autoReview, "reviewStudentCard", 1L);
-        assertThat(pending.getStatus()).isEqualTo("VERIFIED");
+        assertThat(pending.getStatus()).isEqualTo(VerificationStatus.VERIFIED);
         verify(mapper).updatePending(pending);
     }
 
@@ -155,8 +156,8 @@ class VerificationSafetyTest {
         CampusVerification entity = new CampusVerification();
         entity.setId(1L);
         entity.setUserId(7L);
-        entity.setMethod("STUDENT_CARD_IMAGE");
-        entity.setStatus("PENDING");
+        entity.setMethod(VerificationMethod.STUDENT_CARD_IMAGE);
+        entity.setStatus(VerificationStatus.PENDING);
         entity.setEvidenceUrl("https://example.test/student.png");
         entity.setRealNameCipher("Student");
         entity.setStudentNumberCipher("12345678");

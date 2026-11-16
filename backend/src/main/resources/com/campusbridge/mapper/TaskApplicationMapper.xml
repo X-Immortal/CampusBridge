@@ -2,7 +2,7 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.campusbridge.mapper.TaskApplicationMapper">
 
-  <select id="selectPreferredCategories" resultType="java.lang.String">
+  <select id="selectPreferredCategories" resultType="com.campusbridge.enums.TaskCategory">
     SELECT t.category
     FROM task_applications ta
     JOIN tasks t ON t.id = ta.task_id
@@ -14,7 +14,7 @@
     LIMIT #{limit}
   </select>
 
-  <select id="selectPreferredRewardTypes" resultType="java.lang.String">
+  <select id="selectPreferredRewardTypes" resultType="com.campusbridge.enums.RewardType">
     SELECT t.reward_type
     FROM task_applications ta
     JOIN tasks t ON t.id = ta.task_id

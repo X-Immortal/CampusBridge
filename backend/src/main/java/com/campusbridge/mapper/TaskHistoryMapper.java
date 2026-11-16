@@ -3,6 +3,7 @@ package com.campusbridge.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.campusbridge.entity.TaskHistory;
+import com.campusbridge.enums.TaskHistoryEventType;
 import org.apache.ibatis.annotations.Mapper;
 
 import java.time.LocalDateTime;
@@ -12,11 +13,11 @@ import java.util.List;
 public interface TaskHistoryMapper extends BaseMapper<TaskHistory> {
 
     default boolean existsReminder(
-            Long taskId, String note, LocalDateTime activeSince, LocalDateTime createdBefore) {
+            Long taskId, TaskHistoryEventType eventType, LocalDateTime activeSince, LocalDateTime createdBefore) {
         return selectOne(Wrappers.<TaskHistory>lambdaQuery()
                 .select(TaskHistory::getId)
                 .eq(TaskHistory::getTaskId, taskId)
-                .eq(TaskHistory::getNote, note)
+                .eq(TaskHistory::getEventType, eventType)
                 .ge(TaskHistory::getCreatedAt, activeSince)
                 .le(createdBefore != null, TaskHistory::getCreatedAt, createdBefore)
                 .last("LIMIT 1")) != null;

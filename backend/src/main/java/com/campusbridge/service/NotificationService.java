@@ -1,53 +1,16 @@
 package com.campusbridge.service;
 
-import com.campusbridge.entity.Post;
-import com.campusbridge.entity.Reply;
-import com.campusbridge.entity.Review;
-import com.campusbridge.entity.Task;
-import com.campusbridge.entity.TaskApplication;
+import com.campusbridge.common.PagedResult;
+import com.campusbridge.dto.query.NotificationQuery;
+import com.campusbridge.dto.view.NotificationView;
+import com.campusbridge.dto.view.ReadAllNotificationsView;
+import com.campusbridge.enums.NotificationType;
 
 public interface NotificationService {
-    void notifyPostReplyCreated(
-            Post post,
-            Reply reply,
-            Reply parentReply,
-            Long operatorId);
-
-    void notifyTaskApplicationCreated(
-            Task task,
-            TaskApplication application,
-            Long operatorId);
-
-    void notifyTaskApplicationAccepted(
-            Task task,
-            TaskApplication application,
-            Long operatorId);
-
-    void notifyTaskApplicationRejected(
-            Task task,
-            TaskApplication application,
-            Long operatorId);
-
-    void notifyTaskApplicationWithdrawn(
-            Task task,
-            TaskApplication application,
-            Long operatorId);
-
-    void notifyTaskReviewCreated(
-            Task task,
-            Review review,
-            Long operatorId);
-
-    void notifyTaskStatusChanged(
-            Task task,
-            String fromStatus,
-            String toStatus,
-            Long operatorId,
-            String reason);
-
-    void notifyTaskTimeoutReminder(
-            Task task,
-            Long recipientId,
-            Long operatorId,
-            String reminderType);
+    void create(Long receiverId, NotificationType type, String title, String content,
+                Long relatedId);
+    PagedResult<NotificationView> list(Long userId, NotificationQuery query);
+    long countUnread(Long userId);
+    NotificationView markRead(Long userId, Long notificationId);
+    ReadAllNotificationsView markAllRead(Long userId);
 }

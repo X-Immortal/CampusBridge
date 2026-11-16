@@ -1,26 +1,30 @@
 package com.campusbridge.unit;
 
-import com.campusbridge.dto.query.TaskQuery;
-import com.campusbridge.dto.view.TaskPageView;
-import org.mockito.ArgumentCaptor;
+import com.campusbridge.enums.TaskSort;
 import com.campusbridge.common.CurrentUserResolver;
 import com.campusbridge.controller.TaskController;
+import com.campusbridge.dto.query.TaskQuery;
+import com.campusbridge.dto.view.TaskPageView;
 import com.campusbridge.dto.view.TaskView;
+import com.campusbridge.enums.RewardType;
+import com.campusbridge.enums.TaskCategory;
+import com.campusbridge.enums.TaskStatus;
 import com.campusbridge.service.CompletionService;
 import com.campusbridge.service.TaskDetailService;
 import com.campusbridge.service.TaskService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -90,9 +94,32 @@ class TaskControllerGuestListTest {
         ArgumentCaptor<TaskQuery> query = ArgumentCaptor.forClass(TaskQuery.class);
         verify(tasks).listTasks(query.capture());
         assertThat(query.getValue()).isEqualTo(TaskQuery.builder()
-                .keyword("parcel").category("ERRAND").campus("Test Campus")
-                .status("OPEN").rewardType("POINTS").requiresProof(true)
-                .excludeExpired(true).sortBy("DEADLINE_ASC").page(2).size(5).build());
+                .keyword("parcel").category(TaskCategory.ERRAND).campus("Test Campus")
+                .status(TaskStatus.OPEN).rewardType(RewardType.POINTS).requiresProof(true)
+                .excludeExpired(true).sortBy(TaskSort.DEADLINE_ASC).page(2).size(5).build());
+    }
+
+    @Test
+    void invalidSortIsRejectedInsteadOfFallingBack() throws Exception {
+        mvc.perform(get("/api/v1/tasks").param("sortBy", "UNKNOWN"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void mapperUsesEachTypedSort() {
+        var configuration = new org.apache.ibatis.session.Configuration();
+        configuration.addMapper(com.campusbridge.mapper.TaskMapper.class);
+        var statement = configuration.getMappedStatement("com.campusbridge.mapper.TaskMapper.selectWithFilters");
+        for (TaskSort sort : TaskSort.values()) {
+            var query = TaskQuery.builder().sortBy(sort).build();
+            String sql = statement.getBoundSql(java.util.Map.of("query", query)).getSql().replaceAll("\\s+", " ");
+            String expected = switch (sort) {
+                case CREATED_AT_DESC -> "ORDER BY t.created_at DESC";
+                case DEADLINE_ASC -> "ORDER BY t.deadline ASC";
+                case DEADLINE_DESC -> "ORDER BY t.deadline DESC";
+            };
+            assertThat(sql).contains(expected);
+        }
     }
 
 }

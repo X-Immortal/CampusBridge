@@ -1,5 +1,6 @@
 package com.campusbridge.integration;
 
+import com.campusbridge.enums.ContentItemType;
 import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.config.GlobalConfig;
@@ -17,12 +18,22 @@ import com.campusbridge.entity.Post;
 import com.campusbridge.entity.Reply;
 import com.campusbridge.entity.Report;
 import com.campusbridge.entity.UserProfile;
+import com.campusbridge.enums.AttachmentOwnerType;
+import com.campusbridge.enums.AttachmentStatus;
 import com.campusbridge.enums.MessageType;
+import com.campusbridge.enums.PostCategory;
+import com.campusbridge.enums.PostInteractionType;
+import com.campusbridge.enums.PostStatus;
+import com.campusbridge.enums.ReportStatus;
+import com.campusbridge.enums.VerificationStatus;
 import com.campusbridge.mapper.AdminDashboardMapper;
 import com.campusbridge.mapper.AttachmentMapper;
 import com.campusbridge.mapper.CampusVerificationMapper;
 import com.campusbridge.mapper.ConversationMapper;
 import com.campusbridge.mapper.MessageMapper;
+import com.campusbridge.mapper.NotificationMapper;
+import com.campusbridge.enums.NotificationType;
+import com.campusbridge.dto.query.NotificationQuery;
 import com.campusbridge.mapper.PostInteractionMapper;
 import com.campusbridge.mapper.PostMapper;
 import com.campusbridge.mapper.ReplyMapper;
@@ -31,6 +42,7 @@ import com.campusbridge.mapper.UserBlockMapper;
 import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.mapper.UserProfileMapper;
 import com.campusbridge.service.NotificationService;
+import com.campusbridge.service.ReplyNotificationService;
 import com.campusbridge.service.impl.ConversationServiceImpl;
 import com.campusbridge.service.impl.EmailVerificationCodeSender;
 import com.campusbridge.service.impl.InteractionServiceImpl;
@@ -117,7 +129,7 @@ class ContentPersistenceIntegrationTest {
         try (Connection connection = dataSource.getConnection()) {
             connection.createStatement().execute("SET FOREIGN_KEY_CHECKS=0");
             for (String table : new String[]{"attachments", "post_interactions", "replies", "posts",
-                    "reports", "campus_verifications", "messages", "conversations", "user_blocks", "user_profiles", "users"}) {
+                    "reports", "campus_verifications", "notifications", "messages", "conversations", "user_blocks", "user_profiles", "users"}) {
                 connection.createStatement().execute("TRUNCATE TABLE " + table);
             }
             connection.createStatement().execute("SET FOREIGN_KEY_CHECKS=1");
@@ -159,7 +171,7 @@ class ContentPersistenceIntegrationTest {
             var page = mapper.selectWithFilters(new Page<>(1, 20), null, null, null);
             assertThat(page.getRecords()).extracting(PostView::getId).containsExactly(10L);
             assertThat(page.getTotal()).isEqualTo(1);
-            assertThat(mapper.selectWithFilters(new Page<>(1, 20), null, "HIDDEN", null).getRecords()).isEmpty();
+            assertThat(mapper.selectWithFilters(new Page<>(1, 20), null, PostStatus.HIDDEN, null).getRecords()).isEmpty();
         }
     }
 
@@ -177,16 +189,16 @@ class ContentPersistenceIntegrationTest {
                 + "(13,2,'Draft reply','2026-01-01 13:00:00')");
         try (SqlSession session = sessions.openSession(true)) {
             PostMapper mapper = session.getMapper(PostMapper.class);
-            var posts = mapper.selectWithFilters(new Page<>(2, 1), "INQUIRY_HELP", "PUBLISHED", "Parcel");
+            var posts = mapper.selectWithFilters(new Page<>(2, 1), PostCategory.INQUIRY_HELP, PostStatus.PUBLISHED, "Parcel");
             assertThat(posts.getRecords()).hasSize(1);
             assertThat(posts.getTotal()).isEqualTo(2);
-            var replied = mapper.selectRepliedByUser(new Page<>(1, 20), 2L, "INQUIRY_HELP", "PUBLISHED", "Parcel");
+            var replied = mapper.selectRepliedByUser(new Page<>(1, 20), 2L, PostCategory.INQUIRY_HELP, PostStatus.PUBLISHED, "Parcel");
             assertThat(replied.getRecords()).extracting(PostView::getId).containsExactly(12L, 11L);
             assertThat(replied.getTotal()).isEqualTo(2);
-            var missing = mapper.selectRepliedByUser(new Page<>(1, 20), 2L, "INQUIRY_HELP", "PUBLISHED", "missing");
+            var missing = mapper.selectRepliedByUser(new Page<>(1, 20), 2L, PostCategory.INQUIRY_HELP, PostStatus.PUBLISHED, "missing");
             assertThat(missing.getRecords()).isEmpty();
             assertThat(missing.getTotal()).isZero();
-            var beyondLastPage = mapper.selectRepliedByUser(new Page<>(3, 1), 2L, "INQUIRY_HELP", "PUBLISHED", "Parcel");
+            var beyondLastPage = mapper.selectRepliedByUser(new Page<>(3, 1), 2L, PostCategory.INQUIRY_HELP, PostStatus.PUBLISHED, "Parcel");
             assertThat(beyondLastPage.getRecords()).isEmpty();
             assertThat(beyondLastPage.getTotal()).isEqualTo(2);
             assertThat(beyondLastPage.getCurrent()).isEqualTo(3);
@@ -200,11 +212,11 @@ class ContentPersistenceIntegrationTest {
             Post old = mapper.selectById(10L);
             jdbc.update("UPDATE posts SET like_count=8,reply_count=4 WHERE id=10");
             old.setTitle("Edited");
-            assertThat(mapper.updateContent(old, "PUBLISHED")).isEqualTo(1);
+            assertThat(mapper.updateContent(old, PostStatus.PUBLISHED)).isEqualTo(1);
             assertThat(mapper.selectDetailById(10L).getLikeCount()).isEqualTo(8);
             assertThat(mapper.selectDetailById(10L).getReplyCount()).isEqualTo(4);
             jdbc.update("UPDATE posts SET status='DELETED' WHERE id=10");
-            assertThat(mapper.updateContent(old, "PUBLISHED")).isZero();
+            assertThat(mapper.updateContent(old, PostStatus.PUBLISHED)).isZero();
         }
     }
 
@@ -232,7 +244,7 @@ class ContentPersistenceIntegrationTest {
                 PostMapper mapper = session.getMapper(PostMapper.class);
                 for (int i = 0; i < 20; i++) {
                     assertThat(mapper.incrementReplyCount(10L)).isEqualTo(1);
-                    assertThat(mapper.adjustInteractionCount(10L, "LIKE", 1)).isEqualTo(1);
+                    assertThat(mapper.adjustInteractionCount(10L, PostInteractionType.LIKE, 1)).isEqualTo(1);
                 }
             }
         } catch (InterruptedException ex) {
@@ -246,7 +258,7 @@ class ContentPersistenceIntegrationTest {
         SqlSessionTemplate template = new SqlSessionTemplate(sessions);
         ReplyServiceImpl service = new ReplyServiceImpl(
                 template.getMapper(ReplyMapper.class), template.getMapper(PostMapper.class),
-                mock(NotificationService.class));
+                new ReplyNotificationService(mock(NotificationService.class)));
         TransactionTemplate transaction = new TransactionTemplate(new DataSourceTransactionManager(dataSource));
         CountDownLatch start = new CountDownLatch(1);
         ExecutorService executor = Executors.newFixedThreadPool(2);
@@ -286,8 +298,8 @@ class ContentPersistenceIntegrationTest {
                 + "VALUES(1,1,'USER',2,'Spam','PENDING')");
         try (SqlSession session = sessions.openSession(true)) {
             ReportMapper mapper = session.getMapper(ReportMapper.class);
-            assertThat(mapper.updateStatusById(1L, "PUNISHED")).isEqualTo(1);
-            assertThat(mapper.updateStatusById(1L, "PUNISHED")).isZero();
+            assertThat(mapper.updateStatusById(1L, ReportStatus.PUNISHED)).isEqualTo(1);
+            assertThat(mapper.updateStatusById(1L, ReportStatus.PUNISHED)).isZero();
         }
     }
 
@@ -301,7 +313,7 @@ class ContentPersistenceIntegrationTest {
             java.util.concurrent.Callable<Integer> resolve = () -> {
                 try (SqlSession session = sessions.openSession(true)) {
                     start.await();
-                    return session.getMapper(ReportMapper.class).updateStatusById(1L, "PUNISHED");
+                    return session.getMapper(ReportMapper.class).updateStatusById(1L, ReportStatus.PUNISHED);
                 }
             };
             Future<Integer> first = executor.submit(resolve);
@@ -347,7 +359,7 @@ class ContentPersistenceIntegrationTest {
             CampusVerificationMapper mapper = session.getMapper(CampusVerificationMapper.class);
             CampusVerification earlier = mapper.selectById(1L);
             jdbc.update("UPDATE campus_verifications SET status='VERIFIED' WHERE id=1");
-            earlier.setStatus("REJECTED");
+            earlier.setStatus(VerificationStatus.REJECTED);
             assertThat(mapper.updatePending(earlier)).isZero();
             assertThat(mapper.deletePendingById(1L)).isZero();
             assertThat(jdbc.queryForObject(
@@ -405,7 +417,7 @@ class ContentPersistenceIntegrationTest {
             transaction.execute(status -> {
                 CreateConversationRequest request = new CreateConversationRequest();
                 request.setPeerUserId(peerId);
-                request.setRelatedType("POST");
+                request.setRelatedType(ContentItemType.POST);
                 request.setRelatedId(10L);
                 return service.createConversation(ownerId, request);
             });
@@ -425,7 +437,7 @@ class ContentPersistenceIntegrationTest {
         TransactionTemplate transaction = new TransactionTemplate(new DataSourceTransactionManager(dataSource));
         CreateConversationRequest create = new CreateConversationRequest();
         create.setPeerUserId(2L);
-        create.setRelatedType("POST");
+        create.setRelatedType(ContentItemType.POST);
         create.setRelatedId(10L);
         transaction.execute(status -> service.createConversation(1L, create));
         Long firstConversationId = jdbc.queryForObject(
@@ -446,7 +458,7 @@ class ContentPersistenceIntegrationTest {
             executor.shutdownNow();
         }
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM messages", Integer.class)).isEqualTo(40);
-        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM messages WHERE read_at IS NULL", Integer.class))
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM notifications WHERE read_at IS NULL", Integer.class))
                 .isEqualTo(20);
     }
 
@@ -470,11 +482,10 @@ class ContentPersistenceIntegrationTest {
     }
 
     @Test
-    void concurrentNotificationsShareOneSystemConversationAndKeepBothMessages() throws Exception {
+    void concurrentNotificationsKeepEveryEventWithoutCreatingConversations() throws Exception {
         SqlSessionTemplate template = new SqlSessionTemplate(sessions);
         NotificationServiceImpl service = new NotificationServiceImpl(
-                template.getMapper(ConversationMapper.class), template.getMapper(MessageMapper.class),
-                template.getMapper(UserMapper.class));
+                template.getMapper(NotificationMapper.class));
         TransactionTemplate transaction = new TransactionTemplate(new DataSourceTransactionManager(dataSource));
         Post post = template.getMapper(PostMapper.class).selectById(10L);
         Reply reply = new Reply();
@@ -487,7 +498,7 @@ class ContentPersistenceIntegrationTest {
                 start.await();
                 for (int i = 0; i < 10; i++) {
                     transaction.execute(status -> {
-                        service.notifyPostReplyCreated(post, reply, null, 2L);
+                        service.create(1L, NotificationType.POST_REPLY, "回复提醒", reply.getContent(), post.getId());
                         return null;
                     });
                 }
@@ -505,30 +516,67 @@ class ContentPersistenceIntegrationTest {
         } finally {
             executor.shutdownNow();
         }
-        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM conversations WHERE type='SYSTEM'", Integer.class))
-                .isEqualTo(1);
-        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM messages WHERE read_at IS NULL", Integer.class))
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM conversations", Integer.class))
+                .isZero();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM notifications WHERE read_at IS NULL", Integer.class))
                 .isEqualTo(20);
     }
 
     @Test
-    void systemConversationUniqueConstraintRejectsDuplicateRelatedObject() {
-        String insert = "INSERT INTO conversations(type,owner_id,related_type,related_id,replyable)"
-                + " VALUES('SYSTEM',1,'POST',10,0)";
-        jdbc.update(insert);
-        assertThatThrownBy(() -> jdbc.update(insert))
-                .isInstanceOf(org.springframework.dao.DuplicateKeyException.class);
+    void notificationReadIsOwnedIdempotentAndIndependentOfOtherNotificationsAndChat() {
+        NotificationServiceImpl service = new NotificationServiceImpl(
+                new SqlSessionTemplate(sessions).getMapper(NotificationMapper.class));
+        for (int i = 0; i < 25; i++) {
+            service.create(1L, NotificationType.POST_REPLY, "回复提醒", "正文", 10L);
+        }
+        service.create(2L, NotificationType.TASK_COMPLETED, "任务完成", "正文", 99L);
+        jdbc.update("INSERT INTO conversations(id,type,owner_id,peer_user_id,replyable) VALUES(1,'PRIVATE',1,2,1)");
+        jdbc.update("INSERT INTO messages(conversation_id,sender_id,type,content) VALUES(1,2,'TEXT','hello')");
+        NotificationQuery query = new NotificationQuery();
+        query.setSize(20);
+        var page = service.list(1L, query);
+        assertThat(page.getTotal()).isEqualTo(25);
+        assertThat(page.getItems()).hasSize(20);
+        Long id = page.getItems().get(0).id();
+        assertThatThrownBy(() -> service.markRead(2L, id)).isInstanceOf(com.campusbridge.common.BusinessException.class);
+        assertThatThrownBy(() -> service.markRead(1L, 9999L)).isInstanceOf(com.campusbridge.common.BusinessException.class);
+        var read = service.markRead(1L, id);
+        assertThat(read.readAt()).isNotNull();
+        assertThat(service.markRead(1L, id).readAt()).isEqualTo(read.readAt());
+        assertThat(service.countUnread(1L)).isEqualTo(24);
+        assertThat(service.markAllRead(1L).updatedCount()).isEqualTo(24);
+        assertThat(service.countUnread(1L)).isZero();
+        assertThat(service.countUnread(2L)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM messages WHERE read_at IS NULL", Integer.class)).isEqualTo(1);
+        query.setUnreadOnly(true);
+        assertThat(service.list(1L, query).getTotal()).isZero();
+        query.setUnreadOnly(false);
+        query.setTypes(java.util.Set.of(NotificationType.TASK_COMPLETED));
+        assertThat(service.list(1L, query).getTotal()).isZero();
+    }
+
+    @Test
+    void notificationInsertRollsBackWithBusinessTransaction() {
+        var service = new NotificationServiceImpl(new SqlSessionTemplate(sessions).getMapper(NotificationMapper.class));
+        var transaction = new TransactionTemplate(new DataSourceTransactionManager(dataSource));
+        assertThatThrownBy(() -> transaction.executeWithoutResult(status -> {
+            jdbc.update("UPDATE posts SET title='Changed' WHERE id=10");
+            service.create(1L, NotificationType.POST_REPLY, "回复提醒", "正文", 10L);
+            throw new IllegalStateException("business operation failed");
+        })).isInstanceOf(IllegalStateException.class);
+        assertThat(service.countUnread(1L)).isZero();
+        assertThat(jdbc.queryForObject("SELECT title FROM posts WHERE id=10", String.class)).isEqualTo("Original");
     }
 
     @Test
     void attachmentBindingUsesValidEnumAndCannotBeRebound() {
-        jdbc.update("INSERT INTO attachments(id,uploader_id,owner_type,type,file_name,file_url,content_type,size) "
-                + "VALUES(1,1,'POST','IMAGE','test.png','https://example.test/test.png','image/png',1)");
+        jdbc.update("INSERT INTO attachments(id,uploader_id,owner_type,file_name,file_url,content_type,size) "
+                + "VALUES(1,1,'POST','test.png','https://example.test/test.png','image/png',1)");
         try (SqlSession session = sessions.openSession(true)) {
             AttachmentMapper mapper = session.getMapper(AttachmentMapper.class);
-            assertThat(mapper.bindTemporaryToOwner(1L, 1L, "POST", 10L)).isEqualTo(1);
-            assertThat(mapper.bindTemporaryToOwner(1L, 1L, "POST", 11L)).isZero();
-            assertThat(mapper.selectById(1L).getStatus()).isEqualTo("BOUND");
+            assertThat(mapper.bindTemporaryToOwner(1L, 1L, AttachmentOwnerType.POST, 10L)).isEqualTo(1);
+            assertThat(mapper.bindTemporaryToOwner(1L, 1L, AttachmentOwnerType.POST, 11L)).isZero();
+            assertThat(mapper.selectById(1L).getStatus()).isEqualTo(AttachmentStatus.BOUND);
             assertThat(mapper.selectById(1L).getOwnerId()).isEqualTo(10L);
         }
     }
@@ -615,11 +663,11 @@ class ContentPersistenceIntegrationTest {
             assertThat(own.getTotal()).isEqualTo(2);
             assertThat(own.getItems()).extracting(com.campusbridge.entity.Report::getReason)
                     .containsExactly("Second");
-            var filtered = service.listReports(1L, "pending", 1, 20);
+            var filtered = service.listReports(1L, ReportStatus.PENDING, 1, 20);
             assertThat(filtered.getTotal()).isEqualTo(1);
             assertThat(filtered.getItems()).extracting(com.campusbridge.entity.Report::getReason)
                     .containsExactly("First");
-            var admin = service.listReportsForAdmin("PENDING", 1, 20);
+            var admin = service.listReportsForAdmin(ReportStatus.PENDING, 1, 20);
             assertThat(admin.getTotal()).isEqualTo(2);
             assertThat(admin.getItems()).extracting(com.campusbridge.entity.Report::getReporterId)
                     .containsExactly(2L, 1L);

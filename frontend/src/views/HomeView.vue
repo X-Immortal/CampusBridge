@@ -472,8 +472,7 @@ async function handleVerificationEvidenceFileChange(event) {
   try {
     const result = await api.uploadAttachment({
       file,
-      expectedOwnerType: 'VERIFICATION',
-      type: 'IMAGE'
+      expectedOwnerType: 'VERIFICATION'
     })
     const url = result?.fileUrl || result?.url
     if (!url) {
@@ -1321,7 +1320,7 @@ onMounted(async () => {
                   ref="verificationEvidenceFileInput"
                   class="sr-only"
                   type="file"
-                  accept="image/*"
+                  accept="image/png,image/jpeg,image/webp"
                   @change="handleVerificationEvidenceFileChange"
                 >
                 <div

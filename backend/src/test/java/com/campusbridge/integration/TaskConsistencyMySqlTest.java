@@ -1,5 +1,8 @@
 package com.campusbridge.integration;
 
+import com.campusbridge.enums.TaskSort;
+import com.campusbridge.enums.TaskHistoryEventType;
+import com.campusbridge.enums.CreditSourceType;
 import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.config.GlobalConfig;
@@ -18,8 +21,10 @@ import com.campusbridge.dto.request.UpdateTaskRequest;
 import com.campusbridge.dto.view.TaskView;
 import com.campusbridge.entity.Task;
 import com.campusbridge.entity.TaskApplication;
+import com.campusbridge.enums.AttachmentOwnerType;
 import com.campusbridge.enums.RewardType;
 import com.campusbridge.enums.TaskCategory;
+import com.campusbridge.enums.TaskStatus;
 import com.campusbridge.enums.TaskStatusTransitionAction;
 import com.campusbridge.mapper.AttachmentMapper;
 import com.campusbridge.mapper.ConversationMapper;
@@ -29,14 +34,17 @@ import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.service.CompletionService;
 import com.campusbridge.service.ContentModerationService;
 import com.campusbridge.service.CreditService;
+import com.campusbridge.service.TaskNotificationService;
 import com.campusbridge.service.NotificationService;
+import com.campusbridge.service.impl.NotificationServiceImpl;
+import com.campusbridge.mapper.NotificationMapper;
 import com.campusbridge.service.ReviewService;
 import com.campusbridge.service.TaskApplicationService;
 import com.campusbridge.service.TaskService;
 import com.campusbridge.service.TaskTimeoutService;
 import com.campusbridge.service.impl.CompletionServiceImpl;
 import com.campusbridge.service.impl.CreditServiceImpl;
-import com.campusbridge.service.impl.NotificationServiceImpl;
+import com.campusbridge.service.impl.TaskNotificationServiceImpl;
 import com.campusbridge.service.impl.ReviewServiceImpl;
 import com.campusbridge.service.impl.TaskApplicationServiceImpl;
 import com.campusbridge.service.impl.TaskHistoryServiceImpl;
@@ -87,6 +95,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
@@ -108,7 +118,7 @@ class TaskConsistencyMySqlTest {
     private CompletionService completions;
     private CreditService credits;
     private ReviewService reviews;
-    private NotificationService notifications;
+    private TaskNotificationService notifications;
 
     @BeforeAll
     void initializeDatabase() throws Exception {
@@ -119,7 +129,7 @@ class TaskConsistencyMySqlTest {
         completions = context.getBean(CompletionService.class);
         credits = context.getBean(CreditService.class);
         reviews = context.getBean(ReviewService.class);
-        notifications = context.getBean(NotificationService.class);
+        notifications = context.getBean(TaskNotificationService.class);
         try (Connection connection = dataSource.getConnection()) {
             assertThat(connection.getCatalog()).endsWith("_test");
             List<String> tableNames = tableNames(connection);
@@ -167,16 +177,16 @@ class TaskConsistencyMySqlTest {
     @Test
     void incompleteDraftIsPrivateAndPublishesWithSubmittedCompleteForm() {
         TaskView draft = tasks.saveDraft(1L, new SaveTaskDraftRequest());
-        assertThat(tasks.getTaskDetail(draft.getId(), 1L).getStatus()).isEqualTo("DRAFT");
+        assertThat(tasks.getTaskDetail(draft.getId(), 1L).getStatus()).isEqualTo(TaskStatus.DRAFT);
         assertThatThrownBy(() -> tasks.getTaskDetail(draft.getId(), null))
                 .isInstanceOf(BusinessException.class);
         assertThatThrownBy(() -> tasks.getTaskDetail(draft.getId(), 2L))
                 .isInstanceOf(BusinessException.class);
         assertThat(tasks.listTasks(new TaskQuery()).getTasks()).isEmpty();
-        assertThat(tasks.listTasks(TaskQuery.builder().status("DRAFT").build()).getTasks()).isEmpty();
+        assertThat(tasks.listTasks(TaskQuery.builder().status(TaskStatus.DRAFT).build()).getTasks()).isEmpty();
         TaskView published = tasks.resendTask(1L, draft.getId(), request());
         assertThat(published.getId()).isEqualTo(draft.getId());
-        assertThat(published.getStatus()).isEqualTo("OPEN");
+        assertThat(published.getStatus()).isEqualTo(TaskStatus.OPEN);
         assertThat(published.getTitle()).isEqualTo(request().getTitle());
     }
 
@@ -209,9 +219,9 @@ class TaskConsistencyMySqlTest {
         assertThat(stored.getProviderId()).isNull();
         assertThat(stored.getRequesterId()).isEqualTo(1L);
         assertThat(stored.getCreatedAt()).isEqualTo(createdAt);
-        assertThat(stored.getStatus()).isEqualTo("OPEN");
+        assertThat(stored.getStatus()).isEqualTo(TaskStatus.OPEN);
         assertThat(jdbc.queryForObject(
-                "SELECT COUNT(*) FROM task_histories WHERE task_id=? AND note='TASK_RESENT'",
+                "SELECT COUNT(*) FROM task_histories WHERE task_id=? AND event_type='REPOSTED'",
                 Integer.class, created.getId())).isEqualTo(1);
     }
 
@@ -248,7 +258,7 @@ class TaskConsistencyMySqlTest {
         assertThat(stored.getCampus()).isEqualTo(initial.getCampus());
         assertThat(stored.getCategory()).isEqualTo(initial.getCategory().name());
         assertThat(stored.getRequesterId()).isEqualTo(1L);
-        assertThat(stored.getStatus()).isEqualTo("OPEN");
+        assertThat(stored.getStatus()).isEqualTo(TaskStatus.OPEN);
     }
 
     private UpdateTaskRequest editRequest() {
@@ -301,7 +311,7 @@ class TaskConsistencyMySqlTest {
         List<Callable<Boolean>> operations = new ArrayList<>();
         for (int i = 0; i < 20; i++) {
             operations.add(() -> {
-                credits.adjustCredit(2L, 5, "Concurrent test adjustment", "TEST", null);
+                credits.adjustCredit(2L, 5, "Concurrent test adjustment", CreditSourceType.SYSTEM, null);
                 return true;
             });
         }
@@ -328,9 +338,9 @@ class TaskConsistencyMySqlTest {
 
         TaskView timeout = taskInState("PENDING_CONFIRMATION");
         jdbc.update("UPDATE tasks SET updated_at=DATE_SUB(NOW(), INTERVAL 3 DAY) WHERE id=?", timeout.getId());
-        jdbc.update("INSERT INTO task_histories(task_id,from_status,to_status,note,created_at) "
+        jdbc.update("INSERT INTO task_histories(task_id,from_status,to_status,event_type,created_at) "
                 + "VALUES (?,'PENDING_CONFIRMATION','PENDING_CONFIRMATION',"
-                + "'TIMEOUT_REMINDER_PENDING_CONFIRMATION',DATE_SUB(NOW(), INTERVAL 2 DAY))", timeout.getId());
+                + "'CONFIRMATION_TIMEOUT_REMINDER',DATE_SUB(NOW(), INTERVAL 2 DAY))", timeout.getId());
         context.getBean(TaskTimeoutService.class).processTimeouts(LocalDateTime.now());
         assertThat(status(timeout.getId())).isEqualTo("COMPLETED");
         assertThat(jdbc.queryForObject("SELECT points FROM user_credits WHERE user_id=2", Integer.class))
@@ -357,14 +367,14 @@ class TaskConsistencyMySqlTest {
     void administratorCompletionRollsBackStatusRewardAndHistoryIfNotificationFails() {
         TaskView task = taskInState("DISPUTED");
         doThrow(new IllegalStateException("notification persistence failed")).when(notifications)
-                .notifyTaskStatusChanged(any(), anyString(), anyString(), anyLong(), anyString());
+                .notifyTaskStatusChanged(any(), any(TaskStatus.class), anyLong(), anyString());
         assertThatThrownBy(() -> context.getBean(TaskModerationService.class).dismissAppeal(4L, task.getId()))
                 .isInstanceOf(IllegalStateException.class);
         assertThat(status(task.getId())).isEqualTo("DISPUTED");
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM credit_records", Integer.class)).isZero();
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM user_credits", Integer.class)).isZero();
         assertThat(jdbc.queryForObject(
-                "SELECT COUNT(*) FROM task_histories WHERE note='ADMIN_DISMISSED_APPEAL'", Integer.class)).isZero();
+                "SELECT COUNT(*) FROM task_histories WHERE event_type='APPEAL_DISMISSED'", Integer.class)).isZero();
 
         reset(notifications);
         context.getBean(TaskModerationService.class).dismissAppeal(4L, task.getId());
@@ -379,14 +389,14 @@ class TaskConsistencyMySqlTest {
         TaskView second = taskInState("PENDING_CONFIRMATION");
         jdbc.update("UPDATE tasks SET requester_id=2,provider_id=1 WHERE id=?", second.getId());
         CountDownLatch bothAwardsReached = new CountDownLatch(2);
-        NotificationService delegate = context.getBean("notificationDelegate", NotificationService.class);
+        TaskNotificationService delegate = context.getBean("notificationDelegate", TaskNotificationService.class);
         doAnswer(invocation -> {
             bothAwardsReached.countDown();
             if (!bothAwardsReached.await(10, TimeUnit.SECONDS)) {
                 throw new IllegalStateException("Concurrent rewards did not both reach notification persistence");
             }
             return delegatesTo(delegate).answer(invocation);
-        }).when(notifications).notifyTaskStatusChanged(any(), anyString(), anyString(), anyLong(), anyString());
+        }).when(notifications).notifyTaskStatusChanged(any(), any(TaskStatus.class), anyLong(), anyString());
 
         assertThat(runTogether(List.of(
                 () -> attempt(() -> completions.confirmCompletion(1L, first.getId())),
@@ -394,7 +404,7 @@ class TaskConsistencyMySqlTest {
                 .containsOnly(true).hasSize(2);
         assertThat(jdbc.queryForList("SELECT points FROM user_credits ORDER BY user_id", Integer.class))
                 .containsExactly(5, 5);
-        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM messages", Integer.class)).isEqualTo(2);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM notifications", Integer.class)).isEqualTo(2);
     }
 
     @Test
@@ -403,16 +413,16 @@ class TaskConsistencyMySqlTest {
         TaskView second = taskInState("PENDING_CONFIRMATION");
         for (TaskView task : List.of(first, second)) {
             jdbc.update("UPDATE tasks SET updated_at=DATE_SUB(NOW(), INTERVAL 3 DAY) WHERE id=?", task.getId());
-            jdbc.update("INSERT INTO task_histories(task_id,from_status,to_status,note,created_at) "
+            jdbc.update("INSERT INTO task_histories(task_id,from_status,to_status,event_type,created_at) "
                     + "VALUES (?,'PENDING_CONFIRMATION','PENDING_CONFIRMATION',"
-                    + "'TIMEOUT_REMINDER_PENDING_CONFIRMATION',DATE_SUB(NOW(), INTERVAL 2 DAY))", task.getId());
+                    + "'CONFIRMATION_TIMEOUT_REMINDER',DATE_SUB(NOW(), INTERVAL 2 DAY))", task.getId());
         }
         CountDownLatch timeoutAwardedFirst = new CountDownLatch(1);
         CountDownLatch manualLockedSecond = new CountDownLatch(1);
-        NotificationService delegate = context.getBean("notificationDelegate", NotificationService.class);
+        TaskNotificationService delegate = context.getBean("notificationDelegate", TaskNotificationService.class);
         doAnswer(invocation -> {
             Task notifyingTask = invocation.getArgument(0);
-            Long operator = invocation.getArgument(3);
+            Long operator = invocation.getArgument(2);
             if (first.getId().equals(notifyingTask.getId()) && operator == null) {
                 timeoutAwardedFirst.countDown();
                 if (!manualLockedSecond.await(10, TimeUnit.SECONDS)) {
@@ -420,7 +430,7 @@ class TaskConsistencyMySqlTest {
                 }
             }
             return delegatesTo(delegate).answer(invocation);
-        }).when(notifications).notifyTaskStatusChanged(any(), anyString(), anyString(), any(), anyString());
+        }).when(notifications).notifyTaskStatusChanged(any(), any(TaskStatus.class), any(), anyString());
 
         assertThat(runTogether(List.of(
                 () -> {
@@ -490,8 +500,8 @@ class TaskConsistencyMySqlTest {
         TaskView first = taskInState("IN_PROGRESS");
         TaskView second = taskInState("IN_PROGRESS");
         jdbc.update("INSERT INTO attachments "
-                + "(id,uploader_id,owner_type,type,file_name,file_url,content_type,size,status) "
-                + "VALUES (1,2,'COMPLETION_PROOF','IMAGE','test.png','https://example.invalid/test.png',"
+                + "(id,uploader_id,owner_type,file_name,file_url,content_type,size,status) "
+                + "VALUES (1,2,'COMPLETION_PROOF','test.png','https://example.invalid/test.png',"
                 + "'image/png',10,'TEMPORARY')");
         SubmitCompletionRequest proof = new SubmitCompletionRequest("Delivered", List.of(1L));
         List<Boolean> outcomes = runTogether(List.of(
@@ -503,19 +513,94 @@ class TaskConsistencyMySqlTest {
         assertThat(jdbc.queryForObject(
                 "SELECT COUNT(*) FROM tasks WHERE status='PENDING_CONFIRMATION'", Integer.class)).isEqualTo(1);
         assertThat(context.getBean(AttachmentMapper.class)
-                .bindTemporaryToOwner(1L, 2L, "COMPLETION_PROOF", 999L)).isZero();
+                .bindTemporaryToOwner(1L, 2L, AttachmentOwnerType.COMPLETION_PROOF, 999L)).isZero();
+    }
+
+    @Test
+    void timeoutUsesEventTypeForDeduplicationAndGracePeriodRegardlessOfNote() {
+        TaskView task = taskInState("OPEN");
+        jdbc.update("UPDATE tasks SET updated_at=DATE_SUB(NOW(), INTERVAL 3 DAY), "
+                + "deadline=DATE_SUB(NOW(), INTERVAL 2 DAY) WHERE id=?", task.getId());
+        jdbc.update("INSERT INTO task_histories(task_id,from_status,to_status,event_type,note,created_at) "
+                + "VALUES (?,'OPEN','OPEN','UPDATED','TIMEOUT_REMINDER_OPEN',"
+                + "DATE_SUB(NOW(), INTERVAL 2 DAY))", task.getId());
+
+        TaskTimeoutService timeouts = context.getBean(TaskTimeoutService.class);
+        timeouts.processTimeouts(LocalDateTime.now());
+        timeouts.processTimeouts(LocalDateTime.now());
+
+        assertThat(status(task.getId())).isEqualTo("OPEN");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM task_histories "
+                + "WHERE task_id=? AND event_type='OPEN_TIMEOUT_REMINDER' AND note IS NULL",
+                Integer.class, task.getId())).isEqualTo(1);
+        var history = context.getBean(com.campusbridge.mapper.TaskHistoryMapper.class).selectByTaskId(task.getId());
+        assertThat(history).extracting(com.campusbridge.entity.TaskHistory::getEventType)
+                .contains(TaskHistoryEventType.OPEN_TIMEOUT_REMINDER);
+
+        jdbc.update("UPDATE task_histories SET note='已提醒发布者', "
+                + "created_at=DATE_SUB(NOW(), INTERVAL 25 HOUR) "
+                + "WHERE task_id=? AND event_type='OPEN_TIMEOUT_REMINDER'", task.getId());
+        timeouts.processTimeouts(LocalDateTime.now());
+
+        assertThat(status(task.getId())).isEqualTo("CANCELLED");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM task_histories "
+                + "WHERE task_id=? AND event_type='OPEN_TIMEOUT_CANCELLED'", Integer.class, task.getId())).isEqualTo(1);
+    }
+
+    @Test
+    void confirmationReminderWaitsForIntervalAndIsNotRepeated() {
+        TaskView recent = taskInState("PENDING_CONFIRMATION");
+        TaskView overdue = taskInState("PENDING_CONFIRMATION");
+        jdbc.update("UPDATE tasks SET updated_at=DATE_SUB(NOW(), INTERVAL 25 HOUR) WHERE id=?", overdue.getId());
+        TaskTimeoutService timeouts = context.getBean(TaskTimeoutService.class);
+
+        timeouts.processTimeouts(LocalDateTime.now());
+        timeouts.processTimeouts(LocalDateTime.now());
+
+        assertThat(status(recent.getId())).isEqualTo("PENDING_CONFIRMATION");
+        assertThat(status(overdue.getId())).isEqualTo("PENDING_CONFIRMATION");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM task_histories "
+                + "WHERE task_id=? AND event_type='CONFIRMATION_TIMEOUT_REMINDER'",
+                Integer.class, recent.getId())).isZero();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM task_histories "
+                + "WHERE task_id=? AND event_type='CONFIRMATION_TIMEOUT_REMINDER'",
+                Integer.class, overdue.getId())).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM notifications "
+                + "WHERE related_id=? AND type='TASK_CONFIRMATION_REMINDER'",
+                Integer.class, overdue.getId())).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM credit_records", Integer.class)).isZero();
+    }
+
+    @Test
+    void timeoutCompletionRollsBackStatusRewardAndHistoryWhenNotificationFails() {
+        TaskView task = taskInState("PENDING_CONFIRMATION");
+        jdbc.update("UPDATE tasks SET updated_at=DATE_SUB(NOW(), INTERVAL 3 DAY) WHERE id=?", task.getId());
+        jdbc.update("INSERT INTO task_histories(task_id,from_status,to_status,event_type,created_at) "
+                + "VALUES (?,'PENDING_CONFIRMATION','PENDING_CONFIRMATION',"
+                + "'CONFIRMATION_TIMEOUT_REMINDER',DATE_SUB(NOW(), INTERVAL 2 DAY))", task.getId());
+        doThrow(new IllegalStateException("notification persistence failed")).when(notifications)
+                .notifyTaskStatusChanged(any(), eq(TaskStatus.COMPLETED), isNull(), anyString());
+
+        assertThatThrownBy(() -> context.getBean(TaskTimeoutService.class).processTimeouts(LocalDateTime.now()))
+                .isInstanceOf(IllegalStateException.class);
+
+        assertThat(status(task.getId())).isEqualTo("PENDING_CONFIRMATION");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM credit_records", Integer.class)).isZero();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM user_credits", Integer.class)).isZero();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM task_histories "
+                + "WHERE event_type='CONFIRMATION_TIMEOUT_COMPLETED'", Integer.class)).isZero();
     }
 
     @Test
     void previousLifecycleReminderDoesNotSkipTheNewGracePeriod() {
         TaskView task = taskInState("OPEN");
         jdbc.update("UPDATE tasks SET deadline=DATE_SUB(NOW(), INTERVAL 1 HOUR) WHERE id=?", task.getId());
-        jdbc.update("INSERT INTO task_histories(task_id,from_status,to_status,note,created_at) "
-                + "VALUES (?,'OPEN','OPEN','TIMEOUT_REMINDER_OPEN',DATE_SUB(NOW(), INTERVAL 3 DAY))", task.getId());
+        jdbc.update("INSERT INTO task_histories(task_id,from_status,to_status,event_type,created_at) "
+                + "VALUES (?,'OPEN','OPEN','OPEN_TIMEOUT_REMINDER',DATE_SUB(NOW(), INTERVAL 3 DAY))", task.getId());
         context.getBean(TaskTimeoutService.class).processTimeouts(LocalDateTime.now());
         assertThat(status(task.getId())).isEqualTo("OPEN");
         assertThat(jdbc.queryForObject(
-                "SELECT COUNT(*) FROM task_histories WHERE task_id=? AND note='TIMEOUT_REMINDER_OPEN'",
+                "SELECT COUNT(*) FROM task_histories WHERE task_id=? AND event_type='OPEN_TIMEOUT_REMINDER'",
                 Integer.class, task.getId())).isEqualTo(2);
     }
 
@@ -542,15 +627,15 @@ class TaskConsistencyMySqlTest {
         TaskView task = taskInState("PENDING_REVIEW");
         TaskMapper mapper = context.getBean(TaskMapper.class);
         var publicPage = mapper.selectWithFilters(new Page<>(1, 20),
-                TaskQuery.builder().status("PENDING_REVIEW").build());
+                TaskQuery.builder().status(TaskStatus.PENDING_REVIEW).build());
         assertThat(publicPage.getRecords()).isEmpty();
         assertThat(publicPage.getTotal()).isZero();
         var adminPage = mapper.selectWithFilters(new Page<>(1, 20),
-                TaskQuery.builder().status("PENDING_REVIEW").includePrivate(true).build());
+                TaskQuery.builder().status(TaskStatus.PENDING_REVIEW).includePrivate(true).build());
         assertThat(adminPage.getRecords()).extracting(TaskView::getId).containsExactly(task.getId());
         assertThat(adminPage.getTotal()).isEqualTo(1);
         var recordsOnly = mapper.selectWithFilters(new Page<>(1, 20, false),
-                TaskQuery.builder().status("PENDING_REVIEW").includePrivate(true).build());
+                TaskQuery.builder().status(TaskStatus.PENDING_REVIEW).includePrivate(true).build());
         assertThat(recordsOnly.getRecords()).extracting(TaskView::getId).containsExactly(task.getId());
     }
 
@@ -566,9 +651,9 @@ class TaskConsistencyMySqlTest {
         jdbc.update("UPDATE tasks SET deadline=DATE_ADD(NOW(), INTERVAL 2 DAY) WHERE id=?", second.getId());
 
         TaskQuery query = TaskQuery.builder()
-                .keyword("parcel").category("ERRAND").campus("Test Campus")
-                .rewardType("POINTS").requiresProof(true).excludeExpired(true)
-                .sortBy("DEADLINE_ASC").page(2).size(1).includePrivate(true).build();
+                .keyword("parcel").category(TaskCategory.ERRAND).campus("Test Campus")
+                .rewardType(RewardType.POINTS).requiresProof(true).excludeExpired(true)
+                .sortBy(TaskSort.DEADLINE_ASC).page(2).size(1).includePrivate(true).build();
         var page = tasks.listTasks(query);
         assertThat(page.getTasks()).extracting(TaskView::getId).containsExactly(second.getId());
         assertThat(page.getTotal()).isEqualTo(2);
@@ -699,15 +784,19 @@ class TaskConsistencyMySqlTest {
         }
 
         @Bean
-        NotificationServiceImpl notificationDelegate(
-                ConversationMapper conversations, MessageMapper messages, UserMapper users) {
-            return new NotificationServiceImpl(conversations, messages, users);
+        NotificationService notificationStorage(NotificationMapper mapper) {
+            return new NotificationServiceImpl(mapper);
+        }
+
+        @Bean
+        TaskNotificationServiceImpl notificationDelegate(NotificationService storage, UserMapper users) {
+            return new TaskNotificationServiceImpl(storage, users);
         }
 
         @Bean
         @Primary
-        NotificationService notificationService(NotificationServiceImpl notificationDelegate) {
-            return mock(NotificationService.class, delegatesTo(notificationDelegate));
+        TaskNotificationService notificationService(TaskNotificationServiceImpl notificationDelegate) {
+            return mock(TaskNotificationService.class, delegatesTo(notificationDelegate));
         }
 
         @Bean

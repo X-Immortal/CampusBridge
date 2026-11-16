@@ -7,7 +7,7 @@ import com.campusbridge.dto.request.CreateConversationRequest;
 import com.campusbridge.dto.request.SendMessageRequest;
 import com.campusbridge.dto.view.ConversationView;
 import com.campusbridge.dto.view.ReadAllConversationsView;
-import com.campusbridge.dto.view.UnreadSummaryView;
+import com.campusbridge.dto.view.UnreadCountView;
 import com.campusbridge.entity.Message;
 import com.campusbridge.service.ConversationService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -77,7 +77,7 @@ public class ConversationController {
     }
 
     @GetMapping("/unread-count")
-    public ApiResponse<UnreadSummaryView> getUnreadSummary(HttpServletRequest servletRequest) {
+    public ApiResponse<UnreadCountView> getUnreadSummary(HttpServletRequest servletRequest) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
         return ApiResponse.success(conversationService.getUnreadSummary(currentUserId));
     }

@@ -3,6 +3,8 @@ package com.campusbridge.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.campusbridge.enums.PostCategory;
+import com.campusbridge.enums.PostStatus;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -17,10 +19,10 @@ public class Post {
     @TableId(type = IdType.AUTO)
     private Long id;
     private Long authorId;
-    private String category;
+    private PostCategory category;
     private String title;
     private String content;
-    private String status;
+    private PostStatus status;
     private Integer replyCount;
     private Integer likeCount;
     private Integer markCount;

@@ -3,6 +3,7 @@ package com.campusbridge.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.campusbridge.entity.CampusVerification;
+import com.campusbridge.enums.VerificationStatus;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper
@@ -17,13 +18,13 @@ public interface CampusVerificationMapper extends BaseMapper<CampusVerification>
     default int updatePending(CampusVerification entity) {
         return update(entity, Wrappers.<CampusVerification>lambdaUpdate()
                 .eq(CampusVerification::getId, entity.getId())
-                .eq(CampusVerification::getStatus, "PENDING"));
+                .eq(CampusVerification::getStatus, VerificationStatus.PENDING));
     }
 
     default int deletePendingById(Long id) {
         return delete(Wrappers.<CampusVerification>lambdaQuery()
                 .eq(CampusVerification::getId, id)
-                .eq(CampusVerification::getStatus, "PENDING"));
+                .eq(CampusVerification::getStatus, VerificationStatus.PENDING));
     }
 
 }

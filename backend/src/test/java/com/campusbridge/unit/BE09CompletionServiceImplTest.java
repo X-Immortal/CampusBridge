@@ -1,16 +1,21 @@
 package com.campusbridge.unit;
 
+import com.campusbridge.enums.TaskHistoryEventType;
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
 import com.campusbridge.dto.request.SubmitCompletionRequest;
 import com.campusbridge.entity.Attachment;
 import com.campusbridge.entity.CompletionProof;
 import com.campusbridge.entity.Task;
+import com.campusbridge.enums.AttachmentOwnerType;
+import com.campusbridge.enums.AttachmentStatus;
+import com.campusbridge.enums.RewardType;
+import com.campusbridge.enums.TaskStatus;
 import com.campusbridge.mapper.AttachmentMapper;
 import com.campusbridge.mapper.CompletionProofMapper;
 import com.campusbridge.mapper.TaskMapper;
 import com.campusbridge.service.CreditService;
-import com.campusbridge.service.NotificationService;
+import com.campusbridge.service.TaskNotificationService;
 import com.campusbridge.service.TaskHistoryService;
 import com.campusbridge.service.impl.CompletionServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -52,7 +57,7 @@ class BE09CompletionServiceImplTest {
     private CreditService creditService;
 
     @Mock
-    private NotificationService notificationService;
+    private TaskNotificationService notificationService;
 
     private CompletionServiceImpl completionService;
 
@@ -75,7 +80,7 @@ class BE09CompletionServiceImplTest {
         when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(task);
         when(completionProofMapper.insert(any(CompletionProof.class))).thenReturn(1);
         when(taskMapper.updateStatusById(
-                eq(TASK_ID), eq("IN_PROGRESS"), eq("PENDING_CONFIRMATION"), any()))
+                eq(TASK_ID), eq(TaskStatus.IN_PROGRESS), eq(TaskStatus.PENDING_CONFIRMATION), any()))
                 .thenReturn(1);
 
         CompletionProof proof = completionService.submitCompletionProof(
@@ -84,10 +89,10 @@ class BE09CompletionServiceImplTest {
         assertThat(proof.getTaskId()).isEqualTo(TASK_ID);
         assertThat(proof.getSubmitterId()).isEqualTo(PROVIDER_ID);
         verify(taskHistoryService).recordHistory(TASK_ID,
-                "IN_PROGRESS", "PENDING_CONFIRMATION", PROVIDER_ID,
-                "COMPLETION_PROOF_SUBMITTED");
+                TaskStatus.IN_PROGRESS, TaskStatus.PENDING_CONFIRMATION, PROVIDER_ID,
+                TaskHistoryEventType.COMPLETION_PROOF_SUBMITTED, null);
         verify(notificationService).notifyTaskStatusChanged(
-                eq(task), eq("IN_PROGRESS"), eq("PENDING_CONFIRMATION"), eq(PROVIDER_ID), anyString());
+                eq(task), eq(TaskStatus.PENDING_CONFIRMATION), eq(PROVIDER_ID), anyString());
     }
 
     @Test
@@ -120,8 +125,8 @@ class BE09CompletionServiceImplTest {
         Attachment attachment = new Attachment();
         attachment.setId(30L);
         attachment.setUploaderId(PROVIDER_ID);
-        attachment.setOwnerType("COMPLETION_PROOF");
-        attachment.setStatus("TEMPORARY");
+        attachment.setOwnerType(AttachmentOwnerType.COMPLETION_PROOF);
+        attachment.setStatus(AttachmentStatus.TEMPORARY);
         when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(task);
         when(completionProofMapper.insert(any(CompletionProof.class))).thenAnswer(invocation -> {
             CompletionProof proof = invocation.getArgument(0);
@@ -129,16 +134,16 @@ class BE09CompletionServiceImplTest {
             return 1;
         });
         when(attachmentMapper.selectById(30L)).thenReturn(attachment);
-        when(attachmentMapper.bindTemporaryToOwner(30L, PROVIDER_ID, "COMPLETION_PROOF", 40L)).thenReturn(1);
+        when(attachmentMapper.bindTemporaryToOwner(30L, PROVIDER_ID, AttachmentOwnerType.COMPLETION_PROOF, 40L)).thenReturn(1);
         when(taskMapper.updateStatusById(
-                eq(TASK_ID), eq("IN_PROGRESS"), eq("PENDING_CONFIRMATION"), any()))
+                eq(TASK_ID), eq(TaskStatus.IN_PROGRESS), eq(TaskStatus.PENDING_CONFIRMATION), any()))
                 .thenReturn(1);
         SubmitCompletionRequest request = submitRequest("已完成并附图");
         request.setAttachmentIds(List.of(30L));
 
         completionService.submitCompletionProof(PROVIDER_ID, TASK_ID, request);
 
-        verify(attachmentMapper).bindTemporaryToOwner(30L, PROVIDER_ID, "COMPLETION_PROOF", 40L);
+        verify(attachmentMapper).bindTemporaryToOwner(30L, PROVIDER_ID, AttachmentOwnerType.COMPLETION_PROOF, 40L);
     }
 
     // ---- confirmCompletion ----
@@ -148,17 +153,17 @@ class BE09CompletionServiceImplTest {
         Task task = task(TASK_ID, REQUESTER_ID, PROVIDER_ID, "PENDING_CONFIRMATION", "POINTS", 20);
         when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(task);
         when(taskMapper.updateStatusById(
-                eq(TASK_ID), eq("PENDING_CONFIRMATION"), eq("COMPLETED"), any()))
+                eq(TASK_ID), eq(TaskStatus.PENDING_CONFIRMATION), eq(TaskStatus.COMPLETED), any()))
                 .thenReturn(1);
 
         completionService.confirmCompletion(REQUESTER_ID, TASK_ID);
 
         verify(creditService).awardTaskReward(task);
         verify(taskHistoryService).recordHistory(TASK_ID,
-                "PENDING_CONFIRMATION", "COMPLETED", REQUESTER_ID,
-                "COMPLETION_CONFIRMED");
+                TaskStatus.PENDING_CONFIRMATION, TaskStatus.COMPLETED, REQUESTER_ID,
+                TaskHistoryEventType.COMPLETION_CONFIRMED, null);
         verify(notificationService).notifyTaskStatusChanged(
-                eq(task), eq("PENDING_CONFIRMATION"), eq("COMPLETED"), eq(REQUESTER_ID), anyString());
+                eq(task), eq(TaskStatus.COMPLETED), eq(REQUESTER_ID), anyString());
     }
 
     @Test
@@ -177,7 +182,7 @@ class BE09CompletionServiceImplTest {
         Task task = task(TASK_ID, REQUESTER_ID, PROVIDER_ID, "PENDING_CONFIRMATION", "CASH", 50);
         when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(task);
         when(taskMapper.updateStatusById(
-                eq(TASK_ID), eq("PENDING_CONFIRMATION"), eq("COMPLETED"), any()))
+                eq(TASK_ID), eq(TaskStatus.PENDING_CONFIRMATION), eq(TaskStatus.COMPLETED), any()))
                 .thenReturn(1);
 
         completionService.confirmCompletion(REQUESTER_ID, TASK_ID);
@@ -192,16 +197,16 @@ class BE09CompletionServiceImplTest {
         Task task = task(TASK_ID, REQUESTER_ID, PROVIDER_ID, "PENDING_CONFIRMATION", "POINTS", 20);
         when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(task);
         when(taskMapper.updateStatusById(
-                eq(TASK_ID), eq("PENDING_CONFIRMATION"), eq("IN_PROGRESS"), any()))
+                eq(TASK_ID), eq(TaskStatus.PENDING_CONFIRMATION), eq(TaskStatus.IN_PROGRESS), any()))
                 .thenReturn(1);
 
         completionService.rejectCompletion(REQUESTER_ID, TASK_ID, "凭证不充分");
 
         verify(taskHistoryService).recordHistory(TASK_ID,
-                "PENDING_CONFIRMATION", "IN_PROGRESS", REQUESTER_ID,
-                "COMPLETION_REJECTED; REASON=凭证不充分");
+                TaskStatus.PENDING_CONFIRMATION, TaskStatus.IN_PROGRESS, REQUESTER_ID,
+                TaskHistoryEventType.COMPLETION_REJECTED, "凭证不充分");
         verify(notificationService).notifyTaskStatusChanged(
-                eq(task), eq("PENDING_CONFIRMATION"), eq("IN_PROGRESS"), eq(REQUESTER_ID), anyString());
+                eq(task), eq(TaskStatus.IN_PROGRESS), eq(REQUESTER_ID), anyString());
     }
 
     // ---- disputeCompletion ----
@@ -211,16 +216,16 @@ class BE09CompletionServiceImplTest {
         Task task = task(TASK_ID, REQUESTER_ID, PROVIDER_ID, "PENDING_CONFIRMATION", "POINTS", 20);
         when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(task);
         when(taskMapper.updateStatusById(
-                eq(TASK_ID), eq("PENDING_CONFIRMATION"), eq("DISPUTED"), any()))
+                eq(TASK_ID), eq(TaskStatus.PENDING_CONFIRMATION), eq(TaskStatus.DISPUTED), any()))
                 .thenReturn(1);
 
         completionService.disputeCompletion(REQUESTER_ID, TASK_ID, "任务未按要求完成");
 
         verify(taskHistoryService).recordHistory(TASK_ID,
-                "PENDING_CONFIRMATION", "DISPUTED", REQUESTER_ID,
-                "COMPLETION_DISPUTED; REASON=任务未按要求完成");
+                TaskStatus.PENDING_CONFIRMATION, TaskStatus.DISPUTED, REQUESTER_ID,
+                TaskHistoryEventType.DISPUTED, "任务未按要求完成");
         verify(notificationService).notifyTaskStatusChanged(
-                eq(task), eq("PENDING_CONFIRMATION"), eq("DISPUTED"), eq(REQUESTER_ID), anyString());
+                eq(task), eq(TaskStatus.DISPUTED), eq(REQUESTER_ID), anyString());
     }
 
     @Test
@@ -253,8 +258,8 @@ class BE09CompletionServiceImplTest {
         task.setId(id);
         task.setRequesterId(requesterId);
         task.setProviderId(providerId);
-        task.setStatus(status);
-        task.setRewardType(rewardType);
+        task.setStatus(TaskStatus.valueOf(status));
+        task.setRewardType(RewardType.valueOf(rewardType));
         task.setRewardAmount(rewardAmount);
         task.setUpdatedAt(LocalDateTime.now());
         return task;

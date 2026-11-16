@@ -22,19 +22,19 @@
       <if test="query.keyword != null and query.keyword != ''">
         AND (t.title LIKE CONCAT('%', #{query.keyword}, '%') OR t.description LIKE CONCAT('%', #{query.keyword}, '%'))
       </if>
-      <if test="query.category != null and query.category != ''">
+      <if test="query.category != null">
         AND t.category = #{query.category}
       </if>
       <if test="query.campus != null and query.campus != ''">
         AND t.campus = #{query.campus}
       </if>
-      <if test="query.status != null and query.status != ''">
+      <if test="query.status != null">
         AND t.status = #{query.status}
       </if>
-      <if test="query.status == null or query.status == ''">
+      <if test="query.status == null">
         AND t.status NOT IN ('DISPUTED', 'CANCELLED')
       </if>
-      <if test="query.rewardType != null and query.rewardType != ''">
+      <if test="query.rewardType != null">
         AND t.reward_type = #{query.rewardType}
       </if>
       <if test="query.requiresProof != null">
@@ -45,13 +45,13 @@
       </if>
     </where>
     <choose>
-      <when test="query.sortBy == 'DEADLINE_ASC'">
+      <when test="query.sortBy != null and query.sortBy.name() == 'DEADLINE_ASC'">
         ORDER BY t.deadline ASC
       </when>
-      <when test="query.sortBy == 'DEADLINE_DESC'">
+      <when test="query.sortBy != null and query.sortBy.name() == 'DEADLINE_DESC'">
         ORDER BY t.deadline DESC
       </when>
-      <when test="query.sortBy == 'CREATED_AT_DESC'">
+      <when test="query.sortBy != null and query.sortBy.name() == 'CREATED_AT_DESC'">
         ORDER BY t.created_at DESC
       </when>
       <otherwise>
@@ -60,17 +60,26 @@
     </choose>
   </select>
 
-  <select id="selectTasksNeedingTimeoutReminder" resultType="com.campusbridge.entity.Task">
+  <select id="selectOpenTasksNeedingTimeoutReminder" resultType="com.campusbridge.entity.Task">
     SELECT * FROM tasks t
-    WHERE t.status = #{status}
-      AND (
-        (#{status} = 'OPEN' AND t.deadline &lt;= #{referenceTime})
-        OR (#{status} = 'PENDING_CONFIRMATION' AND t.updated_at &lt;= #{referenceTime})
-      )
+    WHERE t.status = 'OPEN' AND t.deadline &lt;= #{referenceTime}
       AND NOT EXISTS (
         SELECT 1 FROM task_histories h
         WHERE h.task_id = t.id
-          AND h.note = #{reminderNote}
+          AND h.event_type = #{reminderEventType}
+          AND h.created_at &gt;= t.updated_at
+      )
+    ORDER BY t.updated_at ASC, t.id ASC
+    LIMIT #{limit}
+  </select>
+
+  <select id="selectUnconfirmedTasksNeedingTimeoutReminder" resultType="com.campusbridge.entity.Task">
+    SELECT * FROM tasks t
+    WHERE t.status = 'PENDING_CONFIRMATION' AND t.updated_at &lt;= #{referenceTime}
+      AND NOT EXISTS (
+        SELECT 1 FROM task_histories h
+        WHERE h.task_id = t.id
+          AND h.event_type = #{reminderEventType}
           AND h.created_at &gt;= t.updated_at
       )
     ORDER BY t.updated_at ASC, t.id ASC
@@ -83,7 +92,7 @@
       AND EXISTS (
         SELECT 1 FROM task_histories h
         WHERE h.task_id = t.id
-          AND h.note = #{reminderNote}
+          AND h.event_type = #{reminderEventType}
           AND h.created_at &gt;= t.updated_at
           AND h.created_at &lt;= #{reminderCreatedBefore}
       )

@@ -5,6 +5,7 @@ import com.campusbridge.controller.HomeController;
 import com.campusbridge.dto.view.HomeRecommendationsView;
 import com.campusbridge.dto.view.PostView;
 import com.campusbridge.dto.view.TaskView;
+import com.campusbridge.enums.TaskStatus;
 import com.campusbridge.mapper.PostMapper;
 import com.campusbridge.mapper.TaskMapper;
 import com.campusbridge.service.RecommendationService;
@@ -50,7 +51,7 @@ class HomeControllerTest {
         task.setRouteHint("不应公开的内部路线信息");
 
         when(postMapper.selectHotPosts(8)).thenReturn(List.of(post));
-        when(taskMapper.selectRecommendedTasks("OPEN", 6)).thenReturn(List.of(task));
+        when(taskMapper.selectRecommendedTasks(TaskStatus.OPEN, 6)).thenReturn(List.of(task));
         when(authContextUtil.getCurrentUserId()).thenReturn(null);
 
         ApiResponse<HomeRecommendationsView> result = new HomeController(postMapper, taskMapper,

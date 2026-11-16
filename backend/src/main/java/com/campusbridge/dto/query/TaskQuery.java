@@ -1,5 +1,9 @@
 package com.campusbridge.dto.query;
 
+import com.campusbridge.enums.TaskSort;
+import com.campusbridge.enums.RewardType;
+import com.campusbridge.enums.TaskCategory;
+import com.campusbridge.enums.TaskStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -11,13 +15,13 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class TaskQuery {
     private String keyword;
-    private String category;
+    private TaskCategory category;
     private String campus;
-    private String status;
-    private String rewardType;
+    private TaskStatus status;
+    private RewardType rewardType;
     private Boolean requiresProof;
     private Boolean excludeExpired;
-    private String sortBy;
+    private TaskSort sortBy;
     @Builder.Default
     private Integer page = 1;
     @Builder.Default

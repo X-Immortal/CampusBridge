@@ -1,5 +1,6 @@
 package com.campusbridge.service.impl;
 
+import com.campusbridge.enums.DashboardTodoType;
 import com.campusbridge.dto.view.CategoryCount;
 import com.campusbridge.dto.view.DailyCount;
 import com.campusbridge.dto.view.DashboardDistributionItem;
@@ -17,10 +18,8 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 @Transactional(readOnly = true)
 @Service
@@ -31,37 +30,6 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     private static final int MIN_DAYS = 1;
     private static final int MAX_DAYS = 30;
     private static final DateTimeFormatter DAY_FORMATTER = DateTimeFormatter.ofPattern("MM-dd");
-
-    private static final Map<String, String> TASK_STATUS_LABELS = new LinkedHashMap<>();
-    private static final Map<String, String> REPORT_STATUS_LABELS = new LinkedHashMap<>();
-    private static final Map<String, String> REPORT_TARGET_TYPE_LABELS = new LinkedHashMap<>();
-
-    static {
-        TASK_STATUS_LABELS.put("OPEN", "待接单");
-        TASK_STATUS_LABELS.put("ACCEPTED", "已选人");
-        TASK_STATUS_LABELS.put("IN_PROGRESS", "进行中");
-        TASK_STATUS_LABELS.put("PENDING_CONFIRMATION", "待确认");
-        TASK_STATUS_LABELS.put("COMPLETED", "已完成");
-        TASK_STATUS_LABELS.put("REVIEWED", "已评价");
-        TASK_STATUS_LABELS.put("PENDING_REVIEW", "待审核");
-        TASK_STATUS_LABELS.put("CANCELLED", "已取消");
-        TASK_STATUS_LABELS.put("DISPUTED", "争议中");
-        TASK_STATUS_LABELS.put("REJECTED", "未通过");
-        TASK_STATUS_LABELS.put("DRAFT", "草稿");
-
-        REPORT_STATUS_LABELS.put("PENDING", "待处理");
-        REPORT_STATUS_LABELS.put("PROCESSING", "处理中");
-        REPORT_STATUS_LABELS.put("APPROVED", "已通过");
-        REPORT_STATUS_LABELS.put("REJECTED", "已驳回");
-        REPORT_STATUS_LABELS.put("RESOLVED", "已处理");
-        REPORT_STATUS_LABELS.put("PUNISHED", "已处罚");
-
-        REPORT_TARGET_TYPE_LABELS.put("POST", "帖子");
-        REPORT_TARGET_TYPE_LABELS.put("REPLY", "回复");
-        REPORT_TARGET_TYPE_LABELS.put("TASK", "任务");
-        REPORT_TARGET_TYPE_LABELS.put("USER", "用户");
-        REPORT_TARGET_TYPE_LABELS.put("MESSAGE", "消息");
-    }
 
     private final AdminDashboardMapper adminDashboardMapper;
 
@@ -110,17 +78,17 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
 
     @Override
     public List<DashboardDistributionItem> getTaskStatusStats() {
-        return buildDistribution(adminDashboardMapper.countTasksByStatus(), TASK_STATUS_LABELS.keySet());
+        return toDistribution(adminDashboardMapper.countTasksByStatus());
     }
 
     @Override
     public List<DashboardDistributionItem> getReportStatusStats() {
-        return buildDistribution(adminDashboardMapper.countReportsByStatus(), REPORT_STATUS_LABELS.keySet());
+        return toDistribution(adminDashboardMapper.countReportsByStatus());
     }
 
     @Override
     public List<DashboardDistributionItem> getReportTargetTypeStats() {
-        return buildDistribution(adminDashboardMapper.countReportsByTargetType(), REPORT_TARGET_TYPE_LABELS.keySet());
+        return toDistribution(adminDashboardMapper.countReportsByTargetType());
     }
 
     @Override
@@ -131,17 +99,17 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
 
         List<DashboardTodo> todos = new ArrayList<>();
         todos.add(new DashboardTodo(
-                "VERIFICATION",
+                DashboardTodoType.VERIFICATION,
                 "待认证申请",
                 pendingVerifications,
                 "/admin?section=verifications"));
         todos.add(new DashboardTodo(
-                "REPORT",
+                DashboardTodoType.REPORT,
                 "待处理举报",
                 pendingReports,
                 "/admin?section=reports"));
         todos.add(new DashboardTodo(
-                "DISPUTED_TASK",
+                DashboardTodoType.DISPUTED_TASK,
                 "争议任务",
                 disputedTasks,
                 "/admin?section=dashboard"));
@@ -170,37 +138,9 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         return result;
     }
 
-    private List<DashboardDistributionItem> buildDistribution(
-            List<CategoryCount> rows,
-            Set<String> knownKeys) {
-        Map<String, Long> counts = new LinkedHashMap<>();
-        for (String key : knownKeys) {
-            counts.put(key, 0L);
-        }
-        if (rows != null) {
-            for (CategoryCount row : rows) {
-                counts.put(row.getCategory(), row.getCount());
-            }
-        }
-        List<DashboardDistributionItem> items = new ArrayList<>();
-        for (Map.Entry<String, Long> entry : counts.entrySet()) {
-            String status = entry.getKey();
-            String label = resolveLabel(status);
-            items.add(new DashboardDistributionItem(status, label, entry.getValue()));
-        }
-        return items;
-    }
-
-    private String resolveLabel(String key) {
-        if (TASK_STATUS_LABELS.containsKey(key)) {
-            return TASK_STATUS_LABELS.get(key);
-        }
-        if (REPORT_STATUS_LABELS.containsKey(key)) {
-            return REPORT_STATUS_LABELS.get(key);
-        }
-        if (REPORT_TARGET_TYPE_LABELS.containsKey(key)) {
-            return REPORT_TARGET_TYPE_LABELS.get(key);
-        }
-        return key;
+    private List<DashboardDistributionItem> toDistribution(List<CategoryCount> rows) {
+        return rows.stream()
+                .map(row -> new DashboardDistributionItem(row.getCategory(), row.getCount()))
+                .toList();
     }
 }

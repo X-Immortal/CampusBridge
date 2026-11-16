@@ -6,6 +6,7 @@ import com.campusbridge.dto.view.HomeRecommendationsView;
 import com.campusbridge.dto.view.HomeTaskView;
 import com.campusbridge.dto.view.PostView;
 import com.campusbridge.dto.view.TaskView;
+import com.campusbridge.enums.TaskStatus;
 import com.campusbridge.mapper.PostMapper;
 import com.campusbridge.mapper.TaskMapper;
 import com.campusbridge.service.RecommendationService;
@@ -37,7 +38,7 @@ public class HomeController {
             tasks = recommendationService.getRecommendedTasks(userId, 6);
         } else {
             posts = postMapper.selectHotPosts(8);
-            tasks = taskMapper.selectRecommendedTasks("OPEN", 6);
+            tasks = taskMapper.selectRecommendedTasks(TaskStatus.OPEN, 6);
         }
 
         return ApiResponse.success(new HomeRecommendationsView(

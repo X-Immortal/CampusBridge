@@ -5,9 +5,10 @@ import com.campusbridge.common.ErrorCode;
 import com.campusbridge.dto.request.CreateReviewRequest;
 import com.campusbridge.entity.Review;
 import com.campusbridge.entity.Task;
+import com.campusbridge.enums.TaskStatus;
 import com.campusbridge.mapper.ReviewMapper;
 import com.campusbridge.mapper.TaskMapper;
-import com.campusbridge.service.NotificationService;
+import com.campusbridge.service.TaskNotificationService;
 import com.campusbridge.service.impl.ReviewServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,7 +39,7 @@ class BE16ReviewServiceImplTest {
     private TaskMapper taskMapper;
 
     @Mock
-    private NotificationService notificationService;
+    private TaskNotificationService notificationService;
 
     private ReviewServiceImpl reviewService;
 
@@ -171,7 +172,7 @@ class BE16ReviewServiceImplTest {
         task.setId(id);
         task.setRequesterId(requesterId);
         task.setProviderId(providerId);
-        task.setStatus(status);
+        task.setStatus(TaskStatus.valueOf(status));
         task.setUpdatedAt(LocalDateTime.now());
         return task;
     }

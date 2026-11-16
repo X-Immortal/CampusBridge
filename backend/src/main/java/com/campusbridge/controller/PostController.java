@@ -10,6 +10,8 @@ import com.campusbridge.dto.view.MyReplyPostView;
 import com.campusbridge.dto.view.PostDetailView;
 import com.campusbridge.dto.view.PostView;
 import com.campusbridge.dto.view.ReplyView;
+import com.campusbridge.enums.PostCategory;
+import com.campusbridge.enums.PostStatus;
 import com.campusbridge.service.PostService;
 import com.campusbridge.service.ReplyService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -47,8 +49,8 @@ public class PostController {
     @GetMapping
     public ApiResponse<PagedResult<PostView>> listPosts(
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) String category,
-            @RequestParam(required = false) String status,
+            @RequestParam(required = false) PostCategory category,
+            @RequestParam(required = false) PostStatus status,
             @RequestParam(required = false, defaultValue = "1") Integer page,
             @RequestParam(required = false, defaultValue = "20") Integer size) {
         return ApiResponse.success(postService.listPosts(keyword, category, status, page, size));
@@ -58,8 +60,8 @@ public class PostController {
     public ApiResponse<PagedResult<MyReplyPostView>> listMyRepliedPosts(
             HttpServletRequest servletRequest,
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) String category,
-            @RequestParam(required = false) String status,
+            @RequestParam(required = false) PostCategory category,
+            @RequestParam(required = false) PostStatus status,
             @RequestParam(required = false, defaultValue = "1") Integer page,
             @RequestParam(required = false, defaultValue = "20") Integer size) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);

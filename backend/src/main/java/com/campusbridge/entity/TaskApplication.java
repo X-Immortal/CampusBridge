@@ -3,6 +3,7 @@ package com.campusbridge.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.campusbridge.enums.ApplicationStatus;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -19,7 +20,7 @@ public class TaskApplication {
     private Long taskId;
     private Long applicantId;
     private String message;
-    private String status;
+    private ApplicationStatus status;
     private LocalDateTime createdAt;
     private LocalDateTime handledAt;
 }

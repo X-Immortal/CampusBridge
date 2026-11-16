@@ -1,7 +1,6 @@
 package com.campusbridge.common;
 
 import lombok.Getter;
-import org.springframework.http.HttpStatus;
 
 import java.util.List;
 
@@ -9,13 +8,11 @@ import java.util.List;
 public class BusinessException extends RuntimeException {
     private final ErrorCode errorCode;
     private final List<String> details;
-    private final HttpStatus httpStatus;
 
     public BusinessException(ErrorCode errorCode, String message, List<String> details) {
         super(message);
         this.errorCode = errorCode;
         this.details = details;
-        this.httpStatus = errorCode.getHttpStatus();
     }
 
     public BusinessException(ErrorCode errorCode, String message) {

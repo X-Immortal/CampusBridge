@@ -3,6 +3,9 @@ package com.campusbridge.service.impl;
 import com.campusbridge.dto.UserPreferences;
 import com.campusbridge.dto.view.PostView;
 import com.campusbridge.dto.view.TaskView;
+import com.campusbridge.enums.PostCategory;
+import com.campusbridge.enums.RewardType;
+import com.campusbridge.enums.TaskCategory;
 import com.campusbridge.mapper.PostInteractionMapper;
 import com.campusbridge.mapper.PostMapper;
 import com.campusbridge.mapper.TaskApplicationMapper;
@@ -34,16 +37,16 @@ public class RecommendationServiceImpl implements RecommendationService {
         }
 
         // 1. 统计用户最常接的任务分类（前3）
-        List<String> preferredTaskCategories = taskApplicationMapper.selectPreferredCategories(userId, 3);
+        List<TaskCategory> preferredTaskCategories = taskApplicationMapper.selectPreferredCategories(userId, 3);
 
         // 2. 统计用户最活跃的校区（前2）
         List<String> preferredCampuses = taskMapper.selectPreferredCampuses(userId, 2);
 
         // 3. 统计用户偏好的报酬类型（前2）
-        List<String> preferredRewardTypes = taskApplicationMapper.selectPreferredRewardTypes(userId, 2);
+        List<RewardType> preferredRewardTypes = taskApplicationMapper.selectPreferredRewardTypes(userId, 2);
 
         // 4. 统计用户互动的帖子分类（前3）
-        List<String> interactionCategories = postInteractionMapper.selectPreferredPostCategories(userId, 3);
+        List<PostCategory> interactionCategories = postInteractionMapper.selectPreferredPostCategories(userId, 3);
 
         return new UserPreferences(preferredTaskCategories, preferredCampuses,
                 preferredRewardTypes, interactionCategories);
@@ -57,9 +60,9 @@ public class RecommendationServiceImpl implements RecommendationService {
 
         // 获取用户偏好
         UserPreferences preferences = getUserPreferences(userId);
-        List<String> preferredCategories = preferences.preferredTaskCategories();
+        List<TaskCategory> preferredCategories = preferences.preferredTaskCategories();
         List<String> preferredCampuses = preferences.preferredCampuses();
-        List<String> preferredRewards = preferences.preferredRewardTypes();
+        List<RewardType> preferredRewards = preferences.preferredRewardTypes();
 
         // 获取所有 OPEN 状态且未截止的任务
         List<TaskView> candidates = taskMapper.selectOpenTasksWithDeadline();
@@ -87,7 +90,7 @@ public class RecommendationServiceImpl implements RecommendationService {
 
         // 获取用户偏好
         UserPreferences preferences = getUserPreferences(userId);
-        List<String> interactionCategories = preferences.interactionCategories();
+        List<PostCategory> interactionCategories = preferences.interactionCategories();
 
         // 获取所有已发布的帖子
         List<PostView> candidates = postMapper.selectAllPublishedPosts();
@@ -105,8 +108,8 @@ public class RecommendationServiceImpl implements RecommendationService {
         return scoredPosts.stream().map(ps -> ps.post).collect(Collectors.toList());
     }
 
-    private int calculateTaskScore(TaskView task, List<String> preferredCategories,
-                                    List<String> preferredCampuses, List<String> preferredRewards) {
+    private int calculateTaskScore(TaskView task, List<TaskCategory> preferredCategories,
+                                    List<String> preferredCampuses, List<RewardType> preferredRewards) {
         int score = 0;
 
         // 1. 分类匹配 (0-5分)
@@ -151,7 +154,7 @@ public class RecommendationServiceImpl implements RecommendationService {
         return score;
     }
 
-    private int calculatePostScore(PostView post, List<String> interactionCategories) {
+    private int calculatePostScore(PostView post, List<PostCategory> interactionCategories) {
         int score = 0;
 
         // 1. 分类匹配 (0-5分)

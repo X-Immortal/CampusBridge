@@ -6,15 +6,17 @@ import com.campusbridge.dto.request.UpdatePostRequest;
 import com.campusbridge.dto.view.MyReplyPostView;
 import com.campusbridge.dto.view.PostDetailView;
 import com.campusbridge.dto.view.PostView;
+import com.campusbridge.enums.PostCategory;
+import com.campusbridge.enums.PostStatus;
 
 public interface PostService {
     PostView createPost(Long userId, CreatePostRequest request);
 
     PagedResult<PostView> listPosts(
-            String keyword, String category, String status, Integer page, Integer size);
+            String keyword, PostCategory category, PostStatus status, Integer page, Integer size);
 
     PagedResult<MyReplyPostView> listPostsRepliedByUser(
-            Long userId, String keyword, String category, String status, Integer page, Integer size);
+            Long userId, String keyword, PostCategory category, PostStatus status, Integer page, Integer size);
 
     PostDetailView getPostDetail(Long postId, Long currentUserId);
 

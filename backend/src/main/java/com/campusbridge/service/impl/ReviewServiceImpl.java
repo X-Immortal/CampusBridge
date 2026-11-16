@@ -5,9 +5,10 @@ import com.campusbridge.common.ErrorCode;
 import com.campusbridge.dto.request.CreateReviewRequest;
 import com.campusbridge.entity.Review;
 import com.campusbridge.entity.Task;
+import com.campusbridge.enums.TaskStatus;
 import com.campusbridge.mapper.ReviewMapper;
 import com.campusbridge.mapper.TaskMapper;
-import com.campusbridge.service.NotificationService;
+import com.campusbridge.service.TaskNotificationService;
 import com.campusbridge.service.ReviewService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
@@ -21,12 +22,10 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class ReviewServiceImpl implements ReviewService {
-    private static final String STATUS_COMPLETED = "COMPLETED";
-    private static final String STATUS_REVIEWED = "REVIEWED";
 
     private final ReviewMapper reviewMapper;
     private final TaskMapper taskMapper;
-    private final NotificationService notificationService;
+    private final TaskNotificationService notificationService;
 
     @Override
     public Review createReview(Long reviewerId, Long taskId, CreateReviewRequest request) {
@@ -40,8 +39,8 @@ public class ReviewServiceImpl implements ReviewService {
             throw new BusinessException(ErrorCode.TASK_001_NOT_FOUND);
         }
 
-        String taskStatus = task.getStatus();
-        if (!STATUS_COMPLETED.equals(taskStatus) && !STATUS_REVIEWED.equals(taskStatus)) {
+        TaskStatus taskStatus = task.getStatus();
+        if (taskStatus != TaskStatus.COMPLETED && taskStatus != TaskStatus.REVIEWED) {
             throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION,
                     "Only completed tasks can be reviewed");
         }

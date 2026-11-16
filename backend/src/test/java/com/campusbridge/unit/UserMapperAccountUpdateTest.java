@@ -3,6 +3,7 @@ package com.campusbridge.unit;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.MybatisSqlSessionFactoryBuilder;
 import com.campusbridge.entity.User;
+import com.campusbridge.enums.UserRole;
 import com.campusbridge.mapper.UserMapper;
 import org.apache.ibatis.datasource.unpooled.UnpooledDataSource;
 import org.apache.ibatis.mapping.Environment;
@@ -29,7 +30,6 @@ class UserMapperAccountUpdateTest {
                       phone_cipher VARCHAR(100), phone_hash VARCHAR(64), email VARCHAR(100),
                       role VARCHAR(20), enabled INT, created_at TIMESTAMP, updated_at TIMESTAMP)
                     """);
-            sql.execute("INSERT INTO users (id, username, role, enabled) VALUES (1, 'admin', 'ADMIN', 1)");
             MybatisConfiguration configuration = new MybatisConfiguration(
                     new Environment("test", new JdbcTransactionFactory(), dataSource));
             configuration.setMapUnderscoreToCamelCase(true);
@@ -37,6 +37,17 @@ class UserMapperAccountUpdateTest {
             SqlSessionFactory factory = new MybatisSqlSessionFactoryBuilder().build(configuration);
             try (SqlSession session = factory.openSession(true)) {
                 UserMapper users = session.getMapper(UserMapper.class);
+                User created = new User();
+                created.setId(1L);
+                created.setUsername("admin");
+                created.setRole(UserRole.ADMIN);
+                created.setEnabled(1);
+                assertThat(users.insert(created)).isEqualTo(1);
+                try (var result = sql.executeQuery("SELECT role FROM users WHERE id = 1")) {
+                    assertThat(result.next()).isTrue();
+                    assertThat(result.getString(1)).isEqualTo("ADMIN");
+                }
+
                 assertThat(users.selectById(1L).getEnabled()).isEqualTo(1);
                 sql.execute("UPDATE users SET role = 'USER', enabled = 0 WHERE id = 1");
                 LocalDateTime now = LocalDateTime.now();
@@ -45,7 +56,7 @@ class UserMapperAccountUpdateTest {
                 assertThat(users.updatePhone(1L, "13800000001", "new-phone-hash", now)).isEqualTo(1);
                 User current = users.selectById(1L);
                 assertThat(current.getEnabled()).isZero();
-                assertThat(current.getRole()).isEqualTo("USER");
+                assertThat(current.getRole()).isEqualTo(UserRole.USER);
                 assertThat(current.getPasswordHash()).isEqualTo("new-password-hash");
                 assertThat(current.getEmail()).isEqualTo("new@example.test");
                 assertThat(current.getPhoneHash()).isEqualTo("new-phone-hash");

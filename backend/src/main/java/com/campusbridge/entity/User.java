@@ -3,6 +3,7 @@ package com.campusbridge.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.campusbridge.enums.UserRole;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -21,7 +22,7 @@ public class User {
     private String phoneCipher;
     private String phoneHash;
     private String email;
-    private String role;
+    private UserRole role;
     private Integer enabled;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

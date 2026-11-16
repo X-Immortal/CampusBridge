@@ -1,5 +1,6 @@
 package com.campusbridge.service.impl;
 
+import com.campusbridge.enums.CreditSourceType;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.campusbridge.common.BusinessException;
@@ -14,8 +15,11 @@ import com.campusbridge.entity.Reply;
 import com.campusbridge.entity.Report;
 import com.campusbridge.entity.Task;
 import com.campusbridge.entity.User;
-import com.campusbridge.enums.ModerationStatus;
+import com.campusbridge.enums.ReportStatus;
 import com.campusbridge.enums.ReportTargetType;
+import com.campusbridge.enums.TaskStatus;
+import com.campusbridge.enums.TaskHistoryEventType;
+import com.campusbridge.enums.TaskStatusTransitionAction;
 import com.campusbridge.mapper.MessageMapper;
 import com.campusbridge.mapper.ModerationRecordMapper;
 import com.campusbridge.mapper.PostMapper;
@@ -24,7 +28,7 @@ import com.campusbridge.mapper.ReportMapper;
 import com.campusbridge.mapper.TaskMapper;
 import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.service.CreditService;
-import com.campusbridge.service.NotificationService;
+import com.campusbridge.service.TaskNotificationService;
 import com.campusbridge.service.ReportService;
 import com.campusbridge.service.TaskHistoryService;
 import lombok.RequiredArgsConstructor;
@@ -32,7 +36,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.Set;
 
 @Transactional
 @Service
@@ -43,15 +46,6 @@ public class ReportServiceImpl implements ReportService {
     private static final int MAX_SIZE = 100;
     private static final int DEFAULT_PUNISHMENT_CREDIT_CHANGE = -10;
 
-    private static final String STATUS_PENDING = "PENDING";
-    private static final String STATUS_PROCESSING = "PROCESSING";
-    private static final String STATUS_PUNISHED = "PUNISHED";
-    private static final String STATUS_DISPUTED = "DISPUTED";
-    private static final String TARGET_TASK = "TASK";
-    private static final String SOURCE_TYPE_REPORT = "REPORT";
-
-    private static final Set<String> DISPUTABLE_TASK_STATUSES =
-            Set.of("ACCEPTED", "IN_PROGRESS", "PENDING_CONFIRMATION");
 
     private final ReportMapper reportMapper;
     private final ModerationRecordMapper moderationRecordMapper;
@@ -61,7 +55,7 @@ public class ReportServiceImpl implements ReportService {
     private final ReplyMapper replyMapper;
     private final MessageMapper messageMapper;
     private final TaskHistoryService taskHistoryService;
-    private final NotificationService notificationService;
+    private final TaskNotificationService notificationService;
     private final CreditService creditService;
 
     @Override
@@ -73,11 +67,11 @@ public class ReportServiceImpl implements ReportService {
 
         Report report = new Report();
         report.setReporterId(reporterId);
-        report.setTargetType(request.getTargetType().name());
+        report.setTargetType(request.getTargetType());
         report.setTargetId(request.getTargetId());
         report.setReason(request.getReason().trim());
         report.setDescription(trimToNull(request.getDescription()));
-        report.setStatus(STATUS_PENDING);
+        report.setStatus(ReportStatus.PENDING);
         report.setCreatedAt(now);
 
         if (reportMapper.insert(report) != 1) {
@@ -95,32 +89,30 @@ public class ReportServiceImpl implements ReportService {
     @Override
     public PagedResult<Report> listReports(
             Long reporterId,
-            String status,
+            ReportStatus status,
             Integer page,
             Integer size) {
         validateReporterId(reporterId);
         int safePage = normalizePage(page);
         int safeSize = normalizeSize(size);
-        String normalizedStatus = normalizeStatusFilter(status);
         Page<Report> result = reportMapper.selectPage(new Page<>(safePage, safeSize),
                 Wrappers.<Report>lambdaQuery()
                         .eq(Report::getReporterId, reporterId)
-                        .eq(normalizedStatus != null, Report::getStatus, normalizedStatus)
+                        .eq(status != null, Report::getStatus, status)
                         .orderByDesc(Report::getCreatedAt, Report::getId));
         return new PagedResult<>(result.getRecords(), safePage, safeSize, result.getTotal());
     }
 
     @Override
     public PagedResult<Report> listReportsForAdmin(
-            String status,
+            ReportStatus status,
             Integer page,
             Integer size) {
         int safePage = normalizePage(page);
         int safeSize = normalizeSize(size);
-        String normalizedStatus = normalizeStatusFilter(status);
         Page<Report> result = reportMapper.selectPage(new Page<>(safePage, safeSize),
                 Wrappers.<Report>lambdaQuery()
-                        .eq(normalizedStatus != null, Report::getStatus, normalizedStatus)
+                        .eq(status != null, Report::getStatus, status)
                         .orderByDesc(Report::getCreatedAt, Report::getId));
         return new PagedResult<>(result.getRecords(), safePage, safeSize, result.getTotal());
     }
@@ -138,13 +130,13 @@ public class ReportServiceImpl implements ReportService {
         if (report == null) {
             throw new BusinessException(ErrorCode.REPORT_001_NOT_FOUND);
         }
-        if (!STATUS_PENDING.equals(report.getStatus()) && !STATUS_PROCESSING.equals(report.getStatus())) {
+        if (report.getStatus() == null || report.getStatus().isTerminal()) {
             throw new BusinessException(
                     ErrorCode.COMMON_003_CONFLICT,
                     "Report has already been resolved");
         }
 
-        String status = request.getStatus().name();
+        ReportStatus status = request.getStatus();
         if (reportMapper.updateStatusById(reportId, status) != 1) {
             throw new BusinessException(
                     ErrorCode.COMMON_003_CONFLICT,
@@ -167,7 +159,7 @@ public class ReportServiceImpl implements ReportService {
                     "Failed to create moderation record");
         }
 
-        if (Boolean.TRUE.equals(request.getMarkTaskDisputed()) && TARGET_TASK.equals(report.getTargetType())) {
+        if (Boolean.TRUE.equals(request.getMarkTaskDisputed()) && report.getTargetType() == ReportTargetType.TASK) {
             Task task = taskMapper.selectById(report.getTargetId());
             if (task == null) {
                 throw new BusinessException(ErrorCode.TASK_001_NOT_FOUND);
@@ -180,8 +172,7 @@ public class ReportServiceImpl implements ReportService {
     }
 
     private void validateResolveReportRequest(ResolveReportRequest request) {
-        if (STATUS_PENDING.equals(request.getStatus().name())
-                || STATUS_PROCESSING.equals(request.getStatus().name())) {
+        if (!request.getStatus().isTerminal()) {
             throwValidation("status must be a final moderation result");
         }
         if (request.getCreditChange() != null && request.getCreditChange() == 0) {
@@ -231,29 +222,28 @@ public class ReportServiceImpl implements ReportService {
         if (task == null || report == null || task.getId() == null) {
             return;
         }
-        if (!isTaskParticipant(task, operatorId) || !DISPUTABLE_TASK_STATUSES.contains(task.getStatus())) {
+        if (!isTaskParticipant(task, operatorId) || !TaskStatusTransitionAction.DISPUTE.canTransitionFrom(task.getStatus())) {
             return;
         }
 
-        String fromStatus = task.getStatus();
+        TaskStatus fromStatus = task.getStatus();
         LocalDateTime now = LocalDateTime.now();
-        if (taskMapper.updateStatusById(task.getId(), fromStatus, STATUS_DISPUTED, now) != 1) {
+        if (taskMapper.updateStatusById(task.getId(), fromStatus, TaskStatus.DISPUTED, now) != 1) {
             return;
         }
 
         taskHistoryService.recordHistory(
                 task.getId(),
                 fromStatus,
-                STATUS_DISPUTED,
+                TaskStatus.DISPUTED,
                 operatorId,
-                buildReportHistoryNote(report));
+                TaskHistoryEventType.REPORT_CREATED, buildReportHistoryNote(report));
         notificationService.notifyTaskStatusChanged(
                 task,
-                fromStatus,
-                STATUS_DISPUTED,
+                TaskStatus.DISPUTED,
                 operatorId,
                 report.getReason());
-        task.setStatus(STATUS_DISPUTED);
+        task.setStatus(TaskStatus.DISPUTED);
         task.setUpdatedAt(now);
     }
 
@@ -261,29 +251,28 @@ public class ReportServiceImpl implements ReportService {
         if (task == null || report == null || task.getId() == null) {
             return;
         }
-        if (!DISPUTABLE_TASK_STATUSES.contains(task.getStatus())) {
+        if (!TaskStatusTransitionAction.DISPUTE.canTransitionFrom(task.getStatus())) {
             return;
         }
 
-        String fromStatus = task.getStatus();
+        TaskStatus fromStatus = task.getStatus();
         LocalDateTime now = LocalDateTime.now();
-        if (taskMapper.updateStatusById(task.getId(), fromStatus, STATUS_DISPUTED, now) != 1) {
+        if (taskMapper.updateStatusById(task.getId(), fromStatus, TaskStatus.DISPUTED, now) != 1) {
             return;
         }
 
         taskHistoryService.recordHistory(
                 task.getId(),
                 fromStatus,
-                STATUS_DISPUTED,
+                TaskStatus.DISPUTED,
                 adminUserId,
-                buildAdminReportHistoryNote(report));
+                TaskHistoryEventType.REPORT_RESOLVED, buildReportHistoryNote(report));
         notificationService.notifyTaskStatusChanged(
                 task,
-                fromStatus,
-                STATUS_DISPUTED,
+                TaskStatus.DISPUTED,
                 adminUserId,
                 report.getReason());
-        task.setStatus(STATUS_DISPUTED);
+        task.setStatus(TaskStatus.DISPUTED);
         task.setUpdatedAt(now);
     }
 
@@ -291,7 +280,7 @@ public class ReportServiceImpl implements ReportService {
             Report report,
             ResolveReportRequest request) {
         Integer creditChange = request.getCreditChange();
-        if (creditChange == null && STATUS_PUNISHED.equals(request.getStatus().name())) {
+        if (creditChange == null && request.getStatus() == ReportStatus.PUNISHED) {
             creditChange = DEFAULT_PUNISHMENT_CREDIT_CHANGE;
         }
         if (creditChange == null) {
@@ -311,12 +300,12 @@ public class ReportServiceImpl implements ReportService {
                 userId,
                 creditChange,
                 buildCreditReason(request),
-                SOURCE_TYPE_REPORT,
+                CreditSourceType.REPORT,
                 report.getId());
     }
 
     private Long resolveDefaultCreditTargetUserId(Report report) {
-        ReportTargetType targetType = ReportTargetType.valueOf(report.getTargetType());
+        ReportTargetType targetType = report.getTargetType();
         switch (targetType) {
             case POST:
                 Post post = postMapper.selectById(report.getTargetId());
@@ -363,29 +352,11 @@ public class ReportServiceImpl implements ReportService {
     }
 
     private String buildReportHistoryNote(Report report) {
-        String note = "REPORT_CREATED; REPORT_ID=" + report.getId();
-        if (report.getReason() == null || report.getReason().isBlank()) {
-            return note;
+        String note = "举报 #" + report.getId();
+        if (report.getReason() != null && !report.getReason().isBlank()) {
+            note += "；原因：" + report.getReason().trim();
         }
-        String reason = report.getReason().trim();
-        String combined = note + "; REASON=" + reason;
-        if (combined.length() <= 300) {
-            return combined;
-        }
-        return combined.substring(0, 300);
-    }
-
-    private String buildAdminReportHistoryNote(Report report) {
-        String note = "ADMIN_REPORT_RESOLVED; REPORT_ID=" + report.getId();
-        if (report.getReason() == null || report.getReason().isBlank()) {
-            return note;
-        }
-        String reason = report.getReason().trim();
-        String combined = note + "; REASON=" + reason;
-        if (combined.length() <= 300) {
-            return combined;
-        }
-        return combined.substring(0, 300);
+        return note.length() <= 300 ? note : note.substring(0, 300);
     }
 
     private boolean isTaskParticipant(Task task, Long userId) {
@@ -404,20 +375,6 @@ public class ReportServiceImpl implements ReportService {
             return DEFAULT_SIZE;
         }
         return Math.min(size, MAX_SIZE);
-    }
-
-    private String normalizeStatusFilter(String status) {
-        if (status == null || status.isBlank()) {
-            return null;
-        }
-        String normalized = status.trim().toUpperCase();
-        try {
-            ModerationStatus.valueOf(normalized);
-            return normalized;
-        } catch (IllegalArgumentException ex) {
-            throwValidation("status is invalid");
-            return null;
-        }
     }
 
     private String trimToNull(String value) {

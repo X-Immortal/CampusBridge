@@ -5,6 +5,9 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.campusbridge.dto.view.PostView;
 import com.campusbridge.entity.Post;
+import com.campusbridge.enums.PostCategory;
+import com.campusbridge.enums.PostInteractionType;
+import com.campusbridge.enums.PostStatus;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -17,18 +20,18 @@ public interface PostMapper extends BaseMapper<Post> {
 
     Page<PostView> selectWithFilters(
             Page<PostView> page,
-            @Param("category") String category,
-            @Param("status") String status,
+            @Param("category") PostCategory category,
+            @Param("status") PostStatus status,
             @Param("keyword") String keyword);
 
     Page<PostView> selectRepliedByUser(
             Page<PostView> page,
             @Param("userId") Long userId,
-            @Param("category") String category,
-            @Param("status") String status,
+            @Param("category") PostCategory category,
+            @Param("status") PostStatus status,
             @Param("keyword") String keyword);
 
-    default int updateContent(Post entity, String expectedStatus) {
+    default int updateContent(Post entity, PostStatus expectedStatus) {
         return update(null, Wrappers.<Post>lambdaUpdate()
                 .set(Post::getTitle, entity.getTitle())
                 .set(Post::getContent, entity.getContent())
@@ -43,24 +46,24 @@ public interface PostMapper extends BaseMapper<Post> {
         return update(null, Wrappers.<Post>lambdaUpdate()
                 .setIncrBy(Post::getReplyCount, 1)
                 .eq(Post::getId, id)
-                .eq(Post::getStatus, "PUBLISHED"));
+                .eq(Post::getStatus, PostStatus.PUBLISHED));
     }
 
-    int adjustInteractionCount(@Param("id") Long id, @Param("type") String type, @Param("delta") int delta);
+    int adjustInteractionCount(@Param("id") Long id, @Param("type") PostInteractionType type, @Param("delta") int delta);
 
     default int updateAcceptedReply(Long id, Long replyId) {
         return update(null, Wrappers.<Post>lambdaUpdate()
                 .set(Post::getAcceptedReplyId, replyId)
                 .eq(Post::getId, id)
-                .in(Post::getStatus, "PUBLISHED", "CLOSED"));
+                .in(Post::getStatus, PostStatus.PUBLISHED, PostStatus.CLOSED));
     }
 
     default int markDeletedById(Long id) {
         return update(null, Wrappers.<Post>lambdaUpdate()
-                .set(Post::getStatus, "DELETED")
+                .set(Post::getStatus, PostStatus.DELETED)
                 .setSql("updated_at = CURRENT_TIMESTAMP")
                 .eq(Post::getId, id)
-                .ne(Post::getStatus, "DELETED"));
+                .ne(Post::getStatus, PostStatus.DELETED));
     }
 
     List<PostView> selectHotPosts(@Param("size") Integer size);

@@ -1,14 +1,16 @@
 package com.campusbridge.service.impl;
 
+import com.campusbridge.enums.ReplyStatus;
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
 import com.campusbridge.dto.request.CreateReplyRequest;
 import com.campusbridge.dto.view.ReplyView;
 import com.campusbridge.entity.Post;
 import com.campusbridge.entity.Reply;
+import com.campusbridge.enums.PostStatus;
 import com.campusbridge.mapper.PostMapper;
 import com.campusbridge.mapper.ReplyMapper;
-import com.campusbridge.service.NotificationService;
+import com.campusbridge.service.ReplyNotificationService;
 import com.campusbridge.service.ReplyService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -22,12 +24,12 @@ import java.time.LocalDateTime;
 public class ReplyServiceImpl implements ReplyService {
     private final ReplyMapper replyMapper;
     private final PostMapper postMapper;
-    private final NotificationService notificationService;
+    private final ReplyNotificationService notificationService;
 
     @Override
     public ReplyView createReply(Long userId, Long postId, CreateReplyRequest request) {
         Post post = postMapper.selectById(postId);
-        if (post == null || !"PUBLISHED".equals(post.getStatus())) {
+        if (post == null || post.getStatus() != PostStatus.PUBLISHED) {
             throw new BusinessException(ErrorCode.POST_001_NOT_FOUND);
         }
 
@@ -35,7 +37,7 @@ public class ReplyServiceImpl implements ReplyService {
         if (request.getParentReplyId() != null) {
             parentReply = replyMapper.selectById(request.getParentReplyId());
             if (parentReply == null || !postId.equals(parentReply.getPostId())
-                    || !"PUBLISHED".equals(parentReply.getStatus())) {
+                    || parentReply.getStatus() != ReplyStatus.PUBLISHED) {
                 throw new BusinessException(
                         ErrorCode.COMMON_001_VALIDATION_ERROR,
                         "parent reply does not belong to this post");
@@ -48,7 +50,7 @@ public class ReplyServiceImpl implements ReplyService {
         reply.setAuthorId(userId);
         reply.setParentReplyId(request.getParentReplyId());
         reply.setContent(request.getContent());
-        reply.setStatus("PUBLISHED");
+        reply.setStatus(ReplyStatus.PUBLISHED);
         reply.setLikeCount(0);
         reply.setCreatedAt(now);
 
@@ -62,7 +64,7 @@ public class ReplyServiceImpl implements ReplyService {
                     "Failed to create reply");
         }
 
-        notificationService.notifyPostReplyCreated(post, reply, parentReply, userId);
+        notificationService.notifyReplyCreated(post, reply, parentReply);
 
         return ReplyView.from(reply);
     }

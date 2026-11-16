@@ -6,6 +6,7 @@ import com.campusbridge.dto.request.LoginRequest;
 import com.campusbridge.dto.request.RegisterRequest;
 import com.campusbridge.dto.view.LoginView;
 import com.campusbridge.entity.User;
+import com.campusbridge.enums.UserRole;
 import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.service.AuthService;
 import com.campusbridge.service.PostService;
@@ -102,7 +103,7 @@ class AuthControllerIntegrationTest {
 
     @Test
     void loginReturnsServicePayloadWhenCredentialsAreValid() throws Exception {
-        when(authService.login(any(LoginRequest.class))).thenReturn(new LoginView(100L, "alice", "USER", "jwt-token", "refresh-token"));
+        when(authService.login(any(LoginRequest.class))).thenReturn(new LoginView(100L, "alice", UserRole.USER, "jwt-token", "refresh-token"));
 
         mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -157,14 +158,14 @@ class AuthControllerIntegrationTest {
     void disabledAccountCannotUsePreviouslyIssuedAccessToken() throws Exception {
         stubUser("USER", 0);
         mockMvc.perform(get("/api/v1/users/me")
-                        .header("Authorization", "Bearer " + jwtUtil.generateToken(100L, "USER")))
+                        .header("Authorization", "Bearer " + jwtUtil.generateToken(100L, UserRole.USER)))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
     void missingAccountCannotUseAccessToken() throws Exception {
         mockMvc.perform(get("/api/v1/users/me")
-                        .header("Authorization", "Bearer " + jwtUtil.generateToken(100L, "USER")))
+                        .header("Authorization", "Bearer " + jwtUtil.generateToken(100L, UserRole.USER)))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -172,7 +173,7 @@ class AuthControllerIntegrationTest {
     void previousAdminTokenCannotBypassCurrentRole() throws Exception {
         stubUser("USER", 1);
         mockMvc.perform(get("/api/v1/admin/dashboard/summary")
-                        .header("Authorization", "Bearer " + jwtUtil.generateToken(100L, "ADMIN")))
+                        .header("Authorization", "Bearer " + jwtUtil.generateToken(100L, UserRole.ADMIN)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("MOD_001_PERMISSION_DENIED"))
                 .andExpect(jsonPath("$.meta.requestId").exists());
@@ -197,7 +198,7 @@ class AuthControllerIntegrationTest {
     void missingUploadPartReturnsValidationError() throws Exception {
         stubUser("USER", 1);
         mockMvc.perform(multipart("/api/v1/attachments")
-                        .header("Authorization", "Bearer " + jwtUtil.generateToken(100L, "USER")))
+                        .header("Authorization", "Bearer " + jwtUtil.generateToken(100L, UserRole.USER)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("COMMON_001_VALIDATION_ERROR"));
     }
@@ -218,7 +219,7 @@ class AuthControllerIntegrationTest {
     private void stubUser(String role, int enabled) {
         User user = new User();
         user.setId(100L);
-        user.setRole(role);
+        user.setRole(UserRole.valueOf(role));
         user.setEnabled(enabled);
         when(userMapper.selectById(100L)).thenReturn(user);
     }

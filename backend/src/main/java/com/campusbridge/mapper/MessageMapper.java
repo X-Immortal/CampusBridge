@@ -3,6 +3,7 @@ package com.campusbridge.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.campusbridge.entity.Message;
+import com.campusbridge.enums.MessageType;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -15,7 +16,7 @@ public interface MessageMapper extends BaseMapper<Message> {
 
     default int countByConversationTypeAndContent(
             Long conversationId,
-            String type,
+            MessageType type,
             String content) {
         return Math.toIntExact(selectCount(Wrappers.<Message>lambdaQuery()
                 .eq(Message::getConversationId, conversationId)
@@ -36,8 +37,5 @@ public interface MessageMapper extends BaseMapper<Message> {
 
     long countOwnerUnread(Long ownerId);
 
-    long countOwnerUnreadBySystemType(
-            @Param("ownerId") Long ownerId,
-            @Param("isSystem") boolean isSystem);
 
 }

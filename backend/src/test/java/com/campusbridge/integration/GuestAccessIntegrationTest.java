@@ -5,6 +5,9 @@ import com.campusbridge.dto.view.TaskDetailView;
 import com.campusbridge.dto.view.TaskPageView;
 import com.campusbridge.dto.view.TaskView;
 import com.campusbridge.entity.User;
+import com.campusbridge.enums.RewardType;
+import com.campusbridge.enums.TaskStatus;
+import com.campusbridge.enums.UserRole;
 import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.service.PostService;
 import com.campusbridge.service.TaskDetailService;
@@ -74,10 +77,10 @@ class GuestAccessIntegrationTest {
     private String userToken() {
         User user = new User();
         user.setId(USER_ID);
-        user.setRole("USER");
+        user.setRole(UserRole.USER);
         user.setEnabled(1);
         when(userMapper.selectById(USER_ID)).thenReturn(user);
-        return "Bearer " + jwtUtil.generateToken(USER_ID, "USER");
+        return "Bearer " + jwtUtil.generateToken(USER_ID, UserRole.USER);
     }
 
     private TaskView publicTask() {
@@ -88,12 +91,12 @@ class GuestAccessIntegrationTest {
         task.setProviderName("已选帮助者");
         task.setRouteHint("请走西门");
         task.setSensitiveReason("仅站内沟通");
-        task.setStatus("OPEN");
+        task.setStatus(TaskStatus.OPEN);
         task.setTitle("帮取快递");
         task.setDescription("从快递点取一个包裹");
         task.setCampus("仙林校区");
         task.setLocation("南门");
-        task.setRewardType("POINTS");
+        task.setRewardType(RewardType.POINTS);
         task.setRewardAmount(10);
         task.setOnlyInAppContact(1);
         task.setAllowOfflineContact(0);

@@ -1,15 +1,19 @@
 package com.campusbridge.service;
 
+import com.campusbridge.enums.TaskStatus;
+import com.campusbridge.enums.TaskHistoryEventType;
+
 import java.time.LocalDateTime;
 
 public interface TaskHistoryService {
-    boolean hasReminder(Long taskId, String note, LocalDateTime activeSince, LocalDateTime createdBefore);
+    boolean hasReminder(Long taskId, TaskHistoryEventType eventType, LocalDateTime activeSince, LocalDateTime createdBefore);
 
     void recordHistory(
             Long taskId,
-            String fromStatus,
-            String toStatus,
+            TaskStatus fromStatus,
+            TaskStatus toStatus,
             Long operatorId,
+            TaskHistoryEventType eventType,
             String note
     );
 

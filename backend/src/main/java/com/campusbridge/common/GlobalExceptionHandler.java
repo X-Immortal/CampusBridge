@@ -4,7 +4,6 @@ import com.campusbridge.dto.request.ConfirmEmailVerificationRequest;
 import com.campusbridge.dto.request.CreateVerificationRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -28,7 +27,7 @@ public class GlobalExceptionHandler {
                 ex.getMessage(),
                 ex.getDetails()
         );
-        return ResponseEntity.status(ex.getHttpStatus()).body(body);
+        return ResponseEntity.status(ex.getErrorCode().getHttpStatus()).body(body);
     }
 
     @ExceptionHandler({
@@ -49,7 +48,7 @@ public class GlobalExceptionHandler {
             }
         }
         ErrorResponse body = ErrorResponse.of(code, code.getDefaultMessage(), detailsOf(ex));
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+        return ResponseEntity.status(code.getHttpStatus()).body(body);
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
@@ -74,7 +73,7 @@ public class GlobalExceptionHandler {
                 ErrorCode.COMMON_999_INTERNAL_ERROR.getDefaultMessage(),
                 null
         );
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
+        return ResponseEntity.status(ErrorCode.COMMON_999_INTERNAL_ERROR.getHttpStatus()).body(body);
     }
 
     private List<String> detailsOf(Exception ex) {

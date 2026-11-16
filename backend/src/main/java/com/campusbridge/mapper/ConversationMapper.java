@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.campusbridge.dto.view.ConversationView;
 import com.campusbridge.entity.Conversation;
+import com.campusbridge.enums.ConversationType;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -22,21 +23,11 @@ public interface ConversationMapper extends BaseMapper<Conversation> {
 
     ConversationView selectOwnedViewById(@Param("id") Long id, @Param("ownerId") Long ownerId);
 
-    default Conversation selectByOwnerAndRelated(
-            Long ownerId, String type, String relatedType, Long relatedId) {
-        return selectOne(Wrappers.<Conversation>lambdaQuery()
-                .eq(Conversation::getOwnerId, ownerId)
-                .eq(Conversation::getType, type)
-                .eq(Conversation::getRelatedType, relatedType)
-                .eq(Conversation::getRelatedId, relatedId)
-                .orderByAsc(Conversation::getId).last("LIMIT 1"));
-    }
-
     default Conversation selectPrivateByOwnerAndPeer(Long ownerId, Long peerUserId) {
         return selectOne(Wrappers.<Conversation>lambdaQuery()
                 .eq(Conversation::getOwnerId, ownerId)
                 .eq(Conversation::getPeerUserId, peerUserId)
-                .eq(Conversation::getType, "PRIVATE")
+                .eq(Conversation::getType, ConversationType.PRIVATE)
                 .eq(Conversation::getReplyable, 1)
                 .orderByAsc(Conversation::getId).last("LIMIT 1"));
     }
@@ -45,18 +36,8 @@ public interface ConversationMapper extends BaseMapper<Conversation> {
         return selectOne(Wrappers.<Conversation>lambdaQuery()
                 .eq(Conversation::getOwnerId, ownerId)
                 .eq(Conversation::getPeerUserId, peerUserId)
-                .eq(Conversation::getType, "PRIVATE")
+                .eq(Conversation::getType, ConversationType.PRIVATE)
                 .eq(Conversation::getReplyable, 1)
-                .last("LIMIT 1 FOR UPDATE"));
-    }
-
-    default Conversation selectByOwnerAndRelatedCurrent(
-            Long ownerId, String type, String relatedType, Long relatedId) {
-        return selectOne(Wrappers.<Conversation>lambdaQuery()
-                .eq(Conversation::getOwnerId, ownerId)
-                .eq(Conversation::getType, type)
-                .eq(Conversation::getRelatedType, relatedType)
-                .eq(Conversation::getRelatedId, relatedId)
                 .last("LIMIT 1 FOR UPDATE"));
     }
 

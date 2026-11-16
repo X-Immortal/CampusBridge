@@ -209,10 +209,12 @@ CREATE TABLE `task_histories` (
   `from_status` ENUM('DRAFT','OPEN','PENDING_REVIEW','ACCEPTED','IN_PROGRESS','PENDING_CONFIRMATION','COMPLETED','REVIEWED','CANCELLED','DISPUTED','REJECTED') NULL,
   `to_status` ENUM('DRAFT','OPEN','PENDING_REVIEW','ACCEPTED','IN_PROGRESS','PENDING_CONFIRMATION','COMPLETED','REVIEWED','CANCELLED','DISPUTED','REJECTED') NOT NULL,
   `operator_id` BIGINT UNSIGNED NULL,
+  `event_type` ENUM('CREATED','UPDATED','DRAFT_SAVED','REPOSTED','APPLICATION_ACCEPTED','STARTED','COMPLETION_PROOF_SUBMITTED','COMPLETION_CONFIRMED','COMPLETION_REJECTED','DISPUTED','CANCELLED','PROVIDER_WITHDRAWN','MODERATION_APPROVED','MODERATION_REJECTED','APPEAL_DISMISSED','APPEAL_PUNISHED','REPORT_CREATED','REPORT_RESOLVED','OPEN_TIMEOUT_REMINDER','OPEN_TIMEOUT_CANCELLED','CONFIRMATION_TIMEOUT_REMINDER','CONFIRMATION_TIMEOUT_COMPLETED','REVIEWED') NOT NULL,
   `note` VARCHAR(300) NULL,
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `idx_task_histories_task_created` (`task_id`,`created_at`),
+  KEY `idx_task_histories_task_event_created` (`task_id`,`event_type`,`created_at`),
   KEY `idx_task_histories_operator` (`operator_id`),
   CONSTRAINT `fk_task_histories_task` FOREIGN KEY (`task_id`) REFERENCES `tasks` (`id`),
   CONSTRAINT `fk_task_histories_operator` FOREIGN KEY (`operator_id`) REFERENCES `users` (`id`)
@@ -236,9 +238,25 @@ CREATE TABLE `reviews` (
   CONSTRAINT `ck_reviews_rating` CHECK (`rating` BETWEEN 1 AND 5)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='任务双向评价';
 
+CREATE TABLE `notifications` (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  receiver_id BIGINT UNSIGNED NOT NULL,
+  type ENUM('POST_REPLY','TASK_APPLICATION_CREATED','TASK_APPLICATION_ACCEPTED','TASK_APPLICATION_REJECTED','TASK_APPLICATION_WITHDRAWN','TASK_PUBLISHED','TASK_PENDING_REVIEW','TASK_ACCEPTED','TASK_STARTED','TASK_PENDING_CONFIRMATION','TASK_COMPLETED','TASK_REVIEWED','TASK_CANCELLED','TASK_DISPUTED','TASK_REJECTED','TASK_OPEN_TIMEOUT','TASK_CONFIRMATION_REMINDER') NOT NULL,
+  title VARCHAR(100) NOT NULL,
+  content TEXT NOT NULL,
+  related_type ENUM('TASK','POST') NOT NULL,
+  related_id BIGINT UNSIGNED NOT NULL,
+  read_at DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_notifications_receiver_created (receiver_id,created_at,id),
+  KEY idx_notifications_receiver_read (receiver_id,read_at),
+  CONSTRAINT fk_notifications_receiver FOREIGN KEY (receiver_id) REFERENCES users (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='逐条站内通知';
+
 CREATE TABLE `conversations` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `type` ENUM('PRIVATE','SYSTEM','TASK') NOT NULL,
+  `type` ENUM('PRIVATE','TASK') NOT NULL,
   `title` VARCHAR(100) NULL,
   `owner_id` BIGINT UNSIGNED NOT NULL COMMENT '当前用户视角下的会话拥有者',
   `peer_user_id` BIGINT UNSIGNED NULL,
@@ -248,11 +266,8 @@ CREATE TABLE `conversations` (
       ELSE NULL
     END
   ) STORED,
-  `related_type` ENUM('POST','TASK','SYSTEM') NULL,
+  `related_type` ENUM('POST','TASK') NULL,
   `related_id` BIGINT UNSIGNED NULL,
-  `system_related_key` VARCHAR(80) GENERATED ALWAYS AS (
-    CASE WHEN `type` = 'SYSTEM' THEN CONCAT(`related_type`, ':', `related_id`) ELSE NULL END
-  ) STORED,
   `replyable` TINYINT(1) NOT NULL DEFAULT 1,
   `last_message_at` DATETIME NULL,
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -261,7 +276,6 @@ CREATE TABLE `conversations` (
   KEY `idx_conversations_peer` (`peer_user_id`),
   KEY `idx_conversations_related` (`related_type`,`related_id`),
   UNIQUE KEY `uk_conversations_private_peer` (`owner_id`,`private_peer_id`),
-  UNIQUE KEY `uk_conversations_system_related` (`owner_id`,`system_related_key`),
   CONSTRAINT `fk_conversations_owner` FOREIGN KEY (`owner_id`) REFERENCES `users` (`id`),
   CONSTRAINT `fk_conversations_peer` FOREIGN KEY (`peer_user_id`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='站内会话';
@@ -269,8 +283,8 @@ CREATE TABLE `conversations` (
 CREATE TABLE `messages` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `conversation_id` BIGINT UNSIGNED NOT NULL,
-  `sender_id` BIGINT UNSIGNED NULL COMMENT '系统通知可为空',
-  `type` ENUM('TEXT','IMAGE','SYSTEM_NOTIFICATION') NOT NULL DEFAULT 'TEXT',
+  `sender_id` BIGINT UNSIGNED NOT NULL,
+  `type` ENUM('TEXT','IMAGE') NOT NULL DEFAULT 'TEXT',
   `content` TEXT NOT NULL,
   `read_at` DATETIME NULL,
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -287,7 +301,6 @@ CREATE TABLE `attachments` (
   `uploader_id` BIGINT UNSIGNED NOT NULL,
   `owner_type` ENUM('POST','REPLY','TASK','COMPLETION_PROOF','MESSAGE','REPORT','VERIFICATION') NULL,
   `owner_id` BIGINT UNSIGNED NULL,
-  `type` ENUM('IMAGE','FILE') NOT NULL,
   `file_name` VARCHAR(255) NOT NULL,
   `file_url` VARCHAR(500) NOT NULL,
   `content_type` VARCHAR(100) NOT NULL,
@@ -322,7 +335,7 @@ CREATE TABLE `moderation_records` (
   `target_type` ENUM('POST','REPLY','TASK','USER','MESSAGE') NOT NULL,
   `target_id` BIGINT UNSIGNED NOT NULL,
   `handler_id` BIGINT UNSIGNED NOT NULL,
-  `status` ENUM('PENDING','PROCESSING','APPROVED','REJECTED','RESOLVED','PUNISHED') NOT NULL,
+  `status` ENUM('APPROVED','REJECTED','RESOLVED','PUNISHED') NOT NULL,
   `decision` VARCHAR(500) NULL,
   `handled_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),

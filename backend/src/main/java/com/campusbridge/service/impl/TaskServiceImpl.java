@@ -1,5 +1,6 @@
 package com.campusbridge.service.impl;
 
+import com.campusbridge.enums.CreditSourceType;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.campusbridge.common.BusinessException;
@@ -14,14 +15,18 @@ import com.campusbridge.dto.view.TaskView;
 import com.campusbridge.entity.CampusVerification;
 import com.campusbridge.entity.Task;
 import com.campusbridge.entity.TaskApplication;
+import com.campusbridge.enums.ApplicationStatus;
 import com.campusbridge.enums.RewardType;
+import com.campusbridge.enums.TaskStatus;
+import com.campusbridge.enums.TaskHistoryEventType;
 import com.campusbridge.enums.TaskStatusTransitionAction;
+import com.campusbridge.enums.VerificationStatus;
 import com.campusbridge.mapper.CampusVerificationMapper;
 import com.campusbridge.mapper.TaskApplicationMapper;
 import com.campusbridge.mapper.TaskMapper;
 import com.campusbridge.service.ContentModerationService;
 import com.campusbridge.service.CreditService;
-import com.campusbridge.service.NotificationService;
+import com.campusbridge.service.TaskNotificationService;
 import com.campusbridge.service.TaskHistoryService;
 import com.campusbridge.service.TaskService;
 import lombok.RequiredArgsConstructor;
@@ -34,32 +39,15 @@ import java.time.LocalDateTime;
 @Service
 @RequiredArgsConstructor
 public class TaskServiceImpl implements TaskService {
-    private static final int MAX_POINTS_REWARD_AMOUNT = 10;
 
-    private static final String STATUS_OPEN = "OPEN";
-    private static final String STATUS_DRAFT = "DRAFT";
-    private static final String VERIFICATION_STATUS_VERIFIED = "VERIFIED";
-    private static final String HISTORY_NOTE_CREATED = "TASK_CREATED";
-    private static final String HISTORY_NOTE_UPDATED = "TASK_UPDATED";
-    private static final String HISTORY_NOTE_CANCELLED = "TASK_CANCELLED";
-    private static final String HISTORY_NOTE_DRAFT_SAVED = "DRAFT_SAVED";
-    private static final String HISTORY_NOTE_RESENT = "TASK_RESENT";
 
     private final TaskMapper taskMapper;
     private final CampusVerificationMapper campusVerificationMapper;
     private final TaskHistoryService taskHistoryService;
     private final ContentModerationService contentModerationService;
-    private final NotificationService notificationService;
+    private final TaskNotificationService notificationService;
     private final TaskApplicationMapper taskApplicationMapper;
     private final CreditService creditService;
-
-    private static final String STATUS_ACCEPTED = "ACCEPTED";
-    private static final String STATUS_IN_PROGRESS = "IN_PROGRESS";
-    private static final String STATUS_PENDING_CONFIRMATION = "PENDING_CONFIRMATION";
-    private static final String STATUS_COMPLETED = "COMPLETED";
-    private static final String STATUS_CANCELLED = "CANCELLED";
-    private static final String STATUS_DISPUTED = "DISPUTED";
-    private static final String STATUS_WITHDRAWN = "WITHDRAWN";
 
     @Override
     public TaskView createTask(Long requesterId, CreateTaskRequest request) {
@@ -81,7 +69,7 @@ public class TaskServiceImpl implements TaskService {
                 null,
                 task.getStatus(),
                 requesterId,
-                HISTORY_NOTE_CREATED);
+                TaskHistoryEventType.CREATED, null);
         return TaskView.from(task);
     }
 
@@ -119,8 +107,8 @@ public class TaskServiceImpl implements TaskService {
         if (task == null) {
             throw new BusinessException(ErrorCode.TASK_001_NOT_FOUND);
         }
-        if ((STATUS_DRAFT.equals(task.getStatus())
-                || "PENDING_REVIEW".equals(task.getStatus()) || "REJECTED".equals(task.getStatus()))
+        if ((task.getStatus() == TaskStatus.DRAFT || task.getStatus() == TaskStatus.PENDING_REVIEW
+                || task.getStatus() == TaskStatus.REJECTED)
                 && !task.getRequesterId().equals(currentUserId)) {
             throw new BusinessException(ErrorCode.TASK_001_NOT_FOUND);
         }
@@ -143,12 +131,12 @@ public class TaskServiceImpl implements TaskService {
             throw new BusinessException(ErrorCode.TASK_003_PERMISSION_DENIED);
         }
 
-        if (!STATUS_DRAFT.equals(existingTask.getStatus()) && !STATUS_OPEN.equals(existingTask.getStatus())) {
+        if (existingTask.getStatus() != TaskStatus.DRAFT && existingTask.getStatus() != TaskStatus.OPEN) {
             throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
         }
 
         validateRewardAmount(request.getRewardType(), request.getRewardAmount());
-        if (STATUS_OPEN.equals(existingTask.getStatus())) {
+        if (existingTask.getStatus() == TaskStatus.OPEN) {
             contentModerationService.assertTaskUpdateAllowed(
                     operatorId, request, existingTask.getSensitiveReason());
         }
@@ -156,7 +144,7 @@ public class TaskServiceImpl implements TaskService {
         existingTask.setTitle(request.getTitle());
         existingTask.setDescription(request.getDescription());
         existingTask.setDeadline(request.getDeadline());
-        existingTask.setRewardType(request.getRewardType().name());
+        existingTask.setRewardType(request.getRewardType());
         existingTask.setRewardDescription(request.getRewardDescription());
         existingTask.setRewardAmount(request.getRewardAmount());
         existingTask.setCompletionStandard(request.getCompletionStandard());
@@ -176,7 +164,7 @@ public class TaskServiceImpl implements TaskService {
                 existingTask.getStatus(),
                 existingTask.getStatus(),
                 operatorId,
-                HISTORY_NOTE_UPDATED);
+                TaskHistoryEventType.UPDATED, null);
 
         return taskMapper.selectDetailById(existingTask.getId());
     }
@@ -197,21 +185,18 @@ public class TaskServiceImpl implements TaskService {
             throw new BusinessException(ErrorCode.TASK_003_PERMISSION_DENIED);
         }
 
-        String fromStatus = task.getStatus();
-        if (!STATUS_OPEN.equals(fromStatus)
-                && !STATUS_ACCEPTED.equals(fromStatus)
-                && !STATUS_IN_PROGRESS.equals(fromStatus)) {
-            throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
-        }
+        TaskStatus fromStatus = task.getStatus();
+        TaskStatusTransitionAction action = TaskStatusTransitionAction.CANCEL;
+        TaskStatus toStatus = resolveTargetStatus(fromStatus, action);
 
-        if (!STATUS_OPEN.equals(fromStatus) && (reason == null || reason.isBlank())) {
+        if (fromStatus != TaskStatus.OPEN && (reason == null || reason.isBlank())) {
             throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "reason is required for cancellation");
         }
 
         String normalizedReason = isBlank(reason) ? "发布者取消了待接单任务" : reason.trim();
 
         LocalDateTime now = LocalDateTime.now();
-        int affectedRows = taskMapper.updateStatusById(taskId, fromStatus, STATUS_CANCELLED, now);
+        int affectedRows = taskMapper.updateStatusById(taskId, fromStatus, toStatus, now);
         if (affectedRows != 1) {
             throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
         }
@@ -219,26 +204,25 @@ public class TaskServiceImpl implements TaskService {
         taskHistoryService.recordHistory(
                 taskId,
                 fromStatus,
-                STATUS_CANCELLED,
+                toStatus,
                 operatorId,
-                "ACTION=CANCEL; REASON=" + normalizedReason);
+                action.getHistoryEventType(), normalizedReason);
 
-        if (STATUS_IN_PROGRESS.equals(fromStatus)) {
+        if (fromStatus == TaskStatus.IN_PROGRESS) {
             creditService.adjustCredit(
                     operatorId,
                     -1,
                     "进行中的任务 #" + taskId + " 被发布者取消",
-                    "TASK",
+                    CreditSourceType.TASK,
                     taskId);
         }
         notificationService.notifyTaskStatusChanged(
                 task,
-                fromStatus,
-                STATUS_CANCELLED,
+                toStatus,
                 operatorId,
                 normalizedReason);
 
-        task.setStatus(STATUS_CANCELLED);
+        task.setStatus(toStatus);
         task.setUpdatedAt(now);
         return taskMapper.selectDetailById(task.getId());
     }
@@ -260,8 +244,8 @@ public class TaskServiceImpl implements TaskService {
             throw new BusinessException(ErrorCode.TASK_003_PERMISSION_DENIED);
         }
 
-        String fromStatus = task.getStatus();
-        if (!STATUS_ACCEPTED.equals(fromStatus) && !STATUS_IN_PROGRESS.equals(fromStatus)) {
+        TaskStatus fromStatus = task.getStatus();
+        if (fromStatus != TaskStatus.ACCEPTED && fromStatus != TaskStatus.IN_PROGRESS) {
             throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
         }
 
@@ -272,11 +256,11 @@ public class TaskServiceImpl implements TaskService {
 
         TaskApplication application =
                 taskApplicationMapper.selectByTaskIdAndApplicantId(taskId, providerId);
-        if (application != null && STATUS_ACCEPTED.equals(application.getStatus())) {
+        if (application != null && application.getStatus() == ApplicationStatus.ACCEPTED) {
             int applicationUpdated = taskApplicationMapper.updateStatusById(
                     application.getId(),
-                    STATUS_ACCEPTED,
-                    STATUS_WITHDRAWN,
+                    ApplicationStatus.ACCEPTED,
+                    ApplicationStatus.WITHDRAWN,
                     now);
             if (applicationUpdated != 1) {
                 throw new BusinessException(
@@ -289,26 +273,25 @@ public class TaskServiceImpl implements TaskService {
         taskHistoryService.recordHistory(
                 taskId,
                 fromStatus,
-                STATUS_OPEN,
+                TaskStatus.OPEN,
                 providerId,
-                "ACTION=PROVIDER_WITHDRAW; REASON=" + normalizedReason);
-        if (STATUS_IN_PROGRESS.equals(fromStatus)) {
+                TaskHistoryEventType.PROVIDER_WITHDRAWN, normalizedReason);
+        if (fromStatus == TaskStatus.IN_PROGRESS) {
             creditService.adjustCredit(
                     providerId,
                     -1,
                     "退出进行中的任务 #" + taskId,
-                    "TASK",
+                    CreditSourceType.TASK,
                     taskId);
         }
         notificationService.notifyTaskStatusChanged(
                 task,
-                fromStatus,
-                STATUS_OPEN,
+                TaskStatus.OPEN,
                 providerId,
                 "接单者退出任务：" + normalizedReason);
 
         task.setProviderId(null);
-        task.setStatus(STATUS_OPEN);
+        task.setStatus(TaskStatus.OPEN);
         task.setUpdatedAt(now);
         return taskMapper.selectDetailById(task.getId());
     }
@@ -327,7 +310,7 @@ public class TaskServiceImpl implements TaskService {
         if (!operatorId.equals(task.getRequesterId())) {
             throw new BusinessException(ErrorCode.TASK_003_PERMISSION_DENIED);
         }
-        if (!STATUS_DRAFT.equals(task.getStatus())) {
+        if (task.getStatus() != TaskStatus.DRAFT) {
             throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
         }
 
@@ -355,7 +338,7 @@ public class TaskServiceImpl implements TaskService {
                 null,
                 task.getStatus(),
                 requesterId,
-                HISTORY_NOTE_DRAFT_SAVED);
+                TaskHistoryEventType.DRAFT_SAVED, null);
 
         return TaskView.from(task);
     }
@@ -376,7 +359,7 @@ public class TaskServiceImpl implements TaskService {
             throw new BusinessException(ErrorCode.TASK_003_PERMISSION_DENIED);
         }
 
-        if (!STATUS_CANCELLED.equals(task.getStatus()) && !STATUS_DRAFT.equals(task.getStatus())) {
+        if (task.getStatus() != TaskStatus.CANCELLED && task.getStatus() != TaskStatus.DRAFT) {
             throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
         }
 
@@ -399,7 +382,7 @@ public class TaskServiceImpl implements TaskService {
                 task.getStatus(),
                 republished.getStatus(),
                 operatorId,
-                HISTORY_NOTE_RESENT);
+                TaskHistoryEventType.REPOSTED, null);
         return taskMapper.selectDetailById(taskId);
     }
 
@@ -419,8 +402,8 @@ public class TaskServiceImpl implements TaskService {
             throw new BusinessException(ErrorCode.TASK_001_NOT_FOUND);
         }
 
-        String fromStatus = task.getStatus();
-        String toStatus = resolveTargetStatus(fromStatus, request.getAction());
+        TaskStatus fromStatus = task.getStatus();
+        TaskStatus toStatus = resolveTargetStatus(fromStatus, request.getAction());
         validateTransitionPermission(task, operatorId, request.getAction());
 
         LocalDateTime updatedAt = LocalDateTime.now();
@@ -429,7 +412,7 @@ public class TaskServiceImpl implements TaskService {
             throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
         }
 
-        if (STATUS_COMPLETED.equals(toStatus)) {
+        if (toStatus == TaskStatus.COMPLETED) {
             creditService.awardTaskReward(task);
         }
 
@@ -438,10 +421,9 @@ public class TaskServiceImpl implements TaskService {
                 fromStatus,
                 toStatus,
                 operatorId,
-                buildTransitionHistoryNote(request));
+                request.getAction().getHistoryEventType(), request.getReason());
         notificationService.notifyTaskStatusChanged(
                 task,
-                fromStatus,
                 toStatus,
                 operatorId,
                 request.getReason());
@@ -455,7 +437,7 @@ public class TaskServiceImpl implements TaskService {
         CampusVerification verification =
                 campusVerificationMapper.selectLatestByUserId(requesterId);
         if (verification == null
-                || !VERIFICATION_STATUS_VERIFIED.equals(verification.getStatus())) {
+                || verification.getStatus() != VerificationStatus.VERIFIED) {
             throw new BusinessException(ErrorCode.USER_002_NOT_VERIFIED);
         }
     }
@@ -465,14 +447,14 @@ public class TaskServiceImpl implements TaskService {
         Task task = new Task();
         task.setRequesterId(requesterId);
         task.setProviderId(null);
-        task.setCategory(request.getCategory().name());
+        task.setCategory(request.getCategory());
         task.setTitle(request.getTitle());
         task.setDescription(request.getDescription());
         task.setCampus(request.getCampus());
         task.setLocation(request.getLocation());
         task.setDeliveryLocation(request.getDeliveryLocation());
         task.setDeadline(request.getDeadline());
-        task.setRewardType(request.getRewardType().name());
+        task.setRewardType(request.getRewardType());
         task.setRewardDescription(request.getRewardDescription());
         task.setRewardAmount(request.getRewardAmount());
         task.setCompletionStandard(request.getCompletionStandard());
@@ -484,7 +466,7 @@ public class TaskServiceImpl implements TaskService {
         task.setRiskDisclosureConfirmed(
                 toInt(defaultBoolean(request.getRiskDisclosureConfirmed(), false)));
         task.setSensitiveReason(request.getSensitiveReason());
-        task.setStatus(STATUS_OPEN);
+        task.setStatus(TaskStatus.OPEN);
         task.setCreatedAt(now);
         task.setUpdatedAt(now);
         return task;
@@ -509,12 +491,8 @@ public class TaskServiceImpl implements TaskService {
     }
 
     private void validateRewardAmount(RewardType rewardType, Integer rewardAmount) {
-        if (rewardAmount == null) {
-            return;
-        }
-        if (RewardType.POINTS.equals(rewardType)
-                && rewardAmount > MAX_POINTS_REWARD_AMOUNT) {
-            throwValidation("points rewardAmount must be less than or equal to 10");
+        if (rewardType != null && !rewardType.isAmountWithinLimit(rewardAmount)) {
+            throwValidation("points rewardAmount must be less than or equal to " + rewardType.getMaxAmount());
         }
     }
 
@@ -527,111 +505,31 @@ public class TaskServiceImpl implements TaskService {
         }
     }
 
-    private String resolveTargetStatus(
-            String fromStatus,
-            TaskStatusTransitionAction action) {
-        switch (action) {
-            case START:
-                return requireTransition(fromStatus, STATUS_ACCEPTED, STATUS_IN_PROGRESS);
-            case CONFIRM_COMPLETION:
-                return requireTransition(
-                        fromStatus,
-                        STATUS_PENDING_CONFIRMATION,
-                        STATUS_COMPLETED);
-            case REJECT_COMPLETION:
-                return requireTransition(
-                        fromStatus,
-                        STATUS_PENDING_CONFIRMATION,
-                        STATUS_IN_PROGRESS);
-            case DISPUTE:
-                if (STATUS_ACCEPTED.equals(fromStatus)
-                        || STATUS_IN_PROGRESS.equals(fromStatus)
-                        || STATUS_PENDING_CONFIRMATION.equals(fromStatus)) {
-                    return STATUS_DISPUTED;
-                }
-                throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
-            case CANCEL:
-                if (STATUS_OPEN.equals(fromStatus)
-                        || STATUS_ACCEPTED.equals(fromStatus)
-                        || STATUS_IN_PROGRESS.equals(fromStatus)) {
-                    return STATUS_CANCELLED;
-                }
-                throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
-            default:
-                throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
-        }
-    }
-
-    private String requireTransition(
-            String fromStatus,
-            String expectedFromStatus,
-            String toStatus) {
-        if (!expectedFromStatus.equals(fromStatus)) {
+    private TaskStatus resolveTargetStatus(TaskStatus fromStatus, TaskStatusTransitionAction action) {
+        if (!action.canTransitionFrom(fromStatus)) {
             throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
         }
-        return toStatus;
+        return action.getTargetStatus();
     }
 
     private void validateTransitionPermission(
             Task task,
             Long operatorId,
             TaskStatusTransitionAction action) {
-        switch (action) {
-            case START:
-                requireProvider(task, operatorId);
-                break;
-            case CONFIRM_COMPLETION:
-            case REJECT_COMPLETION:
-            case CANCEL:
-                requireRequester(task, operatorId);
-                break;
-            case DISPUTE:
-                requireTaskParticipant(task, operatorId);
-                break;
-            default:
-                throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
-        }
-    }
-
-    private void requireRequester(Task task, Long operatorId) {
-        if (!operatorId.equals(task.getRequesterId())) {
-            throw new BusinessException(ErrorCode.TASK_003_PERMISSION_DENIED);
-        }
-    }
-
-    private void requireProvider(Task task, Long operatorId) {
-        if (task.getProviderId() == null || !operatorId.equals(task.getProviderId())) {
-            throw new BusinessException(ErrorCode.TASK_003_PERMISSION_DENIED);
-        }
-    }
-
-    private void requireTaskParticipant(Task task, Long operatorId) {
-        boolean isRequester = operatorId.equals(task.getRequesterId());
-        boolean isProvider = task.getProviderId() != null && operatorId.equals(task.getProviderId());
-        if (!isRequester && !isProvider) {
+        boolean permitted = switch (action) {
+            case START -> operatorId.equals(task.getProviderId());
+            case CONFIRM_COMPLETION, REJECT_COMPLETION, CANCEL -> operatorId.equals(task.getRequesterId());
+            case DISPUTE -> operatorId.equals(task.getRequesterId()) || operatorId.equals(task.getProviderId());
+        };
+        if (!permitted) {
             throw new BusinessException(ErrorCode.TASK_003_PERMISSION_DENIED);
         }
     }
 
     private void validateTransitionReason(TaskStatusTransitionRequest request) {
-        switch (request.getAction()) {
-            case REJECT_COMPLETION:
-            case DISPUTE:
-            case CANCEL:
-                if (isBlank(request.getReason())) {
-                    throwValidation("reason is required");
-                }
-                break;
-            default:
-                break;
+        if (request.getAction().isReasonRequired() && isBlank(request.getReason())) {
+            throwValidation("reason is required");
         }
-    }
-
-    private String buildTransitionHistoryNote(TaskStatusTransitionRequest request) {
-        if (isBlank(request.getReason())) {
-            return "ACTION=" + request.getAction().name();
-        }
-        return "ACTION=" + request.getAction().name() + "; REASON=" + request.getReason();
     }
 
     private void requireOperatorId(Long operatorId) {
@@ -645,14 +543,14 @@ public class TaskServiceImpl implements TaskService {
         Task task = new Task();
         task.setRequesterId(requesterId);
         task.setProviderId(null);
-        task.setCategory(request.getCategory() != null ? request.getCategory().name() : null);
+        task.setCategory(request.getCategory());
         task.setTitle(request.getTitle());
         task.setDescription(request.getDescription());
         task.setCampus(request.getCampus());
         task.setLocation(request.getLocation());
         task.setDeliveryLocation(request.getDeliveryLocation());
         task.setDeadline(request.getDeadline());
-        task.setRewardType(request.getRewardType() != null ? request.getRewardType().name() : null);
+        task.setRewardType(request.getRewardType());
         task.setRewardDescription(request.getRewardDescription());
         task.setRewardAmount(request.getRewardAmount());
         task.setCompletionStandard(request.getCompletionStandard());
@@ -663,7 +561,7 @@ public class TaskServiceImpl implements TaskService {
         task.setRouteHint(request.getRouteHint());
         task.setRiskDisclosureConfirmed(toInt(defaultBoolean(request.getRiskDisclosureConfirmed(), false)));
         task.setSensitiveReason(request.getSensitiveReason());
-        task.setStatus(STATUS_DRAFT);
+        task.setStatus(TaskStatus.DRAFT);
         task.setCreatedAt(now);
         task.setUpdatedAt(now);
         return task;

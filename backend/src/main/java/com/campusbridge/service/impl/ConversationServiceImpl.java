@@ -1,5 +1,6 @@
 package com.campusbridge.service.impl;
 
+import com.campusbridge.enums.ContentItemType;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.campusbridge.common.BusinessException;
@@ -9,14 +10,14 @@ import com.campusbridge.dto.request.CreateConversationRequest;
 import com.campusbridge.dto.request.SendMessageRequest;
 import com.campusbridge.dto.view.ConversationView;
 import com.campusbridge.dto.view.ReadAllConversationsView;
-import com.campusbridge.dto.view.UnreadSummaryView;
+import com.campusbridge.dto.view.UnreadCountView;
 import com.campusbridge.entity.Attachment;
 import com.campusbridge.entity.Conversation;
 import com.campusbridge.entity.Message;
 import com.campusbridge.entity.User;
 import com.campusbridge.enums.AttachmentOwnerType;
 import com.campusbridge.enums.AttachmentStatus;
-import com.campusbridge.enums.AttachmentType;
+import com.campusbridge.enums.ConversationType;
 import com.campusbridge.enums.MessageType;
 import com.campusbridge.mapper.AttachmentMapper;
 import com.campusbridge.mapper.ConversationMapper;
@@ -32,7 +33,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 
 @Transactional
@@ -43,9 +43,6 @@ public class ConversationServiceImpl implements ConversationService {
     private static final int DEFAULT_SIZE = 20;
     private static final int MAX_SIZE = 100;
 
-    private static final String TYPE_PRIVATE = "PRIVATE";
-    private static final String RELATED_POST = "POST";
-    private static final String RELATED_TASK = "TASK";
 
     private final ConversationMapper conversationMapper;
     private final MessageMapper messageMapper;
@@ -73,7 +70,7 @@ public class ConversationServiceImpl implements ConversationService {
         requireCommunicationAllowed(ownerId, request.getPeerUserId());
 
         LocalDateTime now = LocalDateTime.now();
-        String relatedType = normalizeRelatedType(request.getRelatedType());
+        ContentItemType relatedType = request.getRelatedType();
         // Create both owner views in a stable order when users open the same chat concurrently.
         Long firstId = Math.min(ownerId, request.getPeerUserId());
         Long secondId = Math.max(ownerId, request.getPeerUserId());
@@ -87,14 +84,14 @@ public class ConversationServiceImpl implements ConversationService {
             Message ownerMessage = buildMessage(
                     conversation.getId(),
                     ownerId,
-                    MessageType.TEXT.name(),
+                    MessageType.TEXT,
                     request.getInitialMessage(),
                     now,
                     now);
             Message peerMessage = buildMessage(
                     peerConversation.getId(),
                     ownerId,
-                    MessageType.TEXT.name(),
+                    MessageType.TEXT,
                     request.getInitialMessage(),
                     null,
                     now);
@@ -128,7 +125,6 @@ public class ConversationServiceImpl implements ConversationService {
             Long conversationId,
             SendMessageRequest request) {
         requireUserId(senderId);
-        validateSendMessageRequest(request);
         List<Attachment> attachments = validateMessageAttachments(senderId, request);
 
         Conversation conversation = requireOwnedConversation(senderId, conversationId);
@@ -149,7 +145,7 @@ public class ConversationServiceImpl implements ConversationService {
         Message message = buildMessage(
                 conversation.getId(),
                 senderId,
-                request.getType().name(),
+                request.getType(),
                 request.getContent(),
                 now,
                 now);
@@ -159,7 +155,7 @@ public class ConversationServiceImpl implements ConversationService {
         Message peerMessage = buildMessage(
                 peerConversation.getId(),
                 senderId,
-                request.getType().name(),
+                request.getType(),
                 request.getContent(),
                 null,
                 now);
@@ -186,11 +182,9 @@ public class ConversationServiceImpl implements ConversationService {
     }
 
     @Override
-    public UnreadSummaryView getUnreadSummary(Long ownerId) {
+    public UnreadCountView getUnreadSummary(Long ownerId) {
         requireUserId(ownerId);
-        long systemUnread = messageMapper.countOwnerUnreadBySystemType(ownerId, true);
-        long privateUnread = messageMapper.countOwnerUnreadBySystemType(ownerId, false);
-        return new UnreadSummaryView(systemUnread + privateUnread, systemUnread, privateUnread);
+        return new UnreadCountView(messageMapper.countOwnerUnread(ownerId));
     }
 
     private void validateCreateConversationRequest(
@@ -200,27 +194,19 @@ public class ConversationServiceImpl implements ConversationService {
         if (ownerId.equals(request.getPeerUserId())) {
             throwValidation("peerUserId must not be current user");
         }
-        normalizeRelatedType(request.getRelatedType());
-    }
-
-    private void validateSendMessageRequest(SendMessageRequest request) {
-        if (request.getType() == MessageType.SYSTEM_NOTIFICATION) {
-            throwValidation("system notification cannot be sent manually");
-        }
     }
 
     private List<Attachment> validateMessageAttachments(
             Long senderId,
             SendMessageRequest request) {
         List<Long> attachmentIds = request.getAttachmentIds();
-        if (request.getType() != MessageType.IMAGE) {
-            if (attachmentIds != null && !attachmentIds.isEmpty()) {
-                throw new BusinessException(ErrorCode.FILE_004_INVALID_ATTACHMENT);
-            }
-            return List.of();
-        }
-        if (attachmentIds == null || attachmentIds.size() != 1) {
+        MessageType type = request.getType();
+        int attachmentCount = attachmentIds == null ? 0 : attachmentIds.size();
+        if (attachmentCount != type.getAttachmentCount()) {
             throw new BusinessException(ErrorCode.FILE_004_INVALID_ATTACHMENT);
+        }
+        if (attachmentCount == 0) {
+            return List.of();
         }
 
         Set<Long> uniqueIds = new HashSet<>();
@@ -231,9 +217,8 @@ public class ConversationServiceImpl implements ConversationService {
             Attachment attachment = attachmentMapper.selectById(id);
             if (attachment == null
                     || !senderId.equals(attachment.getUploaderId())
-                    || !AttachmentStatus.TEMPORARY.name().equals(attachment.getStatus())
-                    || !AttachmentOwnerType.MESSAGE.name().equals(attachment.getOwnerType())
-                    || !AttachmentType.IMAGE.name().equals(attachment.getType())) {
+                    || attachment.getStatus() != AttachmentStatus.TEMPORARY
+                    || attachment.getOwnerType() != AttachmentOwnerType.MESSAGE) {
                 throw new BusinessException(ErrorCode.FILE_004_INVALID_ATTACHMENT);
             }
             return attachment;
@@ -249,7 +234,7 @@ public class ConversationServiceImpl implements ConversationService {
         for (Attachment attachment : attachments) {
             if (attachmentMapper.bindTemporaryToOwner(
                     attachment.getId(), attachment.getUploaderId(),
-                    AttachmentOwnerType.MESSAGE.name(), messageId) != 1) {
+                    AttachmentOwnerType.MESSAGE, messageId) != 1) {
                 throw new BusinessException(ErrorCode.COMMON_999_INTERNAL_ERROR, "Failed to bind message attachment");
             }
         }
@@ -275,7 +260,7 @@ public class ConversationServiceImpl implements ConversationService {
     private Message buildMessage(
             Long conversationId,
             Long senderId,
-            String type,
+            MessageType type,
             String content,
             LocalDateTime readAt,
             LocalDateTime createdAt) {
@@ -298,22 +283,14 @@ public class ConversationServiceImpl implements ConversationService {
         }
     }
 
-    private String normalizeRelatedType(String relatedType) {
-        String normalized = relatedType.trim().toUpperCase(Locale.ROOT);
-        if (!RELATED_POST.equals(normalized) && !RELATED_TASK.equals(normalized)) {
-            throwValidation("relatedType must be POST or TASK");
-        }
-        return normalized;
-    }
-
-    private String buildConversationTitle(String relatedType, Long relatedId) {
+    private String buildConversationTitle(ContentItemType relatedType, Long relatedId) {
         return relatedType + " conversation #" + relatedId;
     }
 
     private Conversation ensureConversation(
             Long ownerId,
             Long peerUserId,
-            String relatedType,
+            ContentItemType relatedType,
             Long relatedId,
             LocalDateTime now) {
         Conversation conversation = conversationMapper.selectPrivateByOwnerAndPeer(
@@ -324,7 +301,7 @@ public class ConversationServiceImpl implements ConversationService {
         }
 
         Conversation created = new Conversation();
-        created.setType(TYPE_PRIVATE);
+        created.setType(ConversationType.PRIVATE);
         created.setTitle(buildConversationTitle(relatedType, relatedId));
         created.setOwnerId(ownerId);
         created.setPeerUserId(peerUserId);
@@ -356,7 +333,7 @@ public class ConversationServiceImpl implements ConversationService {
         }
         return messageMapper.countByConversationTypeAndContent(
                 conversation.getId(),
-                MessageType.TEXT.name(),
+                MessageType.TEXT,
                 initialMessage) == 0;
     }
 

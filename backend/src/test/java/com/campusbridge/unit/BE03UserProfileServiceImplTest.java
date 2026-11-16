@@ -9,6 +9,8 @@ import com.campusbridge.entity.CampusVerification;
 import com.campusbridge.entity.User;
 import com.campusbridge.entity.UserCredit;
 import com.campusbridge.entity.UserProfile;
+import com.campusbridge.enums.UserRole;
+import com.campusbridge.enums.VerificationStatus;
 import com.campusbridge.mapper.CampusVerificationMapper;
 import com.campusbridge.mapper.UserCreditMapper;
 import com.campusbridge.mapper.UserMapper;
@@ -133,7 +135,7 @@ class BE03UserProfileServiceImplTest {
         User user = new User();
         user.setId(USER_ID);
         user.setUsername("student");
-        user.setRole("USER");
+        user.setRole(UserRole.USER);
         user.setEnabled(1);
         user.setCreatedAt(LocalDateTime.now());
         return user;
@@ -165,7 +167,7 @@ class BE03UserProfileServiceImplTest {
     private CampusVerification verifiedRecord() {
         CampusVerification verification = new CampusVerification();
         verification.setUserId(USER_ID);
-        verification.setStatus("VERIFIED");
+        verification.setStatus(VerificationStatus.VERIFIED);
         return verification;
     }
 }

@@ -1,10 +1,10 @@
 package com.campusbridge.controller;
 
+import com.campusbridge.enums.AttachmentOwnerType;
 import com.campusbridge.common.ApiResponse;
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
 import com.campusbridge.entity.Attachment;
-import com.campusbridge.entity.User;
 import com.campusbridge.service.AttachmentService;
 import com.campusbridge.utils.AuthContextUtil;
 import lombok.RequiredArgsConstructor;
@@ -30,12 +30,11 @@ public class AttachmentController {
     public ApiResponse<Attachment> uploadAttachment(
             @RequestParam("file") MultipartFile file,
             @RequestHeader(value = "X-User-Id", required = false) Long fallbackUserId,
-            @RequestHeader(value = "X-Expected-Owner-Type", required = false) String expectedOwnerType,
-            @RequestHeader(value = "X-Attachment-Type", required = false) String type) {
+            @RequestHeader(value = "X-Expected-Owner-Type", required = false) AttachmentOwnerType expectedOwnerType) {
         Long currentUserId = authContextUtil.getCurrentUserId();
         if (currentUserId == null) {
             throw new BusinessException(ErrorCode.AUTH_001_UNAUTHORIZED);
         }
-        return ApiResponse.success(attachmentService.uploadAttachment(currentUserId, file, expectedOwnerType, type));
+        return ApiResponse.success(attachmentService.uploadAttachment(currentUserId, file, expectedOwnerType));
     }
 }

@@ -37,14 +37,14 @@ public class CreateVerificationRequest {
     @JsonIgnore
     @AssertTrue(message = "evidenceUrl is required for document verification")
     public boolean isEvidenceProvided() {
-        return (method != VerificationMethod.STUDENT_CARD_IMAGE && method != VerificationMethod.MANUAL_REVIEW)
+        return (method == null || !method.isEvidenceRequired())
                 || (evidenceUrl != null && !evidenceUrl.isBlank());
     }
 
     @JsonIgnore
     @AssertTrue(message = "campusEmail must be an edu.cn address")
     public boolean isCampusEmailValid() {
-        return method != VerificationMethod.CAMPUS_EMAIL
+        return method == null || !method.isCampusEmailRequired()
                 || (campusEmail != null && campusEmail.trim().matches("(?i)^[^@\\s]+@[^@\\s]*\\.edu\\.cn$"));
     }
 }

@@ -1,5 +1,7 @@
 package com.campusbridge.service.impl;
 
+import com.campusbridge.dto.ModerationMatch;
+import com.campusbridge.enums.ContentItemType;
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
 import com.campusbridge.dto.request.CreatePostRequest;
@@ -17,35 +19,11 @@ import java.util.Locale;
 @Slf4j
 public class ContentModerationServiceImpl implements ContentModerationService {
     private static final int EXCERPT_LENGTH = 120;
-    private static final String TARGET_TYPE_POST = "POST";
-    private static final String TARGET_TYPE_TASK = "TASK";
-    private static final String RULE_PROHIBITED_KEYWORD = "PROHIBITED_KEYWORD";
-    private static final String RULE_CONTACT_LEAK = "CONTACT_LEAK";
-
-    private static final List<Rule> PROHIBITED_RULES = List.of(
-            new Rule(RULE_PROHIBITED_KEYWORD, "\u4ee3\u8003"),
-            new Rule(RULE_PROHIBITED_KEYWORD, "\u66ff\u8003"),
-            new Rule(RULE_PROHIBITED_KEYWORD, "\u4ee3\u7b7e\u5230"),
-            new Rule(RULE_PROHIBITED_KEYWORD, "\u4ee3\u51fa\u52e4"),
-            new Rule(RULE_PROHIBITED_KEYWORD, "\u4ee3\u4e0a\u8bfe"),
-            new Rule(RULE_PROHIBITED_KEYWORD, "\u4ee3\u8bfe"),
-            new Rule(RULE_PROHIBITED_KEYWORD, "\u7b7e\u5230"),
-            new Rule(RULE_PROHIBITED_KEYWORD, "\u4f5c\u5f0a"),
-            new Rule(RULE_PROHIBITED_KEYWORD, "\u5237\u8bfe"),
-            new Rule(RULE_PROHIBITED_KEYWORD, "\u4e70\u5356\u7b54\u6848"),
-            new Rule(RULE_PROHIBITED_KEYWORD, "\u8d4c\u535a"),
-            new Rule(RULE_PROHIBITED_KEYWORD, "\u8bc8\u9a97"),
-            new Rule(RULE_PROHIBITED_KEYWORD, "\u6821\u56ed\u8d37"),
-            new Rule(RULE_PROHIBITED_KEYWORD, "\u7ba1\u5236\u5200\u5177"),
-            new Rule(RULE_PROHIBITED_KEYWORD, "\u5904\u65b9\u836f"));
-
-    private static final List<Rule> CONTACT_RULES = List.of(
-            new Rule(RULE_CONTACT_LEAK, "\u5fae\u4fe1"),
-            new Rule(RULE_CONTACT_LEAK, "vx"),
-            new Rule(RULE_CONTACT_LEAK, "qq"),
-            new Rule(RULE_CONTACT_LEAK, "\u7535\u8bdd"),
-            new Rule(RULE_CONTACT_LEAK, "\u624b\u673a\u53f7"),
-            new Rule(RULE_CONTACT_LEAK, "\u52a0\u6211"));
+    private static final List<String> PROHIBITED_KEYWORDS = List.of(
+            "代考", "替考", "代签到", "代出勤", "代上课", "代课", "签到", "作弊",
+            "刷课", "买卖答案", "赌博", "诈骗", "校园贷", "管制刀具", "处方药");
+    private static final List<String> CONTACT_KEYWORDS = List.of(
+            "微信", "vx", "qq", "电话", "手机号", "加我");
 
     @Override
     public void assertPostPublishAllowed(
@@ -55,12 +33,12 @@ public class ContentModerationServiceImpl implements ContentModerationService {
             return;
         }
 
-        assertPublishAllowed(operatorId, TARGET_TYPE_POST, buildPostContent(request.getTitle(), request.getContent()), true);
+        assertPublishAllowed(operatorId, ContentItemType.POST, buildPostContent(request.getTitle(), request.getContent()), true);
     }
 
     @Override
     public void assertPostUpdateAllowed(Long operatorId, UpdatePostRequest request) {
-        assertPublishAllowed(operatorId, TARGET_TYPE_POST,
+        assertPublishAllowed(operatorId, ContentItemType.POST,
                 buildPostContent(request.getTitle(), request.getContent()), true);
     }
 
@@ -76,7 +54,7 @@ public class ContentModerationServiceImpl implements ContentModerationService {
                 request.getRewardDescription(), request.getCompletionStandard(), request.getSensitiveReason());
         assertPublishAllowed(
                 operatorId,
-                TARGET_TYPE_TASK,
+                ContentItemType.TASK,
                 content,
                 defaultBoolean(request.getOnlyInAppContact(), true));
     }
@@ -86,17 +64,19 @@ public class ContentModerationServiceImpl implements ContentModerationService {
             Long operatorId, UpdateTaskRequest request, String sensitiveReason) {
         String content = buildTaskContent(request.getTitle(), request.getDescription(),
                 request.getRewardDescription(), request.getCompletionStandard(), sensitiveReason);
-        assertPublishAllowed(operatorId, TARGET_TYPE_TASK, content, request.getOnlyInAppContact());
+        assertPublishAllowed(operatorId, ContentItemType.TASK, content, request.getOnlyInAppContact());
     }
 
     private void assertPublishAllowed(
             Long operatorId,
-            String targetType,
+            ContentItemType targetType,
             String content,
             boolean blockContactLeak) {
-        Hit hit = findHit(content, PROHIBITED_RULES);
+        String ruleCode = "PROHIBITED_KEYWORD";
+        ModerationMatch hit = findMatch(content, PROHIBITED_KEYWORDS);
         if (hit == null && blockContactLeak) {
-            hit = findHit(content, CONTACT_RULES);
+            ruleCode = "CONTACT_LEAK";
+            hit = findMatch(content, CONTACT_KEYWORDS);
         }
         if (hit == null) {
             return;
@@ -107,14 +87,25 @@ public class ContentModerationServiceImpl implements ContentModerationService {
                 "Content blocked: targetType={}, operatorId={}, ruleCode={}, keyword={}, excerpt={}",
                 targetType,
                 operatorId,
-                hit.ruleCode(),
+                ruleCode,
                 hit.keyword(),
                 excerpt);
 
         throw new BusinessException(
                 ErrorCode.CONTENT_001_BLOCKED,
                 ErrorCode.CONTENT_001_BLOCKED.getDefaultMessage(),
-                List.of("ruleCode=" + hit.ruleCode(), "keyword=" + hit.keyword()));
+                List.of("ruleCode=" + ruleCode, "keyword=" + hit.keyword()));
+    }
+
+    private ModerationMatch findMatch(String content, List<String> keywords) {
+        String normalizedContent = content.toLowerCase(Locale.ROOT);
+        for (String keyword : keywords) {
+            int index = normalizedContent.indexOf(keyword.toLowerCase(Locale.ROOT));
+            if (index >= 0) {
+                return new ModerationMatch(keyword, index);
+            }
+        }
+        return null;
     }
 
     private String buildPostContent(String title, String content) {
@@ -142,22 +133,6 @@ public class ContentModerationServiceImpl implements ContentModerationService {
         builder.append(value.trim());
     }
 
-    private Hit findHit(String content, List<Rule> rules) {
-        if (content == null || content.isBlank()) {
-            return null;
-        }
-
-        String normalizedContent = content.toLowerCase(Locale.ROOT);
-        for (Rule rule : rules) {
-            String normalizedKeyword = rule.keyword().toLowerCase(Locale.ROOT);
-            int index = normalizedContent.indexOf(normalizedKeyword);
-            if (index >= 0) {
-                return new Hit(rule.ruleCode(), rule.keyword(), index);
-            }
-        }
-        return null;
-    }
-
     private String buildExcerpt(String content, int hitIndex) {
         if (content == null || content.isBlank()) {
             return "";
@@ -170,11 +145,5 @@ public class ContentModerationServiceImpl implements ContentModerationService {
 
     private Boolean defaultBoolean(Boolean value, boolean defaultValue) {
         return value == null ? defaultValue : value;
-    }
-
-    private record Rule(String ruleCode, String keyword) {
-    }
-
-    private record Hit(String ruleCode, String keyword, int index) {
     }
 }

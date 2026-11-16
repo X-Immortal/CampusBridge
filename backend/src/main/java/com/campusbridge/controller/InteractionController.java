@@ -1,10 +1,13 @@
 package com.campusbridge.controller;
 
+import com.campusbridge.enums.InteractionTargetType;
 import com.campusbridge.common.ApiResponse;
 import com.campusbridge.common.CurrentUserResolver;
 import com.campusbridge.dto.request.CreatePostInteractionRequest;
+import com.campusbridge.dto.view.AcceptedReplyView;
 import com.campusbridge.dto.view.PostView;
 import com.campusbridge.entity.PostInteraction;
+import com.campusbridge.enums.PostInteractionType;
 import com.campusbridge.mapper.PostInteractionMapper;
 import com.campusbridge.mapper.PostMapper;
 import com.campusbridge.service.InteractionService;
@@ -49,14 +52,14 @@ public class InteractionController {
     public ApiResponse<Void> cancelInteraction(
             HttpServletRequest servletRequest,
             @PathVariable Long postId,
-            @RequestParam String type) {
+            @RequestParam PostInteractionType type) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
         interactionService.cancelInteraction(currentUserId, postId, type);
         return ApiResponse.success();
     }
 
     @PostMapping("/{postId}/replies/{replyId}/accept")
-    public ApiResponse<PostInteraction> acceptReply(
+    public ApiResponse<AcceptedReplyView> acceptReply(
             HttpServletRequest servletRequest,
             @PathVariable Long postId,
             @PathVariable Long replyId) {
@@ -68,7 +71,7 @@ public class InteractionController {
     public ApiResponse<List<PostView>> getMarkedPosts(HttpServletRequest servletRequest) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
         List<Long> postIds = postInteractionMapper.selectTargetIdsByUserAndType(
-                currentUserId, "POST", "MARK");
+                currentUserId, InteractionTargetType.POST, PostInteractionType.MARK);
         if (postIds == null || postIds.isEmpty()) {
             return ApiResponse.success(Collections.emptyList());
         }

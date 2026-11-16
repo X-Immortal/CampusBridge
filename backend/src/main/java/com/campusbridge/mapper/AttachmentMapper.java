@@ -3,6 +3,8 @@ package com.campusbridge.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.campusbridge.entity.Attachment;
+import com.campusbridge.enums.AttachmentOwnerType;
+import com.campusbridge.enums.AttachmentStatus;
 import org.apache.ibatis.annotations.Mapper;
 
 import java.util.List;
@@ -11,24 +13,24 @@ import java.util.List;
 public interface AttachmentMapper extends BaseMapper<Attachment> {
 
     default List<Attachment> selectByOwner(
-            String ownerType,
+            AttachmentOwnerType ownerType,
             Long ownerId) {
         return selectList(Wrappers.<Attachment>lambdaQuery()
                 .eq(Attachment::getOwnerType, ownerType).eq(Attachment::getOwnerId, ownerId)
-                .in(Attachment::getStatus, "ACTIVE", "BOUND")
+                .eq(Attachment::getStatus, AttachmentStatus.BOUND)
                 .orderByAsc(Attachment::getCreatedAt, Attachment::getId));
     }
 
-    default int bindTemporaryToOwner(Long attachmentId, Long uploaderId, String ownerType, Long ownerId) {
+    default int bindTemporaryToOwner(Long attachmentId, Long uploaderId, AttachmentOwnerType ownerType, Long ownerId) {
         return update(null, Wrappers.<Attachment>lambdaUpdate()
                 .set(Attachment::getOwnerType, ownerType)
                 .set(Attachment::getOwnerId, ownerId)
-                .set(Attachment::getStatus, "BOUND")
+                .set(Attachment::getStatus, AttachmentStatus.BOUND)
                 .eq(Attachment::getId, attachmentId)
                 .eq(Attachment::getUploaderId, uploaderId)
                 .eq(Attachment::getOwnerType, ownerType)
                 .isNull(Attachment::getOwnerId)
-                .eq(Attachment::getStatus, "TEMPORARY"));
+                .eq(Attachment::getStatus, AttachmentStatus.TEMPORARY));
     }
 
 }
