@@ -1,22 +1,24 @@
 spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
   application:
     name: campusbridge
   # Spring Boot datasource — configure via CI/CD variables or environment
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: ${MYSQL_URL:jdbc:mysql://localhost:3306/campusbridge?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
-    username: ${MYSQL_USERNAME:root}
-    password: ${MYSQL_PASSWORD:changeme}
+    url: ${MYSQL_URL:jdbc:mysql://localhost:3306/campusbridge?connectionTimeZone=Asia/Shanghai&sslMode=DISABLED&allowPublicKeyRetrieval=true}
+    username: ${MYSQL_USERNAME:campusbridge}
+    password: ${MYSQL_PASSWORD}
   servlet:
     multipart:
       # File upload limits
       max-file-size: 5MB
       max-request-size: 10MB
   mail:
-    host: ${SMTP_HOST:smtp.example.com}
+    host: ${SMTP_HOST:}
     port: ${SMTP_PORT:465}
-    username: ${SMTP_USERNAME:your-email@example.com}
-    password: ${SMTP_PASSWORD:your-smtp-password}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
     properties:
       mail:
         smtp:
@@ -48,9 +50,16 @@ campusbridge:
   verification:
     email:
       enabled: ${VERIFICATION_EMAIL_ENABLED:false}
-      debug-code-enabled: false
+      debug-code-enabled: ${VERIFICATION_DEBUG_CODE_ENABLED:false}
       code-secret: ${VERIFICATION_EMAIL_CODE_SECRET:campusbridge-email-code}
 
 server:
   port: ${SERVER_PORT:8081}
-  forward-headers-strategy: native
+  forward-headers-strategy: ${FORWARD_HEADERS_STRATEGY:none}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: "!test"
+    import: optional:classpath:application-local.yml

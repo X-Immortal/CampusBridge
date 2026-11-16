@@ -1,5 +1,5 @@
 -- 校园互助服务平台 database schema.
--- MySQL 8 / InnoDB / utf8mb4
+-- MySQL 9.7 LTS / InnoDB / utf8mb4
 CREATE SCHEMA IF NOT EXISTS campusbridge;
 USE campusbridge;
 CREATE TABLE `users` (

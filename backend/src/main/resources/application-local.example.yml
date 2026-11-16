@@ -1,0 +1,11 @@
+# 复制为同目录 application-local.yml，仅填写本机私有值或需要覆盖的值。
+# 实际文件与本模板均不打入 JAR 或 Docker 镜像。
+spring:
+  datasource:
+    password: "" # 与 deploy/dev/.env 的 MYSQL_PASSWORD 一致。
+jwt:
+  secret: "" # 使用 openssl rand -hex 32 生成后填写。
+campusbridge:
+  verification:
+    email:
+      debug-code-enabled: true

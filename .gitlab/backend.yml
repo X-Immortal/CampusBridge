@@ -28,7 +28,6 @@ backend-test:
     MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
   script:
     - cd backend
-    - cp src/main/resources/application-example.yml src/main/resources/application.yml
     - mvn test
   artifacts:
     when: always
@@ -47,7 +46,6 @@ backend-build:
     MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
   script:
     - cd backend
-    - cp src/main/resources/application-example.yml src/main/resources/application.yml
     - mvn clean package -DskipTests
   artifacts:
     paths:

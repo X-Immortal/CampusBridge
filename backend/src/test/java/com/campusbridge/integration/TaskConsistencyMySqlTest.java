@@ -116,7 +116,7 @@ class TaskConsistencyMySqlTest {
                 }
                 statement.execute("SET FOREIGN_KEY_CHECKS=1");
             }
-            String schema = Files.readString(Path.of("sql/schema.sql"))
+            String schema = Files.readString(Path.of("../deploy/mysql/schema.sql"))
                     .replace("CREATE SCHEMA IF NOT EXISTS campusbridge;", "")
                     .replace("USE campusbridge;", "");
             ScriptUtils.executeSqlScript(connection,

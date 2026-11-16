@@ -2,7 +2,7 @@
 
 CampusBridge 是校园互助应用，提供社区交流、跑腿与代办任务、校园认证、私聊与站内通知，以及评价积分和管理员处理。任务按“发布—申请—选人—履约—确认—评价”流转；现金报酬作为协商信息记录。
 
-技术栈为 Vue 3 / Vite、Java 17 / Spring Boot、MyBatis、MySQL 8，验证码邮件使用 SMTP，附件使用阿里云 OSS。
+技术栈为 Vue 3 / Vite、Java 17 / Spring Boot、MyBatis、MySQL 9.7 LTS，验证码邮件使用 SMTP，附件使用阿里云 OSS。
 
 ## 文档导航
 
@@ -13,16 +13,30 @@ CampusBridge 是校园互助应用，提供社区交流、跑腿与代办任务�
 | [待决事项](docs/open-questions.md) | 尚需选择的业务语义与部署方案 |
 | [接口使用说明](docs/api-guide.md) | 当前公共响应、关键调用顺序与动态载荷说明 |
 | [OpenAPI](docs/openapi.yaml) | 由代码导出的路由和类型；动态 data 的覆盖限制见接口说明 |
-| [数据库 Schema](backend/sql/schema.sql) | 完整表结构、约束和索引 |
+| [数据库 Schema](deploy/mysql/schema.sql) | 完整表结构、约束和索引 |
 | [开发与运行](docs/development.md) | 配置、启动、数据库重建、构建及分层验证命令 |
 | [后端评审](docs/reviews/backend-review-2026-11-07.md) | 既有修复、实现差距和验证证据 |
 | [历史归档](docs/archive/README.md) | 原课程材料与校验清单 |
 
 SRS 与架构指导后续开发；现有代码与设计的差距按评审记录处理。工程执行约定见 [AGENTS.md](AGENTS.md)。
 
+## Docker 环境
+
+- **dev**：Compose 启动 MySQL，前后端在本机运行，支持调试和热更新。
+- **test**：Compose 构建并启动前端、后端、MySQL 与入口 Nginx，验证完整容器环境。
+
+复制 deploy/dev/.env.example 或 deploy/test/.env.example 为同目录的 .env，并填写所需凭据。分别从仓库根目录启动：
+
+```bash
+(cd deploy/dev && docker compose up -d --wait)
+(cd deploy/test && docker compose up -d --build --wait)
+```
+
+test 默认访问 http://localhost:8080；dev 的前后端启动方式见下文。两套环境使用独立数据库卷，首次启动自动导入表结构和演示数据。admin、chenyue 等演示账号的密码为 password。配置和数据重建见[运行说明](docs/development.md#docker-开发与测试环境)。
+
 ## 本地启动
 
-准备 JDK 17、Maven 3.9+、Node.js 20+ 和 MySQL 8。按[运行说明](docs/development.md)初始化数据库，配置数据库连接、JWT 密钥及所需外部服务。
+准备 JDK 17、Maven 3.9+、Node.js 24 LTS 和 MySQL 9.7 LTS。使用 dev Compose 启动数据库，或按[运行说明](docs/development.md)自行初始化数据库；配置数据库连接、JWT 密钥及所需外部服务。
 
 以下命令均从仓库根目录执行，分别放在两个终端：
 

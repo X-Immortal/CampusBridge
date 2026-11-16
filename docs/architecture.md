@@ -2,7 +2,7 @@
 
 **版本：** 1.1 · **更新日期：** 2026-11-16
 
-本文依据 [SRS](srs.md)，规定系统技术选型、模块职责、数据归属、核心协作和一致性机制，作为实现与重构的设计依据。接口字段由代码及 [OpenAPI](openapi.yaml) 维护，完整数据库结构由 [Schema](../backend/sql/schema.sql) 维护；实现差距记录在评审中。
+本文依据 [SRS](srs.md)，规定系统技术选型、模块职责、数据归属、核心协作和一致性机制，作为实现与重构的设计依据。接口字段由代码及 [OpenAPI](openapi.yaml) 维护，完整数据库结构由 [Schema](../deploy/mysql/schema.sql) 维护；实现差距记录在评审中。
 
 ## 1. 架构目标与技术选择
 
@@ -13,7 +13,7 @@ CampusBridge 采用前后端分离的模块化单体。任务、申请、履约�
 | Web | Vue 3、Vue Router、Vite，原生 fetch 请求封装 | 页面路由、表单交互、公共内容与个人工作区；共享认证及错误处理 |
 | 应用 | Java 17、Spring Boot 3、Spring MVC | 单个后端进程提供 HTTP API，便于统一业务事务与交付 |
 | 安全 | Spring Security、JWT、BCrypt | 认证入口统一，角色与账号启用状态实时校验，密码不可逆存储 |
-| 持久化 | MyBatis、MySQL 8 / InnoDB | 显式 SQL 表达聚合查询、行锁与条件更新，数据库约束维护唯一关系 |
+| 持久化 | MyBatis、MySQL 9.7 LTS / InnoDB | 显式 SQL 表达聚合查询、行锁与条件更新，数据库约束维护唯一关系 |
 | 文件 | 阿里云 OSS，MySQL 保存元数据 | 文件字节与关系数据分离，业务模块负责使用资格 |
 | 邮件 | Spring Mail / SMTP | 发送账号及校园邮箱验证码 |
 | 调度与通知 | Spring 定时任务、数据库站内消息、HTTP 查询 | 超时处理以持久化状态为依据；消息通过普通 HTTP 获取 |
@@ -27,17 +27,20 @@ CampusBridge 采用前后端分离的模块化单体。任务、申请、履约�
 flowchart LR
     Browser["Web 客户端"]
     Entry["HTTP 入口"]
+    Static["前端静态服务"]
     App["Spring Boot 应用"]
     DB[("MySQL")]
     OSS["OSS 文件存储"]
     SMTP["SMTP 邮件服务"]
-    Browser --> Entry --> App
+    Browser --> Entry
+    Entry --> Static
+    Entry --> App
     App --> DB
     App --> OSS
     App --> SMTP
 ```
 
-HTTP 入口负责页面资源与业务请求转发。业务 API 的身份、权限和资源归属由后端执行；对象存储的私密材料通过受控访问策略提供，不能只凭业务页面隐藏链接保护文件。
+HTTP 入口由独立 Nginx 承担，将页面请求转发给前端静态服务，将 /api/ 请求转发给 Spring Boot 应用。前端静态服务负责构建产物和路由回退，数据库使用独立容器及命名数据卷。业务 API 的身份、权限和资源归属由后端执行；对象存储的私密材料通过受控访问策略提供，不能只凭业务页面隐藏链接保护文件。
 
 MySQL 保存业务数据，文件存储保存附件内容，两者通过附件元数据关联。邮件发送是外部 I/O，投递结果不能由数据库提交成功推断。目标部署的 TLS 和网络暴露要求在[待决事项](open-questions.md)中确定，具体操作见运行说明。
 

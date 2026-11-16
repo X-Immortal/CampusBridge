@@ -66,7 +66,7 @@ class ContentPersistenceIntegrationTest {
                 System.getenv().getOrDefault("CAMPUSBRIDGE_MYSQL_TEST_PASSWORD", ""));
         jdbc = new JdbcTemplate(dataSource);
         assertThat(jdbc.queryForObject("SELECT DATABASE()", String.class)).isEqualTo("campusbridge_content_test");
-        String schema = Files.readString(Path.of("sql/schema.sql"))
+        String schema = Files.readString(Path.of("../deploy/mysql/schema.sql"))
                 .replace("CREATE SCHEMA IF NOT EXISTS campusbridge;", "")
                 .replace("USE campusbridge;", "");
         try (Connection connection = dataSource.getConnection()) {

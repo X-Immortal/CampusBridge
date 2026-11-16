@@ -1,0 +1,32 @@
+name: campusbridge-dev
+
+services:
+  mysql:
+    image: mysql:9.7.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?请在 .env 中填写 MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: campusbridge
+      MYSQL_USER: campusbridge
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?请在 .env 中填写 MYSQL_PASSWORD}
+      TZ: Asia/Shanghai
+    ports:
+      - "127.0.0.1:${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ../mysql/my.cnf:/etc/mysql/conf.d/campusbridge.cnf:ro
+      - ../mysql/schema.sql:/docker-entrypoint-initdb.d/10-schema.sql:ro
+      - ../mysql/reseed_demo_data.sql:/docker-entrypoint-initdb.d/20-demo-data.sql:ro
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          MYSQL_PWD="$${MYSQL_PASSWORD}" mysql --protocol=TCP -h 127.0.0.1
+          -u "$${MYSQL_USER}" "$${MYSQL_DATABASE}" -e 'SELECT 1' >/dev/null
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 40s
+
+volumes:
+  mysql-data:

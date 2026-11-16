@@ -1,7 +1,7 @@
+# IDE
 .idea/
 .vscode/
 *.iml
-.git/index.lock
 
 # OS
 .DS_Store
@@ -11,26 +11,11 @@ Thumbs.db
 *.log
 logs/
 
-# Frontend
-frontend/node_modules/
-frontend/dist/
-frontend/.vite/
-frontend/.npm/
-
-# Backend
-backend/target/
-backend/.mvn/
-
-# Java
-*.class
-
-# Environment files
+# Local environment
 .env
 .env.*
+!.env.example
 
 # Temporary files
 *.tmp
 *.swp
-
-# Local Spring Boot config
-backend/src/main/resources/application.yml
