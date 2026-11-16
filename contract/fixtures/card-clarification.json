@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "1.0",
+  "cardId": "card-clarify-1",
+  "sessionId": "s-demo-1",
+  "taskVersion": 1,
+  "kind": "clarification",
+  "title": "还差两件事",
+  "generatedBy": "model",
+  "blocks": [
+    {
+      "type": "Text",
+      "text": "我理解你要找人在今晚九点后，从北门快递点取 1 件送到 5 号宿舍楼。"
+    },
+    {
+      "type": "Field",
+      "field": "deadline",
+      "label": "最晚什么时候要",
+      "value": "今晚 21:30",
+      "hint": "超过这个时间就别接",
+      "required": true
+    },
+    {
+      "type": "Field",
+      "field": "location",
+      "label": "取件地点",
+      "value": "北门快递点",
+      "required": true
+    },
+    {
+      "type": "Choice",
+      "name": "contactPreference",
+      "options": [
+        { "id": "in_app", "label": "只用站内消息" },
+        { "id": "wechat", "label": "可以加微信" }
+      ],
+      "selectedId": "in_app"
+    }
+  ],
+  "actions": [
+    {
+      "actionId": "answer",
+      "label": "就按这个",
+      "kind": "primary",
+      "requiresConfirmation": false
+    },
+    {
+      "actionId": "cancel",
+      "label": "重来",
+      "kind": "secondary",
+      "requiresConfirmation": false
+    }
+  ]
+}

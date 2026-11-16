@@ -1,0 +1,16 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "CampusHub 校园互助"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "CampusHub 校园互助"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "CampusHub"
+    }
+  ]
+}

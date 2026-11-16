@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "1.0",
+  "cardId": "card-compare-1",
+  "sessionId": "s-demo-1",
+  "taskVersion": 2,
+  "kind": "comparison",
+  "title": "三种找人的方式",
+  "generatedBy": "model",
+  "blocks": [
+    {
+      "type": "Text",
+      "text": "三种都能满足今晚送达，区别在于要多快、要不要熟人。"
+    },
+    {
+      "type": "Choice",
+      "name": "matchMode",
+      "options": [
+        { "id": "instant", "label": "立即匹配", "detail": "平均 6 分钟有人接，可能是陌生人" },
+        { "id": "later", "label": "稍后匹配", "detail": "20:30 再推，接单的人更顺路" },
+        { "id": "familiar", "label": "熟人优先", "detail": "只推给合作过的人，可能没人接" }
+      ],
+      "selectedId": "instant"
+    },
+    {
+      "type": "Summary",
+      "rows": [
+        { "label": "最早送达", "value": "21:20", "source": "INFERRED" },
+        { "label": "平均等待", "value": "6 分钟", "source": "INFERRED" },
+        { "label": "需要确认", "value": "1 次", "source": "USER" }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "actionId": "select",
+      "label": "选这个",
+      "kind": "primary",
+      "requiresConfirmation": false
+    },
+    {
+      "actionId": "cancel",
+      "label": "再想想",
+      "kind": "secondary",
+      "requiresConfirmation": false
+    }
+  ]
+}

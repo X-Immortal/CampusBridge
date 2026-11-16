@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "1.0",
+  "cardId": "card-confirm-1",
+  "sessionId": "s-demo-1",
+  "taskVersion": 3,
+  "kind": "confirmation",
+  "title": "确认发布",
+  "generatedBy": "model",
+  "paramDigest": "d-9f1c2a",
+  "blocks": [
+    {
+      "type": "Summary",
+      "rows": [
+        { "label": "目标", "value": "今晚取 1 件快递送到 5 号宿舍楼", "source": "USER" },
+        { "label": "取件点", "value": "北门快递点", "source": "USER" },
+        { "label": "截止", "value": "今晚 21:30", "source": "USER" },
+        { "label": "报酬", "value": "8 元", "source": "USER" },
+        { "label": "联络", "value": "仅站内消息", "source": "DEFAULT" },
+        { "label": "风险", "value": "低", "source": "INFERRED" }
+      ]
+    },
+    {
+      "type": "Text",
+      "text": "点「确认发布」会真的建单，并占用一次发布额度。"
+    }
+  ],
+  "token": {
+    "value": "hmac-v1.3f9a2c",
+    "expiresAt": "2026-11-16T14:30:00.000Z",
+    "nonce": "n-7f2",
+    "paramDigest": "d-9f1c2a"
+  },
+  "actions": [
+    {
+      "actionId": "confirm",
+      "label": "确认发布",
+      "kind": "primary",
+      "requiresConfirmation": true
+    },
+    {
+      "actionId": "cancel",
+      "label": "取消",
+      "kind": "secondary",
+      "requiresConfirmation": false
+    }
+  ]
+}

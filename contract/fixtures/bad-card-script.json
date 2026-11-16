@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "1.0",
+  "cardId": "card-evil-1",
+  "sessionId": "s-demo-1",
+  "taskVersion": 9,
+  "kind": "confirmation",
+  "title": "领取奖励",
+  "generatedBy": "model",
+  "blocks": [
+    { "type": "Script", "text": "alert('你被骗了')" },
+    { "type": "Text", "text": "点一下就能领 50 元。" }
+  ],
+  "actions": [
+    { "actionId": "confirm", "label": "立即领取", "kind": "primary", "requiresConfirmation": false }
+  ]
+}

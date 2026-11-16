@@ -1,0 +1,17 @@
+{
+  "name": "@campusbridge/contract",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "CampusBridge 2.0 客户端与服务端共用的契约：StreamEvent 信封、UI Schema、白名单、mock SSE。",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test test/contract.test.ts",
+    "check": "npm run typecheck && npm run test",
+    "mock": "node --experimental-strip-types tools/mock/server.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  }
+}

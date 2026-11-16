@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "1.0",
+  "cardId": "card-progress-1",
+  "sessionId": "s-demo-1",
+  "taskId": 1024,
+  "taskVersion": 4,
+  "kind": "progress",
+  "title": "已发布，等待接单",
+  "generatedBy": "model",
+  "blocks": [
+    { "type": "Progress", "step": "已发布", "state": "done" },
+    { "type": "Progress", "step": "等待接单", "state": "active", "detail": "已推送给 12 位匹配的人" },
+    { "type": "Progress", "step": "送达确认", "state": "pending" },
+    {
+      "type": "Summary",
+      "rows": [
+        { "label": "任务号", "value": "T-1024", "source": "USER" },
+        { "label": "当前状态", "value": "OPEN", "source": "USER" }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "actionId": "open",
+      "label": "查看详情",
+      "kind": "secondary",
+      "requiresConfirmation": false
+    },
+    {
+      "actionId": "cancel",
+      "label": "撤销任务",
+      "kind": "secondary",
+      "requiresConfirmation": true
+    }
+  ]
+}
