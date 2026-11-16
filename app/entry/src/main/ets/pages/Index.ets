@@ -1,4 +1,5 @@
 import { UiCard } from '../protocol/types';
+import { router } from '@kit.ArkUI';
 import { isAllowedBlock, isKnownDraftField, isSideEffectAction } from '../protocol/whitelist';
 import { EVENT_KINDS } from '../transport/events';
 import { CardRenderer } from '../renderer/CardRenderer';
@@ -79,6 +80,16 @@ struct Index {
           .fontSize(12)
           .fontColor('#7A8BA6')
           .margin({ top: 4 })
+        Button('真实链路：一句话 → 追问 → 确认 → 建单')
+          .fontSize(13)
+          .height(36)
+          .backgroundColor('#2F6FDE')
+          .fontColor('#FFFFFF')
+          .borderRadius(18)
+          .margin({ top: 10 })
+          .onClick(() => {
+            router.pushUrl({ url: 'pages/Assistant' });
+          })
       }
       .alignItems(HorizontalAlign.Start)
       .width('100%')
