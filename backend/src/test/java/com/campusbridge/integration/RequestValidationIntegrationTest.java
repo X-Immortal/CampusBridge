@@ -1,6 +1,15 @@
 package com.campusbridge.integration;
 
-import com.campusbridge.common.CurrentUserResolver;
+import com.campusbridge.entity.User;
+import com.campusbridge.enums.UserRole;
+import com.campusbridge.security.UserPrincipal;
+import com.campusbridge.security.JwtTokenIssuer;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.junit.jupiter.api.AfterEach;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver;
+
 import com.campusbridge.common.GlobalExceptionHandler;
 import com.campusbridge.controller.AccountController;
 import com.campusbridge.controller.AuthController;
@@ -25,7 +34,6 @@ import com.campusbridge.service.TaskService;
 import com.campusbridge.service.UserProfileService;
 import com.campusbridge.service.VerificationService;
 import com.campusbridge.service.impl.EmailVerificationCodeSender;
-import com.campusbridge.utils.AuthContextUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -68,21 +76,19 @@ class RequestValidationIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        CurrentUserResolver currentUser = mock(CurrentUserResolver.class);
-        when(currentUser.requireCurrentUserId(any())).thenReturn(7L);
+        authenticate(7L);
         EmailVerificationCodeSender sender = mock(EmailVerificationCodeSender.class);
-        AuthContextUtil authContext = mock(AuthContextUtil.class);
-        when(authContext.getCurrentUserId()).thenReturn(7L);
         mvc = MockMvcBuilders.standaloneSetup(
-                        new PostController(currentUser, posts, mock(ReplyService.class)),
-                        new ReviewController(currentUser, reviews),
-                        new TaskApplicationController(currentUser, applications),
-                        new VerificationController(verifications, authContext),
-                        new AuthController(auth, sender),
-                        new AccountController(currentUser, auth, sender),
-                        new TaskController(currentUser, tasks,
+                        new PostController(posts, mock(ReplyService.class)),
+                        new ReviewController(reviews),
+                        new TaskApplicationController(applications),
+                        new VerificationController(verifications),
+                        new AuthController(auth, sender, mock(AuthenticationManager.class), mock(JwtTokenIssuer.class)),
+                        new AccountController(auth, sender),
+                        new TaskController(tasks,
                                 mock(TaskDetailService.class), completions),
-                        new UserController(currentUser, profiles, mock(ReviewService.class)))
+                        new UserController(profiles, mock(ReviewService.class)))
+                .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
     }
@@ -350,4 +356,19 @@ class RequestValidationIntegrationTest {
                 .andExpect(status().isBadRequest());
         verifyNoInteractions(auth);
     }
+    private void authenticate(Long userId) {
+        User user = new User();
+        user.setId(userId);
+        user.setRole(UserRole.USER);
+        user.setEnabled(1);
+        UserPrincipal principal = new UserPrincipal(user);
+        SecurityContextHolder.getContext().setAuthentication(
+                UsernamePasswordAuthenticationToken.authenticated(principal, null, principal.getAuthorities()));
+    }
+
+    @AfterEach
+    void clearSecurityContext() {
+        SecurityContextHolder.clearContext();
+    }
+
 }

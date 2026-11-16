@@ -21,7 +21,7 @@ import com.campusbridge.service.CompletionService;
 import com.campusbridge.service.ReviewService;
 import com.campusbridge.service.TaskApplicationService;
 import com.campusbridge.service.TaskService;
-import com.campusbridge.utils.JwtUtil;
+import com.campusbridge.security.JwtTokenIssuer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -50,7 +50,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * Controller-layer integration tests for core task workflow.
  * Services are mocked so no database schema is required.
- * Real JWT tokens are generated via JwtUtil to pass security filter validation.
+ * Real JWT tokens are generated via JwtTokenIssuer to pass security filter validation.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -71,7 +71,7 @@ class TaskWorkflowIntegrationTest {
     private ObjectMapper objectMapper;
 
     @Autowired
-    private JwtUtil jwtUtil;
+    private JwtTokenIssuer tokens;
 
     @MockitoBean
     private UserMapper userMapper;
@@ -100,8 +100,8 @@ class TaskWorkflowIntegrationTest {
             user.setEnabled(1);
             when(userMapper.selectById(id)).thenReturn(user);
         }
-        requesterToken = "Bearer " + jwtUtil.generateToken(REQUESTER_ID, UserRole.USER);
-        providerToken = "Bearer " + jwtUtil.generateToken(PROVIDER_ID, UserRole.USER);
+        requesterToken = "Bearer " + tokens.issueAccessToken(REQUESTER_ID, UserRole.USER);
+        providerToken = "Bearer " + tokens.issueAccessToken(PROVIDER_ID, UserRole.USER);
     }
 
     // ==================== Normal Flow ====================

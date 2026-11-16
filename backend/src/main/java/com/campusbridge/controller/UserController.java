@@ -1,7 +1,6 @@
 package com.campusbridge.controller;
 
 import com.campusbridge.common.ApiResponse;
-import com.campusbridge.common.CurrentUserResolver;
 import com.campusbridge.dto.request.UpdateUserProfileRequest;
 import com.campusbridge.dto.view.AvatarView;
 import com.campusbridge.dto.view.UserHomepageView;
@@ -10,9 +9,10 @@ import com.campusbridge.dto.view.UserView;
 import com.campusbridge.entity.Review;
 import com.campusbridge.service.ReviewService;
 import com.campusbridge.service.UserProfileService;
-import jakarta.servlet.http.HttpServletRequest;
+import com.campusbridge.security.UserPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -29,27 +29,26 @@ import java.util.List;
 @RequestMapping("/api/v1/users")
 @RequiredArgsConstructor
 public class UserController {
-    private final CurrentUserResolver currentUserResolver;
     private final UserProfileService userProfileService;
     private final ReviewService reviewService;
 
     @GetMapping("/me")
-    public ApiResponse<UserView> getCurrentUser(HttpServletRequest request) {
-        Long currentUserId = currentUserResolver.requireCurrentUserId(request);
+    public ApiResponse<UserView> getCurrentUser(@AuthenticationPrincipal UserPrincipal principal) {
+        Long currentUserId = principal.getUserId();
         return ApiResponse.success(userProfileService.getCurrentUser(currentUserId));
     }
 
     @GetMapping("/me/profile")
-    public ApiResponse<UserProfileView> getMyProfile(HttpServletRequest request) {
-        Long currentUserId = currentUserResolver.requireCurrentUserId(request);
+    public ApiResponse<UserProfileView> getMyProfile(@AuthenticationPrincipal UserPrincipal principal) {
+        Long currentUserId = principal.getUserId();
         return ApiResponse.success(userProfileService.getMyProfile(currentUserId));
     }
 
     @PutMapping("/me/profile")
     public ApiResponse<UserProfileView> updateMyProfile(
-            HttpServletRequest request,
+            @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody UpdateUserProfileRequest requestBody) {
-        Long currentUserId = currentUserResolver.requireCurrentUserId(request);
+        Long currentUserId = principal.getUserId();
         return ApiResponse.success(userProfileService.updateMyProfile(currentUserId, requestBody));
     }
 
@@ -60,9 +59,9 @@ public class UserController {
 
     @PostMapping("/me/avatar")
     public ApiResponse<AvatarView> uploadAvatar(
-            HttpServletRequest request,
+            @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam("file") MultipartFile file) {
-        Long currentUserId = currentUserResolver.requireCurrentUserId(request);
+        Long currentUserId = principal.getUserId();
         String avatarUrl = userProfileService.updateAvatar(currentUserId, file);
         return ApiResponse.success(new AvatarView(avatarUrl));
     }

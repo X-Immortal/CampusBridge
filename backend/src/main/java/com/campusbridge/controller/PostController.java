@@ -1,7 +1,6 @@
 package com.campusbridge.controller;
 
 import com.campusbridge.common.ApiResponse;
-import com.campusbridge.common.CurrentUserResolver;
 import com.campusbridge.common.PagedResult;
 import com.campusbridge.dto.request.CreatePostRequest;
 import com.campusbridge.dto.request.CreateReplyRequest;
@@ -14,9 +13,10 @@ import com.campusbridge.enums.PostCategory;
 import com.campusbridge.enums.PostStatus;
 import com.campusbridge.service.PostService;
 import com.campusbridge.service.ReplyService;
-import jakarta.servlet.http.HttpServletRequest;
+import com.campusbridge.security.UserPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -33,16 +33,15 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/posts")
 @RequiredArgsConstructor
 public class PostController {
-    private final CurrentUserResolver currentUserResolver;
     private final PostService postService;
     private final ReplyService replyService;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<PostView> createPost(
-            HttpServletRequest servletRequest,
+            @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody CreatePostRequest request) {
-        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        Long currentUserId = principal.getUserId();
         return ApiResponse.success(postService.createPost(currentUserId, request));
     }
 
@@ -58,40 +57,40 @@ public class PostController {
 
     @GetMapping("/replied")
     public ApiResponse<PagedResult<MyReplyPostView>> listMyRepliedPosts(
-            HttpServletRequest servletRequest,
+            @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) PostCategory category,
             @RequestParam(required = false) PostStatus status,
             @RequestParam(required = false, defaultValue = "1") Integer page,
             @RequestParam(required = false, defaultValue = "20") Integer size) {
-        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        Long currentUserId = principal.getUserId();
         return ApiResponse.success(postService.listPostsRepliedByUser(
                 currentUserId, keyword, category, status, page, size));
     }
 
     @GetMapping("/{postId}")
     public ApiResponse<PostDetailView> getPostDetail(
-            HttpServletRequest servletRequest,
+            @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long postId) {
-        Long currentUserId = currentUserResolver.resolveOptionalUserId(servletRequest);
+        Long currentUserId = principal == null ? null : principal.getUserId();
         return ApiResponse.success(postService.getPostDetail(postId, currentUserId));
     }
 
     @PutMapping("/{postId}")
     public ApiResponse<PostView> updatePost(
-            HttpServletRequest servletRequest,
+            @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long postId,
             @Valid @RequestBody UpdatePostRequest request) {
-        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        Long currentUserId = principal.getUserId();
         return ApiResponse.success(postService.updatePost(currentUserId, postId, request));
     }
 
     @DeleteMapping("/{postId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public ApiResponse<Void> deletePost(
-            HttpServletRequest servletRequest,
+            @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long postId) {
-        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        Long currentUserId = principal.getUserId();
         postService.deletePost(currentUserId, postId);
         return ApiResponse.success();
     }
@@ -99,10 +98,10 @@ public class PostController {
     @PostMapping("/{postId}/replies")
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<ReplyView> createReply(
-            HttpServletRequest servletRequest,
+            @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long postId,
             @Valid @RequestBody CreateReplyRequest request) {
-        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        Long currentUserId = principal.getUserId();
         return ApiResponse.success(replyService.createReply(currentUserId, postId, request));
     }
 }

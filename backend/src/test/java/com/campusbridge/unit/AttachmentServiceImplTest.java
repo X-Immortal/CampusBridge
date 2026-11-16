@@ -9,7 +9,7 @@ import com.campusbridge.mapper.AttachmentMapper;
 import com.campusbridge.service.AttachmentService;
 import com.campusbridge.service.impl.AttachmentServiceImpl;
 import com.campusbridge.utils.AliOSSUtils;
-import com.campusbridge.utils.AuthContextUtil;
+import org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -28,7 +28,8 @@ class AttachmentServiceImplTest {
     void invalidOwnerTypeIsRejectedBeforeCallingUploadService() throws Exception {
         AttachmentService service = mock(AttachmentService.class);
         var mvc = MockMvcBuilders.standaloneSetup(
-                new AttachmentController(service, mock(AuthContextUtil.class))).build();
+                new AttachmentController(service))
+                .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver()).build();
         var file = new MockMultipartFile("file", "test.png", "image/png", new byte[]{1});
         mvc.perform(multipart("/api/v1/attachments").file(file)
                         .header("X-Expected-Owner-Type", "UNKNOWN"))

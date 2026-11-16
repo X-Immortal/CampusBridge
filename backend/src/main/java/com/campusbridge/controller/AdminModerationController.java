@@ -3,7 +3,6 @@ package com.campusbridge.controller;
 import com.campusbridge.enums.ReportStatus;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.campusbridge.common.ApiResponse;
-import com.campusbridge.common.CurrentUserResolver;
 import com.campusbridge.common.PagedResult;
 import com.campusbridge.dto.query.TaskQuery;
 import com.campusbridge.dto.request.ReasonRequest;
@@ -20,9 +19,10 @@ import com.campusbridge.mapper.TaskMapper;
 import com.campusbridge.service.ReportService;
 import com.campusbridge.service.VerificationService;
 import com.campusbridge.service.impl.TaskModerationService;
-import jakarta.servlet.http.HttpServletRequest;
+import com.campusbridge.security.UserPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -38,7 +38,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AdminModerationController {
 
-    private final CurrentUserResolver currentUserResolver;
     private final ReportService reportService;
     private final VerificationService verificationService;
     private final TaskMapper taskMapper;
@@ -64,20 +63,20 @@ public class AdminModerationController {
 
     @PostMapping("/moderation/tasks/{taskId}/approve")
     public ApiResponse<Task> approveTask(
-            HttpServletRequest servletRequest,
+            @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long taskId) {
 
-        Long adminUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        Long adminUserId = principal.getUserId();
         return ApiResponse.success(taskModerationService.approveTask(adminUserId, taskId));
     }
 
     @PostMapping("/moderation/tasks/{taskId}/reject")
     public ApiResponse<Task> rejectTask(
-            HttpServletRequest servletRequest,
+            @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long taskId,
             @Valid @RequestBody(required = false) TaskReasonRequest request) {
 
-        Long adminUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        Long adminUserId = principal.getUserId();
         String reason = request == null ? null : request.reason();
         return ApiResponse.success(taskModerationService.rejectTask(adminUserId, taskId, reason));
     }
@@ -92,10 +91,10 @@ public class AdminModerationController {
 
     @PostMapping("/reports/{reportId}/resolve")
     public ApiResponse<ModerationRecord> resolveReport(
-            HttpServletRequest servletRequest,
+            @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long reportId,
             @Valid @RequestBody ResolveReportRequest request) {
-        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        Long currentUserId = principal.getUserId();
         return ApiResponse.success(reportService.resolveReport(currentUserId, reportId, request));
     }
 
@@ -110,19 +109,19 @@ public class AdminModerationController {
 
     @PostMapping("/verifications/{id}/approve")
     public ApiResponse<VerificationReviewView> approveVerification(
-            HttpServletRequest servletRequest,
+            @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long id) {
-        Long adminUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        Long adminUserId = principal.getUserId();
         VerificationReviewView result = verificationService.review(adminUserId, id, true, null);
         return ApiResponse.success(result);
     }
 
     @PostMapping("/verifications/{id}/reject")
     public ApiResponse<VerificationReviewView> rejectVerification(
-            HttpServletRequest servletRequest,
+            @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long id,
             @RequestBody ReasonRequest body) {
-        Long adminUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        Long adminUserId = principal.getUserId();
         String reason = body != null ? body.reason() : "";
         VerificationReviewView result = verificationService.review(adminUserId, id, false, reason);
         return ApiResponse.success(result);
@@ -150,20 +149,20 @@ public class AdminModerationController {
 
     @PostMapping("/appeals/{taskId}/dismiss")
     public ApiResponse<Void> dismissAppeal(
-            HttpServletRequest servletRequest,
+            @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long taskId) {
 
-        Long adminUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        Long adminUserId = principal.getUserId();
         taskModerationService.dismissAppeal(adminUserId, taskId);
         return ApiResponse.success();
     }
 
     @PostMapping("/appeals/{taskId}/punish")
     public ApiResponse<Void> punishAppeal(
-            HttpServletRequest servletRequest,
+            @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long taskId) {
 
-        Long adminUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        Long adminUserId = principal.getUserId();
         taskModerationService.punishAppeal(adminUserId, taskId);
         return ApiResponse.success();
     }

@@ -2,12 +2,11 @@ package com.campusbridge.controller;
 
 import com.campusbridge.enums.AttachmentOwnerType;
 import com.campusbridge.common.ApiResponse;
-import com.campusbridge.common.BusinessException;
-import com.campusbridge.common.ErrorCode;
 import com.campusbridge.entity.Attachment;
 import com.campusbridge.service.AttachmentService;
-import com.campusbridge.utils.AuthContextUtil;
+import com.campusbridge.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -23,18 +22,15 @@ import org.springframework.web.multipart.MultipartFile;
 public class AttachmentController {
 
     private final AttachmentService attachmentService;
-    private final AuthContextUtil authContextUtil;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<Attachment> uploadAttachment(
+            @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam("file") MultipartFile file,
             @RequestHeader(value = "X-User-Id", required = false) Long fallbackUserId,
             @RequestHeader(value = "X-Expected-Owner-Type", required = false) AttachmentOwnerType expectedOwnerType) {
-        Long currentUserId = authContextUtil.getCurrentUserId();
-        if (currentUserId == null) {
-            throw new BusinessException(ErrorCode.AUTH_001_UNAUTHORIZED);
-        }
+        Long currentUserId = principal.getUserId();
         return ApiResponse.success(attachmentService.uploadAttachment(currentUserId, file, expectedOwnerType));
     }
 }

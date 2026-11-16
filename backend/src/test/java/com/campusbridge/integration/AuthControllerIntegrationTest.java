@@ -1,19 +1,12 @@
 package com.campusbridge.integration;
 
-import com.campusbridge.common.BusinessException;
-import com.campusbridge.common.ErrorCode;
-import com.campusbridge.dto.request.LoginRequest;
 import com.campusbridge.dto.request.RegisterRequest;
-import com.campusbridge.dto.view.LoginView;
 import com.campusbridge.entity.User;
 import com.campusbridge.enums.UserRole;
 import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.service.AuthService;
 import com.campusbridge.service.PostService;
-import com.campusbridge.utils.JwtUtil;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.security.Keys;
+import com.campusbridge.security.JwtTokenIssuer;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -26,13 +19,21 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Date;
-import java.util.Map;
+import java.time.Instant;
+import javax.crypto.spec.SecretKeySpec;
+import com.nimbusds.jose.jwk.source.ImmutableSecret;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
+import org.springframework.security.oauth2.jwt.JwtClaimsSet;
+import org.springframework.security.oauth2.jwt.JwsHeader;
+import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -60,7 +61,10 @@ class AuthControllerIntegrationTest {
     private PostService postService;
 
     @Autowired
-    private JwtUtil jwtUtil;
+    private JwtTokenIssuer tokens;
+
+    @Autowired
+    private JwtEncoder encoder;
 
     @Test
     void registerReturnsUnifiedCreatedResponse() throws Exception {
@@ -85,41 +89,6 @@ class AuthControllerIntegrationTest {
     }
 
     @Test
-    void loginInvalidCredentialsReturnsBusinessError() throws Exception {
-        when(authService.login(any(LoginRequest.class))).thenThrow(new BusinessException(ErrorCode.AUTH_002_INVALID_CREDENTIALS));
-
-        mockMvc.perform(post("/api/v1/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "username": "alice",
-                                  "password": "wrong-password"
-                                }
-                                """))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("AUTH_002_INVALID_CREDENTIALS"))
-                .andExpect(jsonPath("$.message").value("用户名或密码错误"));
-    }
-
-    @Test
-    void loginReturnsServicePayloadWhenCredentialsAreValid() throws Exception {
-        when(authService.login(any(LoginRequest.class))).thenReturn(new LoginView(100L, "alice", UserRole.USER, "jwt-token", "refresh-token"));
-
-        mockMvc.perform(post("/api/v1/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "username": "alice",
-                                  "password": "Campus@12345"
-                                }
-                                """))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value("SUCCESS"))
-                .andExpect(jsonPath("$.data.userId").value(100))
-                .andExpect(jsonPath("$.data.token").value("jwt-token"));
-    }
-
-    @Test
     void protectedEndpointRejectsMissingJwt() throws Exception {
         mockMvc.perform(get("/api/v1/users/me"))
                 .andExpect(status().isUnauthorized())
@@ -129,7 +98,7 @@ class AuthControllerIntegrationTest {
     @Test
     void refreshTokenCannotAuthenticateProtectedRequest() throws Exception {
         mockMvc.perform(put("/api/v1/account/password")
-                        .header("Authorization", "Bearer " + jwtUtil.generateRefreshToken(100L))
+                        .header("Authorization", "Bearer " + tokens.issueRefreshToken(100L))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"oldPassword\":\"before123\",\"newPassword\":\"after123\"}"))
                 .andExpect(status().isUnauthorized())
@@ -158,14 +127,14 @@ class AuthControllerIntegrationTest {
     void disabledAccountCannotUsePreviouslyIssuedAccessToken() throws Exception {
         stubUser("USER", 0);
         mockMvc.perform(get("/api/v1/users/me")
-                        .header("Authorization", "Bearer " + jwtUtil.generateToken(100L, UserRole.USER)))
+                        .header("Authorization", "Bearer " + tokens.issueAccessToken(100L, UserRole.USER)))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
     void missingAccountCannotUseAccessToken() throws Exception {
         mockMvc.perform(get("/api/v1/users/me")
-                        .header("Authorization", "Bearer " + jwtUtil.generateToken(100L, UserRole.USER)))
+                        .header("Authorization", "Bearer " + tokens.issueAccessToken(100L, UserRole.USER)))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -173,18 +142,19 @@ class AuthControllerIntegrationTest {
     void previousAdminTokenCannotBypassCurrentRole() throws Exception {
         stubUser("USER", 1);
         mockMvc.perform(get("/api/v1/admin/dashboard/summary")
-                        .header("Authorization", "Bearer " + jwtUtil.generateToken(100L, UserRole.ADMIN)))
+                        .header("Authorization", "Bearer " + tokens.issueAccessToken(100L, UserRole.ADMIN)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("MOD_001_PERMISSION_DENIED"))
                 .andExpect(jsonPath("$.meta.requestId").exists());
     }
 
     @Test
-    void refreshTokenOnPublicEndpointRemainsAnonymous() throws Exception {
+    void refreshTokenOnPublicEndpointIsRejected() throws Exception {
         mockMvc.perform(get("/api/v1/posts/10")
-                        .header("Authorization", "Bearer " + jwtUtil.generateRefreshToken(100L)))
-                .andExpect(status().isOk());
-        verify(postService).getPostDetail(eq(10L), isNull());
+                        .header("Authorization", "Bearer " + tokens.issueRefreshToken(100L)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTH_001_UNAUTHORIZED"));
+        verifyNoInteractions(postService);
     }
 
     @Test
@@ -198,7 +168,7 @@ class AuthControllerIntegrationTest {
     void missingUploadPartReturnsValidationError() throws Exception {
         stubUser("USER", 1);
         mockMvc.perform(multipart("/api/v1/attachments")
-                        .header("Authorization", "Bearer " + jwtUtil.generateToken(100L, UserRole.USER)))
+                        .header("Authorization", "Bearer " + tokens.issueAccessToken(100L, UserRole.USER)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("COMMON_001_VALIDATION_ERROR"));
     }
@@ -225,16 +195,43 @@ class AuthControllerIntegrationTest {
     }
 
     private String legacyToken(String role) {
-        Map<String, Object> claims = new java.util.HashMap<>();
-        claims.put("accountId", 100L);
+        var claims = JwtClaimsSet.builder().subject("100").claim("accountId", 100L)
+                .expiresAt(Instant.now().plusSeconds(60));
         if (role != null) {
-            claims.put("role", role);
+            claims.claim("role", role);
         }
-        return Jwts.builder().setClaims(claims).setSubject("100")
-                .setExpiration(new Date(System.currentTimeMillis() + 60000))
-                .signWith(SignatureAlgorithm.HS256, Keys.hmacShaKeyFor(
-                        "test-secret-key-at-least-64-characters-for-hs256-please-do-not-use-prod"
-                                .getBytes(StandardCharsets.UTF_8)))
-                .compact();
+        return encode(encoder, claims.build());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"malformed", "expired", "not-yet-valid", "wrong-signature",
+            "mismatched-account", "missing-expiry", "unknown-type"})
+    void invalidTokensAreRejectedByResourceServer(String scenario) throws Exception {
+        Instant now = Instant.now();
+        var claims = JwtClaimsSet.builder().subject("100").claim("accountId", 100L)
+                .claim("tokenType", "ACCESS").issuedAt(now.minusSeconds(600))
+                .expiresAt(now.plusSeconds(300));
+        JwtEncoder signingEncoder = encoder;
+        switch (scenario) {
+            case "expired" -> claims.expiresAt(now.minusSeconds(300));
+            case "not-yet-valid" -> claims.notBefore(now.plusSeconds(120));
+            case "wrong-signature" -> signingEncoder = new NimbusJwtEncoder(new ImmutableSecret<>(
+                    new SecretKeySpec("different-test-secret-at-least-32-bytes"
+                            .getBytes(StandardCharsets.UTF_8), "HmacSHA256")));
+            case "mismatched-account" -> claims.subject("101");
+            case "missing-expiry" -> claims.claims(values -> values.remove("exp"));
+            case "unknown-type" -> claims.claim("tokenType", "UNKNOWN");
+            default -> { }
+        }
+        String token = scenario.equals("malformed") ? "not-a-jwt" : encode(signingEncoder, claims.build());
+        mockMvc.perform(get("/api/v1/users/me").header("Authorization", "Bearer " + token))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTH_001_UNAUTHORIZED"));
+        verifyNoInteractions(userMapper);
+    }
+
+    private String encode(JwtEncoder signingEncoder, JwtClaimsSet claims) {
+        return signingEncoder.encode(JwtEncoderParameters.from(
+                JwsHeader.with(MacAlgorithm.HS256).build(), claims)).getTokenValue();
     }
 }

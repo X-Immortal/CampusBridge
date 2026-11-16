@@ -2,14 +2,11 @@ package com.campusbridge.service.impl;
 
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
-import com.campusbridge.dto.request.LoginRequest;
 import com.campusbridge.dto.request.RegisterRequest;
-import com.campusbridge.dto.view.LoginView;
 import com.campusbridge.entity.User;
 import com.campusbridge.enums.UserRole;
 import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.service.AuthService;
-import com.campusbridge.utils.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -31,7 +28,6 @@ public class AuthServiceImpl implements AuthService {
     private final ConcurrentHashMap<Long, AccountEmailRecord> accountEmailStore = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, AccountEmailRecord> registrationCodeStore = new ConcurrentHashMap<>();
     private final UserMapper userMapper;
-    private final JwtUtil jwtUtil;
     private final PasswordEncoder passwordEncoder;
     private final EmailVerificationCodeSender emailCodeSender;
 
@@ -88,26 +84,6 @@ public class AuthServiceImpl implements AuthService {
                 normalizedEmail, expiresAt,
                 sha256(emailCodeSecret + ":" + normalizedEmail + ":" + code)));
         return code;
-    }
-
-    @Override
-    public LoginView login(LoginRequest request) {
-
-        User dbUser = userMapper.selectByUsername(request.username);
-        if (dbUser == null) {
-            throw new BusinessException(ErrorCode.AUTH_002_INVALID_CREDENTIALS);
-        }
-        if (dbUser.getEnabled() != null && dbUser.getEnabled() == 0) {
-            throw new BusinessException(ErrorCode.AUTH_001_UNAUTHORIZED, "账号已被禁用");
-        }
-        if (dbUser.getPasswordHash() == null
-                || !passwordEncoder.matches(request.password, dbUser.getPasswordHash())) {
-            throw new BusinessException(ErrorCode.AUTH_002_INVALID_CREDENTIALS);
-        }
-
-        return new LoginView(dbUser.getId(), dbUser.getUsername(), dbUser.getRole(),
-                jwtUtil.generateToken(dbUser.getId(), dbUser.getRole()),
-                jwtUtil.generateRefreshToken(dbUser.getId()));
     }
 
     @Override

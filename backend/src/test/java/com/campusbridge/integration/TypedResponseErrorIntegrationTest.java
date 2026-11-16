@@ -12,7 +12,13 @@ import com.campusbridge.service.impl.AttachmentServiceImpl;
 import com.campusbridge.service.impl.EmailVerificationCodeSender;
 import com.campusbridge.service.impl.VerificationServiceImpl;
 import com.campusbridge.utils.AliOSSUtils;
-import com.campusbridge.utils.AuthContextUtil;
+import com.campusbridge.entity.User;
+import com.campusbridge.enums.UserRole;
+import com.campusbridge.security.UserPrincipal;
+import org.junit.jupiter.api.AfterEach;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
@@ -47,16 +53,22 @@ class TypedResponseErrorIntegrationTest {
         attachments = mock(AttachmentMapper.class);
         sender = mock(EmailVerificationCodeSender.class);
         oss = mock(AliOSSUtils.class);
-        AuthContextUtil auth = mock(AuthContextUtil.class);
-        when(auth.getCurrentUserId()).thenReturn(7L);
+        User user = new User();
+        user.setId(7L);
+        user.setRole(UserRole.USER);
+        user.setEnabled(1);
+        UserPrincipal principal = new UserPrincipal(user);
+        SecurityContextHolder.getContext().setAuthentication(
+                UsernamePasswordAuthenticationToken.authenticated(principal, null, principal.getAuthorities()));
 
         VerificationServiceImpl verificationService = new VerificationServiceImpl(verifications, sender);
         ReflectionTestUtils.setField(verificationService, "emailCodeSecret", "test-only-secret");
-        VerificationController verificationController = new VerificationController(verificationService, auth);
+        VerificationController verificationController = new VerificationController(verificationService);
 
         AttachmentServiceImpl attachmentService = new AttachmentServiceImpl(attachments, oss);
-        AttachmentController attachmentController = new AttachmentController(attachmentService, auth);
+        AttachmentController attachmentController = new AttachmentController(attachmentService);
         mvc = MockMvcBuilders.standaloneSetup(verificationController, attachmentController)
+                .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
                 .setControllerAdvice(new GlobalExceptionHandler()).build();
     }
 
@@ -129,4 +141,9 @@ class TypedResponseErrorIntegrationTest {
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.code").value("ATTACH_005_SAVE_FAILED"));
     }
+    @AfterEach
+    void clearSecurityContext() {
+        SecurityContextHolder.clearContext();
+    }
+
 }

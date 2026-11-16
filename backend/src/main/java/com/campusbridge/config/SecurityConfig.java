@@ -4,28 +4,29 @@ import com.campusbridge.enums.UserRole;
 
 import com.campusbridge.common.ErrorCode;
 import com.campusbridge.common.ErrorResponse;
-import com.campusbridge.filter.JwtAuthFilter;
+import com.campusbridge.security.JwtUserAuthenticationConverter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.ProviderManager;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final JwtAuthFilter jwtAuthFilter;
+    private final JwtUserAuthenticationConverter jwtAuthenticationConverter;
     private final ObjectMapper objectMapper;
 
     @Bean
@@ -38,7 +39,10 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .oauth2ResourceServer(resource -> resource
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter))
+                        .authenticationEntryPoint(unauthorizedEntryPoint())
+                        .accessDeniedHandler(accessDeniedHandler()))
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(unauthorizedEntryPoint())
                         .accessDeniedHandler(accessDeniedHandler()))
                 .authorizeHttpRequests(auth -> {
@@ -48,6 +52,11 @@ public class SecurityConfig {
                             "/api/v1/content/**",
                             "/error"
                     ).permitAll();
+                    auth.requestMatchers(HttpMethod.GET,
+                            "/api/v1/posts/replied",
+                            "/api/v1/posts/marked",
+                            "/api/v1/users/me/profile"
+                    ).authenticated();
                     auth.requestMatchers(HttpMethod.GET,
                             "/api/v1/tasks",
                             "/api/v1/tasks/*",
@@ -86,9 +95,9 @@ public class SecurityConfig {
     }
 
     @Bean
-    public UserDetailsService userDetailsService() {
-        return username -> {
-            throw new UsernameNotFoundException("No in-memory user: " + username);
-        };
+    public AuthenticationManager authenticationManager(UserDetailsService users, PasswordEncoder encoder) {
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider(users);
+        provider.setPasswordEncoder(encoder);
+        return new ProviderManager(provider);
     }
 }

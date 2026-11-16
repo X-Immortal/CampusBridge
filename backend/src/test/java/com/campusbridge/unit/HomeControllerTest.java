@@ -9,7 +9,6 @@ import com.campusbridge.enums.TaskStatus;
 import com.campusbridge.mapper.PostMapper;
 import com.campusbridge.mapper.TaskMapper;
 import com.campusbridge.service.RecommendationService;
-import com.campusbridge.utils.AuthContextUtil;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -31,9 +30,6 @@ class HomeControllerTest {
     @Mock
     private RecommendationService recommendationService;
 
-    @Mock
-    private AuthContextUtil authContextUtil;
-
     @Test
     void recommendationsExposeOnlyPublicTaskAndPostFields() {
         PostView post = new PostView();
@@ -52,10 +48,9 @@ class HomeControllerTest {
 
         when(postMapper.selectHotPosts(8)).thenReturn(List.of(post));
         when(taskMapper.selectRecommendedTasks(TaskStatus.OPEN, 6)).thenReturn(List.of(task));
-        when(authContextUtil.getCurrentUserId()).thenReturn(null);
 
         ApiResponse<HomeRecommendationsView> result = new HomeController(postMapper, taskMapper,
-                recommendationService, authContextUtil).getRecommendations();
+                recommendationService).getRecommendations(null);
         HomeRecommendationsView data = result.getData();
         var json = new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules().valueToTree(data);
         assertThat(json.at("/hotPosts/0/authorName").asText()).isEqualTo("同学甲");

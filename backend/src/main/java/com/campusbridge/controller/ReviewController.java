@@ -1,13 +1,13 @@
 package com.campusbridge.controller;
 
 import com.campusbridge.common.ApiResponse;
-import com.campusbridge.common.CurrentUserResolver;
 import com.campusbridge.dto.request.CreateReviewRequest;
 import com.campusbridge.entity.Review;
 import com.campusbridge.service.ReviewService;
-import jakarta.servlet.http.HttpServletRequest;
+import com.campusbridge.security.UserPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -24,16 +24,15 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ReviewController {
 
-    private final CurrentUserResolver currentUserResolver;
     private final ReviewService reviewService;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<Review> createReview(
-            HttpServletRequest servletRequest,
+            @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long taskId,
             @Valid @RequestBody CreateReviewRequest request) {
-        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        Long currentUserId = principal.getUserId();
         return ApiResponse.success(reviewService.createReview(currentUserId, taskId, request));
     }
 

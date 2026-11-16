@@ -10,8 +10,9 @@ import com.campusbridge.enums.TaskStatus;
 import com.campusbridge.mapper.PostMapper;
 import com.campusbridge.mapper.TaskMapper;
 import com.campusbridge.service.RecommendationService;
-import com.campusbridge.utils.AuthContextUtil;
+import com.campusbridge.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -25,11 +26,10 @@ public class HomeController {
     private final PostMapper postMapper;
     private final TaskMapper taskMapper;
     private final RecommendationService recommendationService;
-    private final AuthContextUtil authContextUtil;
 
     @GetMapping("/recommendations")
-    public ApiResponse<HomeRecommendationsView> getRecommendations() {
-        Long userId = authContextUtil.getCurrentUserId();
+    public ApiResponse<HomeRecommendationsView> getRecommendations(@AuthenticationPrincipal UserPrincipal principal) {
+        Long userId = principal == null ? null : principal.getUserId();
         List<PostView> posts;
         List<TaskView> tasks;
 

@@ -1,7 +1,14 @@
 package com.campusbridge.unit;
 
+import com.campusbridge.entity.User;
+import com.campusbridge.enums.UserRole;
+import com.campusbridge.security.UserPrincipal;
+import org.junit.jupiter.api.AfterEach;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver;
+
 import com.campusbridge.enums.TaskSort;
-import com.campusbridge.common.CurrentUserResolver;
 import com.campusbridge.controller.TaskController;
 import com.campusbridge.dto.query.TaskQuery;
 import com.campusbridge.dto.view.TaskPageView;
@@ -30,14 +37,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class TaskControllerGuestListTest {
-    private CurrentUserResolver users;
     private MockMvc mvc;
     private TaskService tasks;
 
     @BeforeEach
     void setUp() {
-        users = mock(CurrentUserResolver.class);
-        when(users.resolveOptionalUserId(any())).thenReturn(null);
+        SecurityContextHolder.clearContext();
         tasks = mock(TaskService.class);
         TaskView task = new TaskView();
         task.setId(1L);
@@ -49,7 +54,8 @@ class TaskControllerGuestListTest {
         when(tasks.listTasks(any(TaskQuery.class)))
                 .thenReturn(new TaskPageView(List.of(task), 1, 1, 20));
         mvc = MockMvcBuilders.standaloneSetup(new TaskController(
-                users, tasks, mock(TaskDetailService.class), mock(CompletionService.class))).build();
+                tasks, mock(TaskDetailService.class), mock(CompletionService.class)))
+                .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver()).build();
     }
 
     @Test
@@ -68,7 +74,7 @@ class TaskControllerGuestListTest {
 
     @Test
     void authenticatedListKeepsExistingTaskFields() throws Exception {
-        when(users.resolveOptionalUserId(any())).thenReturn(1L);
+        authenticate(1L);
         mvc.perform(get("/api/v1/tasks"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.tasks[0].providerId").value(2L))
@@ -120,6 +126,21 @@ class TaskControllerGuestListTest {
             };
             assertThat(sql).contains(expected);
         }
+    }
+
+    private void authenticate(Long userId) {
+        User user = new User();
+        user.setId(userId);
+        user.setRole(UserRole.USER);
+        user.setEnabled(1);
+        UserPrincipal principal = new UserPrincipal(user);
+        SecurityContextHolder.getContext().setAuthentication(
+                UsernamePasswordAuthenticationToken.authenticated(principal, null, principal.getAuthorities()));
+    }
+
+    @AfterEach
+    void clearSecurityContext() {
+        SecurityContextHolder.clearContext();
     }
 
 }

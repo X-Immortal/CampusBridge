@@ -1,7 +1,6 @@
 package com.campusbridge.controller;
 
 import com.campusbridge.common.ApiResponse;
-import com.campusbridge.common.CurrentUserResolver;
 import com.campusbridge.common.PagedResult;
 import com.campusbridge.dto.request.CreateConversationRequest;
 import com.campusbridge.dto.request.SendMessageRequest;
@@ -10,9 +9,10 @@ import com.campusbridge.dto.view.ReadAllConversationsView;
 import com.campusbridge.dto.view.UnreadCountView;
 import com.campusbridge.entity.Message;
 import com.campusbridge.service.ConversationService;
-import jakarta.servlet.http.HttpServletRequest;
+import com.campusbridge.security.UserPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -27,34 +27,33 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/conversations")
 @RequiredArgsConstructor
 public class ConversationController {
-    private final CurrentUserResolver currentUserResolver;
     private final ConversationService conversationService;
 
     @GetMapping
     public ApiResponse<PagedResult<ConversationView>> listConversations(
-            HttpServletRequest servletRequest,
+            @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(required = false, defaultValue = "1") Integer page,
             @RequestParam(required = false, defaultValue = "20") Integer size) {
-        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        Long currentUserId = principal.getUserId();
         return ApiResponse.success(conversationService.listConversations(currentUserId, page, size));
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<ConversationView> createConversation(
-            HttpServletRequest servletRequest,
+            @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody CreateConversationRequest request) {
-        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        Long currentUserId = principal.getUserId();
         return ApiResponse.success(conversationService.createConversation(currentUserId, request));
     }
 
     @GetMapping("/{conversationId}/messages")
     public ApiResponse<PagedResult<Message>> listMessages(
-            HttpServletRequest servletRequest,
+            @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long conversationId,
             @RequestParam(required = false, defaultValue = "1") Integer page,
             @RequestParam(required = false, defaultValue = "20") Integer size) {
-        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        Long currentUserId = principal.getUserId();
         return ApiResponse.success(
                 conversationService.listMessages(currentUserId, conversationId, page, size));
     }
@@ -62,31 +61,32 @@ public class ConversationController {
     @PostMapping("/{conversationId}/messages")
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<Message> sendMessage(
-            HttpServletRequest servletRequest,
+            @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long conversationId,
             @Valid @RequestBody SendMessageRequest request) {
-        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        Long currentUserId = principal.getUserId();
         return ApiResponse.success(
                 conversationService.sendMessage(currentUserId, conversationId, request));
     }
 
     @PostMapping("/read-all")
-    public ApiResponse<ReadAllConversationsView> markAllConversationsRead(HttpServletRequest servletRequest) {
-        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+    public ApiResponse<ReadAllConversationsView> markAllConversationsRead(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        Long currentUserId = principal.getUserId();
         return ApiResponse.success(conversationService.markAllConversationsRead(currentUserId));
     }
 
     @GetMapping("/unread-count")
-    public ApiResponse<UnreadCountView> getUnreadSummary(HttpServletRequest servletRequest) {
-        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+    public ApiResponse<UnreadCountView> getUnreadSummary(@AuthenticationPrincipal UserPrincipal principal) {
+        Long currentUserId = principal.getUserId();
         return ApiResponse.success(conversationService.getUnreadSummary(currentUserId));
     }
 
     @PostMapping("/{conversationId}/read")
     public ApiResponse<ConversationView> markConversationRead(
-            HttpServletRequest servletRequest,
+            @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long conversationId) {
-        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        Long currentUserId = principal.getUserId();
         return ApiResponse.success(
                 conversationService.markConversationRead(currentUserId, conversationId));
     }

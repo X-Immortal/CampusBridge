@@ -5,6 +5,8 @@ import com.campusbridge.dto.request.CreateVerificationRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.ServletRequestBindingException;
@@ -28,6 +30,20 @@ public class GlobalExceptionHandler {
                 ex.getDetails()
         );
         return ResponseEntity.status(ex.getErrorCode().getHttpStatus()).body(body);
+    }
+
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidCredentials(BadCredentialsException ex) {
+        ErrorCode code = ErrorCode.AUTH_002_INVALID_CREDENTIALS;
+        return ResponseEntity.status(code.getHttpStatus())
+                .body(ErrorResponse.of(code, code.getDefaultMessage(), null));
+    }
+
+    @ExceptionHandler(DisabledException.class)
+    public ResponseEntity<ErrorResponse> handleDisabledAccount(DisabledException ex) {
+        ErrorCode code = ErrorCode.AUTH_001_UNAUTHORIZED;
+        return ResponseEntity.status(code.getHttpStatus())
+                .body(ErrorResponse.of(code, "账号已被禁用", null));
     }
 
     @ExceptionHandler({

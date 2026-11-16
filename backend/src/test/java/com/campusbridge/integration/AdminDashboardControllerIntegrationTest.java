@@ -9,7 +9,7 @@ import com.campusbridge.entity.User;
 import com.campusbridge.enums.UserRole;
 import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.service.AdminDashboardService;
-import com.campusbridge.utils.JwtUtil;
+import com.campusbridge.security.JwtTokenIssuer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,7 +40,7 @@ class AdminDashboardControllerIntegrationTest {
     private MockMvc mockMvc;
 
     @Autowired
-    private JwtUtil jwtUtil;
+    private JwtTokenIssuer tokens;
 
     @MockitoBean
     private UserMapper userMapper;
@@ -57,7 +57,7 @@ class AdminDashboardControllerIntegrationTest {
         admin.setRole(UserRole.ADMIN);
         admin.setEnabled(1);
         when(userMapper.selectById(ADMIN_ID)).thenReturn(admin);
-        adminAuthHeader = "Bearer " + jwtUtil.generateToken(ADMIN_ID, UserRole.ADMIN);
+        adminAuthHeader = "Bearer " + tokens.issueAccessToken(ADMIN_ID, UserRole.ADMIN);
     }
 
     @Test
@@ -187,7 +187,7 @@ class AdminDashboardControllerIntegrationTest {
         user.setRole(UserRole.USER);
         user.setEnabled(1);
         when(userMapper.selectById(ADMIN_ID)).thenReturn(user);
-        String userToken = "Bearer " + jwtUtil.generateToken(ADMIN_ID, UserRole.USER);
+        String userToken = "Bearer " + tokens.issueAccessToken(ADMIN_ID, UserRole.USER);
 
         mockMvc.perform(get("/api/v1/admin/dashboard/summary")
                         .header("Authorization", userToken))

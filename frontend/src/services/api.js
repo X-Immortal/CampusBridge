@@ -44,7 +44,7 @@ async function request(path, { method = 'GET', body, headers = {}, timeoutMs = 3
     requestHeaders['Content-Type'] = 'application/json'
   }
 
-  if (auth.token) {
+  if (auth.token && !path.startsWith('/auth/')) {
     requestHeaders.Authorization = `Bearer ${auth.token}`
   }
 

@@ -61,3 +61,27 @@ test('post update uses PUT and transmits the complete edit body', async (context
     globalThis.localStorage = originalStorage
   }
 })
+
+test('login omits stale token while protected requests still carry it', async (context) => {
+  const requests = []
+  context.mock.method(globalThis, 'fetch', async (url, options) => {
+    requests.push({ url, headers: options.headers })
+    return new Response(JSON.stringify({ code: 'SUCCESS', data: {} }), {
+      status: 200, headers: { 'Content-Type': 'application/json' }
+    })
+  })
+  const originalWindow = globalThis.window
+  const originalStorage = globalThis.localStorage
+  globalThis.window = { setTimeout, clearTimeout }
+  globalThis.localStorage = { getItem: () => JSON.stringify({ token: 'expired-token' }) }
+  try {
+    await api.login({ username: 'alice', password: 'pass123' })
+    await api.getNotificationUnreadCount()
+    assert.ok(requests[0].url.endsWith('/auth/login'))
+    assert.equal(requests[0].headers.Authorization, undefined)
+    assert.equal(requests[1].headers.Authorization, 'Bearer expired-token')
+  } finally {
+    globalThis.window = originalWindow
+    globalThis.localStorage = originalStorage
+  }
+})

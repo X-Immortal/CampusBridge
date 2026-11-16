@@ -2,14 +2,14 @@ package com.campusbridge.controller;
 
 import com.campusbridge.common.ApiResponse;
 import com.campusbridge.common.BusinessException;
-import com.campusbridge.common.CurrentUserResolver;
 import com.campusbridge.common.ErrorCode;
 import com.campusbridge.dto.view.BlockStatusView;
 import com.campusbridge.entity.UserBlock;
 import com.campusbridge.mapper.UserBlockMapper;
 import com.campusbridge.mapper.UserMapper;
-import jakarta.servlet.http.HttpServletRequest;
+import com.campusbridge.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,15 +25,14 @@ import java.util.List;
 @RequestMapping("/api/v1/blocks")
 @RequiredArgsConstructor
 public class BlockController {
-    private final CurrentUserResolver currentUserResolver;
     private final UserBlockMapper userBlockMapper;
     private final UserMapper userMapper;
 
     @PostMapping("/{blockedUserId}")
     public ApiResponse<String> blockUser(
-            HttpServletRequest servletRequest,
+            @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long blockedUserId) {
-        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        Long currentUserId = principal.getUserId();
         if (currentUserId.equals(blockedUserId)) {
             throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "不能拉黑自己");
         }
@@ -57,25 +56,25 @@ public class BlockController {
 
     @DeleteMapping("/{blockedUserId}")
     public ApiResponse<String> unblockUser(
-            HttpServletRequest servletRequest,
+            @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long blockedUserId) {
-        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        Long currentUserId = principal.getUserId();
         userBlockMapper.delete(currentUserId, blockedUserId);
         return ApiResponse.success("已取消拉黑");
     }
 
     @GetMapping
-    public ApiResponse<List<UserBlock>> getBlockedUsers(HttpServletRequest servletRequest) {
-        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+    public ApiResponse<List<UserBlock>> getBlockedUsers(@AuthenticationPrincipal UserPrincipal principal) {
+        Long currentUserId = principal.getUserId();
         List<UserBlock> blocks = userBlockMapper.selectBlockedIds(currentUserId);
         return ApiResponse.success(blocks);
     }
 
     @GetMapping("/check/{targetUserId}")
     public ApiResponse<BlockStatusView> checkBlock(
-            HttpServletRequest servletRequest,
+            @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long targetUserId) {
-        Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
+        Long currentUserId = principal.getUserId();
         boolean blocked = userBlockMapper.exists(currentUserId, targetUserId);
         return ApiResponse.success(new BlockStatusView(blocked));
     }

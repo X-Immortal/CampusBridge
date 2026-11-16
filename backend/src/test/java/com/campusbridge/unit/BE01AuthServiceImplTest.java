@@ -2,19 +2,14 @@ package com.campusbridge.unit;
 
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
-import com.campusbridge.dto.request.LoginRequest;
 import com.campusbridge.dto.request.RegisterRequest;
-import com.campusbridge.dto.view.LoginView;
 import com.campusbridge.entity.User;
-import com.campusbridge.enums.UserRole;
 import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.service.impl.AuthServiceImpl;
 import com.campusbridge.service.impl.EmailVerificationCodeSender;
-import com.campusbridge.utils.JwtUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -42,19 +37,16 @@ class BE01AuthServiceImplTest {
     private UserMapper userMapper;
 
     @Mock
-    private JwtUtil jwtUtil;
-
-    @Mock
     private PasswordEncoder passwordEncoder;
 
     @Mock
     private EmailVerificationCodeSender emailCodeSender;
 
-    @InjectMocks
     private AuthServiceImpl authService;
 
     @BeforeEach
     void setUp() {
+        authService = new AuthServiceImpl(userMapper, passwordEncoder, emailCodeSender);
         ReflectionTestUtils.setField(authService, "emailCodeSecret", "test-secret");
     }
 
@@ -177,71 +169,6 @@ class BE01AuthServiceImplTest {
         assertThat(authService.sendRegistrationCode("alice@test.com")).matches("[0-9]{6}");
     }
 
-    // ---- login ----
-
-    @Test
-    void loginReturnsPayloadForValidCredentials() {
-        LoginRequest request = loginRequest("alice", "pass123");
-        User dbUser = user(100L, "alice", "hashed-pass", "USER");
-        when(userMapper.selectByUsername("alice")).thenReturn(dbUser);
-        when(passwordEncoder.matches("pass123", "hashed-pass")).thenReturn(true);
-        when(jwtUtil.generateToken(100L, UserRole.USER)).thenReturn("jwt-token");
-        when(jwtUtil.generateRefreshToken(100L)).thenReturn("refresh-token");
-
-        LoginView payload = authService.login(request);
-
-        assertThat(payload.userId()).isEqualTo(100L);
-        assertThat(payload.username()).isEqualTo("alice");
-        assertThat(payload.role()).isEqualTo(UserRole.USER);
-        assertThat(payload.token()).isEqualTo("jwt-token");
-        assertThat(payload.refreshToken()).isEqualTo("refresh-token");
-    }
-
-    @Test
-    void loginRejectsUnknownUser() {
-        LoginRequest request = loginRequest("nobody", "pass123");
-        when(userMapper.selectByUsername("nobody")).thenReturn(null);
-
-        assertThatThrownBy(() -> authService.login(request))
-                .isInstanceOf(BusinessException.class)
-                .extracting("errorCode").isEqualTo(ErrorCode.AUTH_002_INVALID_CREDENTIALS);
-    }
-
-    @Test
-    void loginRejectsDisabledUser() {
-        LoginRequest request = loginRequest("alice", "pass123");
-        User dbUser = user(100L, "alice", "hashed-pass", "USER");
-        dbUser.setEnabled(0);
-        when(userMapper.selectByUsername("alice")).thenReturn(dbUser);
-
-        assertThatThrownBy(() -> authService.login(request))
-                .isInstanceOf(BusinessException.class)
-                .extracting("errorCode").isEqualTo(ErrorCode.AUTH_001_UNAUTHORIZED);
-    }
-
-    @Test
-    void loginRejectsWrongPassword() {
-        LoginRequest request = loginRequest("alice", "wrong");
-        User dbUser = user(100L, "alice", "hashed-pass", "USER");
-        when(userMapper.selectByUsername("alice")).thenReturn(dbUser);
-        when(passwordEncoder.matches("wrong", "hashed-pass")).thenReturn(false);
-
-        assertThatThrownBy(() -> authService.login(request))
-                .isInstanceOf(BusinessException.class)
-                .extracting("errorCode").isEqualTo(ErrorCode.AUTH_002_INVALID_CREDENTIALS);
-    }
-
-    @Test
-    void loginRejectsNullPasswordHash() {
-        LoginRequest request = loginRequest("alice", "pass123");
-        User dbUser = user(100L, "alice", null, "USER");
-        when(userMapper.selectByUsername("alice")).thenReturn(dbUser);
-
-        assertThatThrownBy(() -> authService.login(request))
-                .isInstanceOf(BusinessException.class)
-                .extracting("errorCode").isEqualTo(ErrorCode.AUTH_002_INVALID_CREDENTIALS);
-    }
-
     // ---- helpers ----
 
     private RegisterRequest registerRequest(
@@ -255,20 +182,4 @@ class BE01AuthServiceImplTest {
         return request;
     }
 
-    private LoginRequest loginRequest(String username, String password) {
-        LoginRequest request = new LoginRequest();
-        request.username = username;
-        request.password = password;
-        return request;
-    }
-
-    private User user(Long id, String username, String passwordHash, String role) {
-        User user = new User();
-        user.setId(id);
-        user.setUsername(username);
-        user.setPasswordHash(passwordHash);
-        user.setRole(UserRole.valueOf(role));
-        user.setEnabled(1);
-        return user;
-    }
 }

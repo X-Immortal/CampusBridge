@@ -9,7 +9,7 @@ import com.campusbridge.enums.ContentItemType;
 import com.campusbridge.enums.UserRole;
 import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.service.NotificationService;
-import com.campusbridge.utils.JwtUtil;
+import com.campusbridge.security.JwtTokenIssuer;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -29,7 +29,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("test")
 class NotificationControllerIntegrationTest {
     @Autowired MockMvc mvc;
-    @Autowired JwtUtil jwt;
+    @Autowired JwtTokenIssuer jwt;
     @MockitoBean NotificationService notifications;
     @MockitoBean UserMapper users;
 
@@ -77,6 +77,6 @@ class NotificationControllerIntegrationTest {
         user.setRole(UserRole.USER);
         user.setEnabled(1);
         when(users.selectById(1L)).thenReturn(user);
-        return "Bearer " + jwt.generateToken(1L, UserRole.USER);
+        return "Bearer " + jwt.issueAccessToken(1L, UserRole.USER);
     }
 }

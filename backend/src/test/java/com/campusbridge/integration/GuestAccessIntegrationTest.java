@@ -12,9 +12,11 @@ import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.service.PostService;
 import com.campusbridge.service.TaskDetailService;
 import com.campusbridge.service.TaskService;
-import com.campusbridge.utils.JwtUtil;
+import com.campusbridge.security.JwtTokenIssuer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -60,7 +62,7 @@ class GuestAccessIntegrationTest {
     private ObjectMapper objectMapper;
 
     @Autowired
-    private JwtUtil jwtUtil;
+    private JwtTokenIssuer tokens;
 
     @MockitoBean
     private UserMapper userMapper;
@@ -80,7 +82,7 @@ class GuestAccessIntegrationTest {
         user.setRole(UserRole.USER);
         user.setEnabled(1);
         when(userMapper.selectById(USER_ID)).thenReturn(user);
-        return "Bearer " + jwtUtil.generateToken(USER_ID, UserRole.USER);
+        return "Bearer " + tokens.issueAccessToken(USER_ID, UserRole.USER);
     }
 
     private TaskView publicTask() {
@@ -175,4 +177,12 @@ class GuestAccessIntegrationTest {
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("AUTH_001_UNAUTHORIZED"));
     }
+    @ParameterizedTest
+    @ValueSource(strings = {"/api/v1/posts/replied", "/api/v1/posts/marked", "/api/v1/users/me/profile"})
+    void personalReadEndpointsRequireAuthentication(String path) throws Exception {
+        mockMvc.perform(get(path))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTH_001_UNAUTHORIZED"));
+    }
+
 }
