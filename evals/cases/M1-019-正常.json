@@ -3,6 +3,7 @@
   "category": "正常",
   "goal": "今晚九点去北门菜鸟驿站帮我取3个快递，预算10元",
   "context": {},
+  "stream": true,
   "flow": {
     "select": "now",
     "confirm": true,
@@ -25,7 +26,16 @@
     "taskIdNotNull": true,
     "stateIn": [
       "CREATED"
-    ]
+    ],
+    "streamKindsInclude": [
+      "text.delta",
+      "schema.card",
+      "tool.progress",
+      "task.snapshot",
+      "stream.end"
+    ],
+    "streamMinEvents": 10,
+    "streamEndReason": "done"
   },
   "note": "正常链路第二例：换金额与件数，仍应比较 → 确认 → 建单。"
 }

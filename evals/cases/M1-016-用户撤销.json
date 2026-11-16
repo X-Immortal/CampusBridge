@@ -3,6 +3,7 @@
   "category": "特殊情境",
   "goal": "今晚九点去北门菜鸟驿站帮我取3个快递，预算8元",
   "context": {},
+  "stream": true,
   "flow": { "cancel": true },
   "expect": {
     "shouldClarify": [],
@@ -11,7 +12,9 @@
   },
   "check": {
     "stateIn": ["CANCELLED"],
-    "taskIdNull": true
+    "taskIdNull": true,
+    "streamKindsInclude": ["text.delta", "schema.card", "stream.end"],
+    "streamEndReason": "cancelled"
   },
   "note": "用户撤销：不写库，只留一条 session.cancelled 事件。撤销和取消订单是两件事。"
 }

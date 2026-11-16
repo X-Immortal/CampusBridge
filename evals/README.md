@@ -73,6 +73,9 @@ M1 阶段共 18 条（门槛 15）；2026-11-16 已扩到 **40 条**（八类分
 | `stateIn` | 最终会话状态 |
 | `violationsInclude` | 被哪几条约束拦住（`K01`…`K15`） |
 | `validSchema` / `errorsInclude` | Schema 校验结果 |
+| `streamKindsInclude` | 该 case 加 `"stream": true` 后，流里必须出现这些 kind |
+| `streamMinEvents` | 流事件条数下限 |
+| `streamEndReason` | `stream.end.payload.reason` 必须等于它（done/cancelled/…） |
 
 ## 纪律
 

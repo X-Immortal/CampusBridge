@@ -156,6 +156,29 @@ function checkCase(testCase, trace) {
       }
     }
   }
+  if (check.streamKindsInclude) {
+    const kinds = (trace.stream?.events || []).map((e) => e.kind);
+    for (const kind of check.streamKindsInclude) {
+      if (!kinds.includes(kind)) {
+        failures.push(`流里没有 ${kind}（实际 ${kinds.join(',') || '无'}）`);
+      }
+    }
+  }
+  if (check.streamMinEvents !== undefined) {
+    const total = (trace.stream?.events || []).length;
+    if (total < check.streamMinEvents) {
+      failures.push(`流事件只有 ${total} 条，少于 ${check.streamMinEvents}`);
+    }
+  }
+  if (check.streamEndReason) {
+    const ends = (trace.stream?.events || []).filter((e) => e.kind === 'stream.end');
+    const end = ends.length > 0 ? ends[ends.length - 1] : null;
+    if (end === null) {
+      failures.push('流里没有 stream.end');
+    } else if (end.payload?.reason !== check.streamEndReason) {
+      failures.push(`stream.end 原因 ${end.payload?.reason} != ${check.streamEndReason}`);
+    }
+  }
   return failures;
 }
 
@@ -174,6 +197,31 @@ async function postJson(baseUrl, path, body) {
     };
   } catch (e) {
     return { status: 0, error: e.message, ms: Date.now() - startedAt };
+  }
+}
+
+async function collectStream(baseUrl, sessionId) {
+  const startedAt = Date.now();
+  try {
+    const url = new URL('/api/stream', baseUrl);
+    url.searchParams.set('sessionId', sessionId);
+    url.searchParams.set('after', '0');
+    const response = await fetch(url);
+    const wire = await response.text();
+    const events = [];
+    for (const frame of wire.split('\n\n')) {
+      if (!frame.trim()) continue;
+      const dataLine = frame.split('\n').find((line) => line.startsWith('data:'));
+      if (!dataLine) continue;
+      try {
+        events.push(JSON.parse(dataLine.slice(5).trim()));
+      } catch {
+        // 注释/心跳帧不算事件
+      }
+    }
+    return { status: response.status, events, ms: Date.now() - startedAt };
+  } catch (e) {
+    return { status: 0, events: [], error: e.message, ms: Date.now() - startedAt };
   }
 }
 
@@ -217,6 +265,10 @@ async function runCase(testCase, baseUrl) {
     }
   }
   trace.final = current;
+  if (testCase.stream && start.body?.sessionId) {
+    trace.stream = await collectStream(baseUrl, start.body.sessionId);
+    trace.steps.push({ name: 'stream', status: trace.stream.status, ms: trace.stream.ms });
+  }
   return trace;
 }
 
@@ -236,6 +288,7 @@ async function runLive(cases, baseUrl) {
       outcome: trace.final?.body?.outcome ?? null,
       taskId: trace.final?.body?.taskId ?? null,
       cardKind: trace.start?.body?.card?.kind ?? null,
+      streamEvents: (trace.stream?.events || []).length,
       ms: trace.steps.reduce((sum, s) => sum + (s.ms ?? 0), 0),
       steps: trace.steps,
     });
