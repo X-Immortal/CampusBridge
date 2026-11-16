@@ -4,7 +4,7 @@ import com.campusbridge.domain.DraftField;
 import com.campusbridge.domain.TaskDraft;
 import com.campusbridge.dto.enums.ApiEnums;
 import com.campusbridge.dto.request.RequestDtos;
-import com.campusbridge.pojo.Task;
+import com.campusbridge.dto.view.TaskView;
 import com.campusbridge.service.TaskService;
 import org.springframework.stereotype.Component;
 
@@ -48,7 +48,7 @@ public class ServiceTaskCommandAdapter implements TaskCommandPort {
         request.riskDisclosureConfirmed = flagOr(draft.flag(DraftField.RISK_DISCLOSURE_CONFIRMED), false);
         request.sensitiveReason = "HIGH".equalsIgnoreCase(draft.text(DraftField.RISK_LEVEL))
                 ? "深夜 / 上门 / 涉及隐私位置" : null;
-        Task task = taskService.createTask(requesterId, request);
+        TaskView task = taskService.createTask(requesterId, request);
         return task.getId();
     }
 
