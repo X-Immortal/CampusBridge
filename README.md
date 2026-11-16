@@ -48,7 +48,7 @@ test 默认访问 http://localhost:8080；dev 的前后端启动方式见下文�
 (cd frontend && npm ci && npm run dev)
 ```
 
-前端默认 http://localhost:5173，后端默认 http://localhost:8081；开发代理将 /api 转发到后端。
+前端默认 http://localhost:5173，后端默认 http://localhost:8080；开发代理将 /api 转发到后端。
 
 ## 验证入口
 

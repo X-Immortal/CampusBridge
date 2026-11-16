@@ -90,7 +90,7 @@ node --version
 mysql --version
 ```
 
-后端依赖由 backend/pom.xml 管理，前端按 package-lock.json 安装。前端开发端口默认 5173，后端默认 8081。
+后端依赖由 backend/pom.xml 管理，前端按 package-lock.json 安装。前端开发端口默认 5173，后端默认 8080。
 
 ## 2. 新数据库初始化
 
@@ -127,7 +127,7 @@ cp -n backend/src/main/resources/application-local.example.yml backend/src/main/
 | JWT_SECRET | 签名密钥，无默认值；至少 32 字节随机内容 |
 | jwt.expiration | 86400000 毫秒，访问令牌期限 |
 | jwt.refresh-expiration | 2592000000 毫秒，刷新令牌期限；当前无刷新接口 |
-| SERVER_PORT | 默认 8081；变更后同步前端代理或 API 基地址 |
+| SERVER_PORT | 默认 8080；变更后同步前端代理或 API 基地址 |
 
 配置通过本地文件或启动环境提供，真实凭据不提交 Git。MySQL URL 中若包含 &，在 shell 中使用引号包裹。
 
@@ -186,7 +186,7 @@ OSS 凭据来自进程环境，不是 ALIYUN_OSS_ENDPOINT 等位置配置的一�
 (cd frontend && npm ci && npm run dev)
 ```
 
-访问 http://localhost:5173。Vite 将 /api 代理到 http://localhost:8081；frontend/src/services/api.js 也支持 VITE_API_BASE_URL。修改后端端口时同时检查这两处配置。
+访问 http://localhost:5173。Vite 将 /api 代理到 http://localhost:8080；frontend/src/services/api.js 也支持 VITE_API_BASE_URL。修改后端端口时同时检查这两处配置。
 
 构建：
 

@@ -8,5 +8,5 @@ FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
 COPY --from=build /workspace/target/*.jar app.jar
 ENV TZ=Asia/Shanghai
-EXPOSE 8081
+EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]

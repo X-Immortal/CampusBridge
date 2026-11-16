@@ -12,22 +12,9 @@ spring:
   sql:
     init:
       mode: never
-  servlet:
-    multipart:
-      max-file-size: 5MB
-      max-request-size: 10MB
-
-mybatis-plus:
-  configuration:
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
-    map-underscore-to-camel-case: true
 
 jwt:
   secret: test-secret-key-at-least-64-characters-for-hs256-please-do-not-use-prod
-  expiration: 86400000
-  refresh-expiration: 2592000000
-  header: Authorization
-  prefix: "Bearer "
 
 campusbridge:
   verification:

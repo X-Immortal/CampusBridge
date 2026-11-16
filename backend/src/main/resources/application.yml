@@ -34,8 +34,6 @@ mybatis-plus:
       # 实体写入包含空值，允许编辑时清除可选字段。
       insert-strategy: always
       update-strategy: always
-  configuration:
-    map-underscore-to-camel-case: true
 
 # Aliyun OSS
 aliyun:
@@ -49,8 +47,6 @@ jwt:
   secret: ${JWT_SECRET}
   expiration: 86400000
   refresh-expiration: 2592000000
-  header: Authorization
-  prefix: "Bearer "
 
 campusbridge:
   verification:
@@ -60,7 +56,6 @@ campusbridge:
       code-secret: ${VERIFICATION_EMAIL_CODE_SECRET:campusbridge-email-code}
 
 server:
-  port: ${SERVER_PORT:8081}
   forward-headers-strategy: ${FORWARD_HEADERS_STRATEGY:none}
 
 ---

@@ -183,7 +183,7 @@ curl --fail-with-body \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
   -H "X-Expected-Owner-Type: COMPLETION_PROOF" \
   -F "file=@/absolute/path/proof.png" \
-  http://localhost:8081/api/v1/attachments
+  http://localhost:8080/api/v1/attachments
 ```
 
 ACCESS_TOKEN 由调用者在当前终端设置。curl 的 --fail-with-body 只检查 HTTP 错误，仍须检查返回 JSON 的 code。

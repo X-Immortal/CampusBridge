@@ -46,19 +46,7 @@ public class SecurityConfig {
                             "/api/v1/auth/**",
                             "/api/v1/home/**",
                             "/api/v1/content/**",
-                            "/api/v1/home/recommendations",
-                            "/api/v1/content",
-                            "/error",
-                            "/",
-                            "/index.html",
-                            "/favicon.ico",
-                            "/assets/**",
-                            "/src/**",
-                            "/*.js",
-                            "/*.css",
-                            "/*.png",
-                            "/*.svg",
-                            "/*.jpg"
+                            "/error"
                     ).permitAll();
                     auth.requestMatchers(HttpMethod.GET,
                             "/api/v1/tasks",
