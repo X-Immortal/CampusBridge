@@ -1,7 +1,7 @@
 package com.campusbridge.service;
 
-import com.campusbridge.dto.request.RequestDtos;
-import com.campusbridge.pojo.CompletionProof;
+import com.campusbridge.dto.request.SubmitCompletionRequest;
+import com.campusbridge.entity.CompletionProof;
 
 public interface CompletionService {
     /**
@@ -11,7 +11,7 @@ public interface CompletionService {
      * @param request 提交请求
      * @return 完成凭证
      */
-    CompletionProof submitCompletionProof(Long submitterId, Long taskId, RequestDtos.SubmitCompletionRequest request);
+    CompletionProof submitCompletionProof(Long submitterId, Long taskId, SubmitCompletionRequest request);
 
     /**
      * 确认完成（Requester操作）

@@ -1,13 +1,18 @@
 package com.campusbridge.integration;
 
-import com.campusbridge.mapper.UserMapper;
-import com.campusbridge.pojo.User;
-
-import com.campusbridge.dto.request.RequestDtos;
-import com.campusbridge.pojo.CompletionProof;
-import com.campusbridge.pojo.Review;
+import com.campusbridge.common.BusinessException;
+import com.campusbridge.common.ErrorCode;
+import com.campusbridge.dto.request.CreateReviewRequest;
+import com.campusbridge.dto.request.CreateTaskApplicationRequest;
+import com.campusbridge.dto.request.CreateTaskRequest;
+import com.campusbridge.dto.request.SubmitCompletionRequest;
+import com.campusbridge.dto.request.TaskStatusTransitionRequest;
 import com.campusbridge.dto.view.TaskView;
-import com.campusbridge.pojo.TaskApplication;
+import com.campusbridge.entity.CompletionProof;
+import com.campusbridge.entity.Review;
+import com.campusbridge.entity.TaskApplication;
+import com.campusbridge.entity.User;
+import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.service.CompletionService;
 import com.campusbridge.service.ReviewService;
 import com.campusbridge.service.TaskApplicationService;
@@ -100,12 +105,12 @@ class TaskWorkflowIntegrationTest {
     @Test
     void fullTaskWorkflowPublishApplyAcceptStartCompleteReview() throws Exception {
         // Mock task creation
-        when(taskService.createTask(eq(REQUESTER_ID), any(RequestDtos.CreateTaskRequest.class)))
+        when(taskService.createTask(eq(REQUESTER_ID), any(CreateTaskRequest.class)))
                 .thenReturn(openTask());
 
         // Mock application creation
         when(taskApplicationService.createApplication(eq(PROVIDER_ID), eq(TASK_ID),
-                any(RequestDtos.CreateTaskApplicationRequest.class)))
+                any(CreateTaskApplicationRequest.class)))
                 .thenReturn(pendingApplication());
 
         // Mock list applications
@@ -118,7 +123,7 @@ class TaskWorkflowIntegrationTest {
 
         // Mock status transition: START → IN_PROGRESS
         when(taskService.transitionTaskStatus(eq(PROVIDER_ID), eq(TASK_ID),
-                any(RequestDtos.TaskStatusTransitionRequest.class)))
+                any(TaskStatusTransitionRequest.class)))
                 .thenReturn(taskWithStatus("IN_PROGRESS"));
 
         // Mock completion proof
@@ -127,12 +132,12 @@ class TaskWorkflowIntegrationTest {
         proof.setTaskId(TASK_ID);
         proof.setSubmitterId(PROVIDER_ID);
         when(completionService.submitCompletionProof(eq(PROVIDER_ID), eq(TASK_ID),
-                any(RequestDtos.SubmitCompletionRequest.class)))
+                any(SubmitCompletionRequest.class)))
                 .thenReturn(proof);
 
         // Mock review
         when(reviewService.createReview(any(Long.class), any(Long.class),
-                any(RequestDtos.CreateReviewRequest.class)))
+                any(CreateReviewRequest.class)))
                 .thenReturn(new Review());
 
         // Step 1: Publish task
@@ -206,14 +211,14 @@ class TaskWorkflowIntegrationTest {
 
     @Test
     void invalidStateTransitionOnOpenTaskReturnsConflict() throws Exception {
-        when(taskService.createTask(eq(REQUESTER_ID), any(RequestDtos.CreateTaskRequest.class)))
+        when(taskService.createTask(eq(REQUESTER_ID), any(CreateTaskRequest.class)))
                 .thenReturn(openTask());
 
         publishTask("测试状态流转", "测试非法流转拒绝");
 
         // START on OPEN task → service throws
         when(taskService.transitionTaskStatus(eq(PROVIDER_ID), eq(TASK_ID),
-                any(RequestDtos.TaskStatusTransitionRequest.class)))
+                any(TaskStatusTransitionRequest.class)))
                 .thenThrow(new com.campusbridge.common.BusinessException(
                         com.campusbridge.common.ErrorCode.TASK_002_INVALID_STATUS_TRANSITION,
                         "非法状态流转"));
@@ -229,12 +234,12 @@ class TaskWorkflowIntegrationTest {
 
     @Test
     void duplicateApplicationIsRejected() throws Exception {
-        when(taskService.createTask(eq(REQUESTER_ID), any(RequestDtos.CreateTaskRequest.class)))
+        when(taskService.createTask(eq(REQUESTER_ID), any(CreateTaskRequest.class)))
                 .thenReturn(openTask());
 
         // First application succeeds
         when(taskApplicationService.createApplication(eq(PROVIDER_ID), eq(TASK_ID),
-                any(RequestDtos.CreateTaskApplicationRequest.class)))
+                any(CreateTaskApplicationRequest.class)))
                 .thenReturn(pendingApplication());
 
         publishTask("禁止重复接单测试", "测试重复接单被拒");
@@ -247,7 +252,7 @@ class TaskWorkflowIntegrationTest {
 
         // Second application → service throws
         when(taskApplicationService.createApplication(eq(PROVIDER_ID), eq(TASK_ID),
-                any(RequestDtos.CreateTaskApplicationRequest.class)))
+                any(CreateTaskApplicationRequest.class)))
                 .thenThrow(new com.campusbridge.common.BusinessException(
                         com.campusbridge.common.ErrorCode.TASK_007_ALREADY_APPLIED,
                         "你已经申请过这个任务"));

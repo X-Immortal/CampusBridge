@@ -65,7 +65,7 @@
     </if>
   </sql>
 
-  <select id="selectPage" resultType="com.campusbridge.dto.view.ViewDtos$ContentItemView">
+  <select id="selectPage" resultType="com.campusbridge.dto.view.ContentItemView">
     SELECT item_type, source_id, title, summary, author_id, author_name, category_name,
       status_label, created_at, sort_time, reward_label
     FROM (<include refid="contentRows"/>) content

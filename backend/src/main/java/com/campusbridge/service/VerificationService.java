@@ -1,22 +1,25 @@
 package com.campusbridge.service;
 
-import com.campusbridge.dto.request.RequestDtos;
-import com.campusbridge.pojo.CampusVerification;
-
-import com.campusbridge.dto.response.ResponseDtos;
+import com.campusbridge.common.PagedResult;
+import com.campusbridge.dto.request.ConfirmEmailVerificationRequest;
+import com.campusbridge.dto.request.CreateVerificationRequest;
+import com.campusbridge.dto.view.VerificationCancelledView;
+import com.campusbridge.dto.view.VerificationReviewView;
+import com.campusbridge.dto.view.VerificationSubmissionView;
+import com.campusbridge.entity.CampusVerification;
 
 public interface VerificationService {
-    Object submit(Long userId, RequestDtos.CreateVerificationRequest request);
+    VerificationSubmissionView submit(Long userId, CreateVerificationRequest request);
 
-    Object confirmEmail(Long userId, RequestDtos.ConfirmEmailVerificationRequest request);
+    VerificationSubmissionView confirmEmail(Long userId, ConfirmEmailVerificationRequest request);
 
-    Object resendEmailCode(Long userId);
+    VerificationSubmissionView resendEmailCode(Long userId);
 
-    Object cancelLatestPending(Long userId);
+    VerificationCancelledView cancelLatestPending(Long userId);
 
     CampusVerification getMyLatest(Long userId);
 
-    ResponseDtos.PagedResult<CampusVerification> listPending(int page, int size);
+    PagedResult<CampusVerification> listPending(int page, int size);
 
-    Object review(Long adminUserId, Long verificationId, boolean approved, String rejectReason);
+    VerificationReviewView review(Long adminUserId, Long verificationId, boolean approved, String rejectReason);
 }

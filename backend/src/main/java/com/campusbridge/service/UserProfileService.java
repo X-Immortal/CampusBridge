@@ -1,17 +1,19 @@
 package com.campusbridge.service;
 
-import com.campusbridge.dto.view.ViewDtos;
-import com.campusbridge.dto.request.RequestDtos;
+import com.campusbridge.dto.request.UpdateUserProfileRequest;
+import com.campusbridge.dto.view.UserHomepageView;
+import com.campusbridge.dto.view.UserProfileView;
+import com.campusbridge.dto.view.UserView;
 import org.springframework.web.multipart.MultipartFile;
 
 public interface UserProfileService {
-    ViewDtos.UserView getCurrentUser(Long currentUserId);
+    UserView getCurrentUser(Long currentUserId);
 
-    ViewDtos.UserProfileView getMyProfile(Long currentUserId);
+    UserProfileView getMyProfile(Long currentUserId);
 
-    ViewDtos.UserProfileView updateMyProfile(Long currentUserId, RequestDtos.UpdateUserProfileRequest request);
+    UserProfileView updateMyProfile(Long currentUserId, UpdateUserProfileRequest request);
 
-    ViewDtos.UserHomepageView getUserHomepage(Long userId);
+    UserHomepageView getUserHomepage(Long userId);
 
     String updateAvatar(Long currentUserId, MultipartFile file);
 }

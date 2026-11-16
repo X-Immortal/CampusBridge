@@ -1,8 +1,9 @@
 package com.campusbridge.service;
 
-import com.campusbridge.dto.request.RequestDtos;
-import com.campusbridge.dto.view.ViewDtos;
-import com.campusbridge.pojo.TaskApplication;
+import com.campusbridge.dto.request.CreateTaskApplicationRequest;
+import com.campusbridge.dto.view.MyTaskApplicationView;
+import com.campusbridge.dto.view.TaskApplicationCandidateView;
+import com.campusbridge.entity.TaskApplication;
 
 import java.util.List;
 
@@ -10,13 +11,13 @@ public interface TaskApplicationService {
     TaskApplication createApplication(
             Long applicantId,
             Long taskId,
-            RequestDtos.CreateTaskApplicationRequest request);
+            CreateTaskApplicationRequest request);
 
-    List<ViewDtos.TaskApplicationCandidateView> listApplications(
+    List<TaskApplicationCandidateView> listApplications(
             Long requesterId,
             Long taskId);
 
-    List<ViewDtos.MyTaskApplicationView> listMyApplications(Long applicantId);
+    List<MyTaskApplicationView> listMyApplications(Long applicantId);
 
     TaskApplication withdrawApplication(Long applicantId, Long applicationId);
 

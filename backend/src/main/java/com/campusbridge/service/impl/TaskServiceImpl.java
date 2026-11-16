@@ -1,19 +1,23 @@
 package com.campusbridge.service.impl;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.campusbridge.dto.query.TaskQuery;
-import com.campusbridge.dto.view.TaskPageView;
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
-import com.campusbridge.dto.enums.ApiEnums;
-import com.campusbridge.dto.request.RequestDtos;
-import com.campusbridge.mapper.CampusVerificationMapper;
-import com.campusbridge.mapper.TaskMapper;
-import com.campusbridge.mapper.TaskApplicationMapper;
-import com.campusbridge.pojo.TaskApplication;
-import com.campusbridge.pojo.CampusVerification;
-import com.campusbridge.pojo.Task;
+import com.campusbridge.dto.query.TaskQuery;
+import com.campusbridge.dto.request.CreateTaskRequest;
+import com.campusbridge.dto.request.TaskStatusTransitionRequest;
+import com.campusbridge.dto.request.UpdateTaskRequest;
+import com.campusbridge.dto.view.TaskPageView;
 import com.campusbridge.dto.view.TaskView;
+import com.campusbridge.entity.CampusVerification;
+import com.campusbridge.entity.Task;
+import com.campusbridge.entity.TaskApplication;
+import com.campusbridge.enums.RewardType;
+import com.campusbridge.enums.TaskCategory;
+import com.campusbridge.enums.TaskStatusTransitionAction;
+import com.campusbridge.mapper.CampusVerificationMapper;
+import com.campusbridge.mapper.TaskApplicationMapper;
+import com.campusbridge.mapper.TaskMapper;
 import com.campusbridge.service.ContentModerationService;
 import com.campusbridge.service.CreditService;
 import com.campusbridge.service.NotificationService;
@@ -81,7 +85,7 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
-    public TaskView createTask(Long requesterId, RequestDtos.CreateTaskRequest request) {
+    public TaskView createTask(Long requesterId, CreateTaskRequest request) {
         requireRequesterId(requesterId);
         requireVerifiedUser(requesterId);
         validateCreateTaskRequest(request);
@@ -147,7 +151,7 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
-    public TaskView updateTask(Long operatorId, Long taskId, RequestDtos.UpdateTaskRequest request) {
+    public TaskView updateTask(Long operatorId, Long taskId, UpdateTaskRequest request) {
         requireOperatorId(operatorId);
         if (taskId == null) {
             throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "taskId must not be null");
@@ -173,7 +177,7 @@ public class TaskServiceImpl implements TaskService {
 
         applyUpdateToTask(existingTask, request);
         if (STATUS_OPEN.equals(existingTask.getStatus())) {
-            RequestDtos.CreateTaskRequest updated = buildResendRequest(existingTask);
+            CreateTaskRequest updated = buildResendRequest(existingTask);
             validateCreateTaskRequest(updated);
             contentModerationService.assertTaskPublishAllowed(operatorId, updated);
         }
@@ -354,7 +358,7 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
-    public TaskView saveDraft(Long requesterId, RequestDtos.CreateTaskRequest request) {
+    public TaskView saveDraft(Long requesterId, CreateTaskRequest request) {
         requireRequesterId(requesterId);
         requireVerifiedUser(requesterId);
 
@@ -401,7 +405,7 @@ public class TaskServiceImpl implements TaskService {
         }
 
         requireVerifiedUser(operatorId);
-        RequestDtos.CreateTaskRequest resendRequest = buildResendRequest(task);
+        CreateTaskRequest resendRequest = buildResendRequest(task);
         validateCreateTaskRequest(resendRequest);
         contentModerationService.assertTaskPublishAllowed(operatorId, resendRequest);
 
@@ -431,10 +435,10 @@ public class TaskServiceImpl implements TaskService {
     public TaskView transitionTaskStatus(
             Long operatorId,
             Long taskId,
-            RequestDtos.TaskStatusTransitionRequest request) {
+            TaskStatusTransitionRequest request) {
         validateTransitionRequest(operatorId, taskId, request);
         validateTransitionReason(request);
-        if (request.getAction() == ApiEnums.TaskStatusTransitionAction.CANCEL) {
+        if (request.getAction() == TaskStatusTransitionAction.CANCEL) {
             return cancelTask(operatorId, taskId, request.getReason());
         }
 
@@ -484,7 +488,7 @@ public class TaskServiceImpl implements TaskService {
         }
     }
 
-    private void validateCreateTaskRequest(RequestDtos.CreateTaskRequest request) {
+    private void validateCreateTaskRequest(CreateTaskRequest request) {
         if (request == null) {
             throwValidation("Request body must not be null");
         }
@@ -534,7 +538,7 @@ public class TaskServiceImpl implements TaskService {
         }
     }
 
-    private Task buildTask(Long requesterId, RequestDtos.CreateTaskRequest request) {
+    private Task buildTask(Long requesterId, CreateTaskRequest request) {
         LocalDateTime now = LocalDateTime.now();
         Task task = new Task();
         task.setRequesterId(requesterId);
@@ -564,7 +568,7 @@ public class TaskServiceImpl implements TaskService {
         return task;
     }
 
-    private String resolveInitialStatus(RequestDtos.CreateTaskRequest request) {
+    private String resolveInitialStatus(CreateTaskRequest request) {
         return STATUS_OPEN;
     }
 
@@ -604,14 +608,14 @@ public class TaskServiceImpl implements TaskService {
                 message);
     }
 
-    private void validateRewardAmount(ApiEnums.RewardType rewardType, Integer rewardAmount) {
+    private void validateRewardAmount(RewardType rewardType, Integer rewardAmount) {
         if (rewardAmount == null) {
             return;
         }
         if (rewardAmount <= 0) {
             throwValidation("rewardAmount must be positive");
         }
-        if (ApiEnums.RewardType.POINTS.equals(rewardType)
+        if (RewardType.POINTS.equals(rewardType)
                 && rewardAmount > MAX_POINTS_REWARD_AMOUNT) {
             throwValidation("points rewardAmount must be less than or equal to 10");
         }
@@ -620,7 +624,7 @@ public class TaskServiceImpl implements TaskService {
     private void validateTransitionRequest(
             Long operatorId,
             Long taskId,
-            RequestDtos.TaskStatusTransitionRequest request) {
+            TaskStatusTransitionRequest request) {
         if (operatorId == null) {
             throwValidation("operatorId must not be null");
         }
@@ -641,7 +645,7 @@ public class TaskServiceImpl implements TaskService {
 
     private String resolveTargetStatus(
             String fromStatus,
-            ApiEnums.TaskStatusTransitionAction action) {
+            TaskStatusTransitionAction action) {
         switch (action) {
             case START:
                 return requireTransition(fromStatus, STATUS_ACCEPTED, STATUS_IN_PROGRESS);
@@ -687,7 +691,7 @@ public class TaskServiceImpl implements TaskService {
     private void validateTransitionPermission(
             Task task,
             Long operatorId,
-            ApiEnums.TaskStatusTransitionAction action) {
+            TaskStatusTransitionAction action) {
         switch (action) {
             case START:
                 requireProvider(task, operatorId);
@@ -725,7 +729,7 @@ public class TaskServiceImpl implements TaskService {
         }
     }
 
-    private void validateTransitionReason(RequestDtos.TaskStatusTransitionRequest request) {
+    private void validateTransitionReason(TaskStatusTransitionRequest request) {
         switch (request.getAction()) {
             case REJECT_COMPLETION:
             case DISPUTE:
@@ -739,7 +743,7 @@ public class TaskServiceImpl implements TaskService {
         }
     }
 
-    private String buildTransitionHistoryNote(RequestDtos.TaskStatusTransitionRequest request) {
+    private String buildTransitionHistoryNote(TaskStatusTransitionRequest request) {
         if (isBlank(request.getReason())) {
             return "ACTION=" + request.getAction().name();
         }
@@ -752,7 +756,7 @@ public class TaskServiceImpl implements TaskService {
         }
     }
 
-    private void validateUpdateTaskRequest(RequestDtos.UpdateTaskRequest request, Task currentTask) {
+    private void validateUpdateTaskRequest(UpdateTaskRequest request, Task currentTask) {
         if (request.getTitle() != null) {
             validateLength(request.getTitle(), MAX_TITLE_LENGTH, "title is too long");
         }
@@ -775,9 +779,9 @@ public class TaskServiceImpl implements TaskService {
             throwValidation("deadline must be in the future");
         }
         if (request.getRewardType() != null || request.getRewardAmount() != null) {
-            ApiEnums.RewardType rewardType = request.getRewardType();
+            RewardType rewardType = request.getRewardType();
             if (rewardType == null && currentTask.getRewardType() != null) {
-                rewardType = ApiEnums.RewardType.valueOf(currentTask.getRewardType());
+                rewardType = RewardType.valueOf(currentTask.getRewardType());
             }
             Integer rewardAmount = request.getRewardAmount() != null
                     ? request.getRewardAmount()
@@ -786,7 +790,7 @@ public class TaskServiceImpl implements TaskService {
         }
     }
 
-    private void applyUpdateToTask(Task task, RequestDtos.UpdateTaskRequest request) {
+    private void applyUpdateToTask(Task task, UpdateTaskRequest request) {
         if (request.getTitle() != null) {
             task.setTitle(request.getTitle());
         }
@@ -819,7 +823,7 @@ public class TaskServiceImpl implements TaskService {
         }
     }
 
-    private void validateDraftRequest(RequestDtos.CreateTaskRequest request) {
+    private void validateDraftRequest(CreateTaskRequest request) {
         if (request == null) {
             throwValidation("Request body must not be null");
         }
@@ -842,7 +846,7 @@ public class TaskServiceImpl implements TaskService {
         validateRewardAmount(request.getRewardType(), request.getRewardAmount());
     }
 
-    private Task buildDraftTask(Long requesterId, RequestDtos.CreateTaskRequest request) {
+    private Task buildDraftTask(Long requesterId, CreateTaskRequest request) {
         LocalDateTime now = LocalDateTime.now();
         Task task = new Task();
         task.setRequesterId(requesterId);
@@ -871,16 +875,16 @@ public class TaskServiceImpl implements TaskService {
         return task;
     }
 
-    private RequestDtos.CreateTaskRequest buildResendRequest(Task task) {
-        RequestDtos.CreateTaskRequest request = new RequestDtos.CreateTaskRequest();
-        request.setCategory(task.getCategory() == null ? null : ApiEnums.TaskCategory.valueOf(task.getCategory()));
+    private CreateTaskRequest buildResendRequest(Task task) {
+        CreateTaskRequest request = new CreateTaskRequest();
+        request.setCategory(task.getCategory() == null ? null : TaskCategory.valueOf(task.getCategory()));
         request.setTitle(task.getTitle());
         request.setDescription(task.getDescription());
         request.setCampus(task.getCampus());
         request.setLocation(task.getLocation());
         request.setDeliveryLocation(task.getDeliveryLocation());
         request.setDeadline(task.getDeadline());
-        request.setRewardType(task.getRewardType() == null ? null : ApiEnums.RewardType.valueOf(task.getRewardType()));
+        request.setRewardType(task.getRewardType() == null ? null : RewardType.valueOf(task.getRewardType()));
         request.setRewardDescription(task.getRewardDescription());
         request.setRewardAmount(task.getRewardAmount());
         request.setCompletionStandard(task.getCompletionStandard());

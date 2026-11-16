@@ -1,12 +1,11 @@
 package com.campusbridge.integration;
 
+import com.campusbridge.dto.view.DashboardDistributionItem;
+import com.campusbridge.dto.view.DashboardSummary;
+import com.campusbridge.dto.view.DashboardTodo;
+import com.campusbridge.dto.view.DashboardTrend;
+import com.campusbridge.entity.User;
 import com.campusbridge.mapper.UserMapper;
-import com.campusbridge.pojo.User;
-
-import com.campusbridge.dto.view.ViewDtos.DashboardDistributionItem;
-import com.campusbridge.dto.view.ViewDtos.DashboardSummary;
-import com.campusbridge.dto.view.ViewDtos.DashboardTodo;
-import com.campusbridge.dto.view.ViewDtos.DashboardTrend;
 import com.campusbridge.service.AdminDashboardService;
 import com.campusbridge.utils.JwtUtil;
 import org.junit.jupiter.api.BeforeEach;

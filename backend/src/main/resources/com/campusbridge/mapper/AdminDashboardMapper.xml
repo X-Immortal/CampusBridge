@@ -46,7 +46,7 @@
     WHERE status = 'DISPUTED'
   </select>
 
-  <select id="countNewUsersByDay" resultType="java.util.LinkedHashMap">
+  <select id="countNewUsersByDay" resultType="com.campusbridge.dto.view.DailyCount">
     SELECT DATE(created_at) AS day, COUNT(*) AS count
     FROM users
     WHERE created_at &gt;= #{from}
@@ -54,7 +54,7 @@
     ORDER BY day ASC
   </select>
 
-  <select id="countNewTasksByDay" resultType="java.util.LinkedHashMap">
+  <select id="countNewTasksByDay" resultType="com.campusbridge.dto.view.DailyCount">
     SELECT DATE(created_at) AS day, COUNT(*) AS count
     FROM tasks
     WHERE created_at &gt;= #{from}
@@ -62,7 +62,7 @@
     ORDER BY day ASC
   </select>
 
-  <select id="countNewPostsByDay" resultType="java.util.LinkedHashMap">
+  <select id="countNewPostsByDay" resultType="com.campusbridge.dto.view.DailyCount">
     SELECT DATE(created_at) AS day, COUNT(*) AS count
     FROM posts
     WHERE created_at &gt;= #{from}
@@ -71,25 +71,25 @@
     ORDER BY day ASC
   </select>
 
-  <select id="countTasksByStatus" resultType="java.util.LinkedHashMap">
-    SELECT status AS status, COUNT(*) AS count
+  <select id="countTasksByStatus" resultType="com.campusbridge.dto.view.CategoryCount">
+    SELECT status AS category, COUNT(*) AS count
     FROM tasks
     GROUP BY status
     ORDER BY count DESC, status ASC
   </select>
 
-  <select id="countReportsByStatus" resultType="java.util.LinkedHashMap">
-    SELECT status AS status, COUNT(*) AS count
+  <select id="countReportsByStatus" resultType="com.campusbridge.dto.view.CategoryCount">
+    SELECT status AS category, COUNT(*) AS count
     FROM reports
     GROUP BY status
     ORDER BY count DESC, status ASC
   </select>
 
-  <select id="countReportsByTargetType" resultType="java.util.LinkedHashMap">
-    SELECT target_type AS targetType, COUNT(*) AS count
+  <select id="countReportsByTargetType" resultType="com.campusbridge.dto.view.CategoryCount">
+    SELECT target_type AS category, COUNT(*) AS count
     FROM reports
     GROUP BY target_type
-    ORDER BY count DESC, targetType ASC
+    ORDER BY count DESC, category ASC
   </select>
 
 </mapper>

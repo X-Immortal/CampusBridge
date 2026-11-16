@@ -3,19 +3,23 @@ package com.campusbridge.service.impl;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
-import com.campusbridge.dto.enums.ApiEnums;
-import com.campusbridge.dto.request.RequestDtos;
-import com.campusbridge.dto.response.ResponseDtos;
-import com.campusbridge.dto.view.ViewDtos;
+import com.campusbridge.common.PagedResult;
+import com.campusbridge.dto.request.CreatePostRequest;
+import com.campusbridge.dto.request.UpdatePostRequest;
+import com.campusbridge.dto.view.MyReplyPostView;
+import com.campusbridge.dto.view.PostDetailView;
 import com.campusbridge.dto.view.PostView;
 import com.campusbridge.dto.view.ReplyView;
+import com.campusbridge.entity.Attachment;
+import com.campusbridge.entity.Post;
+import com.campusbridge.entity.PostInteraction;
+import com.campusbridge.enums.AttachmentStatus;
+import com.campusbridge.enums.PostCategory;
+import com.campusbridge.enums.PostStatus;
 import com.campusbridge.mapper.AttachmentMapper;
 import com.campusbridge.mapper.PostInteractionMapper;
 import com.campusbridge.mapper.PostMapper;
 import com.campusbridge.mapper.ReplyMapper;
-import com.campusbridge.pojo.Attachment;
-import com.campusbridge.pojo.Post;
-import com.campusbridge.pojo.PostInteraction;
 import com.campusbridge.service.ContentModerationService;
 import com.campusbridge.service.PostService;
 import org.springframework.stereotype.Service;
@@ -58,7 +62,7 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
-    public PostView createPost(Long userId, RequestDtos.CreatePostRequest request) {
+    public PostView createPost(Long userId, CreatePostRequest request) {
         validatePostRequest(request);
         contentModerationService.assertPostPublishAllowed(userId, request);
 
@@ -84,17 +88,17 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
-    public ResponseDtos.PagedResult<PostView> listPosts(
+    public PagedResult<PostView> listPosts(
             String keyword, String category, String status, Integer page, Integer size) {
         int safePage = page == null || page < 1 ? DEFAULT_PAGE : page;
         int safeSize = size == null || size < 1 ? DEFAULT_SIZE : Math.min(size, MAX_SIZE);
 
         Page<PostView> result = postMapper.selectWithFilters(new Page<>(safePage, safeSize), category, status, keyword);
-        return new ResponseDtos.PagedResult<>(result.getRecords(), safePage, safeSize, result.getTotal());
+        return new PagedResult<>(result.getRecords(), safePage, safeSize, result.getTotal());
     }
 
     @Override
-    public ResponseDtos.PagedResult<ViewDtos.MyReplyPostView> listPostsRepliedByUser(
+    public PagedResult<MyReplyPostView> listPostsRepliedByUser(
             Long userId, String keyword, String category, String status, Integer page, Integer size) {
         if (userId == null) {
             throw new BusinessException(ErrorCode.AUTH_001_UNAUTHORIZED);
@@ -107,7 +111,7 @@ public class PostServiceImpl implements PostService {
                 new Page<>(safePage, safeSize), userId, category, status, keyword);
         List<PostView> posts = result.getRecords();
         if (posts.isEmpty()) {
-            return new ResponseDtos.PagedResult<>(Collections.emptyList(), safePage, safeSize, result.getTotal());
+            return new PagedResult<>(Collections.emptyList(), safePage, safeSize, result.getTotal());
         }
 
         List<Long> postIds = posts.stream().map(PostView::getId).toList();
@@ -115,7 +119,7 @@ public class PostServiceImpl implements PostService {
                 .stream()
                 .collect(Collectors.groupingBy(ReplyView::getPostId));
 
-        List<ViewDtos.MyReplyPostView> items = posts.stream()
+        List<MyReplyPostView> items = posts.stream()
                 .map(post -> {
                     List<ReplyView> replies = repliesByPostId.getOrDefault(post.getId(), Collections.emptyList());
                     LocalDateTime lastReplyAt = replies.stream()
@@ -123,18 +127,18 @@ public class PostServiceImpl implements PostService {
                             .filter(value -> value != null)
                             .max(LocalDateTime::compareTo)
                             .orElse(null);
-                    return new ViewDtos.MyReplyPostView(
+                    return new MyReplyPostView(
                             post,
                             replies,
                             lastReplyAt,
                             (long) replies.size());
                 })
                 .toList();
-        return new ResponseDtos.PagedResult<>(items, safePage, safeSize, result.getTotal());
+        return new PagedResult<>(items, safePage, safeSize, result.getTotal());
     }
 
     @Override
-    public ViewDtos.PostDetailView getPostDetail(Long postId, Long currentUserId) {
+    public PostDetailView getPostDetail(Long postId, Long currentUserId) {
         PostView post = postMapper.selectDetailById(postId);
         if (post == null || "DELETED".equals(post.getStatus())) {
             throw new BusinessException(ErrorCode.POST_001_NOT_FOUND);
@@ -154,13 +158,13 @@ public class PostServiceImpl implements PostService {
                     currentUserId, "POST", postId, "MARK");
             markedByCurrentUser = markInteraction != null;
         }
-        return new ViewDtos.PostDetailView(
+        return new PostDetailView(
                 post, replies, likedByCurrentUser, markedByCurrentUser,
                 post.getAcceptedReplyId(), attachmentMapper.selectByOwner("POST", postId));
     }
 
     @Override
-    public PostView updatePost(Long userId, Long postId, RequestDtos.UpdatePostRequest request) {
+    public PostView updatePost(Long userId, Long postId, UpdatePostRequest request) {
         Post post = requirePostExists(postId);
         if (!userId.equals(post.getAuthorId())) {
             throw new BusinessException(ErrorCode.POST_002_PERMISSION_DENIED);
@@ -177,16 +181,16 @@ public class PostServiceImpl implements PostService {
             post.setContent(request.getContent());
         }
         if (request.getStatus() != null) {
-            boolean authorStatus = request.getStatus() == ApiEnums.PostStatus.PUBLISHED
-                    || request.getStatus() == ApiEnums.PostStatus.CLOSED;
+            boolean authorStatus = request.getStatus() == PostStatus.PUBLISHED
+                    || request.getStatus() == PostStatus.CLOSED;
             if (!authorStatus || (!isPublic(post) && !"DRAFT".equals(post.getStatus()))) {
                 throw new BusinessException(ErrorCode.POST_002_PERMISSION_DENIED,
                         "Only an available post or draft can be published or closed by its author");
             }
             post.setStatus(request.getStatus().name());
         }
-        RequestDtos.CreatePostRequest content = new RequestDtos.CreatePostRequest();
-        content.setCategory(ApiEnums.PostCategory.valueOf(post.getCategory()));
+        CreatePostRequest content = new CreatePostRequest();
+        content.setCategory(PostCategory.valueOf(post.getCategory()));
         content.setTitle(post.getTitle());
         content.setContent(post.getContent());
         validatePostRequest(content);
@@ -243,7 +247,7 @@ public class PostServiceImpl implements PostService {
                 || !userId.equals(attachment.getUploaderId())
                 || !ATTACHMENT_OWNER_TYPE.equals(attachment.getOwnerType())
                 || attachment.getOwnerId() != null
-                || !ApiEnums.AttachmentStatus.TEMPORARY.name().equals(attachment.getStatus())) {
+                || !AttachmentStatus.TEMPORARY.name().equals(attachment.getStatus())) {
             throw new BusinessException(
                     ErrorCode.FILE_004_INVALID_ATTACHMENT,
                     "Post attachment is unavailable");
@@ -254,7 +258,7 @@ public class PostServiceImpl implements PostService {
         return "PUBLISHED".equals(post.getStatus()) || "CLOSED".equals(post.getStatus());
     }
 
-    private void validatePostRequest(RequestDtos.CreatePostRequest request) {
+    private void validatePostRequest(CreatePostRequest request) {
         if (request == null || request.getCategory() == null
                 || request.getTitle() == null || request.getTitle().isBlank()
                 || request.getTitle().length() > 100

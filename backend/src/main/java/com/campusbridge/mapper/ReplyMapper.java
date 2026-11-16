@@ -2,7 +2,7 @@ package com.campusbridge.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.campusbridge.dto.view.ReplyView;
-import com.campusbridge.pojo.Reply;
+import com.campusbridge.entity.Reply;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 

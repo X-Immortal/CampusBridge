@@ -2,8 +2,8 @@ package com.campusbridge.service.impl;
 
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
+import com.campusbridge.entity.Task;
 import com.campusbridge.mapper.TaskMapper;
-import com.campusbridge.pojo.Task;
 import com.campusbridge.service.CreditService;
 import com.campusbridge.service.NotificationService;
 import com.campusbridge.service.TaskHistoryService;

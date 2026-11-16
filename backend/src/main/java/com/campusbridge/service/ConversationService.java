@@ -1,23 +1,24 @@
 package com.campusbridge.service;
 
-import com.campusbridge.dto.request.RequestDtos;
-import com.campusbridge.dto.response.ResponseDtos;
+import com.campusbridge.common.PagedResult;
+import com.campusbridge.dto.request.CreateConversationRequest;
+import com.campusbridge.dto.request.SendMessageRequest;
 import com.campusbridge.dto.view.ConversationView;
-import com.campusbridge.pojo.Message;
-
-import java.util.Map;
+import com.campusbridge.dto.view.ReadAllConversationsView;
+import com.campusbridge.dto.view.UnreadSummaryView;
+import com.campusbridge.entity.Message;
 
 public interface ConversationService {
-    ResponseDtos.PagedResult<ConversationView> listConversations(
+    PagedResult<ConversationView> listConversations(
             Long ownerId,
             Integer page,
             Integer size);
 
     ConversationView createConversation(
             Long ownerId,
-            RequestDtos.CreateConversationRequest request);
+            CreateConversationRequest request);
 
-    ResponseDtos.PagedResult<Message> listMessages(
+    PagedResult<Message> listMessages(
             Long ownerId,
             Long conversationId,
             Integer page,
@@ -26,13 +27,13 @@ public interface ConversationService {
     Message sendMessage(
             Long senderId,
             Long conversationId,
-            RequestDtos.SendMessageRequest request);
+            SendMessageRequest request);
 
     ConversationView markConversationRead(
             Long ownerId,
             Long conversationId);
 
-    Map<String, Object> markAllConversationsRead(Long ownerId);
+    ReadAllConversationsView markAllConversationsRead(Long ownerId);
 
-    Map<String, Object> getUnreadSummary(Long ownerId);
+    UnreadSummaryView getUnreadSummary(Long ownerId);
 }

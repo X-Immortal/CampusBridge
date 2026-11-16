@@ -1,12 +1,11 @@
 package com.campusbridge.integration;
 
 import com.campusbridge.dto.query.TaskQuery;
+import com.campusbridge.dto.view.TaskDetailView;
 import com.campusbridge.dto.view.TaskPageView;
-import com.campusbridge.mapper.UserMapper;
-import com.campusbridge.pojo.User;
-
 import com.campusbridge.dto.view.TaskView;
-import com.campusbridge.dto.view.ViewDtos;
+import com.campusbridge.entity.User;
+import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.service.PostService;
 import com.campusbridge.service.TaskDetailService;
 import com.campusbridge.service.TaskService;
@@ -103,8 +102,8 @@ class GuestAccessIntegrationTest {
         return task;
     }
 
-    private ViewDtos.TaskDetailView publicTaskDetail() {
-        return new ViewDtos.TaskDetailView(
+    private TaskDetailView publicTaskDetail() {
+        return new TaskDetailView(
                 publicTask(),
                 List.of(),
                 null,

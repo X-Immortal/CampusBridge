@@ -2,11 +2,11 @@ package com.campusbridge.service.impl;
 
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
+import com.campusbridge.entity.CreditRecord;
+import com.campusbridge.entity.Task;
+import com.campusbridge.entity.UserCredit;
 import com.campusbridge.mapper.CreditRecordMapper;
 import com.campusbridge.mapper.UserCreditMapper;
-import com.campusbridge.pojo.CreditRecord;
-import com.campusbridge.pojo.UserCredit;
-import com.campusbridge.pojo.Task;
 import com.campusbridge.service.CreditService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

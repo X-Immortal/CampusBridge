@@ -1,11 +1,12 @@
 package com.campusbridge.unit;
 
+import com.campusbridge.common.ApiResponse;
 import com.campusbridge.controller.HomeController;
+import com.campusbridge.dto.view.HomeRecommendationsView;
+import com.campusbridge.dto.view.PostView;
+import com.campusbridge.dto.view.TaskView;
 import com.campusbridge.mapper.PostMapper;
 import com.campusbridge.mapper.TaskMapper;
-import com.campusbridge.dto.view.PostView;
-import com.campusbridge.pojo.Result;
-import com.campusbridge.dto.view.TaskView;
 import com.campusbridge.service.RecommendationService;
 import com.campusbridge.utils.AuthContextUtil;
 import org.junit.jupiter.api.Test;
@@ -14,7 +15,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
-import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
@@ -34,7 +34,6 @@ class HomeControllerTest {
     private AuthContextUtil authContextUtil;
 
     @Test
-    @SuppressWarnings("unchecked")
     void recommendationsExposeOnlyPublicTaskAndPostFields() {
         PostView post = new PostView();
         post.setId(1L);
@@ -54,14 +53,14 @@ class HomeControllerTest {
         when(taskMapper.selectRecommendedTasks("OPEN", 6)).thenReturn(List.of(task));
         when(authContextUtil.getCurrentUserId()).thenReturn(null);
 
-        Result result = new HomeController(postMapper, taskMapper,
+        ApiResponse<HomeRecommendationsView> result = new HomeController(postMapper, taskMapper,
                 recommendationService, authContextUtil).getRecommendations();
-        Map<String, Object> data = (Map<String, Object>) result.getData();
-        Map<String, Object> publicPost = ((List<Map<String, Object>>) data.get("hotPosts")).get(0);
-        Map<String, Object> publicTask = ((List<Map<String, Object>>) data.get("latestTasks")).get(0);
-
-        assertThat(publicPost).containsEntry("authorName", "同学甲");
-        assertThat(publicTask).containsEntry("deliveryLocation", "5号宿舍楼");
-        assertThat(publicTask).doesNotContainKeys("sensitiveReason", "routeHint", "providerId");
+        HomeRecommendationsView data = result.getData();
+        var json = new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules().valueToTree(data);
+        assertThat(json.at("/hotPosts/0/authorName").asText()).isEqualTo("同学甲");
+        assertThat(json.at("/latestTasks/0/deliveryLocation").asText()).isEqualTo("5号宿舍楼");
+        assertThat(json.at("/latestTasks/0").has("sensitiveReason")).isFalse();
+        assertThat(json.at("/latestTasks/0").has("routeHint")).isFalse();
+        assertThat(json.at("/latestTasks/0").has("providerId")).isFalse();
     }
 }

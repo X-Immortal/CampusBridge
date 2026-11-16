@@ -4,29 +4,34 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
-import com.campusbridge.dto.enums.ApiEnums;
-import com.campusbridge.dto.request.RequestDtos;
-import com.campusbridge.dto.response.ResponseDtos;
+import com.campusbridge.common.PagedResult;
+import com.campusbridge.dto.request.CreateConversationRequest;
+import com.campusbridge.dto.request.SendMessageRequest;
+import com.campusbridge.dto.view.ConversationView;
+import com.campusbridge.dto.view.ReadAllConversationsView;
+import com.campusbridge.dto.view.UnreadSummaryView;
+import com.campusbridge.entity.Attachment;
+import com.campusbridge.entity.Conversation;
+import com.campusbridge.entity.Message;
+import com.campusbridge.entity.User;
+import com.campusbridge.enums.AttachmentOwnerType;
+import com.campusbridge.enums.AttachmentStatus;
+import com.campusbridge.enums.AttachmentType;
+import com.campusbridge.enums.MessageType;
 import com.campusbridge.mapper.AttachmentMapper;
 import com.campusbridge.mapper.ConversationMapper;
 import com.campusbridge.mapper.MessageMapper;
 import com.campusbridge.mapper.UserBlockMapper;
 import com.campusbridge.mapper.UserMapper;
-import com.campusbridge.pojo.Attachment;
-import com.campusbridge.pojo.Conversation;
-import com.campusbridge.dto.view.ConversationView;
-import com.campusbridge.pojo.Message;
-import com.campusbridge.pojo.User;
 import com.campusbridge.service.ConversationService;
-import org.springframework.stereotype.Service;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Set;
 
 @Transactional
@@ -63,20 +68,20 @@ public class ConversationServiceImpl implements ConversationService {
     }
 
     @Override
-    public ResponseDtos.PagedResult<ConversationView> listConversations(
+    public PagedResult<ConversationView> listConversations(
             Long ownerId,
             Integer page,
             Integer size) {
         requireUserId(ownerId);
         Page<ConversationView> result = conversationMapper.selectByOwnerId(toPage(page, size), ownerId);
-        return new ResponseDtos.PagedResult<>(
+        return new PagedResult<>(
                 result.getRecords(), (int) result.getCurrent(), (int) result.getSize(), result.getTotal());
     }
 
     @Override
     public ConversationView createConversation(
             Long ownerId,
-            RequestDtos.CreateConversationRequest request) {
+            CreateConversationRequest request) {
         requireUserId(ownerId);
         validateCreateConversationRequest(ownerId, request);
         requireCommunicationAllowed(ownerId, request.getPeerUserId());
@@ -96,14 +101,14 @@ public class ConversationServiceImpl implements ConversationService {
             Message ownerMessage = buildMessage(
                     conversation.getId(),
                     ownerId,
-                    ApiEnums.MessageType.TEXT.name(),
+                    MessageType.TEXT.name(),
                     request.getInitialMessage(),
                     now,
                     now);
             Message peerMessage = buildMessage(
                     peerConversation.getId(),
                     ownerId,
-                    ApiEnums.MessageType.TEXT.name(),
+                    MessageType.TEXT.name(),
                     request.getInitialMessage(),
                     null,
                     now);
@@ -114,7 +119,7 @@ public class ConversationServiceImpl implements ConversationService {
     }
 
     @Override
-    public ResponseDtos.PagedResult<Message> listMessages(
+    public PagedResult<Message> listMessages(
             Long ownerId,
             Long conversationId,
             Integer page,
@@ -127,7 +132,7 @@ public class ConversationServiceImpl implements ConversationService {
         Page<Message> result = messageMapper.selectPage(toPage(page, size),
                 Wrappers.<Message>lambdaQuery().eq(Message::getConversationId, conversation.getId())
                         .orderByDesc(Message::getCreatedAt, Message::getId));
-        return new ResponseDtos.PagedResult<>(
+        return new PagedResult<>(
                 result.getRecords(), (int) result.getCurrent(), (int) result.getSize(), result.getTotal());
     }
 
@@ -135,7 +140,7 @@ public class ConversationServiceImpl implements ConversationService {
     public Message sendMessage(
             Long senderId,
             Long conversationId,
-            RequestDtos.SendMessageRequest request) {
+            SendMessageRequest request) {
         requireUserId(senderId);
         validateSendMessageRequest(request);
         List<Attachment> attachments = validateMessageAttachments(senderId, request);
@@ -188,28 +193,23 @@ public class ConversationServiceImpl implements ConversationService {
     }
 
     @Override
-    public Map<String, Object> markAllConversationsRead(Long ownerId) {
+    public ReadAllConversationsView markAllConversationsRead(Long ownerId) {
         requireUserId(ownerId);
         int updatedCount = messageMapper.markOwnerUnreadAsRead(ownerId, LocalDateTime.now());
-        return Map.of(
-                "updatedCount", updatedCount,
-                "unreadCount", messageMapper.countOwnerUnread(ownerId));
+        return new ReadAllConversationsView(updatedCount, messageMapper.countOwnerUnread(ownerId));
     }
 
     @Override
-    public Map<String, Object> getUnreadSummary(Long ownerId) {
+    public UnreadSummaryView getUnreadSummary(Long ownerId) {
         requireUserId(ownerId);
         long systemUnread = messageMapper.countOwnerUnreadBySystemType(ownerId, true);
         long privateUnread = messageMapper.countOwnerUnreadBySystemType(ownerId, false);
-        return Map.of(
-                "total", systemUnread + privateUnread,
-                "system", systemUnread,
-                "private", privateUnread);
+        return new UnreadSummaryView(systemUnread + privateUnread, systemUnread, privateUnread);
     }
 
     private void validateCreateConversationRequest(
             Long ownerId,
-            RequestDtos.CreateConversationRequest request) {
+            CreateConversationRequest request) {
         if (request == null) {
             throwValidation("Request body must not be null");
         }
@@ -233,14 +233,14 @@ public class ConversationServiceImpl implements ConversationService {
         }
     }
 
-    private void validateSendMessageRequest(RequestDtos.SendMessageRequest request) {
+    private void validateSendMessageRequest(SendMessageRequest request) {
         if (request == null) {
             throwValidation("Request body must not be null");
         }
         if (request.getType() == null) {
             throwValidation("type is required");
         }
-        if (request.getType() == ApiEnums.MessageType.SYSTEM_NOTIFICATION) {
+        if (request.getType() == MessageType.SYSTEM_NOTIFICATION) {
             throwValidation("system notification cannot be sent manually");
         }
         if (isBlank(request.getContent())) {
@@ -257,9 +257,9 @@ public class ConversationServiceImpl implements ConversationService {
 
     private List<Attachment> validateMessageAttachments(
             Long senderId,
-            RequestDtos.SendMessageRequest request) {
+            SendMessageRequest request) {
         List<Long> attachmentIds = request.getAttachmentIds();
-        if (request.getType() != ApiEnums.MessageType.IMAGE) {
+        if (request.getType() != MessageType.IMAGE) {
             if (attachmentIds != null && !attachmentIds.isEmpty()) {
                 throw new BusinessException(ErrorCode.FILE_004_INVALID_ATTACHMENT);
             }
@@ -277,9 +277,9 @@ public class ConversationServiceImpl implements ConversationService {
             Attachment attachment = attachmentMapper.selectById(id);
             if (attachment == null
                     || !senderId.equals(attachment.getUploaderId())
-                    || !ApiEnums.AttachmentStatus.TEMPORARY.name().equals(attachment.getStatus())
-                    || !ApiEnums.AttachmentOwnerType.MESSAGE.name().equals(attachment.getOwnerType())
-                    || !ApiEnums.AttachmentType.IMAGE.name().equals(attachment.getType())) {
+                    || !AttachmentStatus.TEMPORARY.name().equals(attachment.getStatus())
+                    || !AttachmentOwnerType.MESSAGE.name().equals(attachment.getOwnerType())
+                    || !AttachmentType.IMAGE.name().equals(attachment.getType())) {
                 throw new BusinessException(ErrorCode.FILE_004_INVALID_ATTACHMENT);
             }
             return attachment;
@@ -295,7 +295,7 @@ public class ConversationServiceImpl implements ConversationService {
         for (Attachment attachment : attachments) {
             if (attachmentMapper.bindTemporaryToOwner(
                     attachment.getId(), attachment.getUploaderId(),
-                    ApiEnums.AttachmentOwnerType.MESSAGE.name(), messageId) != 1) {
+                    AttachmentOwnerType.MESSAGE.name(), messageId) != 1) {
                 throw new BusinessException(ErrorCode.COMMON_999_INTERNAL_ERROR, "Failed to bind message attachment");
             }
         }
@@ -402,7 +402,7 @@ public class ConversationServiceImpl implements ConversationService {
         }
         return messageMapper.countByConversationTypeAndContent(
                 conversation.getId(),
-                ApiEnums.MessageType.TEXT.name(),
+                MessageType.TEXT.name(),
                 initialMessage) == 0;
     }
 

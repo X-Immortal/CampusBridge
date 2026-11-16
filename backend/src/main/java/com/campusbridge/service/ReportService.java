@@ -1,20 +1,21 @@
 package com.campusbridge.service;
 
-import com.campusbridge.dto.request.RequestDtos;
-import com.campusbridge.dto.response.ResponseDtos;
-import com.campusbridge.pojo.ModerationRecord;
-import com.campusbridge.pojo.Report;
+import com.campusbridge.common.PagedResult;
+import com.campusbridge.dto.request.CreateReportRequest;
+import com.campusbridge.dto.request.ResolveReportRequest;
+import com.campusbridge.entity.ModerationRecord;
+import com.campusbridge.entity.Report;
 
 public interface ReportService {
-    Report createReport(Long reporterId, RequestDtos.CreateReportRequest request);
+    Report createReport(Long reporterId, CreateReportRequest request);
 
-    ResponseDtos.PagedResult<Report> listReports(
+    PagedResult<Report> listReports(
             Long reporterId,
             String status,
             Integer page,
             Integer size);
 
-    ResponseDtos.PagedResult<Report> listReportsForAdmin(
+    PagedResult<Report> listReportsForAdmin(
             String status,
             Integer page,
             Integer size);
@@ -22,5 +23,5 @@ public interface ReportService {
     ModerationRecord resolveReport(
             Long handlerId,
             Long reportId,
-            RequestDtos.ResolveReportRequest request);
+            ResolveReportRequest request);
 }

@@ -1,9 +1,9 @@
 package com.campusbridge.unit;
 
+import com.campusbridge.entity.CreditRecord;
+import com.campusbridge.entity.UserCredit;
 import com.campusbridge.mapper.CreditRecordMapper;
 import com.campusbridge.mapper.UserCreditMapper;
-import com.campusbridge.pojo.CreditRecord;
-import com.campusbridge.pojo.UserCredit;
 import com.campusbridge.service.impl.CreditServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

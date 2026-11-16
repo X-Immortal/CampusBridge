@@ -1,15 +1,14 @@
 package com.campusbridge.service.impl;
 
-import com.campusbridge.dto.response.ResponseDtos;
-import com.campusbridge.dto.view.ViewDtos;
+import com.campusbridge.common.PagedResult;
+import com.campusbridge.dto.query.ContentQuery;
+import com.campusbridge.dto.view.ContentItemView;
 import com.campusbridge.mapper.ContentMapper;
 import com.campusbridge.service.ContentService;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -26,7 +25,7 @@ public class ContentServiceImpl implements ContentService {
     }
 
     @Override
-    public ResponseDtos.PagedResult<ViewDtos.ContentItemView> listContent(
+    public PagedResult<ContentItemView> listContent(
             String keyword,
             String itemTypes,
             String categoryCode,
@@ -44,25 +43,26 @@ public class ContentServiceImpl implements ContentService {
                 && !hasText(campus) && !hasText(locationKeyword) && !hasText(rewardType);
         boolean includeTasks = requestedTypes.isEmpty() || requestedTypes.contains("TASK");
         if (!includePosts && !includeTasks) {
-            return new ResponseDtos.PagedResult<>(List.of(), safePage, safeSize, 0L);
+            return new PagedResult<>(List.of(), safePage, safeSize, 0L);
         }
 
-        Map<String, Object> filters = new HashMap<>();
-        filters.put("includePosts", includePosts);
-        filters.put("includeTasks", includeTasks);
-        filters.put("keyword", normalize(keyword));
-        filters.put("categoryCode", normalize(categoryCode));
-        filters.put("campus", normalize(campus));
-        filters.put("locationKeyword", normalize(locationKeyword));
-        filters.put("status", normalize(status));
-        filters.put("rewardType", normalize(rewardType));
-        filters.put("orderByDeadline", "DEADLINE".equalsIgnoreCase(sortBy));
-        filters.put("offset", ((long) safePage - 1) * safeSize);
-        filters.put("limit", safeSize);
+        ContentQuery filters = ContentQuery.builder()
+                .includePosts(includePosts)
+                .includeTasks(includeTasks)
+                .keyword(normalize(keyword))
+                .categoryCode(normalize(categoryCode))
+                .campus(normalize(campus))
+                .locationKeyword(normalize(locationKeyword))
+                .status(normalize(status))
+                .rewardType(normalize(rewardType))
+                .orderByDeadline("DEADLINE".equalsIgnoreCase(sortBy))
+                .offset(((long) safePage - 1) * safeSize)
+                .limit(safeSize)
+                .build();
 
         long total = contentMapper.count(filters);
-        List<ViewDtos.ContentItemView> items = contentMapper.selectPage(filters);
-        return new ResponseDtos.PagedResult<>(items, safePage, safeSize, total);
+        List<ContentItemView> items = contentMapper.selectPage(filters);
+        return new PagedResult<>(items, safePage, safeSize, total);
     }
 
     private Set<String> parseItemTypes(String itemTypes) {

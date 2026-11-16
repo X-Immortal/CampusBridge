@@ -1,14 +1,14 @@
 package com.campusbridge.mapper;
 
-import com.campusbridge.dto.view.ViewDtos;
+import com.campusbridge.dto.query.ContentQuery;
+import com.campusbridge.dto.view.ContentItemView;
 import org.apache.ibatis.annotations.Mapper;
 
 import java.util.List;
-import java.util.Map;
 
 @Mapper
 public interface ContentMapper {
-    List<ViewDtos.ContentItemView> selectPage(Map<String, Object> filters);
+    List<ContentItemView> selectPage(ContentQuery filters);
 
-    long count(Map<String, Object> filters);
+    long count(ContentQuery filters);
 }

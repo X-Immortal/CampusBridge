@@ -2,8 +2,14 @@ package com.campusbridge.unit;
 
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
-import com.campusbridge.dto.enums.ApiEnums;
-import com.campusbridge.dto.request.RequestDtos;
+import com.campusbridge.dto.request.CreateReportRequest;
+import com.campusbridge.dto.request.ResolveReportRequest;
+import com.campusbridge.entity.ModerationRecord;
+import com.campusbridge.entity.Report;
+import com.campusbridge.entity.Task;
+import com.campusbridge.entity.User;
+import com.campusbridge.enums.ModerationStatus;
+import com.campusbridge.enums.ReportTargetType;
 import com.campusbridge.mapper.MessageMapper;
 import com.campusbridge.mapper.ModerationRecordMapper;
 import com.campusbridge.mapper.PostMapper;
@@ -11,10 +17,6 @@ import com.campusbridge.mapper.ReplyMapper;
 import com.campusbridge.mapper.ReportMapper;
 import com.campusbridge.mapper.TaskMapper;
 import com.campusbridge.mapper.UserMapper;
-import com.campusbridge.pojo.ModerationRecord;
-import com.campusbridge.pojo.Report;
-import com.campusbridge.pojo.Task;
-import com.campusbridge.pojo.User;
 import com.campusbridge.service.CreditService;
 import com.campusbridge.service.NotificationService;
 import com.campusbridge.service.TaskHistoryService;
@@ -31,8 +33,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -144,7 +146,7 @@ class BE16ReportServiceImplTest {
         ModerationRecord record = reportService.resolveReport(
                 ADMIN_ID,
                 REPORT_ID,
-                resolveRequest(ApiEnums.ModerationStatus.PUNISHED, "confirmed no-show"));
+                resolveRequest(ModerationStatus.PUNISHED, "confirmed no-show"));
 
         assertThat(record.getId()).isEqualTo(MODERATION_RECORD_ID);
         assertThat(record.getReportId()).isEqualTo(REPORT_ID);
@@ -165,7 +167,7 @@ class BE16ReportServiceImplTest {
         assertThatThrownBy(() -> reportService.resolveReport(
                 ADMIN_ID,
                 REPORT_ID,
-                resolveRequest(ApiEnums.ModerationStatus.PUNISHED, "duplicate handling")))
+                resolveRequest(ModerationStatus.PUNISHED, "duplicate handling")))
                 .isInstanceOfSatisfying(BusinessException.class, ex ->
                         assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.COMMON_003_CONFLICT));
     }
@@ -175,7 +177,7 @@ class BE16ReportServiceImplTest {
         when(reportMapper.selectById(REPORT_ID)).thenReturn(taskReport("PENDING"));
         when(reportMapper.updateStatusById(REPORT_ID, "PUNISHED")).thenReturn(0);
         assertThatThrownBy(() -> reportService.resolveReport(
-                ADMIN_ID, REPORT_ID, resolveRequest(ApiEnums.ModerationStatus.PUNISHED, "race")))
+                ADMIN_ID, REPORT_ID, resolveRequest(ModerationStatus.PUNISHED, "race")))
                 .isInstanceOfSatisfying(BusinessException.class, ex ->
                         assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.COMMON_003_CONFLICT));
         verifyNoInteractions(moderationRecordMapper, creditService);
@@ -183,8 +185,8 @@ class BE16ReportServiceImplTest {
 
     @Test
     void cannotReportMessageFromAnotherUsersConversation() {
-        RequestDtos.CreateReportRequest request = new RequestDtos.CreateReportRequest();
-        request.setTargetType(ApiEnums.ReportTargetType.MESSAGE);
+        CreateReportRequest request = new CreateReportRequest();
+        request.setTargetType(ReportTargetType.MESSAGE);
         request.setTargetId(123L);
         request.setReason("Spam");
         assertThatThrownBy(() -> reportService.createReport(REPORTER_ID, request))
@@ -193,19 +195,19 @@ class BE16ReportServiceImplTest {
         verify(reportMapper, never()).insert(any(Report.class));
     }
 
-    private RequestDtos.CreateReportRequest taskReportRequest() {
-        RequestDtos.CreateReportRequest request = new RequestDtos.CreateReportRequest();
-        request.setTargetType(ApiEnums.ReportTargetType.TASK);
+    private CreateReportRequest taskReportRequest() {
+        CreateReportRequest request = new CreateReportRequest();
+        request.setTargetType(ReportTargetType.TASK);
         request.setTargetId(TASK_ID);
         request.setReason("provider disappeared");
         request.setDescription("No response after accepting the task.");
         return request;
     }
 
-    private RequestDtos.ResolveReportRequest resolveRequest(
-            ApiEnums.ModerationStatus status,
+    private ResolveReportRequest resolveRequest(
+            ModerationStatus status,
             String decision) {
-        RequestDtos.ResolveReportRequest request = new RequestDtos.ResolveReportRequest();
+        ResolveReportRequest request = new ResolveReportRequest();
         request.setStatus(status);
         request.setDecision(decision);
         return request;

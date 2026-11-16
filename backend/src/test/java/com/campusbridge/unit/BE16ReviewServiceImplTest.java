@@ -2,11 +2,11 @@ package com.campusbridge.unit;
 
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
-import com.campusbridge.dto.request.RequestDtos;
+import com.campusbridge.dto.request.CreateReviewRequest;
+import com.campusbridge.entity.Review;
+import com.campusbridge.entity.Task;
 import com.campusbridge.mapper.ReviewMapper;
 import com.campusbridge.mapper.TaskMapper;
-import com.campusbridge.pojo.Review;
-import com.campusbridge.pojo.Task;
 import com.campusbridge.service.NotificationService;
 import com.campusbridge.service.impl.ReviewServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -176,8 +176,8 @@ class BE16ReviewServiceImplTest {
 
     // ---- helpers ----
 
-    private RequestDtos.CreateReviewRequest reviewRequest(Long revieweeId, Integer rating, String comment) {
-        RequestDtos.CreateReviewRequest request = new RequestDtos.CreateReviewRequest();
+    private CreateReviewRequest reviewRequest(Long revieweeId, Integer rating, String comment) {
+        CreateReviewRequest request = new CreateReviewRequest();
         request.setRevieweeId(revieweeId);
         request.setRating(rating);
         request.setComment(comment);

@@ -1,9 +1,9 @@
 package com.campusbridge.unit;
 
+import com.campusbridge.entity.Task;
 import com.campusbridge.mapper.TaskMapper;
-import com.campusbridge.pojo.Task;
-import com.campusbridge.service.NotificationService;
 import com.campusbridge.service.CreditService;
+import com.campusbridge.service.NotificationService;
 import com.campusbridge.service.TaskHistoryService;
 import com.campusbridge.service.impl.TaskTimeoutServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,8 +19,8 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)

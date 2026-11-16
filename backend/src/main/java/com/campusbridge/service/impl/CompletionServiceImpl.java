@@ -2,13 +2,13 @@ package com.campusbridge.service.impl;
 
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
-import com.campusbridge.dto.request.RequestDtos;
-import com.campusbridge.mapper.CompletionProofMapper;
+import com.campusbridge.dto.request.SubmitCompletionRequest;
+import com.campusbridge.entity.Attachment;
+import com.campusbridge.entity.CompletionProof;
+import com.campusbridge.entity.Task;
 import com.campusbridge.mapper.AttachmentMapper;
+import com.campusbridge.mapper.CompletionProofMapper;
 import com.campusbridge.mapper.TaskMapper;
-import com.campusbridge.pojo.CompletionProof;
-import com.campusbridge.pojo.Attachment;
-import com.campusbridge.pojo.Task;
 import com.campusbridge.service.CompletionService;
 import com.campusbridge.service.CreditService;
 import com.campusbridge.service.NotificationService;
@@ -60,7 +60,7 @@ public class CompletionServiceImpl implements CompletionService {
     public CompletionProof submitCompletionProof(
             Long submitterId,
             Long taskId,
-            RequestDtos.SubmitCompletionRequest request) {
+            SubmitCompletionRequest request) {
         validateSubmitterId(submitterId);
         validateTaskId(taskId);
         validateSubmitCompletionRequest(request);
@@ -316,7 +316,7 @@ public class CompletionServiceImpl implements CompletionService {
         }
     }
 
-    private void validateSubmitCompletionRequest(RequestDtos.SubmitCompletionRequest request) {
+    private void validateSubmitCompletionRequest(SubmitCompletionRequest request) {
         if (request == null) {
             throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "Request body must not be null");
         }

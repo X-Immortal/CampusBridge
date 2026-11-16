@@ -251,7 +251,7 @@ export CAMPUSBRIDGE_MYSQL_TEST_PASSWORD='YOUR_TEST_PASSWORD'
 (cd backend && mvn -Dtest=OpenApiExportTest -DexportOpenApi=true test)
 ```
 
-导出文件为 docs/openapi.yaml；测试比较路径和方法集合。部分动态载荷尚不能被完整推导，边界见接口使用说明。生产依赖中不包含测试范围 Springdoc。
+导出文件为 docs/openapi.yaml；测试比较路径和方法集合，并验证任务分页与嵌套泛型分页的响应类型。公共响应和错误语义见接口使用说明。生产依赖中不包含测试范围 Springdoc。
 
 ## 7. 流程验收与问题定位
 
@@ -265,7 +265,7 @@ export CAMPUSBRIDGE_MYSQL_TEST_PASSWORD='YOUR_TEST_PASSWORD'
 | 重发失败 | 原任务保存的数据是否完整，截止是否过期；重发请求不接受更新字段 |
 | 文件上传失败 | OSS 凭据、endpoint/bucket/region、文件大小及用途头 |
 | MySQL 测试被跳过或拒绝 | 环境变量前缀、精确库名和测试账号权限 |
-| HTTP 为 2xx 但页面报业务错误 | 检查响应 code；旧接口仍可能用 Result.error 返回 |
+| 认证或上传失败 | 检查非 2xx 响应的 code/message；502 对应外部邮件或存储服务失败，500 对应服务端处理或保存失败 |
 | API 请求进入静态页面 | 检查 test 入口对 /api 与 SPA 回退的路由顺序 |
 
 单次执行的代码版本、环境、命令及结果记录在评审或交付记录中，不写入本操作说明作为永久通过结论。

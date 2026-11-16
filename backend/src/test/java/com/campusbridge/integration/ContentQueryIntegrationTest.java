@@ -1,8 +1,10 @@
 package com.campusbridge.integration;
 
-import com.campusbridge.dto.enums.ApiEnums;
-import com.campusbridge.dto.response.ResponseDtos;
-import com.campusbridge.dto.view.ViewDtos;
+import com.campusbridge.common.PagedResult;
+import com.campusbridge.dto.view.ContentItemView;
+import com.campusbridge.entity.Post;
+import com.campusbridge.entity.Task;
+import com.campusbridge.enums.ContentItemType;
 import com.campusbridge.mapper.ContentMapper;
 import com.campusbridge.service.impl.ContentServiceImpl;
 import org.apache.ibatis.mapping.Environment;
@@ -105,12 +107,12 @@ class ContentQueryIntegrationTest {
             posts.executeBatch();
             tasks.executeBatch();
         }
-        ResponseDtos.PagedResult<ViewDtos.ContentItemView> page = query(null, "CREATED_AT", 13, 100);
+        PagedResult<ContentItemView> page = query(null, "CREATED_AT", 13, 100);
         assertThat(page.getTotal()).isEqualTo(1250);
         assertThat(page.getItems()).hasSize(50);
         assertThat(query("POST", "CREATED_AT", 7, 100).getItems()).hasSize(20);
         assertThat(query("POST", "CREATED_AT", 7, 100).getTotal()).isEqualTo(620);
-        ResponseDtos.PagedResult<ViewDtos.ContentItemView> hugePage =
+        PagedResult<ContentItemView> hugePage =
                 query(null, "CREATED_AT", Integer.MAX_VALUE, 100);
         assertThat(hugePage.getTotal()).isEqualTo(1250);
         assertThat(hugePage.getItems()).isEmpty();
@@ -133,14 +135,14 @@ class ContentQueryIntegrationTest {
         task(6, "DISPUTED", BASE_TIME, BASE_TIME.plusDays(1));
         assertThat(query(null, "CREATED_AT", 1, 20).getTotal()).isEqualTo(2);
         assertThat(content.listContent(null, "TASK", null, null, null, "CANCELLED",
-                null, null, 1, 20).getItems()).extracting(ViewDtos.ContentItemView::getSourceId)
+                null, null, 1, 20).getItems()).extracting(ContentItemView::getSourceId)
                 .containsExactly(5L);
         for (String status : new String[]{"DRAFT", "PENDING_REVIEW", "REJECTED", "HIDDEN", "DELETED"}) {
             assertThat(content.listContent(null, null, null, null, null, status,
                     null, null, 1, 20).getItems()).isEmpty();
         }
         assertThat(content.listContent(null, "POST", null, null, null, "CLOSED",
-                null, null, 1, 20).getItems()).extracting(ViewDtos.ContentItemView::getSourceId)
+                null, null, 1, 20).getItems()).extracting(ContentItemView::getSourceId)
                 .containsExactly(2L);
     }
 
@@ -154,13 +156,13 @@ class ContentQueryIntegrationTest {
                 + "reward_type='POINTS' WHERE id=1");
         jdbc.update("UPDATE tasks SET location='East Gate',reward_type='POINTS',campus='South' WHERE id=2");
         jdbc.update("UPDATE tasks SET location='East Gate',reward_type='FREE' WHERE id=3");
-        ResponseDtos.PagedResult<ViewDtos.ContentItemView> page = content.listContent(
+        PagedResult<ContentItemView> page = content.listContent(
                 "Task", null, "ERRAND", "North", "East", "OPEN", "POINTS", null, 1, 20);
         assertThat(page.getTotal()).isEqualTo(1);
-        assertThat(page.getItems()).extracting(ViewDtos.ContentItemView::getSourceId).containsExactly(1L);
-        assertThat(page.getItems().get(0).getItemType()).isEqualTo(ApiEnums.ContentItemType.TASK);
+        assertThat(page.getItems()).extracting(ContentItemView::getSourceId).containsExactly(1L);
+        assertThat(page.getItems().get(0).getItemType()).isEqualTo(ContentItemType.TASK);
         assertThat(content.listContent(null, null, null, null, "West Gate", null,
-                null, null, 1, 20).getItems()).extracting(ViewDtos.ContentItemView::getSourceId)
+                null, null, 1, 20).getItems()).extracting(ContentItemView::getSourceId)
                 .containsExactly(1L);
     }
 
@@ -171,17 +173,17 @@ class ContentQueryIntegrationTest {
         task(2, "OPEN", BASE_TIME.plusDays(1), BASE_TIME.plusDays(4));
         jdbc.update("UPDATE tasks SET updated_at=? WHERE id=2", BASE_TIME.plusDays(20));
         assertThat(query(null, "CREATED_AT", 1, 20).getItems())
-                .extracting(ViewDtos.ContentItemView::getItemType)
-                .containsExactly(ApiEnums.ContentItemType.POST,
-                        ApiEnums.ContentItemType.TASK, ApiEnums.ContentItemType.TASK);
-        ResponseDtos.PagedResult<ViewDtos.ContentItemView> deadlines = query(null, "DEADLINE", 1, 20);
-        assertThat(deadlines.getItems()).extracting(ViewDtos.ContentItemView::getSourceId)
+                .extracting(ContentItemView::getItemType)
+                .containsExactly(ContentItemType.POST,
+                        ContentItemType.TASK, ContentItemType.TASK);
+        PagedResult<ContentItemView> deadlines = query(null, "DEADLINE", 1, 20);
+        assertThat(deadlines.getItems()).extracting(ContentItemView::getSourceId)
                 .containsExactly(2L, 1L, 1L);
         assertThat(deadlines.getItems().get(0).getSortTime()).isEqualTo(BASE_TIME.plusDays(4));
-        assertThat(deadlines.getItems().get(2).getItemType()).isEqualTo(ApiEnums.ContentItemType.POST);
+        assertThat(deadlines.getItems().get(2).getItemType()).isEqualTo(ContentItemType.POST);
         assertThat(deadlines.getItems().get(2).getSortTime()).isNull();
         assertThat(query(null, "unknown-sort", 1, 20).getItems())
-                .extracting(ViewDtos.ContentItemView::getCreatedAt)
+                .extracting(ContentItemView::getCreatedAt)
                 .containsExactly(BASE_TIME.plusDays(3), BASE_TIME.plusDays(2), BASE_TIME.plusDays(1));
     }
 
@@ -193,11 +195,11 @@ class ContentQueryIntegrationTest {
         assertThat(content.listContent("' OR 1=1 --", null, null, null, null, null,
                 null, null, 1, 20).getTotal()).isZero();
         assertThat(query("post", "CREATED_AT", 1, 20).getItems())
-                .extracting(ViewDtos.ContentItemView::getSourceId).containsExactly(2L, 1L);
+                .extracting(ContentItemView::getSourceId).containsExactly(2L, 1L);
         assertThat(query("unknown", null, 1, 20).getItems()).isEmpty();
     }
 
-    private ResponseDtos.PagedResult<ViewDtos.ContentItemView> query(
+    private PagedResult<ContentItemView> query(
             String types, String sort, Integer page, Integer size) {
         return content.listContent(null, types, null, null, null, null, null, sort, page, size);
     }

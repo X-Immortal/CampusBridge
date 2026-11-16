@@ -2,12 +2,12 @@ package com.campusbridge.service.impl;
 
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
-import com.campusbridge.dto.request.RequestDtos;
+import com.campusbridge.dto.request.CreateReplyRequest;
+import com.campusbridge.dto.view.ReplyView;
+import com.campusbridge.entity.Post;
+import com.campusbridge.entity.Reply;
 import com.campusbridge.mapper.PostMapper;
 import com.campusbridge.mapper.ReplyMapper;
-import com.campusbridge.pojo.Post;
-import com.campusbridge.pojo.Reply;
-import com.campusbridge.dto.view.ReplyView;
 import com.campusbridge.service.NotificationService;
 import com.campusbridge.service.ReplyService;
 import org.springframework.stereotype.Service;
@@ -32,7 +32,7 @@ public class ReplyServiceImpl implements ReplyService {
     }
 
     @Override
-    public ReplyView createReply(Long userId, Long postId, RequestDtos.CreateReplyRequest request) {
+    public ReplyView createReply(Long userId, Long postId, CreateReplyRequest request) {
         if (request == null || request.getContent() == null || request.getContent().isBlank()) {
             throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "Reply content is required");
         }

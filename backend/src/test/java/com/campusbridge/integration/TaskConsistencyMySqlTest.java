@@ -1,38 +1,45 @@
 package com.campusbridge.integration;
 
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.campusbridge.dto.query.TaskQuery;
-import com.campusbridge.config.MybatisPlusConfig;
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.config.GlobalConfig;
-import com.baomidou.mybatisplus.annotation.FieldStrategy;
-
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.baomidou.mybatisplus.spring.MybatisSqlSessionFactoryBean;
 import com.campusbridge.common.BusinessException;
-import com.campusbridge.dto.enums.ApiEnums;
-import com.campusbridge.dto.request.RequestDtos;
+import com.campusbridge.config.MybatisPlusConfig;
+import com.campusbridge.dto.query.TaskQuery;
+import com.campusbridge.dto.request.CreateReviewRequest;
+import com.campusbridge.dto.request.CreateTaskApplicationRequest;
+import com.campusbridge.dto.request.CreateTaskRequest;
+import com.campusbridge.dto.request.SubmitCompletionRequest;
+import com.campusbridge.dto.request.TaskStatusTransitionRequest;
+import com.campusbridge.dto.request.UpdateTaskRequest;
+import com.campusbridge.dto.view.TaskView;
+import com.campusbridge.entity.Task;
+import com.campusbridge.entity.TaskApplication;
+import com.campusbridge.enums.RewardType;
+import com.campusbridge.enums.TaskCategory;
+import com.campusbridge.enums.TaskStatusTransitionAction;
 import com.campusbridge.mapper.AttachmentMapper;
-import com.campusbridge.mapper.TaskMapper;
 import com.campusbridge.mapper.ConversationMapper;
 import com.campusbridge.mapper.MessageMapper;
+import com.campusbridge.mapper.TaskMapper;
 import com.campusbridge.mapper.UserMapper;
-import com.campusbridge.pojo.Task;
-import com.campusbridge.dto.view.TaskView;
-import com.campusbridge.pojo.TaskApplication;
 import com.campusbridge.service.CompletionService;
 import com.campusbridge.service.ContentModerationService;
 import com.campusbridge.service.CreditService;
 import com.campusbridge.service.NotificationService;
 import com.campusbridge.service.ReviewService;
-import com.campusbridge.service.TaskService;
 import com.campusbridge.service.TaskApplicationService;
+import com.campusbridge.service.TaskService;
 import com.campusbridge.service.TaskTimeoutService;
 import com.campusbridge.service.impl.CompletionServiceImpl;
 import com.campusbridge.service.impl.CreditServiceImpl;
+import com.campusbridge.service.impl.NotificationServiceImpl;
 import com.campusbridge.service.impl.ReviewServiceImpl;
 import com.campusbridge.service.impl.TaskApplicationServiceImpl;
 import com.campusbridge.service.impl.TaskHistoryServiceImpl;
 import com.campusbridge.service.impl.TaskModerationService;
-import com.campusbridge.service.impl.NotificationServiceImpl;
 import com.campusbridge.service.impl.TaskServiceImpl;
 import com.campusbridge.service.impl.TaskTimeoutServiceImpl;
 import org.apache.ibatis.session.SqlSessionFactory;
@@ -42,7 +49,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
-import com.baomidou.mybatisplus.spring.MybatisSqlSessionFactoryBean;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.Bean;
@@ -59,7 +65,6 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import javax.sql.DataSource;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -69,22 +74,22 @@ import java.sql.Statement;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import javax.sql.DataSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.doAnswer;
-import static org.mockito.AdditionalAnswers.delegatesTo;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
 
@@ -160,7 +165,7 @@ class TaskConsistencyMySqlTest {
 
     @Test
     void incompleteDraftIsPrivateAndCannotPublishUntilRequiredFieldsExist() {
-        TaskView draft = tasks.saveDraft(1L, new RequestDtos.CreateTaskRequest());
+        TaskView draft = tasks.saveDraft(1L, new CreateTaskRequest());
         assertThat(tasks.getTaskDetail(draft.getId(), 1L).getStatus()).isEqualTo("DRAFT");
         assertThatThrownBy(() -> tasks.getTaskDetail(draft.getId(), null))
                 .isInstanceOf(BusinessException.class);
@@ -179,7 +184,7 @@ class TaskConsistencyMySqlTest {
     @Test
     void invalidPublishedEditRollsBackAndAcceptedTaskCannotBeReopenedByEdit() throws Exception {
         TaskView task = tasks.createTask(1L, request());
-        RequestDtos.UpdateTaskRequest edit = new RequestDtos.UpdateTaskRequest();
+        UpdateTaskRequest edit = new UpdateTaskRequest();
         edit.setTitle(" ");
         assertThatThrownBy(() -> tasks.updateTask(1L, task.getId(), edit))
                 .isInstanceOf(BusinessException.class);
@@ -235,8 +240,8 @@ class TaskConsistencyMySqlTest {
     @Test
     void competingCompletionEndpointsAwardOnceAndTimeoutUsesTheSameRewardRule() throws Exception {
         TaskView task = taskInState("PENDING_CONFIRMATION");
-        RequestDtos.TaskStatusTransitionRequest confirm = new RequestDtos.TaskStatusTransitionRequest();
-        confirm.setAction(ApiEnums.TaskStatusTransitionAction.CONFIRM_COMPLETION);
+        TaskStatusTransitionRequest confirm = new TaskStatusTransitionRequest();
+        confirm.setAction(TaskStatusTransitionAction.CONFIRM_COMPLETION);
         List<Boolean> results = runTogether(List.of(
                 () -> attempt(() -> completions.confirmCompletion(1L, task.getId())),
                 () -> attempt(() -> tasks.transitionTaskStatus(1L, task.getId(), confirm))));
@@ -365,7 +370,7 @@ class TaskConsistencyMySqlTest {
     @Test
     void simultaneousCompletionProofsForOneTaskReturnAConflictWithoutAForeignKeyLockUpgrade() throws Exception {
         TaskView task = taskInState("IN_PROGRESS");
-        RequestDtos.SubmitCompletionRequest proof = new RequestDtos.SubmitCompletionRequest("Delivered", List.of());
+        SubmitCompletionRequest proof = new SubmitCompletionRequest("Delivered", List.of());
         assertThat(runTogether(List.of(
                 () -> attempt(() -> completions.submitCompletionProof(2L, task.getId(), proof)),
                 () -> attempt(() -> completions.submitCompletionProof(2L, task.getId(), proof)))))
@@ -376,7 +381,7 @@ class TaskConsistencyMySqlTest {
 
     @Test
     void taskPublicationRejectsAttachmentsThatWouldOtherwiseBeSilentlyDiscarded() {
-        RequestDtos.CreateTaskRequest unsupported = request();
+        CreateTaskRequest unsupported = request();
         unsupported.setAttachmentIds(List.of(1L));
         assertThatThrownBy(() -> tasks.createTask(1L, unsupported)).isInstanceOf(BusinessException.class);
         assertThatThrownBy(() -> tasks.saveDraft(1L, unsupported)).isInstanceOf(BusinessException.class);
@@ -386,8 +391,8 @@ class TaskConsistencyMySqlTest {
     @Test
     void genericCancelAppliesTheExistingInProgressPenalty() {
         TaskView task = taskInState("IN_PROGRESS");
-        RequestDtos.TaskStatusTransitionRequest cancel = new RequestDtos.TaskStatusTransitionRequest();
-        cancel.setAction(ApiEnums.TaskStatusTransitionAction.CANCEL);
+        TaskStatusTransitionRequest cancel = new TaskStatusTransitionRequest();
+        cancel.setAction(TaskStatusTransitionAction.CANCEL);
         cancel.setReason("Requester cancels");
         tasks.transitionTaskStatus(1L, task.getId(), cancel);
         assertThat(status(task.getId())).isEqualTo("CANCELLED");
@@ -398,7 +403,7 @@ class TaskConsistencyMySqlTest {
     @Test
     void reviewsRejectUnrelatedRecipientsAndConcurrentDuplicates() throws Exception {
         TaskView task = taskInState("COMPLETED");
-        RequestDtos.CreateReviewRequest review = new RequestDtos.CreateReviewRequest(3L, 5, "Test review");
+        CreateReviewRequest review = new CreateReviewRequest(3L, 5, "Test review");
         assertThatThrownBy(() -> reviews.createReview(1L, task.getId(), review))
                 .isInstanceOf(BusinessException.class);
         review.setRevieweeId(1L);
@@ -420,7 +425,7 @@ class TaskConsistencyMySqlTest {
                 + "(id,uploader_id,owner_type,type,file_name,file_url,content_type,size,status) "
                 + "VALUES (1,2,'COMPLETION_PROOF','IMAGE','test.png','https://example.invalid/test.png',"
                 + "'image/png',10,'TEMPORARY')");
-        RequestDtos.SubmitCompletionRequest proof = new RequestDtos.SubmitCompletionRequest("Delivered", List.of(1L));
+        SubmitCompletionRequest proof = new SubmitCompletionRequest("Delivered", List.of(1L));
         List<Boolean> outcomes = runTogether(List.of(
                 () -> attempt(() -> completions.submitCompletionProof(2L, first.getId(), proof)),
                 () -> attempt(() -> completions.submitCompletionProof(2L, second.getId(), proof))));
@@ -450,7 +455,7 @@ class TaskConsistencyMySqlTest {
     void acceptingWhileAnotherUserAppliesCannotLeaveAnUnprocessedPendingApplication() throws Exception {
         TaskView task = tasks.createTask(1L, request());
         TaskApplicationService applications = context.getBean(TaskApplicationService.class);
-        RequestDtos.CreateTaskApplicationRequest apply = new RequestDtos.CreateTaskApplicationRequest("Can help");
+        CreateTaskApplicationRequest apply = new CreateTaskApplicationRequest("Can help");
         TaskApplication selected = applications.createApplication(2L, task.getId(), apply);
         runTogether(List.of(
                 () -> attempt(() -> applications.acceptApplication(1L, task.getId(), selected.getId())),
@@ -514,15 +519,15 @@ class TaskConsistencyMySqlTest {
         assertThat(tasks.listTasks(query).getTotal()).isZero();
     }
 
-    private RequestDtos.CreateTaskRequest request() {
-        RequestDtos.CreateTaskRequest request = new RequestDtos.CreateTaskRequest();
-        request.setCategory(ApiEnums.TaskCategory.ERRAND);
+    private CreateTaskRequest request() {
+        CreateTaskRequest request = new CreateTaskRequest();
+        request.setCategory(TaskCategory.ERRAND);
         request.setTitle("Collect test parcel");
         request.setDescription("Deliver a test parcel to the campus gate");
         request.setCampus("Test Campus");
         request.setLocation("Test Gate");
         request.setDeadline(LocalDateTime.now().plusDays(1));
-        request.setRewardType(ApiEnums.RewardType.POINTS);
+        request.setRewardType(RewardType.POINTS);
         request.setRewardAmount(5);
         request.setCompletionStandard("Recipient confirms delivery");
         request.setRequiresProof(true);

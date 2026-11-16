@@ -15,18 +15,10 @@ public class ErrorResponse {
     private String code;
     private String message;
     private List<String> details;
-    private Meta meta;
-
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Meta {
-        private String requestId;
-        private LocalDateTime timestamp;
-    }
+    private ResponseMeta meta;
 
     public static ErrorResponse of(ErrorCode errorCode, String message, List<String> details) {
-        Meta meta = new Meta(UUID.randomUUID().toString(), LocalDateTime.now());
+        ResponseMeta meta = new ResponseMeta(UUID.randomUUID().toString(), LocalDateTime.now());
         return new ErrorResponse(errorCode.getCode(), message, details, meta);
     }
 }

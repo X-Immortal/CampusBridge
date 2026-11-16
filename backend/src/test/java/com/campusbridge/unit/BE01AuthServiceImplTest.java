@@ -1,16 +1,12 @@
 package com.campusbridge.unit;
 
-import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.common.BusinessException;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
-import java.util.List;
-import java.util.ArrayList;
+import com.campusbridge.common.ErrorCode;
+import com.campusbridge.dto.request.LoginRequest;
+import com.campusbridge.dto.request.RegisterRequest;
+import com.campusbridge.dto.view.LoginView;
+import com.campusbridge.entity.User;
 import com.campusbridge.mapper.UserMapper;
-import com.campusbridge.pojo.User;
 import com.campusbridge.service.impl.AuthServiceImpl;
 import com.campusbridge.service.impl.EmailVerificationCodeSender;
 import com.campusbridge.utils.JwtUtil;
@@ -23,13 +19,19 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -62,7 +64,7 @@ class BE01AuthServiceImplTest {
         when(emailCodeSender.sendCode(any(), any(), any())).thenReturn(true);
         String code = authService.sendRegistrationCode("alice@test.com");
 
-        RequestDtos.RegisterRequest request =
+        RegisterRequest request =
                 registerRequest("alice", "pass123", "13800000001", "alice@test.com", code);
         when(userMapper.selectByUsername("alice")).thenReturn(null);
         when(userMapper.selectByPhoneHash(any())).thenReturn(null);
@@ -80,58 +82,70 @@ class BE01AuthServiceImplTest {
     }
 
     @Test
-    void registerReturnsNullForNullRequest() {
-        assertThat(authService.register(null)).isNull();
+    void registerRejectsNullRequest() {
+        assertThatThrownBy(() -> authService.register(null))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.COMMON_001_VALIDATION_ERROR);
     }
 
     @Test
-    void registerReturnsNullForBlankUsername() {
-        RequestDtos.RegisterRequest request =
+    void registerRejectsBlankUsername() {
+        RegisterRequest request =
                 registerRequest("  ", "pass123", "13800000001", "alice@test.com", "000000");
-        assertThat(authService.register(request)).isNull();
+        assertThatThrownBy(() -> authService.register(request))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.COMMON_001_VALIDATION_ERROR);
     }
 
     @Test
-    void registerReturnsMinusOneForDuplicateUsername() {
-        RequestDtos.RegisterRequest request =
+    void registerRejectsDuplicateUsername() {
+        RegisterRequest request =
                 registerRequest("alice", "pass123", "13800000001", "alice@test.com", "000000");
         when(userMapper.selectByUsername("alice")).thenReturn(new User());
 
-        assertThat(authService.register(request)).isEqualTo(-1L);
+        assertThatThrownBy(() -> authService.register(request))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.COMMON_003_CONFLICT);
     }
 
     @Test
-    void registerReturnsMinusTwoForDuplicatePhone() {
+    void registerRejectsDuplicatePhone() {
         when(emailCodeSender.sendCode(any(), any(), any())).thenReturn(true);
         String code = authService.sendRegistrationCode("alice@test.com");
 
-        RequestDtos.RegisterRequest request =
+        RegisterRequest request =
                 registerRequest("alice", "pass123", "13800000001", "alice@test.com", code);
         when(userMapper.selectByUsername("alice")).thenReturn(null);
         when(userMapper.selectByPhoneHash(any())).thenReturn(new User());
 
-        assertThat(authService.register(request)).isEqualTo(-2L);
+        assertThatThrownBy(() -> authService.register(request))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.COMMON_003_CONFLICT);
     }
 
     @Test
-    void registerReturnsNullWhenInsertFails() {
+    void registerRejectsFailedInsert() {
         when(emailCodeSender.sendCode(any(), any(), any())).thenReturn(true);
         String code = authService.sendRegistrationCode("alice@test.com");
 
-        RequestDtos.RegisterRequest request =
+        RegisterRequest request =
                 registerRequest("alice", "pass123", "13800000001", "alice@test.com", code);
         when(userMapper.selectByUsername("alice")).thenReturn(null);
         when(userMapper.selectByPhoneHash(any())).thenReturn(null);
         when(passwordEncoder.encode("pass123")).thenReturn("hashed-pass");
         when(userMapper.insert(any(User.class))).thenReturn(0);
 
-        assertThat(authService.register(request)).isNull();
+        assertThatThrownBy(() -> authService.register(request))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.COMMON_999_INTERNAL_ERROR);
     }
 
     @Test
     void registerRejectsMissingCodeWithoutThrowingNullPointer() {
-        assertThat(authService.register(
-                registerRequest("alice", "pass123", "13800000001", "alice@test.com", null))).isNull();
+        assertThatThrownBy(() -> authService.register(
+                registerRequest("alice", "pass123", "13800000001", "alice@test.com", null)))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.COMMON_001_VALIDATION_ERROR);
     }
 
     @Test
@@ -190,78 +204,87 @@ class BE01AuthServiceImplTest {
 
     @Test
     void loginReturnsPayloadForValidCredentials() {
-        RequestDtos.LoginRequest request = loginRequest("alice", "pass123");
+        LoginRequest request = loginRequest("alice", "pass123");
         User dbUser = user(100L, "alice", "hashed-pass", "USER");
         when(userMapper.selectByUsername("alice")).thenReturn(dbUser);
         when(passwordEncoder.matches("pass123", "hashed-pass")).thenReturn(true);
         when(jwtUtil.generateToken(100L, "USER")).thenReturn("jwt-token");
         when(jwtUtil.generateRefreshToken(100L)).thenReturn("refresh-token");
 
-        Object result = authService.login(request);
+        LoginView payload = authService.login(request);
 
-        assertThat(result).isInstanceOf(Map.class);
-        @SuppressWarnings("unchecked")
-        Map<String, Object> payload = (Map<String, Object>) result;
-        assertThat(payload.get("userId")).isEqualTo(100L);
-        assertThat(payload.get("username")).isEqualTo("alice");
-        assertThat(payload.get("role")).isEqualTo("USER");
-        assertThat(payload.get("token")).isEqualTo("jwt-token");
-        assertThat(payload.get("refreshToken")).isEqualTo("refresh-token");
+        assertThat(payload.userId()).isEqualTo(100L);
+        assertThat(payload.username()).isEqualTo("alice");
+        assertThat(payload.role()).isEqualTo("USER");
+        assertThat(payload.token()).isEqualTo("jwt-token");
+        assertThat(payload.refreshToken()).isEqualTo("refresh-token");
     }
 
     @Test
-    void loginReturnsNullForNullRequest() {
-        assertThat(authService.login(null)).isNull();
+    void loginRejectsNullRequest() {
+        assertThatThrownBy(() -> authService.login(null))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.COMMON_001_VALIDATION_ERROR);
     }
 
     @Test
-    void loginReturnsNullForBlankUsername() {
-        RequestDtos.LoginRequest request = loginRequest("  ", "pass123");
-        assertThat(authService.login(request)).isNull();
+    void loginRejectsBlankUsername() {
+        LoginRequest request = loginRequest("  ", "pass123");
+        assertThatThrownBy(() -> authService.login(request))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.COMMON_001_VALIDATION_ERROR);
     }
 
     @Test
-    void loginReturnsMinusOneForUnknownUser() {
-        RequestDtos.LoginRequest request = loginRequest("nobody", "pass123");
+    void loginRejectsUnknownUser() {
+        LoginRequest request = loginRequest("nobody", "pass123");
         when(userMapper.selectByUsername("nobody")).thenReturn(null);
 
-        assertThat(authService.login(request)).isEqualTo(-1L);
+        assertThatThrownBy(() -> authService.login(request))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.AUTH_002_INVALID_CREDENTIALS);
     }
 
     @Test
-    void loginReturnsMinusTwoForDisabledUser() {
-        RequestDtos.LoginRequest request = loginRequest("alice", "pass123");
+    void loginRejectsDisabledUser() {
+        LoginRequest request = loginRequest("alice", "pass123");
         User dbUser = user(100L, "alice", "hashed-pass", "USER");
         dbUser.setEnabled(0);
         when(userMapper.selectByUsername("alice")).thenReturn(dbUser);
 
-        assertThat(authService.login(request)).isEqualTo(-2L);
+        assertThatThrownBy(() -> authService.login(request))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.AUTH_001_UNAUTHORIZED);
     }
 
     @Test
-    void loginReturnsMinusThreeForWrongPassword() {
-        RequestDtos.LoginRequest request = loginRequest("alice", "wrong");
+    void loginRejectsWrongPassword() {
+        LoginRequest request = loginRequest("alice", "wrong");
         User dbUser = user(100L, "alice", "hashed-pass", "USER");
         when(userMapper.selectByUsername("alice")).thenReturn(dbUser);
         when(passwordEncoder.matches("wrong", "hashed-pass")).thenReturn(false);
 
-        assertThat(authService.login(request)).isEqualTo(-3L);
+        assertThatThrownBy(() -> authService.login(request))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.AUTH_002_INVALID_CREDENTIALS);
     }
 
     @Test
-    void loginReturnsMinusThreeForNullPasswordHash() {
-        RequestDtos.LoginRequest request = loginRequest("alice", "pass123");
+    void loginRejectsNullPasswordHash() {
+        LoginRequest request = loginRequest("alice", "pass123");
         User dbUser = user(100L, "alice", null, "USER");
         when(userMapper.selectByUsername("alice")).thenReturn(dbUser);
 
-        assertThat(authService.login(request)).isEqualTo(-3L);
+        assertThatThrownBy(() -> authService.login(request))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.AUTH_002_INVALID_CREDENTIALS);
     }
 
     // ---- helpers ----
 
-    private RequestDtos.RegisterRequest registerRequest(
+    private RegisterRequest registerRequest(
             String username, String password, String phone, String email, String code) {
-        RequestDtos.RegisterRequest request = new RequestDtos.RegisterRequest();
+        RegisterRequest request = new RegisterRequest();
         request.username = username;
         request.password = password;
         request.phone = phone;
@@ -270,8 +293,8 @@ class BE01AuthServiceImplTest {
         return request;
     }
 
-    private RequestDtos.LoginRequest loginRequest(String username, String password) {
-        RequestDtos.LoginRequest request = new RequestDtos.LoginRequest();
+    private LoginRequest loginRequest(String username, String password) {
+        LoginRequest request = new LoginRequest();
         request.username = username;
         request.password = password;
         return request;

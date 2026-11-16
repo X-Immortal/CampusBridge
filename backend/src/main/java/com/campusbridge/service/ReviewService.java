@@ -1,12 +1,12 @@
 package com.campusbridge.service;
 
-import com.campusbridge.dto.request.RequestDtos;
-import com.campusbridge.pojo.Review;
+import com.campusbridge.dto.request.CreateReviewRequest;
+import com.campusbridge.entity.Review;
 
 import java.util.List;
 
 public interface ReviewService {
-    Review createReview(Long reviewerId, Long taskId, RequestDtos.CreateReviewRequest request);
+    Review createReview(Long reviewerId, Long taskId, CreateReviewRequest request);
 
     List<Review> listReviews(Long taskId);
 

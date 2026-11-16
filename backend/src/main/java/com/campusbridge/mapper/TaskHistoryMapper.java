@@ -2,11 +2,10 @@ package com.campusbridge.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
-import com.campusbridge.pojo.TaskHistory;
+import com.campusbridge.entity.TaskHistory;
 import org.apache.ibatis.annotations.Mapper;
 
 import java.time.LocalDateTime;
-
 import java.util.List;
 
 @Mapper

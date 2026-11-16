@@ -1,0 +1,6 @@
+package com.campusbridge.enums;
+
+public enum TaskStatus {
+    DRAFT, OPEN, PENDING_REVIEW, ACCEPTED, IN_PROGRESS,
+    PENDING_CONFIRMATION, COMPLETED, REVIEWED, CANCELLED, DISPUTED, REJECTED
+}

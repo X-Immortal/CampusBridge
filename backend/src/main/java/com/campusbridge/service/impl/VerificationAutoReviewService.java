@@ -1,7 +1,8 @@
 package com.campusbridge.service.impl;
 
+import com.campusbridge.dto.response.OcrExtractResult;
+import com.campusbridge.entity.CampusVerification;
 import com.campusbridge.mapper.CampusVerificationMapper;
-import com.campusbridge.pojo.CampusVerification;
 import com.campusbridge.service.VerificationOcrClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,7 +38,7 @@ public class VerificationAutoReviewService {
                 return;
             }
 
-            VerificationOcrClient.OcrExtractResult ocrResult =
+            OcrExtractResult ocrResult =
                     verificationOcrClient.extractStudentCard(entity.getEvidenceUrl());
             if (ocrResult == null || !ocrResult.isAvailable()) {
                 LOGGER.info("OCR unavailable; verification remains pending, verificationId={}", verificationId);
@@ -71,7 +72,7 @@ public class VerificationAutoReviewService {
         campusVerificationMapper.updatePending(entity);
     }
 
-    private boolean isMatched(CampusVerification entity, VerificationOcrClient.OcrExtractResult ocrResult) {
+    private boolean isMatched(CampusVerification entity, OcrExtractResult ocrResult) {
         String submittedName = entity.getRealNameCipher();
         String submittedNumber = entity.getStudentNumberCipher();
         String submittedSchool = entity.getSchool();

@@ -4,9 +4,18 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
-import com.campusbridge.dto.enums.ApiEnums;
-import com.campusbridge.dto.request.RequestDtos;
-import com.campusbridge.dto.response.ResponseDtos;
+import com.campusbridge.common.PagedResult;
+import com.campusbridge.dto.request.CreateReportRequest;
+import com.campusbridge.dto.request.ResolveReportRequest;
+import com.campusbridge.entity.Message;
+import com.campusbridge.entity.ModerationRecord;
+import com.campusbridge.entity.Post;
+import com.campusbridge.entity.Reply;
+import com.campusbridge.entity.Report;
+import com.campusbridge.entity.Task;
+import com.campusbridge.entity.User;
+import com.campusbridge.enums.ModerationStatus;
+import com.campusbridge.enums.ReportTargetType;
 import com.campusbridge.mapper.MessageMapper;
 import com.campusbridge.mapper.ModerationRecordMapper;
 import com.campusbridge.mapper.PostMapper;
@@ -14,13 +23,6 @@ import com.campusbridge.mapper.ReplyMapper;
 import com.campusbridge.mapper.ReportMapper;
 import com.campusbridge.mapper.TaskMapper;
 import com.campusbridge.mapper.UserMapper;
-import com.campusbridge.pojo.Message;
-import com.campusbridge.pojo.ModerationRecord;
-import com.campusbridge.pojo.Post;
-import com.campusbridge.pojo.Reply;
-import com.campusbridge.pojo.Report;
-import com.campusbridge.pojo.Task;
-import com.campusbridge.pojo.User;
 import com.campusbridge.service.CreditService;
 import com.campusbridge.service.NotificationService;
 import com.campusbridge.service.ReportService;
@@ -87,7 +89,7 @@ public class ReportServiceImpl implements ReportService {
     }
 
     @Override
-    public Report createReport(Long reporterId, RequestDtos.CreateReportRequest request) {
+    public Report createReport(Long reporterId, CreateReportRequest request) {
         validateReporterId(reporterId);
         validateCreateReportRequest(request);
 
@@ -116,7 +118,7 @@ public class ReportServiceImpl implements ReportService {
     }
 
     @Override
-    public ResponseDtos.PagedResult<Report> listReports(
+    public PagedResult<Report> listReports(
             Long reporterId,
             String status,
             Integer page,
@@ -130,11 +132,11 @@ public class ReportServiceImpl implements ReportService {
                         .eq(Report::getReporterId, reporterId)
                         .eq(normalizedStatus != null, Report::getStatus, normalizedStatus)
                         .orderByDesc(Report::getCreatedAt, Report::getId));
-        return new ResponseDtos.PagedResult<>(result.getRecords(), safePage, safeSize, result.getTotal());
+        return new PagedResult<>(result.getRecords(), safePage, safeSize, result.getTotal());
     }
 
     @Override
-    public ResponseDtos.PagedResult<Report> listReportsForAdmin(
+    public PagedResult<Report> listReportsForAdmin(
             String status,
             Integer page,
             Integer size) {
@@ -145,14 +147,14 @@ public class ReportServiceImpl implements ReportService {
                 Wrappers.<Report>lambdaQuery()
                         .eq(normalizedStatus != null, Report::getStatus, normalizedStatus)
                         .orderByDesc(Report::getCreatedAt, Report::getId));
-        return new ResponseDtos.PagedResult<>(result.getRecords(), safePage, safeSize, result.getTotal());
+        return new PagedResult<>(result.getRecords(), safePage, safeSize, result.getTotal());
     }
 
     @Override
     public ModerationRecord resolveReport(
             Long handlerId,
             Long reportId,
-            RequestDtos.ResolveReportRequest request) {
+            ResolveReportRequest request) {
         validateHandlerId(handlerId);
         validateReportId(reportId);
         validateResolveReportRequest(request);
@@ -202,7 +204,7 @@ public class ReportServiceImpl implements ReportService {
         return record;
     }
 
-    private void validateCreateReportRequest(RequestDtos.CreateReportRequest request) {
+    private void validateCreateReportRequest(CreateReportRequest request) {
         if (request == null) {
             throwValidation("Request body must not be null");
         }
@@ -219,7 +221,7 @@ public class ReportServiceImpl implements ReportService {
         validateLength(request.getDescription(), MAX_DESCRIPTION_LENGTH, "description is too long");
     }
 
-    private void validateResolveReportRequest(RequestDtos.ResolveReportRequest request) {
+    private void validateResolveReportRequest(ResolveReportRequest request) {
         if (request == null) {
             throwValidation("Request body must not be null");
         }
@@ -239,7 +241,7 @@ public class ReportServiceImpl implements ReportService {
         }
     }
 
-    private Object requireTargetExists(Long reporterId, ApiEnums.ReportTargetType targetType, Long targetId) {
+    private Object requireTargetExists(Long reporterId, ReportTargetType targetType, Long targetId) {
         switch (targetType) {
             case POST:
                 Post post = postMapper.selectById(targetId);
@@ -339,7 +341,7 @@ public class ReportServiceImpl implements ReportService {
 
     private void applyCreditChangeIfNeeded(
             Report report,
-            RequestDtos.ResolveReportRequest request) {
+            ResolveReportRequest request) {
         Integer creditChange = request.getCreditChange();
         if (creditChange == null && STATUS_PUNISHED.equals(request.getStatus().name())) {
             creditChange = DEFAULT_PUNISHMENT_CREDIT_CHANGE;
@@ -366,7 +368,7 @@ public class ReportServiceImpl implements ReportService {
     }
 
     private Long resolveDefaultCreditTargetUserId(Report report) {
-        ApiEnums.ReportTargetType targetType = ApiEnums.ReportTargetType.valueOf(report.getTargetType());
+        ReportTargetType targetType = ReportTargetType.valueOf(report.getTargetType());
         switch (targetType) {
             case POST:
                 Post post = postMapper.selectById(report.getTargetId());
@@ -408,7 +410,7 @@ public class ReportServiceImpl implements ReportService {
         }
     }
 
-    private String buildCreditReason(RequestDtos.ResolveReportRequest request) {
+    private String buildCreditReason(ResolveReportRequest request) {
         return "REPORT_" + request.getStatus().name() + ": " + request.getDecision().trim();
     }
 
@@ -462,7 +464,7 @@ public class ReportServiceImpl implements ReportService {
         }
         String normalized = status.trim().toUpperCase();
         try {
-            ApiEnums.ModerationStatus.valueOf(normalized);
+            ModerationStatus.valueOf(normalized);
             return normalized;
         } catch (IllegalArgumentException ex) {
             throwValidation("status is invalid");

@@ -2,13 +2,13 @@ package com.campusbridge.unit;
 
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
-import com.campusbridge.dto.request.RequestDtos;
-import com.campusbridge.mapper.CompletionProofMapper;
+import com.campusbridge.dto.request.SubmitCompletionRequest;
+import com.campusbridge.entity.Attachment;
+import com.campusbridge.entity.CompletionProof;
+import com.campusbridge.entity.Task;
 import com.campusbridge.mapper.AttachmentMapper;
+import com.campusbridge.mapper.CompletionProofMapper;
 import com.campusbridge.mapper.TaskMapper;
-import com.campusbridge.pojo.CompletionProof;
-import com.campusbridge.pojo.Attachment;
-import com.campusbridge.pojo.Task;
 import com.campusbridge.service.CreditService;
 import com.campusbridge.service.NotificationService;
 import com.campusbridge.service.TaskHistoryService;
@@ -142,7 +142,7 @@ class BE09CompletionServiceImplTest {
         when(taskMapper.updateStatusById(
                 eq(TASK_ID), eq("IN_PROGRESS"), eq("PENDING_CONFIRMATION"), any()))
                 .thenReturn(1);
-        RequestDtos.SubmitCompletionRequest request = submitRequest("已完成并附图");
+        SubmitCompletionRequest request = submitRequest("已完成并附图");
         request.setAttachmentIds(List.of(30L));
 
         completionService.submitCompletionProof(PROVIDER_ID, TASK_ID, request);
@@ -277,8 +277,8 @@ class BE09CompletionServiceImplTest {
         return task;
     }
 
-    private RequestDtos.SubmitCompletionRequest submitRequest(String description) {
-        RequestDtos.SubmitCompletionRequest request = new RequestDtos.SubmitCompletionRequest();
+    private SubmitCompletionRequest submitRequest(String description) {
+        SubmitCompletionRequest request = new SubmitCompletionRequest();
         request.setDescription(description);
         return request;
     }

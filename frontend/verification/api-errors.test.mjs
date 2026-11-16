@@ -1,0 +1,39 @@
+import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
+import test from 'node:test'
+
+const source = (await readFile(new URL('../src/services/api.js', import.meta.url), 'utf8'))
+  .replace('import.meta.env.VITE_API_BASE_URL', 'undefined')
+const { default: api, ApiError } = await import(
+  'data:text/javascript;base64,' + Buffer.from(source).toString('base64')
+)
+
+for (const [status, code] of [
+  [400, 'VERIFY_001_INVALID_INPUT'],
+  [404, 'VERIFY_004_NOT_FOUND'],
+  [409, 'VERIFY_002_ALREADY_PENDING_OR_VERIFIED'],
+  [502, 'VERIFY_005_EMAIL_SEND_FAILED']
+]) {
+  test('verification error ' + status + ' preserves server code and message', async (context) => {
+    context.mock.method(globalThis, 'fetch', async () => new Response(JSON.stringify({
+      code, message: '认证请求失败', details: null,
+      meta: { requestId: 'test-request', timestamp: '2026-11-16T12:00:00' }
+    }), { status, headers: { 'Content-Type': 'application/json' } }))
+    const originalWindow = globalThis.window
+    const originalStorage = globalThis.localStorage
+    globalThis.window = { setTimeout, clearTimeout }
+    globalThis.localStorage = { getItem: () => null }
+    try {
+      await assert.rejects(api.submitVerification({}), (error) => {
+        assert.ok(error instanceof ApiError)
+        assert.equal(error.status, status)
+        assert.equal(error.code, code)
+        assert.equal(error.message, '认证请求失败')
+        return true
+      })
+    } finally {
+      globalThis.window = originalWindow
+      globalThis.localStorage = originalStorage
+    }
+  })
+}

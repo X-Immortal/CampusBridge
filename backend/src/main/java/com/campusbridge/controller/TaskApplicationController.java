@@ -1,8 +1,10 @@
 package com.campusbridge.controller;
 
+import com.campusbridge.common.ApiResponse;
 import com.campusbridge.common.CurrentUserResolver;
-import com.campusbridge.dto.request.RequestDtos;
-import com.campusbridge.pojo.Result;
+import com.campusbridge.dto.request.CreateTaskApplicationRequest;
+import com.campusbridge.dto.view.TaskApplicationCandidateView;
+import com.campusbridge.entity.TaskApplication;
 import com.campusbridge.service.TaskApplicationService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
@@ -11,8 +13,10 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/tasks/{taskId}/applications")
@@ -29,29 +33,29 @@ public class TaskApplicationController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Result createApplication(
+    public ApiResponse<TaskApplication> createApplication(
             HttpServletRequest servletRequest,
             @PathVariable Long taskId,
-            @RequestBody RequestDtos.CreateTaskApplicationRequest request) {
+            @RequestBody CreateTaskApplicationRequest request) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
-        return Result.success(taskApplicationService.createApplication(currentUserId, taskId, request));
+        return ApiResponse.success(taskApplicationService.createApplication(currentUserId, taskId, request));
     }
 
     @GetMapping
-    public Result listApplications(
+    public ApiResponse<List<TaskApplicationCandidateView>> listApplications(
             HttpServletRequest servletRequest,
             @PathVariable Long taskId) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
-        return Result.success(taskApplicationService.listApplications(currentUserId, taskId));
+        return ApiResponse.success(taskApplicationService.listApplications(currentUserId, taskId));
     }
 
     @PostMapping("/{applicationId}/accept")
-    public Result acceptApplication(
+    public ApiResponse<TaskApplication> acceptApplication(
             HttpServletRequest servletRequest,
             @PathVariable Long taskId,
             @PathVariable Long applicationId) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
-        return Result.success(
+        return ApiResponse.success(
                 taskApplicationService.acceptApplication(currentUserId, taskId, applicationId));
     }
 }

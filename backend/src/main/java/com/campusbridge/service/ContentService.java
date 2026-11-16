@@ -1,10 +1,10 @@
 package com.campusbridge.service;
 
-import com.campusbridge.dto.response.ResponseDtos;
-import com.campusbridge.dto.view.ViewDtos;
+import com.campusbridge.common.PagedResult;
+import com.campusbridge.dto.view.ContentItemView;
 
 public interface ContentService {
-    ResponseDtos.PagedResult<ViewDtos.ContentItemView> listContent(
+    PagedResult<ContentItemView> listContent(
             String keyword,
             String itemTypes,
             String categoryCode,

@@ -1,6 +1,6 @@
 package com.campusbridge.service;
 
-import com.campusbridge.pojo.Task;
+import com.campusbridge.entity.Task;
 
 public interface CreditService {
     void awardTaskReward(Task task);

@@ -1,8 +1,13 @@
 package com.campusbridge.controller;
 
+import com.campusbridge.common.ApiResponse;
 import com.campusbridge.common.CurrentUserResolver;
-import com.campusbridge.dto.request.RequestDtos;
-import com.campusbridge.pojo.Result;
+import com.campusbridge.dto.request.UpdateUserProfileRequest;
+import com.campusbridge.dto.view.AvatarView;
+import com.campusbridge.dto.view.UserHomepageView;
+import com.campusbridge.dto.view.UserProfileView;
+import com.campusbridge.dto.view.UserView;
+import com.campusbridge.entity.Review;
 import com.campusbridge.service.ReviewService;
 import com.campusbridge.service.UserProfileService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -16,7 +21,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.Map;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/users")
@@ -35,41 +40,41 @@ public class UserController {
     }
 
     @GetMapping("/me")
-    public Result getCurrentUser(HttpServletRequest request) {
+    public ApiResponse<UserView> getCurrentUser(HttpServletRequest request) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(request);
-        return Result.success(userProfileService.getCurrentUser(currentUserId));
+        return ApiResponse.success(userProfileService.getCurrentUser(currentUserId));
     }
 
     @GetMapping("/me/profile")
-    public Result getMyProfile(HttpServletRequest request) {
+    public ApiResponse<UserProfileView> getMyProfile(HttpServletRequest request) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(request);
-        return Result.success(userProfileService.getMyProfile(currentUserId));
+        return ApiResponse.success(userProfileService.getMyProfile(currentUserId));
     }
 
     @PutMapping("/me/profile")
-    public Result updateMyProfile(
+    public ApiResponse<UserProfileView> updateMyProfile(
             HttpServletRequest request,
-            @RequestBody RequestDtos.UpdateUserProfileRequest requestBody) {
+            @RequestBody UpdateUserProfileRequest requestBody) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(request);
-        return Result.success(userProfileService.updateMyProfile(currentUserId, requestBody));
+        return ApiResponse.success(userProfileService.updateMyProfile(currentUserId, requestBody));
     }
 
     @GetMapping("/{userId}/profile")
-    public Result getUserHomepage(@PathVariable Long userId) {
-        return Result.success(userProfileService.getUserHomepage(userId));
+    public ApiResponse<UserHomepageView> getUserHomepage(@PathVariable Long userId) {
+        return ApiResponse.success(userProfileService.getUserHomepage(userId));
     }
 
     @PostMapping("/me/avatar")
-    public Result uploadAvatar(
+    public ApiResponse<AvatarView> uploadAvatar(
             HttpServletRequest request,
             @RequestParam("file") MultipartFile file) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(request);
         String avatarUrl = userProfileService.updateAvatar(currentUserId, file);
-        return Result.success(Map.of("avatarUrl", avatarUrl));
+        return ApiResponse.success(new AvatarView(avatarUrl));
     }
 
     @GetMapping("/{userId}/reviews")
-    public Result getUserReviews(@PathVariable Long userId) {
-        return Result.success(reviewService.listReviewsByUser(userId));
+    public ApiResponse<List<Review>> getUserReviews(@PathVariable Long userId) {
+        return ApiResponse.success(reviewService.listReviewsByUser(userId));
     }
 }

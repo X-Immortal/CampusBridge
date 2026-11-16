@@ -1,15 +1,21 @@
 package com.campusbridge.service.impl;
 
-import com.campusbridge.dto.enums.ApiEnums;
-import com.campusbridge.dto.request.RequestDtos;
-import com.campusbridge.dto.response.ResponseDtos;
-import com.campusbridge.mapper.CampusVerificationMapper;
-import com.campusbridge.pojo.CampusVerification;
-import com.campusbridge.service.VerificationService;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import org.springframework.beans.factory.annotation.Value;
+import com.campusbridge.common.BusinessException;
+import com.campusbridge.common.ErrorCode;
+import com.campusbridge.common.PagedResult;
+import com.campusbridge.dto.request.ConfirmEmailVerificationRequest;
+import com.campusbridge.dto.request.CreateVerificationRequest;
+import com.campusbridge.dto.view.VerificationCancelledView;
+import com.campusbridge.dto.view.VerificationReviewView;
+import com.campusbridge.dto.view.VerificationSubmissionView;
+import com.campusbridge.entity.CampusVerification;
+import com.campusbridge.enums.VerificationMethod;
+import com.campusbridge.mapper.CampusVerificationMapper;
+import com.campusbridge.service.VerificationService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
@@ -17,9 +23,7 @@ import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.regex.Pattern;
 
 @Service
@@ -44,30 +48,30 @@ public class VerificationServiceImpl implements VerificationService {
     private String emailCodeSecret;
 
     @Override
-    public Object submit(Long userId, RequestDtos.CreateVerificationRequest request) {
+    public VerificationSubmissionView submit(Long userId, CreateVerificationRequest request) {
         if (userId == null || request == null || request.method == null
                 || isBlank(request.realName) || isBlank(request.studentNumber) || isBlank(request.school)) {
-            return null;
+            throw new BusinessException(ErrorCode.VERIFY_001_INVALID_INPUT);
         }
         if (requiresEvidenceUrl(request.method) && isBlank(request.evidenceUrl)) {
-            return null;
+            throw new BusinessException(ErrorCode.VERIFY_001_INVALID_INPUT);
         }
-        if (request.method == ApiEnums.VerificationMethod.CAMPUS_EMAIL
+        if (request.method == VerificationMethod.CAMPUS_EMAIL
                 && !isValidEmail(request.campusEmail)) {
-            return null;
+            throw new BusinessException(ErrorCode.VERIFY_001_INVALID_INPUT);
         }
 
         CampusVerification latest = campusVerificationMapper.selectLatestByUserId(userId);
         if (latest != null && STATUS_VERIFIED.equals(latest.getStatus())) {
-            return -1L;
+            throw new BusinessException(ErrorCode.VERIFY_002_ALREADY_PENDING_OR_VERIFIED);
         }
         if (latest != null && STATUS_PENDING.equals(latest.getStatus())) {
-            if (request.method == ApiEnums.VerificationMethod.CAMPUS_EMAIL
-                    && ApiEnums.VerificationMethod.CAMPUS_EMAIL.name().equals(latest.getMethod())) {
+            if (request.method == VerificationMethod.CAMPUS_EMAIL
+                    && VerificationMethod.CAMPUS_EMAIL.name().equals(latest.getMethod())) {
                 applyRequestToEntity(latest, request);
                 return persistEmailCode(latest, request.campusEmail, false);
             }
-            return -1L;
+            throw new BusinessException(ErrorCode.VERIFY_002_ALREADY_PENDING_OR_VERIFIED);
         }
 
         LocalDateTime now = LocalDateTime.now();
@@ -76,42 +80,42 @@ public class VerificationServiceImpl implements VerificationService {
         entity.setCreatedAt(now);
         applyRequestToEntity(entity, request);
 
-        if (request.method == ApiEnums.VerificationMethod.CAMPUS_EMAIL) {
+        if (request.method == VerificationMethod.CAMPUS_EMAIL) {
             return persistEmailCode(entity, request.campusEmail, true);
         }
 
         int affected = campusVerificationMapper.insert(entity);
         if (affected <= 0) {
-            return -2L;
+            throw new BusinessException(ErrorCode.VERIFY_003_SUBMIT_FAILED);
         }
 
         return buildPayload(entity);
     }
 
     @Override
-    public Object confirmEmail(Long userId, RequestDtos.ConfirmEmailVerificationRequest request) {
+    public VerificationSubmissionView confirmEmail(Long userId, ConfirmEmailVerificationRequest request) {
         if (userId == null || request == null || isBlank(request.code)) {
-            return null;
+            throw new BusinessException(ErrorCode.VERIFY_001_INVALID_INPUT);
         }
 
         CampusVerification latest = campusVerificationMapper.selectLatestByUserId(userId);
         if (latest == null) {
-            return -1L;
+            throw new BusinessException(ErrorCode.VERIFY_004_NOT_FOUND);
         }
         if (!STATUS_PENDING.equals(latest.getStatus())
-                || !ApiEnums.VerificationMethod.CAMPUS_EMAIL.name().equals(latest.getMethod())) {
-            return -2L;
+                || !VerificationMethod.CAMPUS_EMAIL.name().equals(latest.getMethod())) {
+            throw new BusinessException(ErrorCode.VERIFY_006_EMAIL_CODE_NOT_PENDING);
         }
 
         EmailCodeRecord record = parseEmailCodeRecord(latest.getEvidenceUrl());
         if (record == null) {
-            return -3L;
+            throw new BusinessException(ErrorCode.VERIFY_006_EMAIL_CODE_NOT_PENDING);
         }
         if (record.expiresAt().isBefore(LocalDateTime.now())) {
-            return -4L;
+            throw new BusinessException(ErrorCode.VERIFY_007_EMAIL_CODE_EXPIRED);
         }
         if (!hashEmailCode(record.email(), request.code.trim()).equals(record.codeHash())) {
-            return -5L;
+            throw new BusinessException(ErrorCode.VERIFY_008_EMAIL_CODE_MISMATCH);
         }
 
         latest.setStatus(STATUS_VERIFIED);
@@ -122,55 +126,52 @@ public class VerificationServiceImpl implements VerificationService {
 
         int affected = campusVerificationMapper.updatePending(latest);
         if (affected <= 0) {
-            return -6L;
+            throw new BusinessException(ErrorCode.COMMON_003_CONFLICT);
         }
         return buildPayload(latest);
     }
 
     @Override
-    public Object resendEmailCode(Long userId) {
+    public VerificationSubmissionView resendEmailCode(Long userId) {
         if (userId == null) {
-            return null;
+            throw new BusinessException(ErrorCode.VERIFY_001_INVALID_INPUT);
         }
         CampusVerification latest = campusVerificationMapper.selectLatestByUserId(userId);
         if (latest == null) {
-            return -1L;
+            throw new BusinessException(ErrorCode.VERIFY_004_NOT_FOUND);
         }
         if (!STATUS_PENDING.equals(latest.getStatus())
-                || !ApiEnums.VerificationMethod.CAMPUS_EMAIL.name().equals(latest.getMethod())) {
-            return -2L;
+                || !VerificationMethod.CAMPUS_EMAIL.name().equals(latest.getMethod())) {
+            throw new BusinessException(ErrorCode.VERIFY_006_EMAIL_CODE_NOT_PENDING);
         }
 
         EmailCodeRecord record = parseEmailCodeRecord(latest.getEvidenceUrl());
         if (record == null || !isValidEmail(record.email())) {
-            return -3L;
+            throw new BusinessException(ErrorCode.VERIFY_006_EMAIL_CODE_NOT_PENDING);
         }
         return persistEmailCode(latest, record.email(), false);
     }
 
     @Override
-    public Object cancelLatestPending(Long userId) {
+    public VerificationCancelledView cancelLatestPending(Long userId) {
         if (userId == null) {
-            return null;
+            throw new BusinessException(ErrorCode.VERIFY_001_INVALID_INPUT);
         }
 
         CampusVerification latest = campusVerificationMapper.selectLatestByUserId(userId);
         if (latest == null) {
-            return -1L;
+            throw new BusinessException(ErrorCode.VERIFY_004_NOT_FOUND);
         }
         if (!STATUS_PENDING.equals(latest.getStatus())) {
-            return -2L;
+            throw new BusinessException(ErrorCode.VERIFY_009_CANNOT_CANCEL);
         }
 
         int affected = campusVerificationMapper.deletePendingById(latest.getId());
         if (affected <= 0) {
-            return -3L;
+            throw new BusinessException(ErrorCode.COMMON_003_CONFLICT);
         }
 
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("cancelled", true);
-        payload.put("id", latest.getId());
-        return payload;
+        return new VerificationCancelledView(true, latest.getId());
     }
 
     @Override
@@ -184,7 +185,7 @@ public class VerificationServiceImpl implements VerificationService {
     }
 
     @Override
-    public ResponseDtos.PagedResult<CampusVerification> listPending(int page, int size) {
+    public PagedResult<CampusVerification> listPending(int page, int size) {
         int safePage = Math.max(page, 1);
         int safeSize = Math.min(Math.max(size, 1), 100);
         Page<CampusVerification> result = campusVerificationMapper.selectPage(
@@ -195,21 +196,21 @@ public class VerificationServiceImpl implements VerificationService {
         List<CampusVerification> list = result.getRecords();
         long total = result.getTotal();
         list.forEach(this::hideEmailChallenge);
-        return new ResponseDtos.PagedResult<>(list, safePage, safeSize, total);
+        return new PagedResult<>(list, safePage, safeSize, total);
     }
 
     @Override
-    public Object review(Long adminUserId, Long verificationId, boolean approved, String rejectReason) {
+    public VerificationReviewView review(Long adminUserId, Long verificationId, boolean approved, String rejectReason) {
         if (adminUserId == null || verificationId == null) {
-            return null;
+            throw new BusinessException(ErrorCode.VERIFY_001_INVALID_INPUT);
         }
 
         CampusVerification entity = campusVerificationMapper.selectById(verificationId);
         if (entity == null) {
-            return -1L;
+            throw new BusinessException(ErrorCode.VERIFY_004_NOT_FOUND);
         }
         if (!STATUS_PENDING.equals(entity.getStatus())) {
-            return -2L;
+            throw new BusinessException(ErrorCode.COMMON_003_CONFLICT);
         }
 
         entity.setReviewerId(adminUserId);
@@ -224,20 +225,16 @@ public class VerificationServiceImpl implements VerificationService {
 
         int affected = campusVerificationMapper.updatePending(entity);
         if (affected <= 0) {
-            return -2L;
+            throw new BusinessException(ErrorCode.COMMON_003_CONFLICT);
         }
 
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("id", entity.getId());
-        payload.put("status", entity.getStatus());
-        payload.put("reviewerId", entity.getReviewerId());
-        payload.put("reviewedAt", entity.getReviewedAt());
-        return payload;
+        return new VerificationReviewView(entity.getId(), entity.getStatus(),
+                entity.getReviewerId(), entity.getReviewedAt());
     }
 
     private void applyRequestToEntity(
             CampusVerification entity,
-            RequestDtos.CreateVerificationRequest request) {
+            CreateVerificationRequest request) {
         entity.setMethod(request.method.name());
         entity.setRealNameCipher(request.realName);
         entity.setStudentNumberCipher(request.studentNumber);
@@ -251,14 +248,14 @@ public class VerificationServiceImpl implements VerificationService {
         entity.setReviewedAt(null);
     }
 
-    private Object persistEmailCode(CampusVerification entity, String rawEmail, boolean insert) {
+    private VerificationSubmissionView persistEmailCode(CampusVerification entity, String rawEmail, boolean insert) {
         String email = normalizeEmail(rawEmail);
         String code = generateEmailCode();
         LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(EMAIL_CODE_TTL_MINUTES);
         boolean sent = emailVerificationCodeSender.sendCode(email, code, expiresAt);
         if (!sent && (emailVerificationCodeSender.isDeliveryRequired()
                 || !emailVerificationCodeSender.isDebugCodeEnabled())) {
-            return -4L;
+            throw new BusinessException(ErrorCode.VERIFY_005_EMAIL_SEND_FAILED);
         }
 
         entity.setEvidenceUrl(buildEmailCodeEvidence(email, code, expiresAt));
@@ -266,20 +263,17 @@ public class VerificationServiceImpl implements VerificationService {
                 ? campusVerificationMapper.insert(entity)
                 : campusVerificationMapper.updatePending(entity);
         if (affected <= 0) {
-            return -2L;
+            throw new BusinessException(ErrorCode.VERIFY_003_SUBMIT_FAILED);
         }
 
-        Map<String, Object> payload = buildPayload(entity);
-        payload.put("campusEmail", email);
-        payload.put("emailDelivery", sent ? "SENT" : "DEV_FALLBACK");
-        if (!sent && emailVerificationCodeSender.isDebugCodeEnabled()) {
-            payload.put("debugCode", code);
-        }
-        return payload;
+        return new VerificationSubmissionView(entity.getId(), entity.getStatus(), entity.getUserId(),
+                entity.getMethod(), entity.getCreatedAt(), entity.getReviewedAt(), email,
+                sent ? "SENT" : "DEV_FALLBACK",
+                !sent && emailVerificationCodeSender.isDebugCodeEnabled() ? code : null);
     }
 
     private void hideEmailChallenge(CampusVerification verification) {
-        if (verification != null && ApiEnums.VerificationMethod.CAMPUS_EMAIL.name().equals(verification.getMethod())) {
+        if (verification != null && VerificationMethod.CAMPUS_EMAIL.name().equals(verification.getMethod())) {
             EmailCodeRecord record = parseEmailCodeRecord(verification.getEvidenceUrl());
             if (record != null) {
                 verification.setEvidenceUrl(record.email());
@@ -287,20 +281,14 @@ public class VerificationServiceImpl implements VerificationService {
         }
     }
 
-    private Map<String, Object> buildPayload(CampusVerification entity) {
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("id", entity.getId());
-        payload.put("status", entity.getStatus());
-        payload.put("userId", entity.getUserId());
-        payload.put("method", entity.getMethod());
-        payload.put("createdAt", entity.getCreatedAt());
-        payload.put("reviewedAt", entity.getReviewedAt());
-        return payload;
+    private VerificationSubmissionView buildPayload(CampusVerification entity) {
+        return new VerificationSubmissionView(entity.getId(), entity.getStatus(), entity.getUserId(),
+                entity.getMethod(), entity.getCreatedAt(), entity.getReviewedAt(), null, null, null);
     }
 
-    private boolean requiresEvidenceUrl(ApiEnums.VerificationMethod method) {
-        return method == ApiEnums.VerificationMethod.STUDENT_CARD_IMAGE
-                || method == ApiEnums.VerificationMethod.MANUAL_REVIEW;
+    private boolean requiresEvidenceUrl(VerificationMethod method) {
+        return method == VerificationMethod.STUDENT_CARD_IMAGE
+                || method == VerificationMethod.MANUAL_REVIEW;
     }
 
     private boolean isValidEmail(String value) {

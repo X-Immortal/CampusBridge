@@ -2,15 +2,18 @@ package com.campusbridge.unit;
 
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
-import com.campusbridge.dto.enums.ApiEnums;
-import com.campusbridge.dto.request.RequestDtos;
-import com.campusbridge.mapper.CampusVerificationMapper;
-import com.campusbridge.mapper.TaskMapper;
-import com.campusbridge.mapper.TaskApplicationMapper;
-import com.campusbridge.pojo.CampusVerification;
-import com.campusbridge.pojo.Task;
+import com.campusbridge.dto.request.CreateTaskRequest;
+import com.campusbridge.dto.request.TaskStatusTransitionRequest;
 import com.campusbridge.dto.view.TaskView;
-import com.campusbridge.pojo.TaskApplication;
+import com.campusbridge.entity.CampusVerification;
+import com.campusbridge.entity.Task;
+import com.campusbridge.entity.TaskApplication;
+import com.campusbridge.enums.RewardType;
+import com.campusbridge.enums.TaskCategory;
+import com.campusbridge.enums.TaskStatusTransitionAction;
+import com.campusbridge.mapper.CampusVerificationMapper;
+import com.campusbridge.mapper.TaskApplicationMapper;
+import com.campusbridge.mapper.TaskMapper;
 import com.campusbridge.service.ContentModerationService;
 import com.campusbridge.service.CreditService;
 import com.campusbridge.service.NotificationService;
@@ -91,14 +94,14 @@ class BE04BE08TaskServiceImplTest {
         assertThat(created.getAllowOfflineContact()).isEqualTo(0);
         assertThat(created.getDeliveryLocation()).isEqualTo("5号宿舍楼");
         verify(contentModerationService)
-                .assertTaskPublishAllowed(eq(REQUESTER_ID), any(RequestDtos.CreateTaskRequest.class));
+                .assertTaskPublishAllowed(eq(REQUESTER_ID), any(CreateTaskRequest.class));
         verify(taskHistoryService)
                 .recordHistory(TASK_ID, null, "OPEN", REQUESTER_ID, "TASK_CREATED");
     }
 
     @Test
     void createTaskRejectsMissingRequiredField() {
-        RequestDtos.CreateTaskRequest request = normalCreateRequest();
+        CreateTaskRequest request = normalCreateRequest();
         request.setTitle(" ");
 
         when(campusVerificationMapper.selectLatestByUserId(REQUESTER_ID))
@@ -112,7 +115,7 @@ class BE04BE08TaskServiceImplTest {
 
     @Test
     void createTaskRejectsPointsRewardGreaterThanTen() {
-        RequestDtos.CreateTaskRequest request = normalCreateRequest();
+        CreateTaskRequest request = normalCreateRequest();
         request.setRewardAmount(11);
 
         when(campusVerificationMapper.selectLatestByUserId(REQUESTER_ID))
@@ -151,7 +154,7 @@ class BE04BE08TaskServiceImplTest {
         TaskView transitioned = taskService.transitionTaskStatus(
                 PROVIDER_ID,
                 TASK_ID,
-                transitionRequest(ApiEnums.TaskStatusTransitionAction.START, null));
+                transitionRequest(TaskStatusTransitionAction.START, null));
 
         assertThat(transitioned.getStatus()).isEqualTo("IN_PROGRESS");
         verify(taskHistoryService).recordHistory(
@@ -169,7 +172,7 @@ class BE04BE08TaskServiceImplTest {
         assertThatThrownBy(() -> taskService.transitionTaskStatus(
                 REQUESTER_ID,
                 TASK_ID,
-                transitionRequest(ApiEnums.TaskStatusTransitionAction.CANCEL, "取消测试")))
+                transitionRequest(TaskStatusTransitionAction.CANCEL, "取消测试")))
                 .isInstanceOfSatisfying(BusinessException.class, ex ->
                         assertThat(ex.getErrorCode())
                                 .isEqualTo(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION));
@@ -180,7 +183,7 @@ class BE04BE08TaskServiceImplTest {
         assertThatThrownBy(() -> taskService.transitionTaskStatus(
                 PROVIDER_ID,
                 TASK_ID,
-                transitionRequest(ApiEnums.TaskStatusTransitionAction.DISPUTE, " ")))
+                transitionRequest(TaskStatusTransitionAction.DISPUTE, " ")))
                 .isInstanceOfSatisfying(BusinessException.class, ex ->
                         assertThat(ex.getErrorCode())
                                 .isEqualTo(ErrorCode.COMMON_001_VALIDATION_ERROR));
@@ -292,16 +295,16 @@ class BE04BE08TaskServiceImplTest {
         verify(taskMapper).deleteById(TASK_ID);
     }
 
-    private RequestDtos.CreateTaskRequest normalCreateRequest() {
-        RequestDtos.CreateTaskRequest request = new RequestDtos.CreateTaskRequest();
-        request.setCategory(ApiEnums.TaskCategory.ERRAND);
+    private CreateTaskRequest normalCreateRequest() {
+        CreateTaskRequest request = new CreateTaskRequest();
+        request.setCategory(TaskCategory.ERRAND);
         request.setTitle("帮取快递");
         request.setDescription("从校门口快递点取一个小包裹。");
         request.setCampus("仙林校区");
         request.setLocation("南门快递点");
         request.setDeliveryLocation("5号宿舍楼");
         request.setDeadline(LocalDateTime.now().plusDays(1));
-        request.setRewardType(ApiEnums.RewardType.POINTS);
+        request.setRewardType(RewardType.POINTS);
         request.setRewardDescription("10 积分");
         request.setRewardAmount(10);
         request.setCompletionStandard("送到宿舍楼下并拍照确认");
@@ -309,11 +312,11 @@ class BE04BE08TaskServiceImplTest {
         return request;
     }
 
-    private RequestDtos.TaskStatusTransitionRequest transitionRequest(
-            ApiEnums.TaskStatusTransitionAction action,
+    private TaskStatusTransitionRequest transitionRequest(
+            TaskStatusTransitionAction action,
             String reason) {
-        RequestDtos.TaskStatusTransitionRequest request =
-                new RequestDtos.TaskStatusTransitionRequest();
+        TaskStatusTransitionRequest request =
+                new TaskStatusTransitionRequest();
         request.setAction(action);
         request.setReason(reason);
         return request;

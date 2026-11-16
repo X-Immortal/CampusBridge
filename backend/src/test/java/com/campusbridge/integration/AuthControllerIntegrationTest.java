@@ -1,38 +1,42 @@
 package com.campusbridge.integration;
 
-import com.campusbridge.dto.request.RequestDtos;
+import com.campusbridge.common.BusinessException;
+import com.campusbridge.common.ErrorCode;
+import com.campusbridge.dto.request.LoginRequest;
+import com.campusbridge.dto.request.RegisterRequest;
+import com.campusbridge.dto.view.LoginView;
+import com.campusbridge.entity.User;
 import com.campusbridge.mapper.UserMapper;
-import com.campusbridge.pojo.User;
-import com.campusbridge.utils.JwtUtil;
+import com.campusbridge.service.AuthService;
 import com.campusbridge.service.PostService;
-import org.springframework.dao.DuplicateKeyException;
+import com.campusbridge.utils.JwtUtil;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
-import java.nio.charset.StandardCharsets;
-import java.util.Date;
-import com.campusbridge.service.AuthService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.MediaType;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Date;
 import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.verify;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -59,7 +63,7 @@ class AuthControllerIntegrationTest {
 
     @Test
     void registerReturnsUnifiedCreatedResponse() throws Exception {
-        when(authService.register(any(RequestDtos.RegisterRequest.class))).thenReturn(100L);
+        when(authService.register(any(RegisterRequest.class))).thenReturn(100L);
 
         mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -80,7 +84,7 @@ class AuthControllerIntegrationTest {
 
     @Test
     void loginInvalidCredentialsReturnsBusinessError() throws Exception {
-        when(authService.login(any(RequestDtos.LoginRequest.class))).thenReturn(-1L);
+        when(authService.login(any(LoginRequest.class))).thenThrow(new BusinessException(ErrorCode.AUTH_002_INVALID_CREDENTIALS));
 
         mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -97,10 +101,7 @@ class AuthControllerIntegrationTest {
 
     @Test
     void loginReturnsServicePayloadWhenCredentialsAreValid() throws Exception {
-        when(authService.login(any(RequestDtos.LoginRequest.class))).thenReturn(Map.of(
-                "userId", 100L,
-                "username", "alice",
-                "token", "jwt-token"));
+        when(authService.login(any(LoginRequest.class))).thenReturn(new LoginView(100L, "alice", "USER", "jwt-token", "refresh-token"));
 
         mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)

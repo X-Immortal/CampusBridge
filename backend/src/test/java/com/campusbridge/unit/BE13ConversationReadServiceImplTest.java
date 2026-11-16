@@ -3,19 +3,22 @@ package com.campusbridge.unit;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
-import com.campusbridge.dto.response.ResponseDtos;
-import com.campusbridge.mapper.ConversationMapper;
+import com.campusbridge.common.PagedResult;
+import com.campusbridge.dto.request.CreateConversationRequest;
+import com.campusbridge.dto.request.SendMessageRequest;
+import com.campusbridge.dto.view.ConversationView;
+import com.campusbridge.dto.view.ReadAllConversationsView;
+import com.campusbridge.dto.view.UnreadSummaryView;
+import com.campusbridge.entity.Attachment;
+import com.campusbridge.entity.Conversation;
+import com.campusbridge.entity.Message;
+import com.campusbridge.entity.User;
+import com.campusbridge.enums.MessageType;
 import com.campusbridge.mapper.AttachmentMapper;
+import com.campusbridge.mapper.ConversationMapper;
 import com.campusbridge.mapper.MessageMapper;
 import com.campusbridge.mapper.UserBlockMapper;
 import com.campusbridge.mapper.UserMapper;
-import com.campusbridge.dto.enums.ApiEnums;
-import com.campusbridge.dto.request.RequestDtos;
-import com.campusbridge.pojo.Attachment;
-import com.campusbridge.pojo.Conversation;
-import com.campusbridge.dto.view.ConversationView;
-import com.campusbridge.pojo.Message;
-import com.campusbridge.pojo.User;
 import com.campusbridge.service.impl.ConversationServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,7 +28,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -77,7 +79,7 @@ class BE13ConversationReadServiceImplTest {
             return result;
         });
 
-        ResponseDtos.PagedResult<Message> result = conversationService.listMessages(
+        PagedResult<Message> result = conversationService.listMessages(
                 OWNER_ID,
                 CONVERSATION_ID,
                 1,
@@ -106,11 +108,10 @@ class BE13ConversationReadServiceImplTest {
         when(messageMapper.markOwnerUnreadAsRead(eq(OWNER_ID), any(LocalDateTime.class))).thenReturn(5);
         when(messageMapper.countOwnerUnread(OWNER_ID)).thenReturn(0L);
 
-        Map<String, Object> result = conversationService.markAllConversationsRead(OWNER_ID);
+        ReadAllConversationsView result = conversationService.markAllConversationsRead(OWNER_ID);
 
-        assertThat(result)
-                .containsEntry("updatedCount", 5)
-                .containsEntry("unreadCount", 0L);
+        assertThat(result.updatedCount()).isEqualTo(5);
+        assertThat(result.unreadCount()).isZero();
     }
 
     @Test
@@ -118,11 +119,11 @@ class BE13ConversationReadServiceImplTest {
         when(messageMapper.countOwnerUnreadBySystemType(OWNER_ID, true)).thenReturn(3L);
         when(messageMapper.countOwnerUnreadBySystemType(OWNER_ID, false)).thenReturn(4L);
 
-        Map<String, Object> result = conversationService.getUnreadSummary(OWNER_ID);
+        UnreadSummaryView result = conversationService.getUnreadSummary(OWNER_ID);
 
-        assertThat(result).containsEntry("total", 7L);
-        assertThat(result).containsEntry("system", 3L);
-        assertThat(result).containsEntry("private", 4L);
+        assertThat(result.total()).isEqualTo(7L);
+        assertThat(result.system()).isEqualTo(3L);
+        assertThat(result.privateCount()).isEqualTo(4L);
     }
 
     @Test
@@ -141,8 +142,8 @@ class BE13ConversationReadServiceImplTest {
                 .thenReturn(conversation());
         when(userBlockMapper.existsEitherDirection(OWNER_ID, 2L)).thenReturn(true);
 
-        RequestDtos.SendMessageRequest request = new RequestDtos.SendMessageRequest();
-        request.setType(ApiEnums.MessageType.TEXT);
+        SendMessageRequest request = new SendMessageRequest();
+        request.setType(MessageType.TEXT);
         request.setContent("hello");
 
         assertThatThrownBy(() -> conversationService.sendMessage(OWNER_ID, CONVERSATION_ID, request))
@@ -180,8 +181,8 @@ class BE13ConversationReadServiceImplTest {
             return 1;
         });
 
-        RequestDtos.SendMessageRequest request = new RequestDtos.SendMessageRequest();
-        request.setType(ApiEnums.MessageType.IMAGE);
+        SendMessageRequest request = new SendMessageRequest();
+        request.setType(MessageType.IMAGE);
         request.setContent(attachment.getFileUrl());
         request.setAttachmentIds(List.of(30L));
 
@@ -207,7 +208,7 @@ class BE13ConversationReadServiceImplTest {
         when(conversationMapper.selectPrivateByOwnerAndPeer(2L, OWNER_ID))
                 .thenReturn(peerConversation);
 
-        RequestDtos.CreateConversationRequest request = new RequestDtos.CreateConversationRequest();
+        CreateConversationRequest request = new CreateConversationRequest();
         request.setPeerUserId(2L);
         request.setRelatedType("POST");
         request.setRelatedId(99L);
@@ -235,8 +236,8 @@ class BE13ConversationReadServiceImplTest {
         peer.setEnabled(0);
         when(userMapper.selectById(2L)).thenReturn(peer);
         when(conversationMapper.selectOwnedById(CONVERSATION_ID, OWNER_ID)).thenReturn(conversation());
-        RequestDtos.SendMessageRequest request = new RequestDtos.SendMessageRequest();
-        request.setType(ApiEnums.MessageType.TEXT);
+        SendMessageRequest request = new SendMessageRequest();
+        request.setType(MessageType.TEXT);
         request.setContent("Hello");
         assertThatThrownBy(() -> conversationService.sendMessage(OWNER_ID, CONVERSATION_ID, request))
                 .isInstanceOf(BusinessException.class);

@@ -1,14 +1,14 @@
 package com.campusbridge.unit;
 
+import com.campusbridge.dto.view.TaskView;
+import com.campusbridge.entity.Attachment;
+import com.campusbridge.entity.CompletionProof;
 import com.campusbridge.mapper.AttachmentMapper;
 import com.campusbridge.mapper.CompletionProofMapper;
 import com.campusbridge.mapper.ReviewMapper;
 import com.campusbridge.mapper.TaskHistoryMapper;
-import com.campusbridge.pojo.Attachment;
-import com.campusbridge.pojo.CompletionProof;
-import com.campusbridge.dto.view.TaskView;
-import com.campusbridge.service.impl.TaskDetailServiceImpl;
 import com.campusbridge.service.TaskService;
+import com.campusbridge.service.impl.TaskDetailServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

@@ -2,20 +2,21 @@ package com.campusbridge.service.impl;
 
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
-import com.campusbridge.dto.request.RequestDtos;
-import com.campusbridge.dto.view.ViewDtos;
+import com.campusbridge.dto.request.CreateTaskApplicationRequest;
+import com.campusbridge.dto.view.MyTaskApplicationView;
+import com.campusbridge.dto.view.TaskApplicationCandidateView;
+import com.campusbridge.entity.CampusVerification;
+import com.campusbridge.entity.Task;
+import com.campusbridge.entity.TaskApplication;
+import com.campusbridge.entity.User;
+import com.campusbridge.entity.UserCredit;
+import com.campusbridge.entity.UserProfile;
 import com.campusbridge.mapper.CampusVerificationMapper;
 import com.campusbridge.mapper.TaskApplicationMapper;
 import com.campusbridge.mapper.TaskMapper;
 import com.campusbridge.mapper.UserCreditMapper;
 import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.mapper.UserProfileMapper;
-import com.campusbridge.pojo.CampusVerification;
-import com.campusbridge.pojo.Task;
-import com.campusbridge.pojo.TaskApplication;
-import com.campusbridge.pojo.User;
-import com.campusbridge.pojo.UserCredit;
-import com.campusbridge.pojo.UserProfile;
 import com.campusbridge.service.NotificationService;
 import com.campusbridge.service.TaskApplicationService;
 import com.campusbridge.service.TaskHistoryService;
@@ -70,7 +71,7 @@ public class TaskApplicationServiceImpl implements TaskApplicationService {
     public TaskApplication createApplication(
             Long applicantId,
             Long taskId,
-            RequestDtos.CreateTaskApplicationRequest request) {
+            CreateTaskApplicationRequest request) {
         validateApplicationRequest(applicantId, taskId, request);
 
         Task task = requireTaskForUpdate(taskId);
@@ -128,7 +129,7 @@ public class TaskApplicationServiceImpl implements TaskApplicationService {
     }
 
     @Override
-    public List<ViewDtos.TaskApplicationCandidateView> listApplications(
+    public List<TaskApplicationCandidateView> listApplications(
             Long requesterId,
             Long taskId) {
         Task task = requireTask(taskId);
@@ -141,14 +142,14 @@ public class TaskApplicationServiceImpl implements TaskApplicationService {
     }
 
     @Override
-    public List<ViewDtos.MyTaskApplicationView> listMyApplications(Long applicantId) {
+    public List<MyTaskApplicationView> listMyApplications(Long applicantId) {
         if (applicantId == null) {
             throw new BusinessException(ErrorCode.AUTH_001_UNAUTHORIZED);
         }
 
         return taskApplicationMapper.selectByApplicantId(applicantId)
                 .stream()
-                .map(application -> new ViewDtos.MyTaskApplicationView(
+                .map(application -> new MyTaskApplicationView(
                         application,
                         taskMapper.selectDetailById(application.getTaskId())))
                 .filter(view -> view.getTask() != null)
@@ -261,7 +262,7 @@ public class TaskApplicationServiceImpl implements TaskApplicationService {
     private void validateApplicationRequest(
             Long applicantId,
             Long taskId,
-            RequestDtos.CreateTaskApplicationRequest request) {
+            CreateTaskApplicationRequest request) {
         if (applicantId == null || taskId == null) {
             throwValidation("applicantId and taskId are required");
         }
@@ -305,7 +306,7 @@ public class TaskApplicationServiceImpl implements TaskApplicationService {
         }
     }
 
-    private ViewDtos.TaskApplicationCandidateView toCandidateView(TaskApplication application) {
+    private TaskApplicationCandidateView toCandidateView(TaskApplication application) {
         Long applicantId = application.getApplicantId();
         User user = userMapper.selectById(applicantId);
         UserProfile profile = userProfileMapper.selectByUserId(applicantId);
@@ -313,7 +314,7 @@ public class TaskApplicationServiceImpl implements TaskApplicationService {
         CampusVerification verification =
                 campusVerificationMapper.selectLatestByUserId(applicantId);
 
-        return new ViewDtos.TaskApplicationCandidateView(
+        return new TaskApplicationCandidateView(
                 application.getId(),
                 applicantId,
                 user == null ? null : user.getUsername(),

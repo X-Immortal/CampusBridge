@@ -1,8 +1,9 @@
 package com.campusbridge.controller;
 
+import com.campusbridge.common.ApiResponse;
 import com.campusbridge.common.CurrentUserResolver;
-import com.campusbridge.dto.request.RequestDtos;
-import com.campusbridge.pojo.Result;
+import com.campusbridge.dto.request.CreateReviewRequest;
+import com.campusbridge.entity.Review;
 import com.campusbridge.service.ReviewService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
@@ -11,8 +12,10 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/tasks/{taskId}/reviews")
@@ -30,16 +33,16 @@ public class ReviewController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Result createReview(
+    public ApiResponse<Review> createReview(
             HttpServletRequest servletRequest,
             @PathVariable Long taskId,
-            @RequestBody RequestDtos.CreateReviewRequest request) {
+            @RequestBody CreateReviewRequest request) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
-        return Result.success(reviewService.createReview(currentUserId, taskId, request));
+        return ApiResponse.success(reviewService.createReview(currentUserId, taskId, request));
     }
 
     @GetMapping
-    public Result listReviews(@PathVariable Long taskId) {
-        return Result.success(reviewService.listReviews(taskId));
+    public ApiResponse<List<Review>> listReviews(@PathVariable Long taskId) {
+        return ApiResponse.success(reviewService.listReviews(taskId));
     }
 }

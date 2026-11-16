@@ -1,10 +1,10 @@
 package com.campusbridge.mapper;
 
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.campusbridge.dto.view.ConversationView;
-import com.campusbridge.pojo.Conversation;
+import com.campusbridge.entity.Conversation;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 

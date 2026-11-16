@@ -1,11 +1,11 @@
 package com.campusbridge.mapper;
 
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.campusbridge.dto.query.TaskQuery;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.campusbridge.dto.query.TaskQuery;
 import com.campusbridge.dto.view.TaskView;
-import com.campusbridge.pojo.Task;
+import com.campusbridge.entity.Task;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 

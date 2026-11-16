@@ -1,22 +1,24 @@
 package com.campusbridge.service;
 
-import com.campusbridge.dto.request.RequestDtos;
-import com.campusbridge.dto.response.ResponseDtos;
-import com.campusbridge.dto.view.ViewDtos;
+import com.campusbridge.common.PagedResult;
+import com.campusbridge.dto.request.CreatePostRequest;
+import com.campusbridge.dto.request.UpdatePostRequest;
+import com.campusbridge.dto.view.MyReplyPostView;
+import com.campusbridge.dto.view.PostDetailView;
 import com.campusbridge.dto.view.PostView;
 
 public interface PostService {
-    PostView createPost(Long userId, RequestDtos.CreatePostRequest request);
+    PostView createPost(Long userId, CreatePostRequest request);
 
-    ResponseDtos.PagedResult<PostView> listPosts(
+    PagedResult<PostView> listPosts(
             String keyword, String category, String status, Integer page, Integer size);
 
-    ResponseDtos.PagedResult<ViewDtos.MyReplyPostView> listPostsRepliedByUser(
+    PagedResult<MyReplyPostView> listPostsRepliedByUser(
             Long userId, String keyword, String category, String status, Integer page, Integer size);
 
-    ViewDtos.PostDetailView getPostDetail(Long postId, Long currentUserId);
+    PostDetailView getPostDetail(Long postId, Long currentUserId);
 
-    PostView updatePost(Long userId, Long postId, RequestDtos.UpdatePostRequest request);
+    PostView updatePost(Long userId, Long postId, UpdatePostRequest request);
 
     void deletePost(Long userId, Long postId);
 }

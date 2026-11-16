@@ -2,7 +2,8 @@ package com.campusbridge.service.impl;
 
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
-import com.campusbridge.dto.request.RequestDtos;
+import com.campusbridge.dto.request.CreatePostRequest;
+import com.campusbridge.dto.request.CreateTaskRequest;
 import com.campusbridge.service.ContentModerationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,7 +50,7 @@ public class ContentModerationServiceImpl implements ContentModerationService {
     @Override
     public void assertPostPublishAllowed(
             Long operatorId,
-            RequestDtos.CreatePostRequest request) {
+            CreatePostRequest request) {
         if (request == null) {
             return;
         }
@@ -60,7 +61,7 @@ public class ContentModerationServiceImpl implements ContentModerationService {
     @Override
     public void assertTaskPublishAllowed(
             Long operatorId,
-            RequestDtos.CreateTaskRequest request) {
+            CreateTaskRequest request) {
         if (request == null) {
             return;
         }
@@ -101,14 +102,14 @@ public class ContentModerationServiceImpl implements ContentModerationService {
                 List.of("ruleCode=" + hit.ruleCode(), "keyword=" + hit.keyword()));
     }
 
-    private String buildPostContent(RequestDtos.CreatePostRequest request) {
+    private String buildPostContent(CreatePostRequest request) {
         StringBuilder builder = new StringBuilder();
         append(builder, request.getTitle());
         append(builder, request.getContent());
         return builder.toString();
     }
 
-    private String buildTaskContent(RequestDtos.CreateTaskRequest request) {
+    private String buildTaskContent(CreateTaskRequest request) {
         StringBuilder builder = new StringBuilder();
         append(builder, request.getTitle());
         append(builder, request.getDescription());

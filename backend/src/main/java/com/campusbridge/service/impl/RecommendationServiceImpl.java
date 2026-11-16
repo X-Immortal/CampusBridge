@@ -1,20 +1,19 @@
 package com.campusbridge.service.impl;
 
+import com.campusbridge.dto.UserPreferences;
+import com.campusbridge.dto.view.PostView;
+import com.campusbridge.dto.view.TaskView;
 import com.campusbridge.mapper.PostInteractionMapper;
 import com.campusbridge.mapper.PostMapper;
 import com.campusbridge.mapper.TaskApplicationMapper;
 import com.campusbridge.mapper.TaskMapper;
-import com.campusbridge.dto.view.PostView;
-import com.campusbridge.dto.view.TaskView;
 import com.campusbridge.service.RecommendationService;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -36,30 +35,25 @@ public class RecommendationServiceImpl implements RecommendationService {
     }
 
     @Override
-    public Map<String, Object> getUserPreferences(Long userId) {
+    public UserPreferences getUserPreferences(Long userId) {
         if (userId == null) {
-            return Collections.emptyMap();
+            return new UserPreferences(List.of(), List.of(), List.of(), List.of());
         }
-
-        Map<String, Object> preferences = new HashMap<>();
 
         // 1. 统计用户最常接的任务分类（前3）
         List<String> preferredTaskCategories = taskApplicationMapper.selectPreferredCategories(userId, 3);
-        preferences.put("preferredTaskCategories", preferredTaskCategories);
 
         // 2. 统计用户最活跃的校区（前2）
         List<String> preferredCampuses = taskMapper.selectPreferredCampuses(userId, 2);
-        preferences.put("preferredCampuses", preferredCampuses);
 
         // 3. 统计用户偏好的报酬类型（前2）
         List<String> preferredRewardTypes = taskApplicationMapper.selectPreferredRewardTypes(userId, 2);
-        preferences.put("preferredRewardTypes", preferredRewardTypes);
 
         // 4. 统计用户互动的帖子分类（前3）
         List<String> interactionCategories = postInteractionMapper.selectPreferredPostCategories(userId, 3);
-        preferences.put("interactionCategories", interactionCategories);
 
-        return preferences;
+        return new UserPreferences(preferredTaskCategories, preferredCampuses,
+                preferredRewardTypes, interactionCategories);
     }
 
     @Override
@@ -69,13 +63,10 @@ public class RecommendationServiceImpl implements RecommendationService {
         }
 
         // 获取用户偏好
-        Map<String, Object> preferences = getUserPreferences(userId);
-        List<String> preferredCategories = (List<String>) preferences
-                .getOrDefault("preferredTaskCategories", Collections.emptyList());
-        List<String> preferredCampuses = (List<String>) preferences
-                .getOrDefault("preferredCampuses", Collections.emptyList());
-        List<String> preferredRewards = (List<String>) preferences
-                .getOrDefault("preferredRewardTypes", Collections.emptyList());
+        UserPreferences preferences = getUserPreferences(userId);
+        List<String> preferredCategories = preferences.preferredTaskCategories();
+        List<String> preferredCampuses = preferences.preferredCampuses();
+        List<String> preferredRewards = preferences.preferredRewardTypes();
 
         // 获取所有 OPEN 状态且未截止的任务
         List<TaskView> candidates = taskMapper.selectOpenTasksWithDeadline();
@@ -102,9 +93,8 @@ public class RecommendationServiceImpl implements RecommendationService {
         }
 
         // 获取用户偏好
-        Map<String, Object> preferences = getUserPreferences(userId);
-        List<String> interactionCategories = (List<String>) preferences
-                .getOrDefault("interactionCategories", Collections.emptyList());
+        UserPreferences preferences = getUserPreferences(userId);
+        List<String> interactionCategories = preferences.interactionCategories();
 
         // 获取所有已发布的帖子
         List<PostView> candidates = postMapper.selectAllPublishedPosts();

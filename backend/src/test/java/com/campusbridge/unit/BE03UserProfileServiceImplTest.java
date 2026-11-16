@@ -2,16 +2,17 @@ package com.campusbridge.unit;
 
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
-import com.campusbridge.dto.request.RequestDtos;
-import com.campusbridge.dto.view.ViewDtos;
+import com.campusbridge.dto.request.UpdateUserProfileRequest;
+import com.campusbridge.dto.view.UserHomepageView;
+import com.campusbridge.dto.view.UserProfileView;
+import com.campusbridge.entity.CampusVerification;
+import com.campusbridge.entity.User;
+import com.campusbridge.entity.UserCredit;
+import com.campusbridge.entity.UserProfile;
 import com.campusbridge.mapper.CampusVerificationMapper;
 import com.campusbridge.mapper.UserCreditMapper;
 import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.mapper.UserProfileMapper;
-import com.campusbridge.pojo.CampusVerification;
-import com.campusbridge.pojo.User;
-import com.campusbridge.pojo.UserCredit;
-import com.campusbridge.pojo.UserProfile;
 import com.campusbridge.service.impl.UserProfileServiceImpl;
 import com.campusbridge.utils.AliOSSUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -71,7 +72,7 @@ class BE03UserProfileServiceImplTest {
             return 1;
         });
 
-        ViewDtos.UserProfileView profile = userProfileService.getMyProfile(USER_ID);
+        UserProfileView profile = userProfileService.getMyProfile(USER_ID);
 
         assertThat(profile.getUserId()).isEqualTo(USER_ID);
         assertThat(profile.getInterestTags()).isEmpty();
@@ -85,14 +86,14 @@ class BE03UserProfileServiceImplTest {
         when(userProfileMapper.selectByUserId(USER_ID)).thenReturn(existing);
         when(userProfileMapper.updateById(any(UserProfile.class))).thenReturn(1);
 
-        RequestDtos.UpdateUserProfileRequest request = new RequestDtos.UpdateUserProfileRequest();
+        UpdateUserProfileRequest request = new UpdateUserProfileRequest();
         request.setNickname("小桥");
         request.setBio(null);
         request.setCampus("鼓楼校区");
         request.setInterestTags(List.of("跑腿", "二手"));
         request.setSkillTags(List.of("Java"));
 
-        ViewDtos.UserProfileView updated = userProfileService.updateMyProfile(USER_ID, request);
+        UserProfileView updated = userProfileService.updateMyProfile(USER_ID, request);
 
         assertThat(updated.getNickname()).isEqualTo("小桥");
         assertThat(updated.getBio()).isNull();
@@ -104,7 +105,7 @@ class BE03UserProfileServiceImplTest {
     void updateMyProfileRejectsTooLongBio() {
         when(userMapper.selectById(USER_ID)).thenReturn(user());
 
-        RequestDtos.UpdateUserProfileRequest request = new RequestDtos.UpdateUserProfileRequest();
+        UpdateUserProfileRequest request = new UpdateUserProfileRequest();
         request.setBio("x".repeat(501));
 
         assertThatThrownBy(() -> userProfileService.updateMyProfile(USER_ID, request))
@@ -121,7 +122,7 @@ class BE03UserProfileServiceImplTest {
         when(campusVerificationMapper.selectLatestByUserId(USER_ID))
                 .thenReturn(verifiedRecord());
 
-        ViewDtos.UserHomepageView homepage = userProfileService.getUserHomepage(USER_ID);
+        UserHomepageView homepage = userProfileService.getUserHomepage(USER_ID);
 
         assertThat(homepage.getUserId()).isEqualTo(USER_ID);
         assertThat(homepage.getVerified()).isTrue();

@@ -1,19 +1,20 @@
 package com.campusbridge.controller;
 
+import com.campusbridge.common.ApiResponse;
+import com.campusbridge.dto.view.HomePostView;
+import com.campusbridge.dto.view.HomeRecommendationsView;
+import com.campusbridge.dto.view.HomeTaskView;
+import com.campusbridge.dto.view.PostView;
+import com.campusbridge.dto.view.TaskView;
 import com.campusbridge.mapper.PostMapper;
 import com.campusbridge.mapper.TaskMapper;
-import com.campusbridge.dto.view.PostView;
-import com.campusbridge.pojo.Result;
-import com.campusbridge.dto.view.TaskView;
 import com.campusbridge.service.RecommendationService;
 import com.campusbridge.utils.AuthContextUtil;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/home")
@@ -34,7 +35,7 @@ public class HomeController {
     }
 
     @GetMapping("/recommendations")
-    public Result getRecommendations() {
+    public ApiResponse<HomeRecommendationsView> getRecommendations() {
         Long userId = authContextUtil.getCurrentUserId();
         List<PostView> posts;
         List<TaskView> tasks;
@@ -47,39 +48,20 @@ public class HomeController {
             tasks = taskMapper.selectRecommendedTasks("OPEN", 6);
         }
 
-        Map<String, Object> data = new HashMap<>();
-        data.put("hotPosts", posts.stream().map(this::toPublicPost).toList());
-        data.put("latestTasks", tasks.stream().map(this::toPublicTask).toList());
-        return Result.success(data);
+        return ApiResponse.success(new HomeRecommendationsView(
+                posts.stream().map(this::toPublicPost).toList(),
+                tasks.stream().map(this::toPublicTask).toList()));
     }
 
-    private Map<String, Object> toPublicPost(PostView post) {
-        Map<String, Object> item = new HashMap<>();
-        item.put("id", post.getId());
-        item.put("authorId", post.getAuthorId());
-        item.put("authorName", post.getAuthorName());
-        item.put("category", post.getCategory());
-        item.put("title", post.getTitle());
-        item.put("content", post.getContent());
-        item.put("replyCount", post.getReplyCount());
-        item.put("likeCount", post.getLikeCount());
-        item.put("createdAt", post.getCreatedAt());
-        return item;
+    private HomePostView toPublicPost(PostView post) {
+        return new HomePostView(post.getId(), post.getAuthorId(), post.getAuthorName(),
+                post.getCategory(), post.getTitle(), post.getContent(),
+                post.getReplyCount(), post.getLikeCount(), post.getCreatedAt());
     }
 
-    private Map<String, Object> toPublicTask(TaskView task) {
-        Map<String, Object> item = new HashMap<>();
-        item.put("id", task.getId());
-        item.put("requesterId", task.getRequesterId());
-        item.put("category", task.getCategory());
-        item.put("title", task.getTitle());
-        item.put("description", task.getDescription());
-        item.put("campus", task.getCampus());
-        item.put("location", task.getLocation());
-        item.put("deliveryLocation", task.getDeliveryLocation());
-        item.put("deadline", task.getDeadline());
-        item.put("rewardType", task.getRewardType());
-        item.put("rewardDescription", task.getRewardDescription());
-        return item;
+    private HomeTaskView toPublicTask(TaskView task) {
+        return new HomeTaskView(task.getId(), task.getRequesterId(), task.getCategory(),
+                task.getTitle(), task.getDescription(), task.getCampus(), task.getLocation(),
+                task.getDeliveryLocation(), task.getDeadline(), task.getRewardType(), task.getRewardDescription());
     }
 }

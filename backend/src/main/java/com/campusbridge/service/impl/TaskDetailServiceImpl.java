@@ -2,14 +2,14 @@ package com.campusbridge.service.impl;
 
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
-import com.campusbridge.dto.view.ViewDtos;
+import com.campusbridge.dto.view.TaskDetailView;
+import com.campusbridge.dto.view.TaskView;
+import com.campusbridge.entity.Attachment;
+import com.campusbridge.entity.CompletionProof;
 import com.campusbridge.mapper.AttachmentMapper;
 import com.campusbridge.mapper.CompletionProofMapper;
 import com.campusbridge.mapper.ReviewMapper;
 import com.campusbridge.mapper.TaskHistoryMapper;
-import com.campusbridge.pojo.Attachment;
-import com.campusbridge.pojo.CompletionProof;
-import com.campusbridge.dto.view.TaskView;
 import com.campusbridge.service.TaskDetailService;
 import com.campusbridge.service.TaskService;
 import org.springframework.stereotype.Service;
@@ -41,7 +41,7 @@ public class TaskDetailServiceImpl implements TaskDetailService {
     }
 
     @Override
-    public ViewDtos.TaskDetailView getTaskDetail(Long taskId, Long currentUserId) {
+    public TaskDetailView getTaskDetail(Long taskId, Long currentUserId) {
         if (taskId == null) {
             throw new BusinessException(
                     ErrorCode.COMMON_001_VALIDATION_ERROR,
@@ -51,7 +51,7 @@ public class TaskDetailServiceImpl implements TaskDetailService {
         TaskView task = taskService.getTaskDetail(taskId, currentUserId);
 
         if (!isParticipant(task, currentUserId)) {
-            return new ViewDtos.TaskDetailView(
+            return new TaskDetailView(
                     task,
                     Collections.emptyList(),
                     null,
@@ -65,7 +65,7 @@ public class TaskDetailServiceImpl implements TaskDetailService {
                 ? Collections.emptyList()
                 : attachmentMapper.selectByOwner(OWNER_TYPE_COMPLETION_PROOF, proof.getId());
 
-        return new ViewDtos.TaskDetailView(
+        return new TaskDetailView(
                 task,
                 Collections.emptyList(),
                 proof,

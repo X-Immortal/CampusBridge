@@ -2,8 +2,8 @@ package com.campusbridge.unit;
 
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
+import com.campusbridge.entity.TaskHistory;
 import com.campusbridge.mapper.TaskHistoryMapper;
-import com.campusbridge.pojo.TaskHistory;
 import com.campusbridge.service.impl.TaskHistoryServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

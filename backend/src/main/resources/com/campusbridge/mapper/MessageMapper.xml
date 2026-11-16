@@ -29,7 +29,7 @@
       <if test="!isSystem">AND c.type != 'SYSTEM'</if>
   </select>
 
-  <select id="selectOwnedById" resultType="com.campusbridge.pojo.Message">
+  <select id="selectOwnedById" resultType="com.campusbridge.entity.Message">
     SELECT m.* FROM messages m INNER JOIN conversations c ON c.id = m.conversation_id
     WHERE m.id = #{id} AND c.owner_id = #{ownerId}
   </select>

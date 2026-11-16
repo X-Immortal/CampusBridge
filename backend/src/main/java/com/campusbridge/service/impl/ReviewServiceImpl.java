@@ -2,15 +2,15 @@ package com.campusbridge.service.impl;
 
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
-import com.campusbridge.dto.request.RequestDtos;
+import com.campusbridge.dto.request.CreateReviewRequest;
+import com.campusbridge.entity.Review;
+import com.campusbridge.entity.Task;
 import com.campusbridge.mapper.ReviewMapper;
 import com.campusbridge.mapper.TaskMapper;
-import com.campusbridge.pojo.Review;
-import com.campusbridge.pojo.Task;
-import com.campusbridge.service.ReviewService;
 import com.campusbridge.service.NotificationService;
-import org.springframework.stereotype.Service;
+import com.campusbridge.service.ReviewService;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -36,7 +36,7 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     @Override
-    public Review createReview(Long reviewerId, Long taskId, RequestDtos.CreateReviewRequest request) {
+    public Review createReview(Long reviewerId, Long taskId, CreateReviewRequest request) {
         if (reviewerId == null || taskId == null || request == null) {
             throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR,
                     "reviewerId, taskId and request body are required");

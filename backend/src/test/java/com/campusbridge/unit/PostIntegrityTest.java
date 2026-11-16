@@ -1,17 +1,20 @@
 package com.campusbridge.unit;
 
 import com.campusbridge.common.BusinessException;
-import com.campusbridge.dto.enums.ApiEnums;
-import com.campusbridge.dto.request.RequestDtos;
+import com.campusbridge.dto.request.CreatePostRequest;
+import com.campusbridge.dto.request.CreateReplyRequest;
+import com.campusbridge.dto.request.UpdatePostRequest;
+import com.campusbridge.dto.view.PostView;
+import com.campusbridge.entity.Attachment;
+import com.campusbridge.entity.Post;
+import com.campusbridge.entity.PostInteraction;
+import com.campusbridge.entity.Reply;
+import com.campusbridge.enums.PostCategory;
+import com.campusbridge.enums.PostStatus;
 import com.campusbridge.mapper.AttachmentMapper;
 import com.campusbridge.mapper.PostInteractionMapper;
 import com.campusbridge.mapper.PostMapper;
 import com.campusbridge.mapper.ReplyMapper;
-import com.campusbridge.pojo.Attachment;
-import com.campusbridge.pojo.Post;
-import com.campusbridge.dto.view.PostView;
-import com.campusbridge.pojo.PostInteraction;
-import com.campusbridge.pojo.Reply;
 import com.campusbridge.service.NotificationService;
 import com.campusbridge.service.impl.ContentModerationServiceImpl;
 import com.campusbridge.service.impl.InteractionServiceImpl;
@@ -52,7 +55,7 @@ class PostIntegrityTest {
 
     @Test
     void blankPostCannotReachPersistence() {
-        RequestDtos.CreatePostRequest request = request();
+        CreatePostRequest request = request();
         request.setTitle(" ");
         assertThatThrownBy(() -> service.createPost(1L, request)).isInstanceOf(BusinessException.class);
         verify(posts, never()).insert(any(Post.class));
@@ -61,7 +64,7 @@ class PostIntegrityTest {
     @Test
     void editingCannotBypassPublishModeration() {
         when(posts.selectById(10L)).thenReturn(post("PUBLISHED"));
-        RequestDtos.UpdatePostRequest request = new RequestDtos.UpdatePostRequest();
+        UpdatePostRequest request = new UpdatePostRequest();
         request.setContent("代考");
         assertThatThrownBy(() -> service.updatePost(1L, 10L, request)).isInstanceOf(BusinessException.class);
         verify(posts, never()).updateContent(any(), any());
@@ -70,10 +73,10 @@ class PostIntegrityTest {
     @Test
     void authorCannotPublishModeratedPostOrSetModerationStatus() {
         when(posts.selectById(10L)).thenReturn(post("HIDDEN"), post("PUBLISHED"));
-        RequestDtos.UpdatePostRequest request = new RequestDtos.UpdatePostRequest();
-        request.setStatus(ApiEnums.PostStatus.PUBLISHED);
+        UpdatePostRequest request = new UpdatePostRequest();
+        request.setStatus(PostStatus.PUBLISHED);
         assertThatThrownBy(() -> service.updatePost(1L, 10L, request)).isInstanceOf(BusinessException.class);
-        request.setStatus(ApiEnums.PostStatus.HIDDEN);
+        request.setStatus(PostStatus.HIDDEN);
         assertThatThrownBy(() -> service.updatePost(1L, 10L, request)).isInstanceOf(BusinessException.class);
         verify(posts, never()).updateContent(any(), any());
     }
@@ -110,7 +113,7 @@ class PostIntegrityTest {
             ((Post) invocation.getArgument(0)).setId(10L);
             return 1;
         });
-        RequestDtos.CreatePostRequest request = request();
+        CreatePostRequest request = request();
         request.setAttachmentIds(List.of(3L));
 
         service.createPost(1L, request);
@@ -124,7 +127,7 @@ class PostIntegrityTest {
         when(posts.selectById(10L)).thenReturn(post("PUBLISHED"), post("CLOSED"));
         when(replies.insert(any(Reply.class))).thenReturn(1);
         when(posts.incrementReplyCount(10L)).thenReturn(1);
-        RequestDtos.CreateReplyRequest request = new RequestDtos.CreateReplyRequest();
+        CreateReplyRequest request = new CreateReplyRequest();
         request.setContent("Reply");
         replyService.createReply(2L, 10L, request);
         verify(posts).incrementReplyCount(10L);
@@ -159,9 +162,9 @@ class PostIntegrityTest {
         return post;
     }
 
-    private RequestDtos.CreatePostRequest request() {
-        RequestDtos.CreatePostRequest request = new RequestDtos.CreatePostRequest();
-        request.setCategory(ApiEnums.PostCategory.INQUIRY_HELP);
+    private CreatePostRequest request() {
+        CreatePostRequest request = new CreatePostRequest();
+        request.setCategory(PostCategory.INQUIRY_HELP);
         request.setTitle("Question");
         request.setContent("Details");
         return request;

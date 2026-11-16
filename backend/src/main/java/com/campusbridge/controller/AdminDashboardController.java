@@ -1,11 +1,17 @@
 package com.campusbridge.controller;
 
-import com.campusbridge.pojo.Result;
+import com.campusbridge.common.ApiResponse;
+import com.campusbridge.dto.view.DashboardDistributionItem;
+import com.campusbridge.dto.view.DashboardSummary;
+import com.campusbridge.dto.view.DashboardTodo;
+import com.campusbridge.dto.view.DashboardTrend;
 import com.campusbridge.service.AdminDashboardService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/admin/dashboard")
@@ -22,33 +28,33 @@ public class AdminDashboardController {
     }
 
     @GetMapping("/summary")
-    public Result summary() {
-        return Result.success(adminDashboardService.getSummary());
+    public ApiResponse<DashboardSummary> summary() {
+        return ApiResponse.success(adminDashboardService.getSummary());
     }
 
     @GetMapping("/trends")
-    public Result trends(@RequestParam(defaultValue = "7") Integer days) {
-        return Result.success(adminDashboardService.getTrends(normalizeDays(days)));
+    public ApiResponse<DashboardTrend> trends(@RequestParam(defaultValue = "7") Integer days) {
+        return ApiResponse.success(adminDashboardService.getTrends(normalizeDays(days)));
     }
 
     @GetMapping("/task-status")
-    public Result taskStatus() {
-        return Result.success(adminDashboardService.getTaskStatusStats());
+    public ApiResponse<List<DashboardDistributionItem>> taskStatus() {
+        return ApiResponse.success(adminDashboardService.getTaskStatusStats());
     }
 
     @GetMapping("/report-status")
-    public Result reportStatus() {
-        return Result.success(adminDashboardService.getReportStatusStats());
+    public ApiResponse<List<DashboardDistributionItem>> reportStatus() {
+        return ApiResponse.success(adminDashboardService.getReportStatusStats());
     }
 
     @GetMapping("/report-target-type")
-    public Result reportTargetType() {
-        return Result.success(adminDashboardService.getReportTargetTypeStats());
+    public ApiResponse<List<DashboardDistributionItem>> reportTargetType() {
+        return ApiResponse.success(adminDashboardService.getReportTargetTypeStats());
     }
 
     @GetMapping("/todos")
-    public Result todos() {
-        return Result.success(adminDashboardService.getTodos());
+    public ApiResponse<List<DashboardTodo>> todos() {
+        return ApiResponse.success(adminDashboardService.getTodos());
     }
 
     private int normalizeDays(Integer days) {

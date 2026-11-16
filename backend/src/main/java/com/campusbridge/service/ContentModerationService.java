@@ -1,13 +1,14 @@
 package com.campusbridge.service;
 
-import com.campusbridge.dto.request.RequestDtos;
+import com.campusbridge.dto.request.CreatePostRequest;
+import com.campusbridge.dto.request.CreateTaskRequest;
 
 public interface ContentModerationService {
     void assertPostPublishAllowed(
             Long operatorId,
-            RequestDtos.CreatePostRequest request);
+            CreatePostRequest request);
 
     void assertTaskPublishAllowed(
             Long operatorId,
-            RequestDtos.CreateTaskRequest request);
+            CreateTaskRequest request);
 }

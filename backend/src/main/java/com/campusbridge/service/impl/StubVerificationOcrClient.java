@@ -1,5 +1,6 @@
 package com.campusbridge.service.impl;
 
+import com.campusbridge.dto.response.OcrExtractResult;
 import com.campusbridge.service.VerificationOcrClient;
 import com.campusbridge.utils.AliOcrUtils;
 import com.fasterxml.jackson.databind.JsonNode;

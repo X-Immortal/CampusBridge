@@ -1,6 +1,9 @@
 package com.campusbridge.integration;
 
 import com.campusbridge.common.ErrorResponse;
+import com.campusbridge.dto.view.PostView;
+import com.campusbridge.dto.view.TaskPageView;
+import com.campusbridge.entity.Task;
 import io.swagger.v3.core.converter.ModelConverters;
 import io.swagger.v3.core.util.Yaml;
 import io.swagger.v3.oas.models.Components;
@@ -65,6 +68,23 @@ class OpenApiExportTest {
         api.getPaths().forEach((path, item) -> item.readOperationsMap()
                 .forEach((verb, operation) -> actual.add(verb.name() + " " + path)));
         assertEquals(expected, actual, "OpenAPI must contain every application route and no invented route");
+        String taskResponseRef = api.getPaths().get("/api/v1/tasks").getGet()
+                .getResponses().get("200").getContent().get("*/*").getSchema().get$ref();
+        Schema<?> taskResponse = api.getComponents().getSchemas()
+                .get(taskResponseRef.substring(taskResponseRef.lastIndexOf('/') + 1));
+        assertEquals("#/components/schemas/TaskPageView",
+                taskResponse.getProperties().get("data").get$ref(),
+                "Task pagination must retain its concrete data schema");
+
+        String postResponseRef = api.getPaths().get("/api/v1/posts").getGet()
+                .getResponses().get("200").getContent().get("*/*").getSchema().get$ref();
+        Schema<?> postResponse = api.getComponents().getSchemas()
+                .get(postResponseRef.substring(postResponseRef.lastIndexOf('/') + 1));
+        String postPageRef = postResponse.getProperties().get("data").get$ref();
+        Schema<?> postPage = api.getComponents().getSchemas()
+                .get(postPageRef.substring(postPageRef.lastIndexOf('/') + 1));
+        assertEquals("#/components/schemas/PostView", postPage.getProperties().get("items").getItems().get$ref(),
+                "Nested generic pagination must retain its item schema");
         Path output = Path.of("../docs/openapi.yaml");
         Files.createDirectories(output.getParent());
         Files.writeString(output, Yaml.pretty(api));
@@ -76,8 +96,8 @@ class OpenApiExportTest {
         OpenAPI apiDefinition() {
             return new OpenAPI()
                     .info(new Info().title("CampusBridge HTTP API").version("1.0")
-                            .description("由当前 Controller 与 DTO 导出。Result.data 及 Map 请求体仍是动态结构；"
-                                    + "业务必填与跨字段规则见 docs/srs.md，具体动态载荷见实现。"))
+                            .description("由当前 Controller 与 DTO 导出。请求与响应使用具体 DTO；"
+                                    + "业务必填与跨字段规则见 docs/srs.md，字段结构见各接口 Schema。"))
                     .servers(List.of(new Server().url("/")))
                     .components(new Components().addSecuritySchemes("bearerAuth", new SecurityScheme()
                             .type(SecurityScheme.Type.HTTP).scheme("bearer").bearerFormat("JWT")));
@@ -104,10 +124,29 @@ class OpenApiExportTest {
                         operation.setDescription("需要当前账号具有 ADMIN 角色。");
                         operation.getResponses().addApiResponse("403", error("账号无管理权限"));
                     }
+                    for (int status : businessErrorStatuses(path, verb.name())) {
+                        operation.getResponses().putIfAbsent(Integer.toString(status), error("业务请求失败"));
+                    }
                     if (operation.getResponses().containsKey("204")) {
                         operation.getResponses().get("204").setContent(null);
                     }
                 }));
+            };
+        }
+
+        private List<Integer> businessErrorStatuses(String path, String method) {
+            return switch (path) {
+                case "/api/v1/auth/login" -> List.of(400, 401, 500);
+                case "/api/v1/auth/register" -> List.of(400, 409, 500);
+                case "/api/v1/auth/register/send-code" -> List.of(400, 500);
+                case "/api/v1/attachments" -> List.of(400, 500, 502);
+                case "/api/v1/verifications" -> method.equals("GET")
+                        ? List.of(404) : List.of(400, 409, 500, 502);
+                case "/api/v1/verifications/email/code" -> List.of(400, 404, 409, 500, 502);
+                case "/api/v1/verifications/email/confirm", "/api/v1/verifications/current",
+                        "/api/v1/admin/verifications/{id}/approve",
+                        "/api/v1/admin/verifications/{id}/reject" -> List.of(400, 404, 409, 500);
+                default -> List.of();
             };
         }
 

@@ -5,7 +5,7 @@ import com.campusbridge.dto.view.ConversationView;
 import com.campusbridge.dto.view.PostView;
 import com.campusbridge.dto.view.ReplyView;
 import com.campusbridge.dto.view.TaskView;
-import com.campusbridge.pojo.Task;
+import com.campusbridge.entity.Task;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;

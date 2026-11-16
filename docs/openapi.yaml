@@ -1,7 +1,8 @@
 openapi: 3.1.0
 info:
   title: CampusBridge HTTP API
-  description: 由当前 Controller 与 DTO 导出。Result.data 及 Map 请求体仍是动态结构；业务必填与跨字段规则见 docs/srs.md，具体动态载荷见实现。
+  description: 由当前 Controller 与 DTO 导出。请求与响应使用具体 DTO；业务必填与跨字段规则见 docs/srs.md，字段结构见各接口
+    Schema。
   version: "1.0"
 servers:
 - url: /
@@ -15,9 +16,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties:
-                type: string
+              $ref: "#/components/schemas/EmailRequest"
         required: true
       responses:
         "200":
@@ -25,7 +24,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseEmailChangeCodeSentView"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -43,9 +42,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties:
-                type: string
+              $ref: "#/components/schemas/EmailCodeRequest"
         required: true
       responses:
         "200":
@@ -53,7 +50,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseVoid"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -71,9 +68,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties:
-                type: string
+              $ref: "#/components/schemas/ChangePasswordRequest"
         required: true
       responses:
         "200":
@@ -81,7 +76,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseVoid"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -99,9 +94,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties:
-                type: string
+              $ref: "#/components/schemas/UpdatePhoneRequest"
         required: true
       responses:
         "200":
@@ -109,7 +102,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseVoid"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -145,7 +138,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponsePagedResultTaskView"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -179,7 +172,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseVoid"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -213,7 +206,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseVoid"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -240,7 +233,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseListDashboardDistributionItem"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -267,7 +260,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseListDashboardDistributionItem"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -294,7 +287,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseDashboardSummary"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -321,7 +314,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseListDashboardDistributionItem"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -348,7 +341,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseListDashboardTodo"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -383,7 +376,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseDashboardTrend"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -425,7 +418,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseListTaskView"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -459,7 +452,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseTask"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -491,16 +484,14 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties:
-                type: string
+              $ref: "#/components/schemas/ReasonRequest"
       responses:
         "200":
           description: OK
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseTask"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -547,7 +538,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponsePagedResultReport"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -587,7 +578,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseModerationRecord"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -629,7 +620,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponsePagedResultCampusVerification"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -663,7 +654,13 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseVerificationReviewView"
+        "400":
+          description: 业务请求失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -672,6 +669,24 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "403":
           description: 账号无管理权限
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: 业务请求失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: 业务请求失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: 业务请求失败
           content:
             application/json:
               schema:
@@ -695,9 +710,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties:
-                type: string
+              $ref: "#/components/schemas/ReasonRequest"
         required: true
       responses:
         "200":
@@ -705,7 +718,13 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseVerificationReviewView"
+        "400":
+          description: 业务请求失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -714,6 +733,24 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
         "403":
           description: 账号无管理权限
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: 业务请求失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: 业务请求失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: 业务请求失败
           content:
             application/json:
               schema:
@@ -759,9 +796,27 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseAttachment"
+        "400":
+          description: 业务请求失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "401":
           description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: 业务请求失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: 业务请求失败
           content:
             application/json:
               schema:
@@ -785,7 +840,25 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseLoginView"
+        "400":
+          description: 业务请求失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: 业务请求失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: 业务请求失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /api/v1/auth/register:
     post:
       tags:
@@ -803,7 +876,25 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseLong"
+        "400":
+          description: 业务请求失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: 业务请求失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: 业务请求失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /api/v1/auth/register/send-code:
     post:
       tags:
@@ -813,9 +904,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties:
-                type: string
+              $ref: "#/components/schemas/EmailRequest"
         required: true
       responses:
         "200":
@@ -823,7 +912,19 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseEmailCodeSentView"
+        "400":
+          description: 业务请求失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: 业务请求失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /api/v1/blocks:
     get:
       tags:
@@ -835,7 +936,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseListUserBlock"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -862,7 +963,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseBlockStatusView"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -889,7 +990,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseString"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -915,7 +1016,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseString"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -991,7 +1092,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponsePagedResultContentItemView"
   /api/v1/conversations:
     get:
       tags:
@@ -1018,7 +1119,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponsePagedResultConversationView"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -1043,7 +1144,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseConversationView"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -1063,7 +1164,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseReadAllConversationsView"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -1083,7 +1184,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseUnreadSummaryView"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -1124,7 +1225,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponsePagedResultMessage"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -1156,7 +1257,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseMessage"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -1183,7 +1284,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseConversationView"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -1203,7 +1304,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseHomeRecommendationsView"
   /api/v1/posts:
     get:
       tags:
@@ -1245,7 +1346,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponsePagedResultPostView"
     post:
       tags:
       - post-controller
@@ -1262,7 +1363,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponsePostView"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -1282,7 +1383,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseListPostView"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -1332,7 +1433,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponsePagedResultMyReplyPostView"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -1359,7 +1460,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponsePostDetailView"
     delete:
       tags:
       - post-controller
@@ -1405,7 +1506,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponsePostView"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -1438,7 +1539,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponsePostInteraction"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -1498,7 +1599,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseReplyView"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -1531,7 +1632,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponsePostInteraction"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -1571,7 +1672,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponsePagedResultReport"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -1596,7 +1697,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseReport"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -1616,7 +1717,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseListMyTaskApplicationView"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -1643,7 +1744,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseTaskApplication"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -1720,7 +1821,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseTaskPageView"
     post:
       tags:
       - task-controller
@@ -1737,7 +1838,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseTaskView"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -1763,7 +1864,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseTaskView"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -1790,7 +1891,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseTaskDetailView"
     put:
       tags:
       - task-controller
@@ -1814,7 +1915,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseTaskView"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -1868,7 +1969,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseListTaskApplicationCandidateView"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -1900,7 +2001,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseTaskApplication"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -1933,7 +2034,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseTaskApplication"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -1966,7 +2067,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseCompletionProof"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -1993,7 +2094,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseVoid"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -2018,9 +2119,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties:
-                type: string
+              $ref: "#/components/schemas/ReasonRequest"
         required: true
       responses:
         "200":
@@ -2028,7 +2127,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseVoid"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -2053,9 +2152,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties:
-                type: string
+              $ref: "#/components/schemas/ReasonRequest"
         required: true
       responses:
         "200":
@@ -2063,7 +2160,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseVoid"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -2111,9 +2208,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              additionalProperties:
-                type: string
+              $ref: "#/components/schemas/ReasonRequest"
         required: true
       responses:
         "200":
@@ -2121,7 +2216,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseTaskView"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -2148,7 +2243,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseTaskView"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -2175,7 +2270,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseListReview"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -2207,7 +2302,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseReview"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -2240,7 +2335,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseTaskView"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -2260,7 +2355,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseUserView"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -2291,7 +2386,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseAvatarView"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -2311,7 +2406,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseUserProfileView"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -2336,7 +2431,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseUserProfileView"
         "401":
           description: 未认证或访问令牌无效
           content:
@@ -2363,7 +2458,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseUserHomepageView"
   /api/v1/users/{userId}/reviews:
     get:
       tags:
@@ -2382,7 +2477,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseListReview"
   /api/v1/verifications:
     get:
       tags:
@@ -2394,9 +2489,15 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseCampusVerification"
         "401":
           description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: 业务请求失败
           content:
             application/json:
               schema:
@@ -2419,9 +2520,33 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseVerificationSubmissionView"
+        "400":
+          description: 业务请求失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "401":
           description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: 业务请求失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: 业务请求失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: 业务请求失败
           content:
             application/json:
               schema:
@@ -2439,9 +2564,33 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseVerificationCancelledView"
+        "400":
+          description: 业务请求失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "401":
           description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: 业务请求失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: 业务请求失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: 业务请求失败
           content:
             application/json:
               schema:
@@ -2459,9 +2608,39 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseVerificationSubmissionView"
+        "400":
+          description: 业务请求失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "401":
           description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: 业务请求失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: 业务请求失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: 业务请求失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: 业务请求失败
           content:
             application/json:
               schema:
@@ -2485,9 +2664,33 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: "#/components/schemas/Result"
+                $ref: "#/components/schemas/ApiResponseVerificationSubmissionView"
+        "400":
+          description: 业务请求失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "401":
           description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: 业务请求失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: 业务请求失败
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: 业务请求失败
           content:
             application/json:
               schema:
@@ -2496,11 +2699,770 @@ paths:
       - bearerAuth: []
 components:
   schemas:
+    ApiResponseAttachment:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/Attachment"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponseAvatarView:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/AvatarView"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponseBlockStatusView:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/BlockStatusView"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponseCampusVerification:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/CampusVerification"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponseCompletionProof:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/CompletionProof"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponseConversationView:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/ConversationView"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponseDashboardSummary:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/DashboardSummary"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponseDashboardTrend:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/DashboardTrend"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponseEmailChangeCodeSentView:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/EmailChangeCodeSentView"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponseEmailCodeSentView:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/EmailCodeSentView"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponseHomeRecommendationsView:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/HomeRecommendationsView"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponseListDashboardDistributionItem:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/DashboardDistributionItem"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponseListDashboardTodo:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/DashboardTodo"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponseListMyTaskApplicationView:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/MyTaskApplicationView"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponseListPostView:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/PostView"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponseListReview:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Review"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponseListTaskApplicationCandidateView:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/TaskApplicationCandidateView"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponseListTaskView:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/TaskView"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponseListUserBlock:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserBlock"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponseLoginView:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/LoginView"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponseLong:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          type: integer
+          format: int64
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponseMessage:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/Message"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponseModerationRecord:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/ModerationRecord"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponsePagedResultCampusVerification:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/PagedResultCampusVerification"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponsePagedResultContentItemView:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/PagedResultContentItemView"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponsePagedResultConversationView:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/PagedResultConversationView"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponsePagedResultMessage:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/PagedResultMessage"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponsePagedResultMyReplyPostView:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/PagedResultMyReplyPostView"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponsePagedResultPostView:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/PagedResultPostView"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponsePagedResultReport:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/PagedResultReport"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponsePagedResultTaskView:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/PagedResultTaskView"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponsePostDetailView:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/PostDetailView"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponsePostInteraction:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/PostInteraction"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponsePostView:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/PostView"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponseReadAllConversationsView:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/ReadAllConversationsView"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponseReplyView:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/ReplyView"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponseReport:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/Report"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponseReview:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/Review"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponseString:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          type: string
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponseTask:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/Task"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponseTaskApplication:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/TaskApplication"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponseTaskDetailView:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/TaskDetailView"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponseTaskPageView:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/TaskPageView"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponseTaskView:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/TaskView"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponseUnreadSummaryView:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/UnreadSummaryView"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponseUserHomepageView:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/UserHomepageView"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponseUserProfileView:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/UserProfileView"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponseUserView:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/UserView"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponseVerificationCancelledView:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/VerificationCancelledView"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponseVerificationReviewView:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/VerificationReviewView"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponseVerificationSubmissionView:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          $ref: "#/components/schemas/VerificationSubmissionView"
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ApiResponseVoid:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          type: object
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    Attachment:
+      type: object
+      properties:
+        contentType:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        fileName:
+          type: string
+        fileUrl:
+          type: string
+        id:
+          type: integer
+          format: int64
+        ownerId:
+          type: integer
+          format: int64
+        ownerType:
+          type: string
+        size:
+          type: integer
+          format: int64
+        status:
+          type: string
+        type:
+          type: string
+        uploaderId:
+          type: integer
+          format: int64
+    AvatarView:
+      type: object
+      properties:
+        avatarUrl:
+          type: string
+    BlockStatusView:
+      type: object
+      properties:
+        blocked:
+          type: boolean
+    CampusVerification:
+      type: object
+      properties:
+        createdAt:
+          type: string
+          format: date-time
+        department:
+          type: string
+        evidenceUrl:
+          type: string
+        id:
+          type: integer
+          format: int64
+        method:
+          type: string
+        realNameCipher:
+          type: string
+        rejectReason:
+          type: string
+        reviewedAt:
+          type: string
+          format: date-time
+        reviewerId:
+          type: integer
+          format: int64
+        school:
+          type: string
+        status:
+          type: string
+        studentNumberCipher:
+          type: string
+        studentNumberHash:
+          type: string
+        userId:
+          type: integer
+          format: int64
+    ChangePasswordRequest:
+      type: object
+      properties:
+        newPassword:
+          type: string
+        oldPassword:
+          type: string
+    CompletionProof:
+      type: object
+      properties:
+        description:
+          type: string
+        id:
+          type: integer
+          format: int64
+        submittedAt:
+          type: string
+          format: date-time
+        submitterId:
+          type: integer
+          format: int64
+        taskId:
+          type: integer
+          format: int64
     ConfirmEmailVerificationRequest:
       type: object
       properties:
         code:
           type: string
+    ContentItemView:
+      type: object
+      properties:
+        authorId:
+          type: integer
+          format: int64
+        authorName:
+          type: string
+        categoryName:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        itemType:
+          type: string
+          enum:
+          - POST
+          - TASK
+        rewardLabel:
+          type: string
+        sortTime:
+          type: string
+          format: date-time
+        sourceId:
+          type: integer
+          format: int64
+        statusLabel:
+          type: string
+        summary:
+          type: string
+        title:
+          type: string
+    ConversationView:
+      type: object
+      properties:
+        createdAt:
+          type: string
+          format: date-time
+        id:
+          type: integer
+          format: int64
+        lastMessageAt:
+          type: string
+          format: date-time
+        lastMessagePreview:
+          type: string
+        lastReadAt:
+          type: string
+          format: date-time
+        ownerId:
+          type: integer
+          format: int64
+        peerUserId:
+          type: integer
+          format: int64
+        relatedId:
+          type: integer
+          format: int64
+        relatedType:
+          type: string
+        replyable:
+          type: integer
+          format: int32
+        title:
+          type: string
+        type:
+          type: string
+        unreadCount:
+          type: integer
+          format: int32
     CreateConversationRequest:
       type: object
       properties:
@@ -2658,6 +3620,109 @@ components:
           type: string
         studentNumber:
           type: string
+    DashboardDistributionItem:
+      type: object
+      properties:
+        count:
+          type: integer
+          format: int64
+        label:
+          type: string
+        status:
+          type: string
+    DashboardSummary:
+      type: object
+      properties:
+        activeTaskTotal:
+          type: integer
+          format: int64
+        completedTaskTotal:
+          type: integer
+          format: int64
+        disputedTaskTotal:
+          type: integer
+          format: int64
+        pendingReportTotal:
+          type: integer
+          format: int64
+        pendingVerificationTotal:
+          type: integer
+          format: int64
+        postTotal:
+          type: integer
+          format: int64
+        taskTotal:
+          type: integer
+          format: int64
+        updatedAt:
+          type: string
+          format: date-time
+        userTotal:
+          type: integer
+          format: int64
+        verifiedUserTotal:
+          type: integer
+          format: int64
+    DashboardTodo:
+      type: object
+      properties:
+        count:
+          type: integer
+          format: int64
+        label:
+          type: string
+        route:
+          type: string
+        type:
+          type: string
+    DashboardTrend:
+      type: object
+      properties:
+        days:
+          type: array
+          items:
+            type: string
+        newPosts:
+          type: array
+          items:
+            type: integer
+            format: int64
+        newTasks:
+          type: array
+          items:
+            type: integer
+            format: int64
+        newUsers:
+          type: array
+          items:
+            type: integer
+            format: int64
+    EmailChangeCodeSentView:
+      type: object
+      properties:
+        debugCode:
+          type: string
+        email:
+          type: string
+        sent:
+          type: boolean
+    EmailCodeRequest:
+      type: object
+      properties:
+        code:
+          type: string
+    EmailCodeSentView:
+      type: object
+      properties:
+        debugCode:
+          type: string
+        sent:
+          type: boolean
+    EmailRequest:
+      type: object
+      properties:
+        email:
+          type: string
     ErrorResponse:
       type: object
       properties:
@@ -2670,7 +3735,72 @@ components:
         message:
           type: string
         meta:
-          $ref: "#/components/schemas/Meta"
+          $ref: "#/components/schemas/ResponseMeta"
+    HomePostView:
+      type: object
+      properties:
+        authorId:
+          type: integer
+          format: int64
+        authorName:
+          type: string
+        category:
+          type: string
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        id:
+          type: integer
+          format: int64
+        likeCount:
+          type: integer
+          format: int32
+        replyCount:
+          type: integer
+          format: int32
+        title:
+          type: string
+    HomeRecommendationsView:
+      type: object
+      properties:
+        hotPosts:
+          type: array
+          items:
+            $ref: "#/components/schemas/HomePostView"
+        latestTasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/HomeTaskView"
+    HomeTaskView:
+      type: object
+      properties:
+        campus:
+          type: string
+        category:
+          type: string
+        deadline:
+          type: string
+          format: date-time
+        deliveryLocation:
+          type: string
+        description:
+          type: string
+        id:
+          type: integer
+          format: int64
+        location:
+          type: string
+        requesterId:
+          type: integer
+          format: int64
+        rewardDescription:
+          type: string
+        rewardType:
+          type: string
+        title:
+          type: string
     LoginRequest:
       type: object
       properties:
@@ -2678,14 +3808,306 @@ components:
           type: string
         username:
           type: string
-    Meta:
+    LoginView:
       type: object
       properties:
-        requestId:
+        refreshToken:
           type: string
-        timestamp:
+        role:
+          type: string
+        token:
+          type: string
+        userId:
+          type: integer
+          format: int64
+        username:
+          type: string
+    Message:
+      type: object
+      properties:
+        content:
+          type: string
+        conversationId:
+          type: integer
+          format: int64
+        createdAt:
           type: string
           format: date-time
+        id:
+          type: integer
+          format: int64
+        readAt:
+          type: string
+          format: date-time
+        senderId:
+          type: integer
+          format: int64
+        type:
+          type: string
+    ModerationRecord:
+      type: object
+      properties:
+        decision:
+          type: string
+        handledAt:
+          type: string
+          format: date-time
+        handlerId:
+          type: integer
+          format: int64
+        id:
+          type: integer
+          format: int64
+        reportId:
+          type: integer
+          format: int64
+        status:
+          type: string
+        targetId:
+          type: integer
+          format: int64
+        targetType:
+          type: string
+    MyReplyPostView:
+      type: object
+      properties:
+        lastReplyAt:
+          type: string
+          format: date-time
+        post:
+          $ref: "#/components/schemas/PostView"
+        replies:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReplyView"
+        replyTotal:
+          type: integer
+          format: int64
+    MyTaskApplicationView:
+      type: object
+      properties:
+        application:
+          $ref: "#/components/schemas/TaskApplication"
+        task:
+          $ref: "#/components/schemas/TaskView"
+    PagedResultCampusVerification:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CampusVerification"
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        total:
+          type: integer
+          format: int64
+    PagedResultContentItemView:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContentItemView"
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        total:
+          type: integer
+          format: int64
+    PagedResultConversationView:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConversationView"
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        total:
+          type: integer
+          format: int64
+    PagedResultMessage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Message"
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        total:
+          type: integer
+          format: int64
+    PagedResultMyReplyPostView:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/MyReplyPostView"
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        total:
+          type: integer
+          format: int64
+    PagedResultPostView:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/PostView"
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        total:
+          type: integer
+          format: int64
+    PagedResultReport:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Report"
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        total:
+          type: integer
+          format: int64
+    PagedResultTaskView:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/TaskView"
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        total:
+          type: integer
+          format: int64
+    PostDetailView:
+      type: object
+      properties:
+        acceptedReplyId:
+          type: integer
+          format: int64
+        attachments:
+          type: array
+          items:
+            $ref: "#/components/schemas/Attachment"
+        likedByCurrentUser:
+          type: boolean
+        markedByCurrentUser:
+          type: boolean
+        post:
+          $ref: "#/components/schemas/PostView"
+        replies:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReplyView"
+    PostInteraction:
+      type: object
+      properties:
+        createdAt:
+          type: string
+          format: date-time
+        id:
+          type: integer
+          format: int64
+        targetId:
+          type: integer
+          format: int64
+        targetType:
+          type: string
+        type:
+          type: string
+        userId:
+          type: integer
+          format: int64
+    PostView:
+      type: object
+      properties:
+        acceptedReplyId:
+          type: integer
+          format: int64
+        authorId:
+          type: integer
+          format: int64
+        authorName:
+          type: string
+        category:
+          type: string
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        id:
+          type: integer
+          format: int64
+        likeCount:
+          type: integer
+          format: int32
+        markCount:
+          type: integer
+          format: int32
+        replyCount:
+          type: integer
+          format: int32
+        status:
+          type: string
+        title:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+    ReadAllConversationsView:
+      type: object
+      properties:
+        unreadCount:
+          type: integer
+          format: int64
+        updatedCount:
+          type: integer
+          format: int32
+    ReasonRequest:
+      type: object
+      properties:
+        reason:
+          type: string
     RegisterRequest:
       type: object
       properties:
@@ -2698,6 +4120,56 @@ components:
         phone:
           type: string
         username:
+          type: string
+    ReplyView:
+      type: object
+      properties:
+        authorId:
+          type: integer
+          format: int64
+        authorName:
+          type: string
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        id:
+          type: integer
+          format: int64
+        likeCount:
+          type: integer
+          format: int32
+        parentReplyId:
+          type: integer
+          format: int64
+        postId:
+          type: integer
+          format: int64
+        status:
+          type: string
+    Report:
+      type: object
+      properties:
+        createdAt:
+          type: string
+          format: date-time
+        description:
+          type: string
+        id:
+          type: integer
+          format: int64
+        reason:
+          type: string
+        reporterId:
+          type: integer
+          format: int64
+        status:
+          type: string
+        targetId:
+          type: integer
+          format: int64
+        targetType:
           type: string
     ResolveReportRequest:
       type: object
@@ -2721,17 +4193,37 @@ components:
           - REJECTED
           - RESOLVED
           - PUNISHED
-    Result:
+    ResponseMeta:
       type: object
       properties:
-        code:
+        requestId:
           type: string
-        data:
-          type: object
-        message:
+        timestamp:
           type: string
-        meta:
-          $ref: "#/components/schemas/Meta"
+          format: date-time
+    Review:
+      type: object
+      properties:
+        comment:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        id:
+          type: integer
+          format: int64
+        rating:
+          type: integer
+          format: int32
+        revieweeId:
+          type: integer
+          format: int64
+        reviewerId:
+          type: integer
+          format: int64
+        taskId:
+          type: integer
+          format: int64
     SendMessageRequest:
       type: object
       properties:
@@ -2758,6 +4250,187 @@ components:
             format: int64
         description:
           type: string
+    Task:
+      type: object
+      properties:
+        allowOfflineContact:
+          type: integer
+          format: int32
+        campus:
+          type: string
+        category:
+          type: string
+        completionStandard:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        deadline:
+          type: string
+          format: date-time
+        deliveryLocation:
+          type: string
+        description:
+          type: string
+        id:
+          type: integer
+          format: int64
+        isInstantTask:
+          type: integer
+          format: int32
+        location:
+          type: string
+        onlyInAppContact:
+          type: integer
+          format: int32
+        providerId:
+          type: integer
+          format: int64
+        requesterId:
+          type: integer
+          format: int64
+        requiresProof:
+          type: integer
+          format: int32
+        rewardAmount:
+          type: integer
+          format: int32
+        rewardDescription:
+          type: string
+        rewardType:
+          type: string
+        riskDisclosureConfirmed:
+          type: integer
+          format: int32
+        routeHint:
+          type: string
+        sensitiveReason:
+          type: string
+        status:
+          type: string
+        title:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+    TaskApplication:
+      type: object
+      properties:
+        applicantId:
+          type: integer
+          format: int64
+        createdAt:
+          type: string
+          format: date-time
+        handledAt:
+          type: string
+          format: date-time
+        id:
+          type: integer
+          format: int64
+        message:
+          type: string
+        status:
+          type: string
+        taskId:
+          type: integer
+          format: int64
+    TaskApplicationCandidateView:
+      type: object
+      properties:
+        applicantId:
+          type: integer
+          format: int64
+        applicationId:
+          type: integer
+          format: int64
+        avatarUrl:
+          type: string
+        bio:
+          type: string
+        campus:
+          type: string
+        college:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        creditLevel:
+          type: integer
+          format: int32
+        message:
+          type: string
+        nickname:
+          type: string
+        points:
+          type: integer
+          format: int32
+        status:
+          type: string
+        username:
+          type: string
+        verified:
+          type: boolean
+    TaskDetailView:
+      type: object
+      properties:
+        applications:
+          type: array
+          items:
+            $ref: "#/components/schemas/TaskApplication"
+        attachments:
+          type: array
+          items:
+            $ref: "#/components/schemas/Attachment"
+        completionProof:
+          $ref: "#/components/schemas/CompletionProof"
+        history:
+          type: array
+          items:
+            $ref: "#/components/schemas/TaskHistory"
+        reviews:
+          type: array
+          items:
+            $ref: "#/components/schemas/Review"
+        task:
+          $ref: "#/components/schemas/TaskView"
+    TaskHistory:
+      type: object
+      properties:
+        createdAt:
+          type: string
+          format: date-time
+        fromStatus:
+          type: string
+        id:
+          type: integer
+          format: int64
+        note:
+          type: string
+        operatorId:
+          type: integer
+          format: int64
+        taskId:
+          type: integer
+          format: int64
+        toStatus:
+          type: string
+    TaskPageView:
+      type: object
+      properties:
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        tasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/TaskView"
+        total:
+          type: integer
+          format: int64
     TaskStatusTransitionRequest:
       type: object
       properties:
@@ -2770,6 +4443,90 @@ components:
           - DISPUTE
           - CANCEL
         reason:
+          type: string
+    TaskView:
+      type: object
+      properties:
+        allowOfflineContact:
+          type: integer
+          format: int32
+        campus:
+          type: string
+        category:
+          type: string
+        completionStandard:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        deadline:
+          type: string
+          format: date-time
+        deliveryLocation:
+          type: string
+        description:
+          type: string
+        id:
+          type: integer
+          format: int64
+        isInstantTask:
+          type: integer
+          format: int32
+        location:
+          type: string
+        onlyInAppContact:
+          type: integer
+          format: int32
+        providerId:
+          type: integer
+          format: int64
+        providerName:
+          type: string
+        requesterId:
+          type: integer
+          format: int64
+        requesterName:
+          type: string
+        requiresProof:
+          type: integer
+          format: int32
+        rewardAmount:
+          type: integer
+          format: int32
+        rewardDescription:
+          type: string
+        rewardType:
+          type: string
+        riskDisclosureConfirmed:
+          type: integer
+          format: int32
+        routeHint:
+          type: string
+        sensitiveReason:
+          type: string
+        status:
+          type: string
+        title:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+    UnreadSummaryView:
+      type: object
+      properties:
+        private:
+          type: integer
+          format: int64
+        system:
+          type: integer
+          format: int64
+        total:
+          type: integer
+          format: int64
+    UpdatePhoneRequest:
+      type: object
+      properties:
+        phone:
           type: string
     UpdatePostRequest:
       type: object
@@ -2841,6 +4598,149 @@ components:
           type: array
           items:
             type: string
+    UserBlock:
+      type: object
+      properties:
+        blockedId:
+          type: integer
+          format: int64
+        blockerId:
+          type: integer
+          format: int64
+        createdAt:
+          type: string
+          format: date-time
+        id:
+          type: integer
+          format: int64
+    UserHomepageView:
+      type: object
+      properties:
+        avatarUrl:
+          type: string
+        bio:
+          type: string
+        campus:
+          type: string
+        college:
+          type: string
+        creditLevel:
+          type: integer
+          format: int32
+        interestTags:
+          type: array
+          items:
+            type: string
+        nickname:
+          type: string
+        points:
+          type: integer
+          format: int32
+        skillTags:
+          type: array
+          items:
+            type: string
+        userId:
+          type: integer
+          format: int64
+        verified:
+          type: boolean
+    UserProfileView:
+      type: object
+      properties:
+        avatarUrl:
+          type: string
+        bio:
+          type: string
+        campus:
+          type: string
+        college:
+          type: string
+        contactInfo:
+          type: string
+        creditLevel:
+          type: integer
+          format: int32
+        interestTags:
+          type: array
+          items:
+            type: string
+        nickname:
+          type: string
+        points:
+          type: integer
+          format: int32
+        skillTags:
+          type: array
+          items:
+            type: string
+        userId:
+          type: integer
+          format: int64
+        verified:
+          type: boolean
+    UserView:
+      type: object
+      properties:
+        createdAt:
+          type: string
+          format: date-time
+        enabled:
+          type: boolean
+        id:
+          type: integer
+          format: int64
+        role:
+          type: string
+        username:
+          type: string
+    VerificationCancelledView:
+      type: object
+      properties:
+        cancelled:
+          type: boolean
+        id:
+          type: integer
+          format: int64
+    VerificationReviewView:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        reviewedAt:
+          type: string
+          format: date-time
+        reviewerId:
+          type: integer
+          format: int64
+        status:
+          type: string
+    VerificationSubmissionView:
+      type: object
+      properties:
+        campusEmail:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        debugCode:
+          type: string
+        emailDelivery:
+          type: string
+        id:
+          type: integer
+          format: int64
+        method:
+          type: string
+        reviewedAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+        userId:
+          type: integer
+          format: int64
   securitySchemes:
     bearerAuth:
       type: http

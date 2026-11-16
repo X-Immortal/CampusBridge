@@ -2,7 +2,7 @@ package com.campusbridge.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
-import com.campusbridge.pojo.Review;
+import com.campusbridge.entity.Review;
 import org.apache.ibatis.annotations.Mapper;
 
 import java.util.List;

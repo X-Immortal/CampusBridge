@@ -1,7 +1,7 @@
 package com.campusbridge.service;
 
-import com.campusbridge.dto.view.ViewDtos;
+import com.campusbridge.dto.view.TaskDetailView;
 
 public interface TaskDetailService {
-    ViewDtos.TaskDetailView getTaskDetail(Long taskId, Long currentUserId);
+    TaskDetailView getTaskDetail(Long taskId, Long currentUserId);
 }

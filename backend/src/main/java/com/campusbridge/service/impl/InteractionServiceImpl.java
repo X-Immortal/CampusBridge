@@ -2,17 +2,17 @@ package com.campusbridge.service.impl;
 
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
-import com.campusbridge.dto.enums.ApiEnums;
-import com.campusbridge.dto.request.RequestDtos;
+import com.campusbridge.dto.request.CreatePostInteractionRequest;
+import com.campusbridge.entity.Post;
+import com.campusbridge.entity.PostInteraction;
+import com.campusbridge.entity.Reply;
+import com.campusbridge.enums.PostInteractionType;
 import com.campusbridge.mapper.PostInteractionMapper;
 import com.campusbridge.mapper.PostMapper;
 import com.campusbridge.mapper.ReplyMapper;
-import com.campusbridge.pojo.Post;
-import com.campusbridge.pojo.PostInteraction;
-import com.campusbridge.pojo.Reply;
 import com.campusbridge.service.InteractionService;
-import org.springframework.stereotype.Service;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -37,7 +37,7 @@ public class InteractionServiceImpl implements InteractionService {
 
     @Override
     public PostInteraction createInteraction(
-            Long userId, Long postId, RequestDtos.CreatePostInteractionRequest request) {
+            Long userId, Long postId, CreatePostInteractionRequest request) {
         if (request == null || request.getType() == null) {
             throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "Interaction type is required");
         }
@@ -73,8 +73,8 @@ public class InteractionServiceImpl implements InteractionService {
 
     @Override
     public void cancelInteraction(Long userId, Long postId, String type) {
-        if (!ApiEnums.PostInteractionType.LIKE.name().equals(type)
-                && !ApiEnums.PostInteractionType.MARK.name().equals(type)) {
+        if (!PostInteractionType.LIKE.name().equals(type)
+                && !PostInteractionType.MARK.name().equals(type)) {
             throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "Interaction type must be LIKE or MARK");
         }
         requirePostExists(postId);

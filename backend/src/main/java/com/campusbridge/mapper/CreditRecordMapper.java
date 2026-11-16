@@ -1,7 +1,7 @@
 package com.campusbridge.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.campusbridge.pojo.CreditRecord;
+import com.campusbridge.entity.CreditRecord;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper

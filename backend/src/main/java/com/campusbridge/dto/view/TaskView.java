@@ -1,8 +1,9 @@
 package com.campusbridge.dto.view;
 
-import com.campusbridge.pojo.Task;
+import com.campusbridge.entity.Task;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
 import java.time.LocalDateTime;
 
 @Data

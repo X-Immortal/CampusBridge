@@ -1,9 +1,11 @@
 package com.campusbridge.service.impl;
 
-import com.campusbridge.dto.view.ViewDtos.DashboardDistributionItem;
-import com.campusbridge.dto.view.ViewDtos.DashboardSummary;
-import com.campusbridge.dto.view.ViewDtos.DashboardTodo;
-import com.campusbridge.dto.view.ViewDtos.DashboardTrend;
+import com.campusbridge.dto.view.CategoryCount;
+import com.campusbridge.dto.view.DailyCount;
+import com.campusbridge.dto.view.DashboardDistributionItem;
+import com.campusbridge.dto.view.DashboardSummary;
+import com.campusbridge.dto.view.DashboardTodo;
+import com.campusbridge.dto.view.DashboardTrend;
 import com.campusbridge.mapper.AdminDashboardMapper;
 import com.campusbridge.service.AdminDashboardService;
 import org.springframework.stereotype.Service;
@@ -162,48 +164,24 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         return Math.min(days, MAX_DAYS);
     }
 
-    private Map<LocalDate, Long> aggregateByDay(List<Map<String, Object>> rows) {
+    private Map<LocalDate, Long> aggregateByDay(List<DailyCount> rows) {
         Map<LocalDate, Long> result = new HashMap<>();
-        if (rows == null || rows.isEmpty()) {
-            return result;
-        }
-        for (Map<String, Object> row : rows) {
-            Object dayValue = row.get("day");
-            Object countValue = row.get("count");
-            if (dayValue == null || countValue == null) {
-                continue;
-            }
-            LocalDate day;
-            if (dayValue instanceof LocalDate localDate) {
-                day = localDate;
-            } else if (dayValue instanceof java.sql.Date sqlDate) {
-                day = sqlDate.toLocalDate();
-            } else {
-                day = LocalDate.parse(dayValue.toString());
-            }
-            long count = ((Number) countValue).longValue();
-            result.put(day, count);
+        for (DailyCount row : rows) {
+            result.put(row.getDay(), row.getCount());
         }
         return result;
     }
 
     private List<DashboardDistributionItem> buildDistribution(
-            List<Map<String, Object>> rows,
+            List<CategoryCount> rows,
             Set<String> knownKeys) {
         Map<String, Long> counts = new LinkedHashMap<>();
         for (String key : knownKeys) {
             counts.put(key, 0L);
         }
         if (rows != null) {
-            for (Map<String, Object> row : rows) {
-                Object statusValue = row.get("status") != null ? row.get("status") : row.get("targetType");
-                Object countValue = row.get("count");
-                if (statusValue == null || countValue == null) {
-                    continue;
-                }
-                String key = statusValue.toString();
-                long count = ((Number) countValue).longValue();
-                counts.put(key, count);
+            for (CategoryCount row : rows) {
+                counts.put(row.getCategory(), row.getCount());
             }
         }
         List<DashboardDistributionItem> items = new ArrayList<>();

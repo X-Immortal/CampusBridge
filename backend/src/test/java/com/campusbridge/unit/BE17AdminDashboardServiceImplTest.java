@@ -1,9 +1,11 @@
 package com.campusbridge.unit;
 
-import com.campusbridge.dto.view.ViewDtos.DashboardDistributionItem;
-import com.campusbridge.dto.view.ViewDtos.DashboardSummary;
-import com.campusbridge.dto.view.ViewDtos.DashboardTodo;
-import com.campusbridge.dto.view.ViewDtos.DashboardTrend;
+import com.campusbridge.dto.view.CategoryCount;
+import com.campusbridge.dto.view.DailyCount;
+import com.campusbridge.dto.view.DashboardDistributionItem;
+import com.campusbridge.dto.view.DashboardSummary;
+import com.campusbridge.dto.view.DashboardTodo;
+import com.campusbridge.dto.view.DashboardTrend;
 import com.campusbridge.mapper.AdminDashboardMapper;
 import com.campusbridge.service.impl.AdminDashboardServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -12,12 +14,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.sql.Date;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -92,15 +91,15 @@ class BE17AdminDashboardServiceImplTest {
         LocalDate today = LocalDate.now();
         LocalDate start = today.minusDays(2);
 
-        List<Map<String, Object>> userRows = new ArrayList<>();
+        List<DailyCount> userRows = new ArrayList<>();
         userRows.add(row(start, 3L));
         userRows.add(row(today, 7L));
 
-        List<Map<String, Object>> taskRows = new ArrayList<>();
+        List<DailyCount> taskRows = new ArrayList<>();
         taskRows.add(row(start, 5L));
         taskRows.add(row(start.plusDays(1), 9L));
 
-        List<Map<String, Object>> postRows = new ArrayList<>();
+        List<DailyCount> postRows = new ArrayList<>();
         postRows.add(row(today, 2L));
 
         when(adminDashboardMapper.countNewUsersByDay(any())).thenReturn(userRows);
@@ -132,7 +131,7 @@ class BE17AdminDashboardServiceImplTest {
 
     @Test
     void taskStatusStatsFillsAllKnownStatuses() {
-        List<Map<String, Object>> rows = new ArrayList<>();
+        List<CategoryCount> rows = new ArrayList<>();
         rows.add(row("OPEN", 48L));
         rows.add(row("COMPLETED", 210L));
 
@@ -163,7 +162,7 @@ class BE17AdminDashboardServiceImplTest {
 
     @Test
     void taskStatusStatsKeepsUnknownStatusForCompatibility() {
-        List<Map<String, Object>> rows = new ArrayList<>();
+        List<CategoryCount> rows = new ArrayList<>();
         rows.add(row("FUTURE_STATUS", 9L));
 
         when(adminDashboardMapper.countTasksByStatus()).thenReturn(rows);
@@ -181,7 +180,7 @@ class BE17AdminDashboardServiceImplTest {
 
     @Test
     void reportStatusStatsFillsAllKnownStatuses() {
-        List<Map<String, Object>> rows = new ArrayList<>();
+        List<CategoryCount> rows = new ArrayList<>();
         rows.add(row("PENDING", 4L));
         rows.add(row("RESOLVED", 18L));
 
@@ -232,17 +231,11 @@ class BE17AdminDashboardServiceImplTest {
         assertThat(todos).allMatch((item) -> item.getCount() == 0L);
     }
 
-    private Map<String, Object> row(String status, long count) {
-        Map<String, Object> row = new HashMap<>();
-        row.put("status", status);
-        row.put("count", count);
-        return row;
+    private CategoryCount row(String status, long count) {
+        return new CategoryCount(status, count);
     }
 
-    private Map<String, Object> row(LocalDate day, long count) {
-        Map<String, Object> row = new HashMap<>();
-        row.put("day", Date.valueOf(day));
-        row.put("count", count);
-        return row;
+    private DailyCount row(LocalDate day, long count) {
+        return new DailyCount(day, count);
     }
 }

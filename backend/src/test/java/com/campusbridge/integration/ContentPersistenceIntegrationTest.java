@@ -1,52 +1,57 @@
 package com.campusbridge.integration;
 
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.config.GlobalConfig;
-import com.baomidou.mybatisplus.annotation.FieldStrategy;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.baomidou.mybatisplus.spring.MybatisSqlSessionFactoryBean;
 import com.campusbridge.config.MybatisPlusConfig;
-import com.campusbridge.mapper.UserProfileMapper;
-import com.campusbridge.pojo.UserProfile;
-import com.campusbridge.service.impl.VerificationServiceImpl;
-import com.campusbridge.service.impl.ReportServiceImpl;
-import org.springframework.test.util.ReflectionTestUtils;
-
+import com.campusbridge.dto.request.CreateConversationRequest;
+import com.campusbridge.dto.request.CreateReplyRequest;
+import com.campusbridge.dto.request.SendMessageRequest;
+import com.campusbridge.dto.view.CategoryCount;
+import com.campusbridge.dto.view.PostView;
+import com.campusbridge.dto.view.ReplyView;
+import com.campusbridge.entity.CampusVerification;
+import com.campusbridge.entity.Post;
+import com.campusbridge.entity.Reply;
+import com.campusbridge.entity.Report;
+import com.campusbridge.entity.UserProfile;
+import com.campusbridge.enums.MessageType;
+import com.campusbridge.mapper.AdminDashboardMapper;
 import com.campusbridge.mapper.AttachmentMapper;
+import com.campusbridge.mapper.CampusVerificationMapper;
 import com.campusbridge.mapper.ConversationMapper;
 import com.campusbridge.mapper.MessageMapper;
-import com.campusbridge.mapper.UserMapper;
-import com.campusbridge.mapper.UserBlockMapper;
-import com.campusbridge.dto.request.RequestDtos;
-import com.campusbridge.dto.enums.ApiEnums;
-import com.campusbridge.service.impl.ConversationServiceImpl;
-import com.campusbridge.service.impl.ReplyServiceImpl;
-import com.campusbridge.service.impl.NotificationServiceImpl;
-import com.campusbridge.pojo.Reply;
-import com.campusbridge.service.NotificationService;
-import com.campusbridge.mapper.CampusVerificationMapper;
 import com.campusbridge.mapper.PostInteractionMapper;
 import com.campusbridge.mapper.PostMapper;
 import com.campusbridge.mapper.ReplyMapper;
 import com.campusbridge.mapper.ReportMapper;
-import com.campusbridge.pojo.CampusVerification;
-import com.campusbridge.pojo.Post;
-import com.campusbridge.dto.view.PostView;
+import com.campusbridge.mapper.UserBlockMapper;
+import com.campusbridge.mapper.UserMapper;
+import com.campusbridge.mapper.UserProfileMapper;
+import com.campusbridge.service.NotificationService;
+import com.campusbridge.service.impl.ConversationServiceImpl;
 import com.campusbridge.service.impl.InteractionServiceImpl;
+import com.campusbridge.service.impl.NotificationServiceImpl;
+import com.campusbridge.service.impl.ReplyServiceImpl;
+import com.campusbridge.service.impl.ReportServiceImpl;
+import com.campusbridge.service.impl.VerificationServiceImpl;
 import org.apache.ibatis.session.SqlSession;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
-import com.baomidou.mybatisplus.spring.MybatisSqlSessionFactoryBean;
 import org.mybatis.spring.SqlSessionTemplate;
-import org.springframework.jdbc.datasource.DataSourceTransactionManager;
-import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.jdbc.datasource.init.ScriptUtils;
+import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -120,6 +125,28 @@ class ContentPersistenceIntegrationTest {
         jdbc.update("INSERT INTO users(id,username,password_hash) VALUES(1,'author','unused'),(2,'reader','unused')");
         jdbc.update("INSERT INTO posts(id,author_id,category,title,content,status) "
                 + "VALUES(10,1,'INQUIRY_HELP','Original','Body','PUBLISHED')");
+    }
+
+    @Test
+    void dashboardProjectsDatesAndCountsIntoTypedRows() {
+        jdbc.update("UPDATE users SET created_at='2026-01-01 12:00:00'");
+        jdbc.update("UPDATE posts SET created_at='2026-01-01 12:00:00'");
+        jdbc.update("INSERT INTO reports(reporter_id,target_type,target_id,reason,status) "
+                + "VALUES(1,'POST',10,'Test report','PENDING')");
+        try (SqlSession session = sessions.openSession(true)) {
+            AdminDashboardMapper mapper = session.getMapper(AdminDashboardMapper.class);
+            var users = mapper.countNewUsersByDay(LocalDateTime.of(2026, 1, 1, 0, 0));
+            assertThat(users).hasSize(1);
+            assertThat(users.get(0).getDay()).isEqualTo(java.time.LocalDate.of(2026, 1, 1));
+            assertThat(users.get(0).getCount()).isEqualTo(2L);
+            var posts = mapper.countNewPostsByDay(LocalDateTime.of(2026, 1, 1, 0, 0));
+            assertThat(posts.get(0).getCount()).isEqualTo(1L);
+            assertThat(mapper.countReportsByStatus()).extracting(CategoryCount::getCategory)
+                    .containsExactly("PENDING");
+            assertThat(mapper.countReportsByTargetType()).extracting(CategoryCount::getCategory)
+                    .containsExactly("POST");
+            assertThat(mapper.countReportsByTargetType().get(0).getCount()).isEqualTo(1L);
+        }
     }
 
     @Test
@@ -242,7 +269,7 @@ class ContentPersistenceIntegrationTest {
             start.await();
             for (int i = 0; i < 10; i++) {
                 transaction.execute(status -> {
-                    RequestDtos.CreateReplyRequest request = new RequestDtos.CreateReplyRequest();
+                    CreateReplyRequest request = new CreateReplyRequest();
                     request.setContent("Reply");
                     return service.createReply(authorId, 10L, request);
                 });
@@ -376,7 +403,7 @@ class ContentPersistenceIntegrationTest {
         try {
             start.await();
             transaction.execute(status -> {
-                RequestDtos.CreateConversationRequest request = new RequestDtos.CreateConversationRequest();
+                CreateConversationRequest request = new CreateConversationRequest();
                 request.setPeerUserId(peerId);
                 request.setRelatedType("POST");
                 request.setRelatedId(10L);
@@ -396,7 +423,7 @@ class ContentPersistenceIntegrationTest {
                 template.getMapper(UserMapper.class), template.getMapper(UserBlockMapper.class),
                 template.getMapper(AttachmentMapper.class));
         TransactionTemplate transaction = new TransactionTemplate(new DataSourceTransactionManager(dataSource));
-        RequestDtos.CreateConversationRequest create = new RequestDtos.CreateConversationRequest();
+        CreateConversationRequest create = new CreateConversationRequest();
         create.setPeerUserId(2L);
         create.setRelatedType("POST");
         create.setRelatedId(10L);
@@ -430,8 +457,8 @@ class ContentPersistenceIntegrationTest {
             start.await();
             for (int i = 0; i < 10; i++) {
                 transaction.execute(status -> {
-                    RequestDtos.SendMessageRequest request = new RequestDtos.SendMessageRequest();
-                    request.setType(ApiEnums.MessageType.TEXT);
+                    SendMessageRequest request = new SendMessageRequest();
+                    request.setType(MessageType.TEXT);
                     request.setContent("Concurrent message");
                     return service.sendMessage(senderId, conversationId, request);
                 });
@@ -505,7 +532,6 @@ class ContentPersistenceIntegrationTest {
             assertThat(mapper.selectById(1L).getOwnerId()).isEqualTo(10L);
         }
     }
-
 
     @Test
     void generatedProfileIdAndNullableFieldsRoundTripThroughBaseMapper() {
@@ -588,15 +614,15 @@ class ContentPersistenceIntegrationTest {
                     null, null, null, null, null, null, null, null, null);
             var own = service.listReports(1L, null, 1, 1);
             assertThat(own.getTotal()).isEqualTo(2);
-            assertThat(own.getItems()).extracting(com.campusbridge.pojo.Report::getReason)
+            assertThat(own.getItems()).extracting(com.campusbridge.entity.Report::getReason)
                     .containsExactly("Second");
             var filtered = service.listReports(1L, "pending", 1, 20);
             assertThat(filtered.getTotal()).isEqualTo(1);
-            assertThat(filtered.getItems()).extracting(com.campusbridge.pojo.Report::getReason)
+            assertThat(filtered.getItems()).extracting(com.campusbridge.entity.Report::getReason)
                     .containsExactly("First");
             var admin = service.listReportsForAdmin("PENDING", 1, 20);
             assertThat(admin.getTotal()).isEqualTo(2);
-            assertThat(admin.getItems()).extracting(com.campusbridge.pojo.Report::getReporterId)
+            assertThat(admin.getItems()).extracting(com.campusbridge.entity.Report::getReporterId)
                     .containsExactly(2L, 1L);
         }
     }

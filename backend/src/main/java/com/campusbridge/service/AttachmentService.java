@@ -1,7 +1,8 @@
 package com.campusbridge.service;
 
+import com.campusbridge.entity.Attachment;
 import org.springframework.web.multipart.MultipartFile;
 
 public interface AttachmentService {
-    Object uploadAttachment(Long uploaderId, MultipartFile file, String expectedOwnerType, String type);
+    Attachment uploadAttachment(Long uploaderId, MultipartFile file, String expectedOwnerType, String type);
 }

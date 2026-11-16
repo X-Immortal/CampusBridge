@@ -2,16 +2,16 @@ package com.campusbridge.unit;
 
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
-import com.campusbridge.dto.request.RequestDtos;
+import com.campusbridge.dto.request.CreateTaskApplicationRequest;
+import com.campusbridge.dto.view.TaskView;
+import com.campusbridge.entity.Task;
+import com.campusbridge.entity.TaskApplication;
+import com.campusbridge.mapper.CampusVerificationMapper;
 import com.campusbridge.mapper.TaskApplicationMapper;
 import com.campusbridge.mapper.TaskMapper;
+import com.campusbridge.mapper.UserCreditMapper;
 import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.mapper.UserProfileMapper;
-import com.campusbridge.mapper.UserCreditMapper;
-import com.campusbridge.mapper.CampusVerificationMapper;
-import com.campusbridge.pojo.Task;
-import com.campusbridge.dto.view.TaskView;
-import com.campusbridge.pojo.TaskApplication;
 import com.campusbridge.service.NotificationService;
 import com.campusbridge.service.TaskHistoryService;
 import com.campusbridge.service.impl.TaskApplicationServiceImpl;
@@ -23,6 +23,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
 import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -288,8 +289,8 @@ class BE07TaskApplicationServiceImplTest {
 
     // ---- helpers ----
 
-    private RequestDtos.CreateTaskApplicationRequest appRequest(String message) {
-        RequestDtos.CreateTaskApplicationRequest request = new RequestDtos.CreateTaskApplicationRequest();
+    private CreateTaskApplicationRequest appRequest(String message) {
+        CreateTaskApplicationRequest request = new CreateTaskApplicationRequest();
         request.setMessage(message);
         return request;
     }

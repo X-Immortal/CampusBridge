@@ -2,16 +2,18 @@ package com.campusbridge.service.impl;
 
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
-import com.campusbridge.dto.request.RequestDtos;
-import com.campusbridge.dto.view.ViewDtos;
+import com.campusbridge.dto.request.UpdateUserProfileRequest;
+import com.campusbridge.dto.view.UserHomepageView;
+import com.campusbridge.dto.view.UserProfileView;
+import com.campusbridge.dto.view.UserView;
+import com.campusbridge.entity.CampusVerification;
+import com.campusbridge.entity.User;
+import com.campusbridge.entity.UserCredit;
+import com.campusbridge.entity.UserProfile;
 import com.campusbridge.mapper.CampusVerificationMapper;
 import com.campusbridge.mapper.UserCreditMapper;
 import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.mapper.UserProfileMapper;
-import com.campusbridge.pojo.CampusVerification;
-import com.campusbridge.pojo.User;
-import com.campusbridge.pojo.UserCredit;
-import com.campusbridge.pojo.UserProfile;
 import com.campusbridge.service.UserProfileService;
 import com.campusbridge.utils.AliOSSUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -62,22 +64,22 @@ public class UserProfileServiceImpl implements UserProfileService {
     }
 
     @Override
-    public ViewDtos.UserView getCurrentUser(Long currentUserId) {
+    public UserView getCurrentUser(Long currentUserId) {
         User user = requireUser(currentUserId);
         return toUserView(user);
     }
 
     @Override
-    public ViewDtos.UserProfileView getMyProfile(Long currentUserId) {
+    public UserProfileView getMyProfile(Long currentUserId) {
         requireUser(currentUserId);
         UserProfile profile = getOrCreateProfile(currentUserId);
         return toProfileView(profile, currentUserId);
     }
 
     @Override
-    public ViewDtos.UserProfileView updateMyProfile(
+    public UserProfileView updateMyProfile(
             Long currentUserId,
-            RequestDtos.UpdateUserProfileRequest request) {
+            UpdateUserProfileRequest request) {
         requireUser(currentUserId);
         validateProfileRequest(request);
 
@@ -103,7 +105,7 @@ public class UserProfileServiceImpl implements UserProfileService {
     }
 
     @Override
-    public ViewDtos.UserHomepageView getUserHomepage(Long userId) {
+    public UserHomepageView getUserHomepage(Long userId) {
         User user = requireUser(userId);
         UserProfile profile = getProfileOrEmpty(user.getId());
         UserCredit credit = userCreditMapper.selectByUserId(user.getId());
@@ -119,7 +121,7 @@ public class UserProfileServiceImpl implements UserProfileService {
         boolean verified = verification != null
                 && "VERIFIED".equals(verification.getStatus());
 
-        return new ViewDtos.UserHomepageView(
+        return new UserHomepageView(
                 profile.getUserId(),
                 profile.getNickname(),
                 profile.getAvatarUrl(),
@@ -229,8 +231,8 @@ public class UserProfileServiceImpl implements UserProfileService {
         return emptyProfile;
     }
 
-    private ViewDtos.UserView toUserView(User user) {
-        return new ViewDtos.UserView(
+    private UserView toUserView(User user) {
+        return new UserView(
                 user.getId(),
                 user.getUsername(),
                 user.getRole(),
@@ -238,7 +240,7 @@ public class UserProfileServiceImpl implements UserProfileService {
                 user.getCreatedAt());
     }
 
-    private ViewDtos.UserProfileView toProfileView(UserProfile profile, Long userId) {
+    private UserProfileView toProfileView(UserProfile profile, Long userId) {
         UserCredit credit = userCreditMapper.selectByUserId(userId);
         CampusVerification verification =
                 campusVerificationMapper.selectLatestByUserId(userId);
@@ -252,7 +254,7 @@ public class UserProfileServiceImpl implements UserProfileService {
         boolean verified = verification != null
                 && "VERIFIED".equals(verification.getStatus());
 
-        return new ViewDtos.UserProfileView(
+        return new UserProfileView(
                 profile.getUserId(),
                 profile.getNickname(),
                 profile.getBio(),
@@ -267,7 +269,7 @@ public class UserProfileServiceImpl implements UserProfileService {
                 points);
     }
 
-    private void validateProfileRequest(RequestDtos.UpdateUserProfileRequest request) {
+    private void validateProfileRequest(UpdateUserProfileRequest request) {
         if (request == null) {
             throw new BusinessException(
                     ErrorCode.COMMON_001_VALIDATION_ERROR,

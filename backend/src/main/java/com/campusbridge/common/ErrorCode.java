@@ -1,5 +1,6 @@
 package com.campusbridge.common;
 
+import com.campusbridge.entity.Attachment;
 import lombok.Getter;
 import org.springframework.http.HttpStatus;
 
@@ -40,6 +41,20 @@ public enum ErrorCode {
             "CONTENT_001_BLOCKED",
             "内容命中平台规则，已拦截",
             HttpStatus.UNPROCESSABLE_ENTITY),
+    ATTACH_001_INVALID_INPUT("ATTACH_001_INVALID_INPUT", "Uploader or file is invalid", HttpStatus.BAD_REQUEST),
+    ATTACH_002_INVALID_OWNER_TYPE("ATTACH_002_INVALID_OWNER_TYPE", "expectedOwnerType is invalid", HttpStatus.BAD_REQUEST),
+    ATTACH_003_INVALID_TYPE("ATTACH_003_INVALID_TYPE", "Attachment type is invalid", HttpStatus.BAD_REQUEST),
+    ATTACH_004_UPLOAD_FAILED("ATTACH_004_UPLOAD_FAILED", "Upload to OSS failed", HttpStatus.BAD_GATEWAY),
+    ATTACH_005_SAVE_FAILED("ATTACH_005_SAVE_FAILED", "Failed to save attachment metadata", HttpStatus.INTERNAL_SERVER_ERROR),
+    VERIFY_001_INVALID_INPUT("VERIFY_001_INVALID_INPUT", "Invalid verification request", HttpStatus.BAD_REQUEST),
+    VERIFY_002_ALREADY_PENDING_OR_VERIFIED("VERIFY_002_ALREADY_PENDING_OR_VERIFIED", "Verification already pending or approved", HttpStatus.CONFLICT),
+    VERIFY_003_SUBMIT_FAILED("VERIFY_003_SUBMIT_FAILED", "Failed to save verification", HttpStatus.INTERNAL_SERVER_ERROR),
+    VERIFY_004_NOT_FOUND("VERIFY_004_NOT_FOUND", "Verification record not found", HttpStatus.NOT_FOUND),
+    VERIFY_005_EMAIL_SEND_FAILED("VERIFY_005_EMAIL_SEND_FAILED", "Failed to send verification email", HttpStatus.BAD_GATEWAY),
+    VERIFY_006_EMAIL_CODE_NOT_PENDING("VERIFY_006_EMAIL_CODE_NOT_PENDING", "No pending email verification", HttpStatus.CONFLICT),
+    VERIFY_007_EMAIL_CODE_EXPIRED("VERIFY_007_EMAIL_CODE_EXPIRED", "Verification code expired", HttpStatus.BAD_REQUEST),
+    VERIFY_008_EMAIL_CODE_MISMATCH("VERIFY_008_EMAIL_CODE_MISMATCH", "Verification code is incorrect", HttpStatus.BAD_REQUEST),
+    VERIFY_009_CANNOT_CANCEL("VERIFY_009_CANNOT_CANCEL", "Only pending verification can be cancelled", HttpStatus.CONFLICT),
     COMMON_001_VALIDATION_ERROR("COMMON_001_VALIDATION_ERROR", "请求参数错误", HttpStatus.BAD_REQUEST),
     COMMON_002_RATE_LIMITED("COMMON_002_RATE_LIMITED", "请求过于频繁", HttpStatus.TOO_MANY_REQUESTS),
     COMMON_003_CONFLICT("COMMON_003_CONFLICT", "资源状态冲突", HttpStatus.CONFLICT),

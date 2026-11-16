@@ -1,14 +1,21 @@
 package com.campusbridge.controller;
 
-import com.campusbridge.dto.query.TaskQuery;
-import com.campusbridge.dto.view.TaskPageView;
-import com.campusbridge.dto.request.RequestDtos;
-import com.campusbridge.pojo.Result;
+import com.campusbridge.common.ApiResponse;
 import com.campusbridge.common.CurrentUserResolver;
 import com.campusbridge.common.GuestTaskMasker;
-import com.campusbridge.service.TaskService;
-import com.campusbridge.service.TaskDetailService;
+import com.campusbridge.dto.query.TaskQuery;
+import com.campusbridge.dto.request.CreateTaskRequest;
+import com.campusbridge.dto.request.ReasonRequest;
+import com.campusbridge.dto.request.SubmitCompletionRequest;
+import com.campusbridge.dto.request.TaskStatusTransitionRequest;
+import com.campusbridge.dto.request.UpdateTaskRequest;
+import com.campusbridge.dto.view.TaskDetailView;
+import com.campusbridge.dto.view.TaskPageView;
+import com.campusbridge.dto.view.TaskView;
+import com.campusbridge.entity.CompletionProof;
 import com.campusbridge.service.CompletionService;
+import com.campusbridge.service.TaskDetailService;
+import com.campusbridge.service.TaskService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -19,9 +26,8 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.ResponseStatus;
-
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/tasks")
@@ -44,24 +50,24 @@ public class TaskController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Result createTask(
+    public ApiResponse<TaskView> createTask(
             HttpServletRequest servletRequest,
-            @RequestBody RequestDtos.CreateTaskRequest request) {
+            @RequestBody CreateTaskRequest request) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
-        return Result.success(taskService.createTask(currentUserId, request));
+        return ApiResponse.success(taskService.createTask(currentUserId, request));
     }
 
     @PostMapping("/drafts")
     @ResponseStatus(HttpStatus.CREATED)
-    public Result saveDraft(
+    public ApiResponse<TaskView> saveDraft(
             HttpServletRequest servletRequest,
-            @RequestBody RequestDtos.CreateTaskRequest request) {
+            @RequestBody CreateTaskRequest request) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
-        return Result.success(taskService.saveDraft(currentUserId, request));
+        return ApiResponse.success(taskService.saveDraft(currentUserId, request));
     }
 
     @GetMapping
-    public Result listTasks(
+    public ApiResponse<TaskPageView> listTasks(
             HttpServletRequest servletRequest,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String category,
@@ -88,110 +94,110 @@ public class TaskController {
         TaskPageView result = taskService.listTasks(query);
         Long currentUserId = currentUserResolver.resolveOptionalUserId(servletRequest);
         result.getTasks().forEach(task -> GuestTaskMasker.maskForGuest(task, currentUserId));
-        return Result.success(result);
+        return ApiResponse.success(result);
     }
 
     @GetMapping("/{taskId}")
-    public Result getTaskDetail(HttpServletRequest servletRequest, @PathVariable Long taskId) {
+    public ApiResponse<TaskDetailView> getTaskDetail(HttpServletRequest servletRequest, @PathVariable Long taskId) {
         Long currentUserId = currentUserResolver.resolveOptionalUserId(servletRequest);
         var detail = taskDetailService.getTaskDetail(taskId, currentUserId);
         detail.setTask(GuestTaskMasker.maskForGuest(detail.getTask(), currentUserId));
-        return Result.success(detail);
+        return ApiResponse.success(detail);
     }
 
     @PutMapping("/{taskId}")
-    public Result updateTask(
+    public ApiResponse<TaskView> updateTask(
             HttpServletRequest servletRequest,
             @PathVariable Long taskId,
-            @RequestBody RequestDtos.UpdateTaskRequest request) {
+            @RequestBody UpdateTaskRequest request) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
-        return Result.success(taskService.updateTask(currentUserId, taskId, request));
+        return ApiResponse.success(taskService.updateTask(currentUserId, taskId, request));
     }
 
     @DeleteMapping("/{taskId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public Result cancelTask(
+    public ApiResponse<TaskView> cancelTask(
             HttpServletRequest servletRequest,
             @PathVariable Long taskId,
             @RequestParam(required = false) String reason) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
-        return Result.success(taskService.cancelTask(currentUserId, taskId, reason));
+        return ApiResponse.success(taskService.cancelTask(currentUserId, taskId, reason));
     }
 
     @PostMapping("/{taskId}/provider-withdrawal")
-    public Result withdrawProvider(
+    public ApiResponse<TaskView> withdrawProvider(
             HttpServletRequest servletRequest,
             @PathVariable Long taskId,
-            @RequestBody java.util.Map<String, String> request) {
+            @RequestBody ReasonRequest request) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
-        return Result.success(
-                taskService.withdrawFromTask(currentUserId, taskId, request.get("reason")));
+        return ApiResponse.success(
+                taskService.withdrawFromTask(currentUserId, taskId, request.reason()));
     }
 
     @DeleteMapping("/{taskId}/draft")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public Result deleteDraft(
+    public ApiResponse<Void> deleteDraft(
             HttpServletRequest servletRequest,
             @PathVariable Long taskId) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
         taskService.deleteDraft(currentUserId, taskId);
-        return Result.success();
+        return ApiResponse.success();
     }
 
     @PostMapping("/{taskId}/resend")
-    public Result resendTask(
+    public ApiResponse<TaskView> resendTask(
             HttpServletRequest servletRequest,
             @PathVariable Long taskId) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
-        return Result.success(taskService.resendTask(currentUserId, taskId));
+        return ApiResponse.success(taskService.resendTask(currentUserId, taskId));
     }
 
     @PostMapping("/{taskId}/status-transitions")
-    public Result transitionTaskStatus(
+    public ApiResponse<TaskView> transitionTaskStatus(
             HttpServletRequest servletRequest,
             @PathVariable Long taskId,
-            @RequestBody RequestDtos.TaskStatusTransitionRequest request) {
+            @RequestBody TaskStatusTransitionRequest request) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
-        return Result.success(taskService.transitionTaskStatus(currentUserId, taskId, request));
+        return ApiResponse.success(taskService.transitionTaskStatus(currentUserId, taskId, request));
     }
 
     @PostMapping("/{taskId}/completion")
-    public Result submitCompletion(
+    public ApiResponse<CompletionProof> submitCompletion(
             HttpServletRequest servletRequest,
             @PathVariable Long taskId,
-            @RequestBody RequestDtos.SubmitCompletionRequest request) {
+            @RequestBody SubmitCompletionRequest request) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
-        return Result.success(completionService.submitCompletionProof(currentUserId, taskId, request));
+        return ApiResponse.success(completionService.submitCompletionProof(currentUserId, taskId, request));
     }
 
     @PostMapping("/{taskId}/completion/confirm")
-    public Result confirmCompletion(
+    public ApiResponse<Void> confirmCompletion(
             HttpServletRequest servletRequest,
             @PathVariable Long taskId) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
         completionService.confirmCompletion(currentUserId, taskId);
-        return Result.success();
+        return ApiResponse.success();
     }
 
     @PostMapping("/{taskId}/completion/reject")
-    public Result rejectCompletion(
+    public ApiResponse<Void> rejectCompletion(
             HttpServletRequest servletRequest,
             @PathVariable Long taskId,
-            @RequestBody java.util.Map<String, String> request) {
+            @RequestBody ReasonRequest request) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
-        String reason = request.get("reason");
+        String reason = request.reason();
         completionService.rejectCompletion(currentUserId, taskId, reason);
-        return Result.success();
+        return ApiResponse.success();
     }
 
     @PostMapping("/{taskId}/completion/dispute")
-    public Result disputeCompletion(
+    public ApiResponse<Void> disputeCompletion(
             HttpServletRequest servletRequest,
             @PathVariable Long taskId,
-            @RequestBody java.util.Map<String, String> request) {
+            @RequestBody ReasonRequest request) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
-        String reason = request.get("reason");
+        String reason = request.reason();
         completionService.disputeCompletion(currentUserId, taskId, reason);
-        return Result.success();
+        return ApiResponse.success();
     }
 }

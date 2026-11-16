@@ -1,22 +1,22 @@
 # CampusBridge 接口使用说明
 
-**版本：** 1.1 · **更新日期：** 2026-11-16
+**版本：** 1.2 · **更新日期：** 2026-11-16
 
-[OpenAPI](openapi.yaml) 提供从 Controller 导出的路由、方法和可识别类型；本文说明公共响应、动态载荷和关键操作顺序。业务字段约束与状态条件在 [SRS](srs.md) 中维护，不另行复制全量接口清单。
+[OpenAPI](openapi.yaml) 提供从 Controller 导出的路由、方法和可识别类型；本文说明公共响应、业务载荷和关键操作顺序。业务字段约束与状态条件在 [SRS](srs.md) 中维护，不另行复制全量接口清单。
 
 ## 1. 契约来源与使用方式
 
 当前导出覆盖 68 条路径、83 个操作。生成测试会比较实际 MVC 映射与 YAML 的路径、方法集合。该比较不证明业务字段完整，也不验证每条路径的认证、输入校验和响应语义。
 
-部分 Controller 返回 Result，其 data 为 Object；账号修改等请求使用 Map。因此 OpenAPI 中的开放对象不能解释成“任意字段均有效”。遇到动态结构，按下列入口核对：
+Controller 使用 `ApiResponse<T>` 声明具体响应类型。请求字段由请求 DTO 定义，成功载荷由响应 DTO、视图或实体定义，分页保留元素类型。接口调用入口如下：
 
 | 内容 | 代码入口 |
 | --- | --- |
-| 请求 DTO、枚举 | [RequestDtos](../backend/src/main/java/com/campusbridge/dto/request/RequestDtos.java)、[ApiEnums](../backend/src/main/java/com/campusbridge/dto/enums/ApiEnums.java) |
-| 成功外层 | [Result](../backend/src/main/java/com/campusbridge/pojo/Result.java) |
+| 请求 DTO、枚举 | [请求 DTO](../backend/src/main/java/com/campusbridge/dto/request/)、[枚举](../backend/src/main/java/com/campusbridge/enums/) |
+| 成功外层 | [ApiResponse](../backend/src/main/java/com/campusbridge/common/ApiResponse.java) |
 | 异常外层及状态码 | [ErrorResponse](../backend/src/main/java/com/campusbridge/common/ErrorResponse.java)、[ErrorCode](../backend/src/main/java/com/campusbridge/common/ErrorCode.java) |
-| 登录动态载荷 | [AuthServiceImpl.login](../backend/src/main/java/com/campusbridge/service/impl/AuthServiceImpl.java) |
-| 账号修改 Map 字段 | [AccountController](../backend/src/main/java/com/campusbridge/controller/AccountController.java) |
+| 登录响应字段 | [AuthServiceImpl.login](../backend/src/main/java/com/campusbridge/service/impl/AuthServiceImpl.java) |
+| 账号修改请求字段 | [AccountController](../backend/src/main/java/com/campusbridge/controller/AccountController.java) |
 | 任务分页及动作 | [TaskController](../backend/src/main/java/com/campusbridge/controller/TaskController.java)、[TaskServiceImpl](../backend/src/main/java/com/campusbridge/service/impl/TaskServiceImpl.java) |
 | 前端现有调用 | [api.js](../frontend/src/services/api.js) |
 
@@ -69,13 +69,13 @@ data 由具体接口决定，可以是编号、对象、数组、分页对象或
 
 | 返回来源 | data 结构 |
 | --- | --- |
-| 使用 ResponseDtos.PagedResult 的帖子、会话、消息、举报等接口 | items、page、size、total |
+| 使用 PagedResult 的帖子、会话、消息、举报等接口 | items、page、size、total |
 | GET /api/v1/tasks | tasks、page、size、total |
 | 返回普通 List 的接口 | 数组；不能按 items 或 tasks 解包 |
 
 普通分页空页返回空数组和对应总数。前端需要保留筛选条件，不能通过当前页长度推断全量匹配数。具体排序规则见 SRS 对应业务节。
 
-### 3.3 异常响应与旧业务错误
+### 3.3 异常响应
 
 BusinessException 和已登记的 MVC 错误由 GlobalExceptionHandler 转换：
 
@@ -91,17 +91,18 @@ BusinessException 和已登记的 MVC 错误由 GlobalExceptionHandler 转换：
 }
 ```
 
-ErrorResponse 没有 data；details 是字符串列表或 null。旧 Controller 使用 Result.error 时仍为 code/message/data/meta，且可能保留注解指定的 2xx。例如认证提交的校验失败可为 HTTP 202 配合 VERIFY_* 业务错误；附件上传失败也可能保持 HTTP 201。调用方必须同时判断 HTTP 状态和 code 是否为 SUCCESS。
+ErrorResponse 没有 data；details 是字符串列表或 null。业务失败由 Service 抛出 BusinessException，统一异常处理器按 ErrorCode 返回非 2xx 状态。认证和附件上传的失败同样使用此结构；前端公共请求函数根据 HTTP 状态、code 和 message 展示错误。
 
 | HTTP | 具体含义或代表错误码 |
 | --- | --- |
-| 400 | COMMON_001_VALIDATION_ERROR；FILE_001_TOO_LARGE、FILE_004_INVALID_ATTACHMENT 也映射为 400 |
+| 400 | COMMON_001_VALIDATION_ERROR、ATTACH_001_INVALID_INPUT、ATTACH_002_INVALID_OWNER_TYPE、ATTACH_003_INVALID_TYPE、VERIFY_001_INVALID_INPUT、VERIFY_007_EMAIL_CODE_EXPIRED、VERIFY_008_EMAIL_CODE_MISMATCH；文件大小和附件校验失败也映射为 400 |
 | 401 | AUTH_001_UNAUTHORIZED、AUTH_002_INVALID_CREDENTIALS |
 | 403 | USER_002_NOT_VERIFIED、TASK_003_PERMISSION_DENIED、CONV_003_BLOCKED、MOD_001_PERMISSION_DENIED 等 |
-| 404 | TASK_001_NOT_FOUND、POST_001_NOT_FOUND、CONV_001_NOT_FOUND 等 |
-| 409 | TASK_002_INVALID_STATUS_TRANSITION、TASK_007_ALREADY_APPLIED、REVIEW_001_DUPLICATE_REVIEW、COMMON_003_CONFLICT |
+| 404 | TASK_001_NOT_FOUND、POST_001_NOT_FOUND、CONV_001_NOT_FOUND、VERIFY_004_NOT_FOUND 等 |
+| 409 | TASK_002_INVALID_STATUS_TRANSITION、TASK_007_ALREADY_APPLIED、REVIEW_001_DUPLICATE_REVIEW、COMMON_003_CONFLICT、VERIFY_002_ALREADY_PENDING_OR_VERIFIED、VERIFY_006_EMAIL_CODE_NOT_PENDING、VERIFY_009_CANNOT_CANCEL |
 | 422 | CONTENT_001_BLOCKED |
-| 500 | COMMON_999_INTERNAL_ERROR |
+| 500 | COMMON_999_INTERNAL_ERROR、ATTACH_005_SAVE_FAILED、VERIFY_003_SUBMIT_FAILED |
+| 502 | ATTACH_004_UPLOAD_FAILED、VERIFY_005_EMAIL_SEND_FAILED |
 
 应用对上传过大异常当前返回 400，不是 413；入口代理另行拒绝请求时可能使用自己的状态及响应体。错误码枚举中存在某个值不等于当前业务路径一定会触发它，例如验证码限流尚未实现。
 

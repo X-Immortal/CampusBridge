@@ -1,12 +1,12 @@
 package com.campusbridge.unit;
 
+import com.campusbridge.entity.Conversation;
+import com.campusbridge.entity.Message;
+import com.campusbridge.entity.Post;
+import com.campusbridge.entity.Reply;
 import com.campusbridge.mapper.ConversationMapper;
 import com.campusbridge.mapper.MessageMapper;
 import com.campusbridge.mapper.UserMapper;
-import com.campusbridge.pojo.Conversation;
-import com.campusbridge.pojo.Message;
-import com.campusbridge.pojo.Post;
-import com.campusbridge.pojo.Reply;
 import com.campusbridge.service.impl.NotificationServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

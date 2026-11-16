@@ -1,10 +1,10 @@
 package com.campusbridge.service;
 
-import com.campusbridge.dto.request.RequestDtos;
-import com.campusbridge.pojo.PostInteraction;
+import com.campusbridge.dto.request.CreatePostInteractionRequest;
+import com.campusbridge.entity.PostInteraction;
 
 public interface InteractionService {
-    PostInteraction createInteraction(Long userId, Long postId, RequestDtos.CreatePostInteractionRequest request);
+    PostInteraction createInteraction(Long userId, Long postId, CreatePostInteractionRequest request);
 
     void cancelInteraction(Long userId, Long postId, String type);
 

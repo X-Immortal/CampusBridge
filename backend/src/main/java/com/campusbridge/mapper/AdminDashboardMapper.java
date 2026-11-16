@@ -1,11 +1,12 @@
 package com.campusbridge.mapper;
 
+import com.campusbridge.dto.view.CategoryCount;
+import com.campusbridge.dto.view.DailyCount;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 
 @Mapper
 public interface AdminDashboardMapper {
@@ -28,15 +29,15 @@ public interface AdminDashboardMapper {
 
     long countDisputedTasks();
 
-    List<Map<String, Object>> countNewUsersByDay(@Param("from") LocalDateTime from);
+    List<DailyCount> countNewUsersByDay(@Param("from") LocalDateTime from);
 
-    List<Map<String, Object>> countNewTasksByDay(@Param("from") LocalDateTime from);
+    List<DailyCount> countNewTasksByDay(@Param("from") LocalDateTime from);
 
-    List<Map<String, Object>> countNewPostsByDay(@Param("from") LocalDateTime from);
+    List<DailyCount> countNewPostsByDay(@Param("from") LocalDateTime from);
 
-    List<Map<String, Object>> countTasksByStatus();
+    List<CategoryCount> countTasksByStatus();
 
-    List<Map<String, Object>> countReportsByStatus();
+    List<CategoryCount> countReportsByStatus();
 
-    List<Map<String, Object>> countReportsByTargetType();
+    List<CategoryCount> countReportsByTargetType();
 }

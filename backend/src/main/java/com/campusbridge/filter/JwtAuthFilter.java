@@ -1,7 +1,7 @@
 package com.campusbridge.filter;
 
+import com.campusbridge.entity.User;
 import com.campusbridge.mapper.UserMapper;
-import com.campusbridge.pojo.User;
 import com.campusbridge.utils.JwtUtil;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;

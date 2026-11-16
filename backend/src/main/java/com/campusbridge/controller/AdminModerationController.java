@@ -1,15 +1,19 @@
 package com.campusbridge.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.campusbridge.dto.query.TaskQuery;
-import com.campusbridge.dto.response.ResponseDtos;
-import com.campusbridge.common.BusinessException;
+import com.campusbridge.common.ApiResponse;
 import com.campusbridge.common.CurrentUserResolver;
-import com.campusbridge.common.ErrorCode;
-import com.campusbridge.dto.request.RequestDtos;
-import com.campusbridge.mapper.TaskMapper;
-import com.campusbridge.pojo.Result;
+import com.campusbridge.common.PagedResult;
+import com.campusbridge.dto.query.TaskQuery;
+import com.campusbridge.dto.request.ReasonRequest;
+import com.campusbridge.dto.request.ResolveReportRequest;
 import com.campusbridge.dto.view.TaskView;
+import com.campusbridge.dto.view.VerificationReviewView;
+import com.campusbridge.entity.CampusVerification;
+import com.campusbridge.entity.ModerationRecord;
+import com.campusbridge.entity.Report;
+import com.campusbridge.entity.Task;
+import com.campusbridge.mapper.TaskMapper;
 import com.campusbridge.service.ReportService;
 import com.campusbridge.service.VerificationService;
 import com.campusbridge.service.impl.TaskModerationService;
@@ -22,14 +26,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Map;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/admin")
 public class AdminModerationController {
     private static final String STATUS_PENDING_REVIEW = "PENDING_REVIEW";
     private static final String STATUS_DISPUTED = "DISPUTED";
-
 
     private final CurrentUserResolver currentUserResolver;
     private final ReportService reportService;
@@ -51,7 +54,7 @@ public class AdminModerationController {
     }
 
     @GetMapping("/moderation/tasks/pending")
-    public Result listPendingTasks(
+    public ApiResponse<List<TaskView>> listPendingTasks(
             @RequestParam(required = false, defaultValue = "1") Integer page,
             @RequestParam(required = false, defaultValue = "20") Integer size) {
         int safePage = page == null || page < 1 ? 1 : page;
@@ -65,81 +68,79 @@ public class AdminModerationController {
                 .build();
 
         Page<TaskView> result = taskMapper.selectWithFilters(new Page<>(safePage, safeSize, false), query);
-        return Result.success(result.getRecords());
+        return ApiResponse.success(result.getRecords());
     }
 
     @PostMapping("/moderation/tasks/{taskId}/approve")
-    public Result approveTask(
+    public ApiResponse<Task> approveTask(
             HttpServletRequest servletRequest,
             @PathVariable Long taskId) {
 
         Long adminUserId = currentUserResolver.requireCurrentUserId(servletRequest);
-        return Result.success(taskModerationService.approveTask(adminUserId, taskId));
+        return ApiResponse.success(taskModerationService.approveTask(adminUserId, taskId));
     }
 
     @PostMapping("/moderation/tasks/{taskId}/reject")
-    public Result rejectTask(
+    public ApiResponse<Task> rejectTask(
             HttpServletRequest servletRequest,
             @PathVariable Long taskId,
-            @RequestBody(required = false) Map<String, String> request) {
+            @RequestBody(required = false) ReasonRequest request) {
 
         Long adminUserId = currentUserResolver.requireCurrentUserId(servletRequest);
-        String reason = request == null ? null : request.get("reason");
-        return Result.success(taskModerationService.rejectTask(adminUserId, taskId, reason));
+        String reason = request == null ? null : request.reason();
+        return ApiResponse.success(taskModerationService.rejectTask(adminUserId, taskId, reason));
     }
 
     @GetMapping("/reports")
-    public Result listReports(
+    public ApiResponse<PagedResult<Report>> listReports(
             @RequestParam(required = false) String status,
             @RequestParam(required = false, defaultValue = "1") Integer page,
             @RequestParam(required = false, defaultValue = "20") Integer size) {
-        return Result.success(reportService.listReportsForAdmin(status, page, size));
+        return ApiResponse.success(reportService.listReportsForAdmin(status, page, size));
     }
 
     @PostMapping("/reports/{reportId}/resolve")
-    public Result resolveReport(
+    public ApiResponse<ModerationRecord> resolveReport(
             HttpServletRequest servletRequest,
             @PathVariable Long reportId,
-            @RequestBody RequestDtos.ResolveReportRequest request) {
+            @RequestBody ResolveReportRequest request) {
         Long currentUserId = currentUserResolver.requireCurrentUserId(servletRequest);
-        return Result.success(reportService.resolveReport(currentUserId, reportId, request));
+        return ApiResponse.success(reportService.resolveReport(currentUserId, reportId, request));
     }
 
     // === 认证审核 ===
 
     @GetMapping("/verifications/pending")
-    public Result listPendingVerifications(
+    public ApiResponse<PagedResult<CampusVerification>> listPendingVerifications(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return Result.success(verificationService.listPending(page, size));
+        return ApiResponse.success(verificationService.listPending(page, size));
     }
 
     @PostMapping("/verifications/{id}/approve")
-    public Result approveVerification(
+    public ApiResponse<VerificationReviewView> approveVerification(
             HttpServletRequest servletRequest,
             @PathVariable Long id) {
         Long adminUserId = currentUserResolver.requireCurrentUserId(servletRequest);
-        Object result = verificationService.review(adminUserId, id, true, null);
-        assertVerificationReviewResult(result);
-        return Result.success(result);
+        VerificationReviewView result = verificationService.review(adminUserId, id, true, null);
+        return ApiResponse.success(result);
     }
 
     @PostMapping("/verifications/{id}/reject")
-    public Result rejectVerification(
+    public ApiResponse<VerificationReviewView> rejectVerification(
             HttpServletRequest servletRequest,
             @PathVariable Long id,
-            @RequestBody Map<String, String> body) {
+            @RequestBody ReasonRequest body) {
         Long adminUserId = currentUserResolver.requireCurrentUserId(servletRequest);
-        String reason = body != null ? body.getOrDefault("reason", "") : "";
-        Object result = verificationService.review(adminUserId, id, false, reason);
-        assertVerificationReviewResult(result);
-        return Result.success(result);
+        String reason = body != null ? body.reason() : "";
+        VerificationReviewView result = verificationService.review(adminUserId, id, false, reason);
+        return ApiResponse.success(result);
     }
 
     // === 申诉处理 ===
 
     @GetMapping("/appeals")
-    public Result listAppeals(
+    public ApiResponse<PagedResult<TaskView>> listAppeals(
             @RequestParam(required = false, defaultValue = "1") Integer page,
             @RequestParam(required = false, defaultValue = "20") Integer size) {
         int safePage = page == null || page < 1 ? 1 : page;
@@ -152,42 +153,28 @@ public class AdminModerationController {
                 .build();
 
         Page<TaskView> result = taskMapper.selectWithFilters(new Page<>(safePage, safeSize), query);
-        return Result.success(new ResponseDtos.PagedResult<>(
+        return ApiResponse.success(new PagedResult<>(
                 result.getRecords(), safePage, safeSize, result.getTotal()));
     }
 
     @PostMapping("/appeals/{taskId}/dismiss")
-    public Result dismissAppeal(
+    public ApiResponse<Void> dismissAppeal(
             HttpServletRequest servletRequest,
             @PathVariable Long taskId) {
 
         Long adminUserId = currentUserResolver.requireCurrentUserId(servletRequest);
         taskModerationService.dismissAppeal(adminUserId, taskId);
-        return Result.success();
+        return ApiResponse.success();
     }
 
     @PostMapping("/appeals/{taskId}/punish")
-    public Result punishAppeal(
+    public ApiResponse<Void> punishAppeal(
             HttpServletRequest servletRequest,
             @PathVariable Long taskId) {
 
         Long adminUserId = currentUserResolver.requireCurrentUserId(servletRequest);
         taskModerationService.punishAppeal(adminUserId, taskId);
-        return Result.success();
+        return ApiResponse.success();
     }
 
-    private void assertVerificationReviewResult(Object result) {
-        if (result == null) {
-            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "审核操作失败");
-        }
-        if (result instanceof Long code) {
-            if (code == -1L) {
-                throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "认证记录不存在");
-            }
-            if (code == -2L) {
-                throw new BusinessException(ErrorCode.COMMON_003_CONFLICT, "该认证记录已审核");
-            }
-            throw new BusinessException(ErrorCode.COMMON_999_INTERNAL_ERROR, "审核操作失败");
-        }
-    }
 }

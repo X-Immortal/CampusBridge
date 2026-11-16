@@ -2,11 +2,12 @@ package com.campusbridge.service.impl;
 
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
-import com.campusbridge.dto.request.RequestDtos;
+import com.campusbridge.dto.request.LoginRequest;
+import com.campusbridge.dto.request.RegisterRequest;
+import com.campusbridge.dto.view.LoginView;
+import com.campusbridge.entity.User;
 import com.campusbridge.mapper.UserMapper;
-import com.campusbridge.pojo.User;
 import com.campusbridge.service.AuthService;
-import com.campusbridge.service.impl.EmailVerificationCodeSender;
 import com.campusbridge.utils.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,8 +18,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -46,23 +45,23 @@ public class AuthServiceImpl implements AuthService {
     private String emailCodeSecret;
 
     @Override
-    public Long register(RequestDtos.RegisterRequest request) {
+    public Long register(RegisterRequest request) {
         if (request == null
                 || request.username == null || request.username.isBlank()
                 || request.password == null || request.password.isBlank()
                 || request.email == null || request.email.isBlank()
                 || request.phone == null || request.phone.isBlank()
                 || request.code == null || request.code.isBlank()) {
-            return null;
+            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "注册参数不合法");
         }
 
         if (userMapper.selectByUsername(request.username) != null) {
-            return -1L;
+            throw new BusinessException(ErrorCode.COMMON_003_CONFLICT, "用户名已存在");
         }
 
         String phoneHash = sha256(request.phone);
         if (userMapper.selectByPhoneHash(phoneHash) != null) {
-            return -2L;
+            throw new BusinessException(ErrorCode.COMMON_003_CONFLICT, "手机号已存在");
         }
 
         String email = normalizeEmail(request.email);
@@ -85,7 +84,7 @@ public class AuthServiceImpl implements AuthService {
 
         int affected = userMapper.insert(user);
         if (affected <= 0) {
-            return null;
+            throw new BusinessException(ErrorCode.COMMON_999_INTERNAL_ERROR, "注册保存失败");
         }
         return user.getId();
     }
@@ -109,31 +108,27 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public Object login(RequestDtos.LoginRequest request) {
+    public LoginView login(LoginRequest request) {
         if (request == null || request.username == null || request.username.isBlank()
                 || request.password == null || request.password.isBlank()) {
-            return null;
+            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "登录参数不合法");
         }
 
         User dbUser = userMapper.selectByUsername(request.username);
         if (dbUser == null) {
-            return -1L;
+            throw new BusinessException(ErrorCode.AUTH_002_INVALID_CREDENTIALS);
         }
         if (dbUser.getEnabled() != null && dbUser.getEnabled() == 0) {
-            return -2L;
+            throw new BusinessException(ErrorCode.AUTH_001_UNAUTHORIZED, "账号已被禁用");
         }
         if (dbUser.getPasswordHash() == null
                 || !passwordEncoder.matches(request.password, dbUser.getPasswordHash())) {
-            return -3L;
+            throw new BusinessException(ErrorCode.AUTH_002_INVALID_CREDENTIALS);
         }
 
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("userId", dbUser.getId());
-        payload.put("username", dbUser.getUsername());
-        payload.put("role", dbUser.getRole());
-        payload.put("token", jwtUtil.generateToken(dbUser.getId(), dbUser.getRole()));
-        payload.put("refreshToken", jwtUtil.generateRefreshToken(dbUser.getId()));
-        return payload;
+        return new LoginView(dbUser.getId(), dbUser.getUsername(), dbUser.getRole(),
+                jwtUtil.generateToken(dbUser.getId(), dbUser.getRole()),
+                jwtUtil.generateRefreshToken(dbUser.getId()));
     }
 
     @Override
