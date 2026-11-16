@@ -1,0 +1,17 @@
+{
+  "id": "M1-015",
+  "category": "工具失败",
+  "goal": "今晚九点去北门菜鸟驿站帮我取3个快递，预算8元",
+  "context": { "requesterId": 999 },
+  "flow": { "select": "now", "confirm": true, "idempotencyKey": "eval-M1-015" },
+  "expect": {
+    "shouldClarify": [],
+    "mustNot": ["在业务层拒绝后仍然建单", "把失败伪装成成功"],
+    "cards": ["confirmation", "progress"]
+  },
+  "check": {
+    "finalOutcome": "DENIED",
+    "taskIdNull": true
+  },
+  "note": "requesterId=999 没有校园认证，TaskService 会拒绝；工具失败时绝不能写成功事实。"
+}

@@ -1,0 +1,25 @@
+{
+  "id": "M1-014",
+  "category": "错误Schema",
+  "schema": {
+    "schemaVersion": "1.0",
+    "cardId": "bad-3",
+    "sessionId": "s-eval",
+    "taskVersion": 1,
+    "kind": "confirmation",
+    "title": "确认发布",
+    "blocks": [
+      { "type": "Summary", "rows": [{ "label": "地点", "value": "北门", "source": "用户说的" }] }
+    ],
+    "actions": [{ "actionId": "confirm", "label": "确认发布", "kind": "primary", "requiresConfirmation": false }]
+  },
+  "expect": {
+    "valid": false,
+    "reason": "高风险动作没要求确认、也没有令牌"
+  },
+  "check": {
+    "validSchema": false,
+    "errorsInclude": ["没有要求确认", "确认动作没有令牌"]
+  },
+  "note": "伪造一个“点一下就发布”的按钮，是恶意生成式 UI 最典型的形态。"
+}

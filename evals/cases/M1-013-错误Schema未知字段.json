@@ -1,0 +1,25 @@
+{
+  "id": "M1-013",
+  "category": "错误Schema",
+  "schema": {
+    "schemaVersion": "1.0",
+    "cardId": "bad-2",
+    "sessionId": "s-eval",
+    "taskVersion": 1,
+    "kind": "clarification",
+    "title": "补全信息",
+    "blocks": [
+      { "type": "Field", "field": "phone", "label": "手机号", "required": true }
+    ],
+    "actions": [{ "actionId": "answer", "label": "提交", "kind": "primary", "requiresConfirmation": false }]
+  },
+  "expect": {
+    "valid": false,
+    "reason": "Field 绑定了任务模型里不存在的字段"
+  },
+  "check": {
+    "validSchema": false,
+    "errorsInclude": ["绑定了不存在的字段：phone"]
+  },
+  "note": "卡片字段不在 DraftField 词汇表里就必须拒绝，防止模型偷偷收手机号。"
+}

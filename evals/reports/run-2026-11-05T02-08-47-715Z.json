@@ -1,0 +1,370 @@
+{
+  "baseUrl": "http://127.0.0.1:8081",
+  "at": "2026-11-05T02:08:47.719Z",
+  "total": 18,
+  "passed": 18,
+  "results": [
+    {
+      "id": "M1-001",
+      "category": "信息缺失",
+      "file": "M1-001-信息缺失.json",
+      "ok": true,
+      "failures": [],
+      "status": 200,
+      "state": "CLARIFYING",
+      "outcome": "OK",
+      "taskId": null,
+      "cardKind": "clarification",
+      "ms": 0,
+      "steps": [
+        {
+          "name": "assistant.start",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "id": "M1-002",
+      "category": "特殊情境",
+      "file": "M1-002-特殊情境.json",
+      "ok": true,
+      "failures": [],
+      "status": 200,
+      "state": "CLARIFYING",
+      "outcome": "OK",
+      "taskId": null,
+      "cardKind": "clarification",
+      "ms": 0,
+      "steps": [
+        {
+          "name": "assistant.start",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "id": "M1-003",
+      "category": "恶意输入与越权",
+      "file": "M1-003-恶意输入.json",
+      "ok": true,
+      "failures": [],
+      "status": 200,
+      "state": "CLARIFYING",
+      "outcome": "OK",
+      "taskId": null,
+      "cardKind": "clarification",
+      "ms": 0,
+      "steps": [
+        {
+          "name": "assistant.start",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "id": "M1-004",
+      "category": "模型超时",
+      "file": "M1-004-模型超时.json",
+      "ok": true,
+      "failures": [],
+      "status": 200,
+      "state": "CLARIFYING",
+      "outcome": "OK",
+      "taskId": null,
+      "cardKind": "clarification",
+      "ms": 0,
+      "steps": [
+        {
+          "name": "assistant.start",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "id": "M1-005",
+      "category": "正常",
+      "file": "M1-005-正常.json",
+      "ok": true,
+      "failures": [],
+      "status": 200,
+      "state": "PROPOSING",
+      "outcome": "OK",
+      "taskId": null,
+      "cardKind": "comparison",
+      "ms": 0,
+      "steps": [
+        {
+          "name": "assistant.start",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "id": "M1-006",
+      "category": "正常",
+      "file": "M1-006-正常全流程.json",
+      "ok": true,
+      "failures": [],
+      "status": 200,
+      "state": "CREATED",
+      "outcome": "OK",
+      "taskId": 1,
+      "cardKind": "comparison",
+      "ms": 0,
+      "steps": [
+        {
+          "name": "assistant.start",
+          "status": 200
+        },
+        {
+          "name": "select",
+          "status": 200
+        },
+        {
+          "name": "confirm",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "id": "M1-007",
+      "category": "模糊",
+      "file": "M1-007-模糊.json",
+      "ok": true,
+      "failures": [],
+      "status": 200,
+      "state": "CLARIFYING",
+      "outcome": "OK",
+      "taskId": null,
+      "cardKind": "clarification",
+      "ms": 0,
+      "steps": [
+        {
+          "name": "assistant.start",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "id": "M1-008",
+      "category": "信息缺失",
+      "file": "M1-008-信息缺失.json",
+      "ok": true,
+      "failures": [],
+      "status": 200,
+      "state": "CLARIFYING",
+      "outcome": "OK",
+      "taskId": null,
+      "cardKind": "clarification",
+      "ms": 0,
+      "steps": [
+        {
+          "name": "assistant.start",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "id": "M1-009",
+      "category": "正常",
+      "file": "M1-009-正常面议报酬.json",
+      "ok": true,
+      "failures": [],
+      "status": 200,
+      "state": "PROPOSING",
+      "outcome": "OK",
+      "taskId": null,
+      "cardKind": "comparison",
+      "ms": 0,
+      "steps": [
+        {
+          "name": "assistant.start",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "id": "M1-010",
+      "category": "特殊情境",
+      "file": "M1-010-特殊情境上课静默.json",
+      "ok": true,
+      "failures": [],
+      "status": 200,
+      "state": "CLARIFYING",
+      "outcome": "OK",
+      "taskId": null,
+      "cardKind": "clarification",
+      "ms": 0,
+      "steps": [
+        {
+          "name": "assistant.start",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "id": "M1-011",
+      "category": "恶意输入与越权",
+      "file": "M1-011-恶意越权.json",
+      "ok": true,
+      "failures": [],
+      "status": 200,
+      "state": "CLARIFYING",
+      "outcome": "OK",
+      "taskId": null,
+      "cardKind": "clarification",
+      "ms": 0,
+      "steps": [
+        {
+          "name": "assistant.start",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "id": "M1-012",
+      "category": "错误Schema",
+      "file": "M1-012-错误Schema脚本组件.json",
+      "ok": true,
+      "failures": [],
+      "status": 200,
+      "state": null,
+      "outcome": null,
+      "taskId": null,
+      "cardKind": null,
+      "ms": 0,
+      "steps": [
+        {
+          "name": "schema.validate",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "id": "M1-013",
+      "category": "错误Schema",
+      "file": "M1-013-错误Schema未知字段.json",
+      "ok": true,
+      "failures": [],
+      "status": 200,
+      "state": null,
+      "outcome": null,
+      "taskId": null,
+      "cardKind": null,
+      "ms": 0,
+      "steps": [
+        {
+          "name": "schema.validate",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "id": "M1-014",
+      "category": "错误Schema",
+      "file": "M1-014-错误Schema缺确认.json",
+      "ok": true,
+      "failures": [],
+      "status": 200,
+      "state": null,
+      "outcome": null,
+      "taskId": null,
+      "cardKind": null,
+      "ms": 0,
+      "steps": [
+        {
+          "name": "schema.validate",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "id": "M1-015",
+      "category": "工具失败",
+      "file": "M1-015-工具失败.json",
+      "ok": true,
+      "failures": [],
+      "status": 409,
+      "state": "AWAITING_CONFIRMATION",
+      "outcome": "DENIED",
+      "taskId": null,
+      "cardKind": "comparison",
+      "ms": 0,
+      "steps": [
+        {
+          "name": "assistant.start",
+          "status": 200
+        },
+        {
+          "name": "select",
+          "status": 200
+        },
+        {
+          "name": "confirm",
+          "status": 409
+        }
+      ]
+    },
+    {
+      "id": "M1-016",
+      "category": "特殊情境",
+      "file": "M1-016-用户撤销.json",
+      "ok": true,
+      "failures": [],
+      "status": 200,
+      "state": "CANCELLED",
+      "outcome": "OK",
+      "taskId": null,
+      "cardKind": "comparison",
+      "ms": 0,
+      "steps": [
+        {
+          "name": "assistant.start",
+          "status": 200
+        },
+        {
+          "name": "cancel",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "id": "M1-017",
+      "category": "模型超时",
+      "file": "M1-017-模型超时完整目标.json",
+      "ok": true,
+      "failures": [],
+      "status": 200,
+      "state": "PROPOSING",
+      "outcome": "OK",
+      "taskId": null,
+      "cardKind": "comparison",
+      "ms": 0,
+      "steps": [
+        {
+          "name": "assistant.start",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "id": "M1-018",
+      "category": "特殊情境",
+      "file": "M1-018-特殊情境英文.json",
+      "ok": true,
+      "failures": [],
+      "status": 200,
+      "state": "CLARIFYING",
+      "outcome": "OK",
+      "taskId": null,
+      "cardKind": "clarification",
+      "ms": 0,
+      "steps": [
+        {
+          "name": "assistant.start",
+          "status": 200
+        }
+      ]
+    }
+  ]
+}

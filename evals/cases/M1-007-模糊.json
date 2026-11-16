@@ -1,0 +1,17 @@
+{
+  "id": "M1-007",
+  "category": "模糊",
+  "goal": "帮我取个快递，越快越好",
+  "context": {},
+  "expect": {
+    "shouldClarify": ["时间", "地点", "报酬"],
+    "mustNot": ["把“越快越好”当成截止时间", "默认免费"],
+    "cards": ["clarification"]
+  },
+  "check": {
+    "cardKindIn": ["clarification"],
+    "questionFieldsInclude": ["deadline", "location", "rewardType"],
+    "taskIdNull": true
+  },
+  "note": "“越快越好”是情绪不是时间窗；必须换成具体时点才能进入确认。"
+}

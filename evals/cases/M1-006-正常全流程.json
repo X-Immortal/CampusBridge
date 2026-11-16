@@ -1,0 +1,18 @@
+{
+  "id": "M1-006",
+  "category": "正常",
+  "goal": "今晚九点去北门菜鸟驿站帮我取3个快递，预算8元",
+  "context": {},
+  "flow": { "select": "now", "confirm": true, "idempotencyKey": "eval-M1-006" },
+  "expect": {
+    "shouldClarify": [],
+    "mustNot": ["未确认就建单", "建单两次"],
+    "cards": ["comparison", "confirmation", "progress"]
+  },
+  "check": {
+    "finalOutcome": "OK",
+    "taskIdNotNull": true,
+    "stateIn": ["CREATED"]
+  },
+  "note": "完整链路：比较 → 选 → 确认 → 建单。这是评审现场要演的那条路。"
+}

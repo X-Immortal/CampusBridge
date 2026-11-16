@@ -1,0 +1,17 @@
+{
+  "id": "M1-017",
+  "category": "模型超时",
+  "goal": "今晚九点去北门菜鸟驿站帮我取3个快递，预算8元",
+  "context": { "modelMode": "llm" },
+  "expect": {
+    "shouldClarify": [],
+    "mustNot": ["因为模型不可用而拒绝服务", "把规则结果伪装成模型结果"],
+    "cards": ["comparison"]
+  },
+  "check": {
+    "degraded": true,
+    "cardKindIn": ["comparison"],
+    "taskIdNull": true
+  },
+  "note": "信息齐全 + 强制走 llm：模型失败后退回规则基线，仍然能出比较卡，但 degraded 必须为 true。"
+}

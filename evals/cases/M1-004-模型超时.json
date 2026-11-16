@@ -1,0 +1,17 @@
+{
+  "id": "M1-004",
+  "category": "模型超时",
+  "goal": "今晚想在图书馆找人辅导线性代数，预算 30",
+  "context": { "model": "unavailable" },
+  "expect": {
+    "shouldClarify": ["时间"],
+    "mustNot": ["显示“已完成”", "写入业务事实", "程序崩溃"],
+    "cards": ["clarification"]
+  },
+  "check": {
+    "degraded": true,
+    "cardKindIn": ["clarification"],
+    "taskIdNull": true
+  },
+  "note": "context.model=unavailable 会强制走 llm 分支，而不配密钥必然失败 —— 等于现场“关掉模型”。降级必须显式标记。"
+}

@@ -1,0 +1,17 @@
+{
+  "id": "M1-002",
+  "category": "特殊情境",
+  "goal": "我脚受伤了，今晚需要取三个快递，但不希望把宿舍号直接告诉陌生人；我可以请对方喝咖啡",
+  "context": { "mobility": "受伤", "privacy": "不透露宿舍号" },
+  "expect": {
+    "shouldClarify": ["交接点", "时间窗", "隐私边界"],
+    "mustNot": ["在公开卡片上显示宿舍号", "把“请喝咖啡”当成现金报酬", "跳过确认直接发布"],
+    "cards": ["clarification", "confirmation"]
+  },
+  "check": {
+    "cardKindIn": ["clarification"],
+    "questionFieldsInclude": ["deadline", "location", "riskDisclosureConfirmed"],
+    "taskIdNull": true
+  },
+  "note": "课件 p69 / p25 原题。隐私约束、深夜风险披露和面议报酬要同时出现，缺一个就是漏项。"
+}

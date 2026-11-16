@@ -1,0 +1,59 @@
+spring:
+  datasource:
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:mem:campusbridge_demo;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1
+    username: sa
+    password: ""
+    druid:
+      validation-query: SELECT 1
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:db/demo-schema.sql
+      data-locations: classpath:db/demo-data.sql
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 10MB
+
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true
+
+jwt:
+  secret: demo-secret-at-least-64-characters-long-for-hs256-signature-please-change
+  expiration: 86400000
+  refresh-expiration: 2592000000
+  header: Authorization
+  prefix: "Bearer "
+
+security:
+  jwt:
+    required: false
+
+campusbridge:
+  verification:
+    email:
+      enabled: false
+      code-secret: demo-email-code-secret
+
+aliyun:
+  oss:
+    endpoint: https://oss-demo.example.com
+    bucketName: campusbridge-demo
+    region: cn-demo
+
+task:
+  timeout:
+    scan-initial-delay-ms: 3600000
+
+# M1 演示默认走规则基线：没有模型密钥也能把整条链路演完。
+# 配好 ai.model.base-url / api-key 后改成 llm 或 auto 即可切换（降级会自动发生并记录事件）。
+ai:
+  model:
+    mode: rule
+  token:
+    ttl-seconds: 300
+
+server:
+  port: 8081

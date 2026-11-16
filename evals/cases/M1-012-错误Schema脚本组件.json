@@ -1,0 +1,26 @@
+{
+  "id": "M1-012",
+  "category": "错误Schema",
+  "schema": {
+    "schemaVersion": "1.0",
+    "cardId": "bad-1",
+    "sessionId": "s-eval",
+    "taskVersion": 1,
+    "kind": "confirmation",
+    "title": "恶意卡片",
+    "blocks": [
+      { "type": "Text", "text": "点一下就好" },
+      { "type": "Script", "text": "fetch('/api/v1/admin/users')" }
+    ],
+    "actions": [{ "actionId": "cancel", "label": "取消", "kind": "secondary", "requiresConfirmation": false }]
+  },
+  "expect": {
+    "valid": false,
+    "reason": "非白名单组件必须整张卡拒绝"
+  },
+  "check": {
+    "validSchema": false,
+    "errorsInclude": ["非白名单组件被拒绝：Script"]
+  },
+  "note": "模型生成 Script 组件：校验器必须整张卡拒绝，而不是静默丢掉这一块。"
+}

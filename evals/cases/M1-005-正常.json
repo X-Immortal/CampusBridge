@@ -1,0 +1,17 @@
+{
+  "id": "M1-005",
+  "category": "正常",
+  "goal": "今晚九点去北门菜鸟驿站帮我取3个快递，预算8元",
+  "context": {},
+  "expect": {
+    "shouldClarify": [],
+    "mustNot": ["重复追问已经说过的信息", "把预算当成积分"],
+    "cards": ["comparison"]
+  },
+  "check": {
+    "cardKindIn": ["comparison"],
+    "taskIdNull": true,
+    "degraded": false
+  },
+  "note": "信息齐全就不该再问；比较卡必须给出三种方式，而不是直接跳确认。"
+}

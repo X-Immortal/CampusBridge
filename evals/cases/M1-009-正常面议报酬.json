@@ -1,0 +1,16 @@
+{
+  "id": "M1-009",
+  "category": "正常",
+  "goal": "今晚八点帮我从北门菜鸟驿站取快递，请喝奶茶",
+  "context": {},
+  "expect": {
+    "shouldClarify": [],
+    "mustNot": ["把“请喝奶茶”折成金额", "把面议报酬当成免费"],
+    "cards": ["comparison"]
+  },
+  "check": {
+    "cardKindIn": ["comparison"],
+    "taskIdNull": true
+  },
+  "note": "面议报酬是本体里的 NEGOTIABLE，不是 FREE；折算金额会让比较卡失真。"
+}

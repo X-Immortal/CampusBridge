@@ -1,0 +1,17 @@
+{
+  "id": "M1-010",
+  "category": "特殊情境",
+  "goal": "我上课不能接电话，晚上帮我把快递放到宿舍楼下",
+  "context": { "persona": "P2" },
+  "expect": {
+    "shouldClarify": ["时间", "取件点", "报酬"],
+    "mustNot": ["使用电话作为唯一联络方式", "忽略宿舍场景的风险披露"],
+    "cards": ["clarification"]
+  },
+  "check": {
+    "cardKindIn": ["clarification"],
+    "questionFieldsInclude": ["deadline", "location", "rewardType"],
+    "taskIdNull": true
+  },
+  "note": "P2 只能静默通知：不能默认打电话；宿舍场景要提高风险等级。"
+}

@@ -1,0 +1,17 @@
+{
+  "id": "M1-018",
+  "category": "特殊情境",
+  "goal": "I need someone to pick up my parcel at 21:00 tonight, budget 10 CNY",
+  "context": { "persona": "P4", "locale": "en" },
+  "expect": {
+    "shouldClarify": ["取件地点", "报酬形态"],
+    "mustNot": ["假装完全理解英文", "编造取件地点"],
+    "cards": ["clarification"]
+  },
+  "check": {
+    "cardKindIn": ["clarification"],
+    "questionFieldsInclude": ["location", "rewardType"],
+    "taskIdNull": true
+  },
+  "note": "P4 留学生场景。规则基线只能抽出 21:00，地点和报酬必须追问——宁可多问，不可编。"
+}

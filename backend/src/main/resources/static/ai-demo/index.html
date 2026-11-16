@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CampusHub 2.0 · M1 对话原型</title>
+<style>
+  :root {
+    --bg: #0f172a; --panel: #111c33; --card: #16233d; --line: #23324f;
+    --text: #e6edf7; --muted: #8fa3bf; --accent: #4f9cf9; --ok: #3fb950;
+    --warn: #d29922; --bad: #f85149;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.6 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  }
+  header {
+    display: flex; align-items: center; gap: 16px; padding: 14px 22px;
+    border-bottom: 1px solid var(--line); background: var(--panel);
+    position: sticky; top: 0; z-index: 10;
+  }
+  header h1 { font-size: 16px; margin: 0; font-weight: 600; }
+  header .tag {
+    font-size: 12px; color: var(--muted); border: 1px solid var(--line);
+    padding: 2px 8px; border-radius: 999px;
+  }
+  header .spacer { flex: 1; }
+  main {
+    display: grid; grid-template-columns: minmax(380px, 1.35fr) minmax(320px, 1fr);
+    gap: 18px; padding: 18px 22px 40px; max-width: 1280px; margin: 0 auto;
+  }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; }
+  .chat { display: flex; flex-direction: column; min-height: 70vh; }
+  .log { padding: 16px; overflow-y: auto; flex: 1; max-height: 64vh; }
+  .msg { margin-bottom: 14px; display: flex; }
+  .msg.user { justify-content: flex-end; }
+  .bubble {
+    max-width: 88%; padding: 10px 14px; border-radius: 12px;
+    background: var(--card); border: 1px solid var(--line); white-space: pre-wrap;
+  }
+  .msg.user .bubble { background: #1d4ed8; border-color: #1d4ed8; }
+  .card {
+    margin-top: 10px; border: 1px solid var(--line); border-radius: 12px;
+    background: #0d1728; padding: 14px;
+  }
+  .card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .kind {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .4px;
+    background: #1b2a45; color: var(--accent); padding: 2px 8px; border-radius: 6px;
+  }
+  .card-head strong { font-size: 14px; }
+  .block { margin: 10px 0; }
+  .block p { margin: 0 0 4px; }
+  .field label { display: block; font-size: 13px; margin-bottom: 4px; }
+  .field .hint { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+  .field input, .field select {
+    width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line);
+    background: #0b1424; color: var(--text); font: inherit;
+  }
+  .choice { display: flex; flex-direction: column; gap: 8px; }
+  .choice label {
+    display: flex; gap: 10px; align-items: flex-start; padding: 10px;
+    border: 1px solid var(--line); border-radius: 10px; cursor: pointer;
+  }
+  .choice label:hover { border-color: var(--accent); }
+  .choice small { display: block; color: var(--muted); }
+  table.rows { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.rows td { padding: 6px 4px; border-bottom: 1px dashed var(--line); }
+  table.rows td:first-child { color: var(--muted); width: 34%; }
+  .src { font-size: 11px; color: var(--muted); margin-left: 6px; }
+  .src.inferred { color: var(--warn); }
+  .progress-step { display: flex; gap: 10px; align-items: center; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
+  .dot.done { background: var(--ok); } .dot.active { background: var(--accent); }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  button {
+    font: inherit; padding: 8px 14px; border-radius: 9px; cursor: pointer;
+    border: 1px solid var(--line); background: #17233b; color: var(--text);
+  }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #06101f; font-weight: 600; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .composer { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--line); }
+  .composer input {
+    flex: 1; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line);
+    background: #0b1424; color: var(--text); font: inherit;
+  }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 12px 12px; }
+  .chip {
+    font-size: 12px; color: var(--muted); border: 1px dashed var(--line);
+    padding: 4px 10px; border-radius: 999px; cursor: pointer;
+  }
+  .chip:hover { color: var(--text); border-color: var(--accent); }
+  aside { display: flex; flex-direction: column; gap: 14px; }
+  .box { padding: 14px 16px; }
+  .box h2 { font-size: 13px; margin: 0 0 10px; color: var(--muted); font-weight: 600; letter-spacing: .3px; }
+  .kv { display: grid; grid-template-columns: 110px 1fr; gap: 6px 10px; font-size: 13px; }
+  .kv span:first-child { color: var(--muted); }
+  .badge { padding: 1px 8px; border-radius: 999px; font-size: 12px; border: 1px solid var(--line); }
+  .badge.ok { color: var(--ok); border-color: #1f5d2f; }
+  .badge.warn { color: var(--warn); border-color: #6b4d13; }
+  .badge.bad { color: var(--bad); border-color: #6d2320; }
+  ul.notes { margin: 8px 0 0; padding-left: 18px; font-size: 13px; color: var(--muted); }
+  .events { font-size: 12px; max-height: 240px; overflow-y: auto; }
+  .events div { padding: 4px 0; border-bottom: 1px dashed var(--line); color: var(--muted); }
+  .events b { color: var(--text); font-weight: 500; }
+  .violations { border: 1px solid #6d2320; background: #2a1517; padding: 10px 12px; border-radius: 10px; margin-top: 10px; }
+  .violations div { font-size: 13px; color: #ffb4ae; }
+  .warnings { border: 1px solid #6b4d13; background: #2a2210; padding: 10px 12px; border-radius: 10px; margin-top: 10px; }
+  .warnings div { font-size: 13px; color: #f0d48a; }
+</style>
+</head>
+<body>
+<header>
+  <h1>CampusHub 2.0 · M1</h1>
+  <span class="tag">对话 → 卡片 → 确认 → 可信工具</span>
+  <span class="spacer"></span>
+  <span class="tag" id="ontologyTag">本体加载中…</span>
+</header>
+
+<main>
+  <section class="panel chat">
+    <div class="log" id="log">
+      <div class="msg"><div class="bubble">
+        说说你想做什么。比如“帮我取个快递”——信息不全我会先问，不会替你编。
+      </div></div>
+    </div>
+    <div class="chips">
+      <span class="chip" data-goal="帮我取个快递">帮我取个快递（缺信息，会追问）</span>
+      <span class="chip" data-goal="今晚九点去北门菜鸟驿站帮我取3个快递，预算8元">信息完整（直接出比较卡）</span>
+      <span class="chip" data-goal="我脚受伤了，今晚需要取三个快递，但不希望把宿舍号直接告诉陌生人；我可以请对方喝咖啡，而且希望以后还能联系同一个人">现场挑战题（隐私 + 面议报酬）</span>
+    </div>
+    <div class="composer">
+      <input id="goal" placeholder="用一句话说出你的目标…" autocomplete="off" />
+      <button class="primary" id="send">发送</button>
+    </div>
+  </section>
+
+  <aside>
+    <div class="panel box">
+      <h2>本次会话</h2>
+      <div class="kv" id="sessionInfo">
+        <span>状态</span><span id="state">—</span>
+        <span>理解模式</span><span id="mode">—</span>
+        <span>会话</span><span id="sessionId">—</span>
+        <span>trace</span><span id="traceId">—</span>
+        <span>任务</span><span id="taskId">—</span>
+      </div>
+      <h2 style="margin-top:14px">系统替你做过的假设</h2>
+      <ul class="notes" id="assumptions"><li>—</li></ul>
+    </div>
+
+    <div class="panel box">
+      <h2>理解结果（不是事实，是候选）</h2>
+      <div class="kv" id="slots"><span>—</span><span>—</span></div>
+    </div>
+
+    <div class="panel box">
+      <h2>事件（可复查）</h2>
+      <div class="events" id="events">—</div>
+    </div>
+  </aside>
+</main>
+
+<script>
+const state = {
+  sessionId: null,
+  traceId: null,
+  card: null,
+  idempotencyKey: null,
+  busy: false,
+};
+
+const $ = (id) => document.getElementById(id);
+const log = $('log');
+
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+function addMessage(text, who) {
+  const wrapper = el('div', 'msg ' + (who || 'assistant'));
+  wrapper.appendChild(el('div', 'bubble', text));
+  log.appendChild(wrapper);
+  log.scrollTop = log.scrollHeight;
+  return wrapper;
+}
+
+async function post(path, body) {
+  const response = await fetch(path, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body || {}),
+  });
+  const data = await response.json().catch(() => ({}));
+  return { status: response.status, data };
+}
+
+async function loadOntology() {
+  try {
+    const response = await fetch('/api/ontology');
+    const data = await response.json();
+    $('ontologyTag').textContent =
+      `本体 v${data.version} · ${data.counts.concepts} 概念 / ${data.counts.relations} 关系 / ${data.counts.constraints} 约束`;
+  } catch (e) {
+    $('ontologyTag').textContent = '本体不可用';
+  }
+}
+
+function renderCard(card, response) {
+  if (!card) return null;
+  const box = el('div', 'card');
+  const head = el('div', 'card-head');
+  head.appendChild(el('span', 'kind', card.kind));
+  head.appendChild(el('strong', '', card.title || ''));
+  box.appendChild(head);
+
+  (card.blocks || []).forEach((block) => box.appendChild(renderBlock(block)));
+
+  if (response && response.violations && response.violations.length) {
+    const violations = el('div', 'violations');
+    response.violations.forEach((v) => violations.appendChild(el('div', '', `${v.ruleId}：${v.message}`)));
+    box.appendChild(violations);
+  }
+  if (card.warnings && card.warnings.length) {
+    const warnings = el('div', 'warnings');
+    card.warnings.forEach((w) => warnings.appendChild(el('div', '', w)));
+    box.appendChild(warnings);
+  }
+
+  const actions = el('div', 'actions');
+  (card.actions || []).forEach((action) => {
+    const button = el('button', action.kind === 'primary' ? 'primary' : '');
+    button.textContent = action.label;
+    button.dataset.action = action.actionId;
+    if (action.actionId === 'confirm') {
+      button.disabled = !card.token;
+      button.onclick = () => confirmCard(card);
+    } else if (action.actionId === 'answer') {
+      button.onclick = () => submitAnswers(card);
+    } else if (action.actionId === 'select') {
+      button.onclick = () => selectOption(card);
+    } else if (action.actionId === 'open') {
+      button.disabled = true;
+    } else {
+      button.disabled = true;
+    }
+    actions.appendChild(button);
+  });
+  if (actions.children.length) box.appendChild(actions);
+  return box;
+}
+
+function renderBlock(block) {
+  const wrap = el('div', 'block');
+  switch (block.type) {
+    case 'Text':
+      wrap.appendChild(el('p', '', block.text));
+      break;
+    case 'Field': {
+      const field = el('div', 'field');
+      const label = el('label', '', block.label + (block.required ? ' *' : ''));
+      field.appendChild(label);
+      if (block.hint) field.appendChild(el('div', 'hint', block.hint));
+      let input;
+      if (block.field === 'deadline') {
+        input = el('input');
+        input.type = 'datetime-local';
+      } else if (block.field === 'rewardAmount' || block.field === 'itemCount') {
+        input = el('input');
+        input.type = 'number';
+      } else if (block.field === 'rewardType') {
+        input = el('select');
+        [['', '请选择'], ['CASH', '现金'], ['POINTS', '积分'], ['NEGOTIABLE', '面议'], ['FREE', '免费']]
+          .forEach(([value, text]) => {
+            const option = el('option', '', text);
+            option.value = value;
+            input.appendChild(option);
+          });
+      } else if (block.field === 'riskDisclosureConfirmed') {
+        input = el('select');
+        [['', '请选择'], ['true', '是，我看过了'], ['false', '还没有']].forEach(([value, text]) => {
+          const option = el('option', '', text);
+          option.value = value;
+          input.appendChild(option);
+        });
+      } else {
+        input = el('input');
+      }
+      input.name = block.field;
+      input.dataset.field = block.field;
+      field.appendChild(input);
+      wrap.appendChild(field);
+      break;
+    }
+    case 'Choice': {
+      const group = el('div', 'choice');
+      (block.options || []).forEach((option, index) => {
+        const label = el('label');
+        const radio = el('input');
+        radio.type = 'radio';
+        radio.name = block.name || 'choice';
+        radio.value = option.id;
+        if (index === 0) radio.checked = true;
+        const text = el('span');
+        text.appendChild(el('b', '', option.label));
+        if (option.detail) text.appendChild(el('small', '', option.detail));
+        label.appendChild(radio);
+        label.appendChild(text);
+        group.appendChild(label);
+      });
+      wrap.appendChild(group);
+      break;
+    }
+    case 'Summary': {
+      const table = el('table', 'rows');
+      (block.rows || []).forEach((row) => {
+        const tr = el('tr');
+        tr.appendChild(el('td', '', row.label));
+        const value = el('td', '', row.value);
+        const source = el('span', 'src' + (row.source === '系统推测' ? ' inferred' : ''), row.source || '');
+        value.appendChild(source);
+        tr.appendChild(value);
+        table.appendChild(tr);
+      });
+      wrap.appendChild(table);
+      break;
+    }
+    case 'Progress': {
+      const step = el('div', 'progress-step');
+      step.appendChild(el('span', 'dot ' + (block.state || 'pending')));
+      step.appendChild(el('span', '', block.step + (block.detail ? ' · ' + block.detail : '')));
+      wrap.appendChild(step);
+      break;
+    }
+    default:
+      wrap.appendChild(el('p', '', `[未识别的组件 ${block.type}，已拒绝渲染]`));
+  }
+  return wrap;
+}
+
+async function updateSide(response) {
+  if (!response) return;
+  state.sessionId = response.sessionId || state.sessionId;
+  state.traceId = response.traceId || state.traceId;
+  $('state').textContent = response.state || '—';
+  $('mode').textContent = (response.modelMode || '—') + (response.degraded ? ' · 降级' : '');
+  $('sessionId').textContent = state.sessionId || '—';
+  $('traceId').textContent = state.traceId || '—';
+  $('taskId').textContent = response.taskId == null ? '—' : '#' + response.taskId;
+
+  const assumptions = $('assumptions');
+  assumptions.innerHTML = '';
+  const list = response.assumptions && response.assumptions.length ? response.assumptions : ['这次没有替你做假设'];
+  list.forEach((item) => assumptions.appendChild(el('li', '', item)));
+
+  const slots = $('slots');
+  slots.innerHTML = '';
+  const values = (response.understanding && response.understanding.slots) || {};
+  const entries = Object.entries(values).slice(0, 12);
+  if (!entries.length) {
+    slots.appendChild(el('span', '', '—'));
+    slots.appendChild(el('span', '', '—'));
+  }
+  entries.forEach(([key, value]) => {
+    slots.appendChild(el('span', '', key));
+    slots.appendChild(el('span', '', String(value)));
+  });
+
+  await refreshEvents();
+}
+
+async function refreshEvents() {
+  if (!state.sessionId) return;
+  try {
+    const response = await fetch(`/api/events?sessionId=${state.sessionId}&limit=40`);
+    const events = await response.json();
+    const box = $('events');
+    box.innerHTML = '';
+    if (!events.length) {
+      box.textContent = '—';
+      return;
+    }
+    events.forEach((event) => {
+      const row = el('div');
+      row.appendChild(el('b', '', event.type));
+      row.appendChild(document.createTextNode('  ' + JSON.stringify(event.payload).slice(0, 90)));
+      box.appendChild(row);
+    });
+  } catch (e) {
+    $('events').textContent = '事件读取失败';
+  }
+}
+
+async function start(goal) {
+  if (state.busy) return;
+  state.busy = true;
+  addMessage(goal, 'user');
+  try {
+    const { status, data } = await post('/api/assistant', { goal, context: { requesterId: 1 } });
+    if (status >= 400) {
+      addMessage(data.message || '请求失败', 'assistant');
+      return;
+    }
+    state.idempotencyKey = null;
+    const wrapper = el('div', 'msg assistant');
+    const bubble = el('div', 'bubble');
+    bubble.textContent = data.card && data.card.kind === 'clarification'
+      ? '这个目标还差几项，我先问清楚再发。'
+      : '我看明白了，先给你三种匹配方式。';
+    bubble.appendChild(renderCard(data.card, data) || el('div'));
+    wrapper.appendChild(bubble);
+    log.appendChild(wrapper);
+    log.scrollTop = log.scrollHeight;
+    await updateSide(data);
+  } finally {
+    state.busy = false;
+  }
+}
+
+function collectAnswers() {
+  const answers = [];
+  log.querySelectorAll('input[data-field], select[data-field]').forEach((input) => {
+    if (!input.value) return;
+    let value = input.value;
+    if (input.dataset.field === 'rewardAmount' || input.dataset.field === 'itemCount') {
+      value = Number(value);
+    }
+    if (input.dataset.field === 'riskDisclosureConfirmed') {
+      value = value === 'true';
+    }
+    answers.push({ field: input.dataset.field, value });
+  });
+  return answers;
+}
+
+async function submitAnswers() {
+  const answers = collectAnswers();
+  if (!answers.length) {
+    addMessage('上面那几项至少填一个，我才能继续。');
+    return;
+  }
+  const { status, data } = await post(`/api/assistant/sessions/${state.sessionId}/answers`, { answers });
+  if (status >= 400) {
+    addMessage(data.message || '提交失败');
+    return;
+  }
+  addMessage('已补全：' + answers.map((a) => a.field).join('、'), 'user');
+  appendCardMessage(data);
+}
+
+function appendCardMessage(data) {
+  const wrapper = el('div', 'msg assistant');
+  const bubble = el('div', 'bubble');
+  bubble.appendChild(renderCard(data.card, data) || el('div', '', '没有卡片'));
+  wrapper.appendChild(bubble);
+  log.appendChild(wrapper);
+  log.scrollTop = log.scrollHeight;
+  state.idempotencyKey = null;
+  updateSide(data);
+}
+
+async function selectOption(card) {
+  const chosen = log.querySelector('input[type=radio]:checked');
+  const optionId = chosen ? chosen.value : 'now';
+  const { status, data } = await post(`/api/assistant/sessions/${state.sessionId}/select`, { optionId });
+  if (status >= 400) {
+    addMessage(data.message || '选择失败');
+    return;
+  }
+  addMessage('选了：' + optionId, 'user');
+  appendCardMessage(data);
+}
+
+async function confirmCard(card) {
+  if (!card.token) return;
+  if (!state.idempotencyKey) {
+    state.idempotencyKey = (crypto.randomUUID && crypto.randomUUID()) || ('idem-' + Date.now());
+  }
+  const { status, data } = await post(`/api/assistant/sessions/${state.sessionId}/confirm`, {
+    token: card.token.value,
+    idempotencyKey: state.idempotencyKey,
+  });
+  if (status >= 400) {
+    addMessage(data.notes && data.notes.length ? data.notes[0] : (data.message || '被拒绝了'));
+    appendCardMessage(data);
+    return;
+  }
+  addMessage('确认发布', 'user');
+  appendCardMessage(data);
+  if (data.taskId) {
+    addMessage(`任务 #${data.taskId} 已经真的落库了。再点一次“确认发布”也不会重复建单。`);
+  }
+}
+
+$('send').onclick = () => {
+  const goal = $('goal').value.trim();
+  if (!goal) return;
+  $('goal').value = '';
+  start(goal);
+};
+$('goal').addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') $('send').click();
+});
+document.querySelectorAll('.chip').forEach((chip) => {
+  chip.onclick = () => {
+    $('goal').value = chip.dataset.goal;
+    $('send').click();
+  };
+});
+
+loadOntology();
+</script>
+</body>
+</html>

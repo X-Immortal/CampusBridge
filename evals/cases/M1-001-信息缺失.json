@@ -1,0 +1,18 @@
+{
+  "id": "M1-001",
+  "category": "信息缺失",
+  "goal": "想找同学辅导高数，预算 40 元",
+  "context": {},
+  "expect": {
+    "shouldClarify": ["时间", "地点"],
+    "mustNot": ["直接发布需求", "编造具体时段", "编造服务提供者"],
+    "cards": ["clarification"]
+  },
+  "check": {
+    "cardKindIn": ["clarification"],
+    "questionFieldsInclude": ["deadline", "location"],
+    "taskIdNull": true,
+    "degraded": false
+  },
+  "note": "课件原例。规则基线不得把“明天”之类模糊时间擅自补成具体时段，必须追问。"
+}

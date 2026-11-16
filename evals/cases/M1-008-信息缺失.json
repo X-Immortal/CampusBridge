@@ -1,0 +1,17 @@
+{
+  "id": "M1-008",
+  "category": "信息缺失",
+  "goal": "晚上帮我去食堂带份饭，预算10元",
+  "context": {},
+  "expect": {
+    "shouldClarify": ["几点前"],
+    "mustNot": ["自己编一个 21:00", "漏掉报酬形态"],
+    "cards": ["clarification"]
+  },
+  "check": {
+    "cardKindIn": ["clarification"],
+    "questionFieldsInclude": ["deadline"],
+    "taskIdNull": true
+  },
+  "note": "地点和报酬都有了，只缺时间——好的追问应该只问那一件事，而不是把三件事再问一遍。"
+}
