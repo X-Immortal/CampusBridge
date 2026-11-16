@@ -9,7 +9,7 @@ import com.campusbridge.enums.NotificationType;
 import com.campusbridge.mapper.PostMapper;
 import com.campusbridge.mapper.ReplyMapper;
 import com.campusbridge.service.NotificationService;
-import com.campusbridge.service.ReplyNotificationService;
+import com.campusbridge.service.impl.ReplyNotificationServiceImpl;
 import com.campusbridge.service.impl.ReplyServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,7 +20,7 @@ class PostReplyNotificationServiceImplTest {
     private final PostMapper posts = mock(PostMapper.class);
     private final ReplyMapper replies = mock(ReplyMapper.class);
     private final NotificationService notifications = mock(NotificationService.class);
-    private final ReplyServiceImpl service = new ReplyServiceImpl(replies, posts, new ReplyNotificationService(notifications));
+    private final ReplyServiceImpl service = new ReplyServiceImpl(replies, posts, new ReplyNotificationServiceImpl(notifications));
 
     @BeforeEach
     void setUp() {

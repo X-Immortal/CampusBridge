@@ -42,7 +42,7 @@ import com.campusbridge.mapper.UserBlockMapper;
 import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.mapper.UserProfileMapper;
 import com.campusbridge.service.NotificationService;
-import com.campusbridge.service.ReplyNotificationService;
+import com.campusbridge.service.impl.ReplyNotificationServiceImpl;
 import com.campusbridge.service.impl.ConversationServiceImpl;
 import com.campusbridge.service.impl.EmailVerificationCodeSender;
 import com.campusbridge.service.impl.InteractionServiceImpl;
@@ -258,7 +258,7 @@ class ContentPersistenceIntegrationTest {
         SqlSessionTemplate template = new SqlSessionTemplate(sessions);
         ReplyServiceImpl service = new ReplyServiceImpl(
                 template.getMapper(ReplyMapper.class), template.getMapper(PostMapper.class),
-                new ReplyNotificationService(mock(NotificationService.class)));
+                new ReplyNotificationServiceImpl(mock(NotificationService.class)));
         TransactionTemplate transaction = new TransactionTemplate(new DataSourceTransactionManager(dataSource));
         CountDownLatch start = new CountDownLatch(1);
         ExecutorService executor = Executors.newFixedThreadPool(2);

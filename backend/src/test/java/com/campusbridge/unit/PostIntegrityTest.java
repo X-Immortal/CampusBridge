@@ -19,7 +19,7 @@ import com.campusbridge.mapper.PostInteractionMapper;
 import com.campusbridge.mapper.PostMapper;
 import com.campusbridge.mapper.ReplyMapper;
 import com.campusbridge.service.NotificationService;
-import com.campusbridge.service.ReplyNotificationService;
+import com.campusbridge.service.impl.ReplyNotificationServiceImpl;
 import com.campusbridge.service.impl.ContentModerationServiceImpl;
 import com.campusbridge.service.impl.InteractionServiceImpl;
 import com.campusbridge.service.impl.PostServiceImpl;
@@ -53,7 +53,7 @@ class PostIntegrityTest {
         interactions = mock(PostInteractionMapper.class);
         attachments = mock(AttachmentMapper.class);
         service = new PostServiceImpl(posts, replies, interactions, attachments, new ContentModerationServiceImpl());
-        replyService = new ReplyServiceImpl(replies, posts, new ReplyNotificationService(mock(NotificationService.class)));
+        replyService = new ReplyServiceImpl(replies, posts, new ReplyNotificationServiceImpl(mock(NotificationService.class)));
         interactionService = new InteractionServiceImpl(interactions, posts, replies);
     }
 
