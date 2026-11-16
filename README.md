@@ -14,7 +14,7 @@ CampusBridge 是校园互助应用，提供社区交流、跑腿与代办任务�
 | [接口使用说明](docs/api-guide.md) | 当前公共响应、关键调用顺序与动态载荷说明 |
 | [OpenAPI](docs/openapi.yaml) | 由代码导出的路由和类型；动态 data 的覆盖限制见接口说明 |
 | [数据库 Schema](backend/sql/schema.sql) | 完整表结构、约束和索引 |
-| [开发与运行](docs/development.md) | 配置、启动、迁移、构建及分层验证命令 |
+| [开发与运行](docs/development.md) | 配置、启动、数据库重建、构建及分层验证命令 |
 | [后端评审](docs/reviews/backend-review-2026-11-07.md) | 既有修复、实现差距和验证证据 |
 | [历史归档](docs/archive/README.md) | 原课程材料与校验清单 |
 

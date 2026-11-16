@@ -2,7 +2,7 @@
 
 **版本：** 1.1 · **更新日期：** 2026-11-16
 
-本文提供当前仓库的配置、启动、迁移和验证操作。业务目标见 [SRS](srs.md)，模块与事务设计见[架构](architecture.md)，既有实现差距见[评审记录](reviews/backend-review-2026-11-07.md)。
+本文提供当前仓库的配置、启动、数据库重建和验证操作。业务目标见 [SRS](srs.md)，模块与事务设计见[架构](architecture.md)，既有实现差距见[评审记录](reviews/backend-review-2026-11-07.md)。
 
 ## 1. 环境与命令位置
 
@@ -25,7 +25,7 @@ mysql --version
 mysql -h 127.0.0.1 -u YOUR_DB_USER -p < backend/sql/schema.sql
 ```
 
-替换 YOUR_DB_USER 为具有建库建表权限的数据库用户。脚本创建并使用 campusbridge，建表语句不是“重复执行后自动升级”；已有库按第 5 节迁移。应用启动不会自动创建业务表。
+替换 YOUR_DB_USER 为具有建库建表权限的数据库用户。脚本创建并使用 campusbridge，已有库更新结构时按第 5 节重建。应用启动不会自动创建业务表。
 
 backend/sql/reseed_demo_data.sql 会删除并重建演示数据，且写死 USE campusbridge；它不是初始化生产库的默认步骤。使用前检查目标实例、脚本的 DDL 与数据内容，在可丢弃的演示库单独执行。
 
@@ -118,26 +118,17 @@ OSS 凭据来自进程环境，不是 ALIYUN_OSS_ENDPOINT 等位置配置的一�
 
 构建产物分别在 backend/target 和 frontend/dist。生产运行 JAR 前仍需提供数据库、JWT、OSS 和邮件配置。Vite 开发代理不随静态构建自动成为生产反向代理。
 
-## 5. 已有数据库迁移
+## 5. 数据库重建
 
-按目标库已经存在的结构选择脚本；新库使用最新 Schema 后不再补跑这些迁移。
+数据库结构统一维护在 backend/sql/schema.sql，演示数据由 backend/sql/reseed_demo_data.sql 初始化。结构变更后，停止后端，在仓库根目录执行：
 
-| 脚本 | 适用条件 | 主要作用 |
-| --- | --- | --- |
-| migrate_person_based_conversations.sql | 旧的按业务内容分开的可回复会话尚未迁移 | 按 owner/peer 合并私聊及相关引用 |
-| migrate_task_draft_fields.sql | tasks 中草稿字段仍受正式发布的非空限制 | 放宽草稿可空列，正式发布仍由业务层完整校验 |
-| migrate_attachment_verification_owner.sql | attachments.owner_type 尚不支持 VERIFICATION | 增加认证材料用途枚举 |
-| migrate_system_notification_conversations.sql | SYSTEM 会话尚无 system_related_key 唯一约束 | 合并重复系统会话，重定向消息和附件引用，增加唯一键 |
+```bash
+mysql -h 127.0.0.1 -u YOUR_DB_USER -p -e 'DROP DATABASE IF EXISTS campusbridge;'
+mysql -h 127.0.0.1 -u YOUR_DB_USER -p < backend/sql/schema.sql
+mysql -h 127.0.0.1 -u YOUR_DB_USER -p < backend/sql/reseed_demo_data.sql
+```
 
-执行顺序先处理适用的旧私聊迁移，再处理本轮字段与系统会话迁移。操作步骤：
-
-1. 停止会写目标库的后端和脚本，备份数据及原结构。
-2. 在数据库副本执行适用脚本，检查脚本内 USE 指向及 MySQL 版本兼容性。
-3. 核对合并后的会话数量、消息总量、消息附件引用与已读信息，以及任务和认证数据。
-4. 在维护窗口执行目标库迁移，检查外键与唯一约束，再启动匹配版本的应用。
-5. 验证登录、公共查询、本人任务、会话及附件元数据读取。
-
-MySQL DDL 存在隐式提交，事务段不能作为整个迁移可原子回滚的保证。恢复策略以备份和验证过的恢复步骤为依据。
+上述命令清空 campusbridge 并按最新结构重新创建，随后写入演示数据。完成后启动后端，验证本次结构变更涉及的业务流程。真实 MySQL 测试使用第 6.2 节的专用测试库。
 
 ## 6. 按风险选择验证
 
@@ -170,7 +161,7 @@ export CAMPUSBRIDGE_MYSQL_TEST_PASSWORD='YOUR_TEST_PASSWORD'
 | 测试 | 连接与数据影响 | 重点 |
 | --- | --- | --- |
 | TaskConsistencyMySqlTest | 使用 CAMPUSBRIDGE_TEST_MYSQL_*；数据库名须以 _test 结尾；删除目标库现有表并按 Schema 重建 | 任务竞争、积分、回滚、超时 |
-| ContentPersistenceIntegrationTest | 使用 CAMPUSBRIDGE_MYSQL_TEST_*；数据库名必须为 campusbridge_content_test；重建业务表 | 内容、附件、会话、通知及迁移 |
+| ContentPersistenceIntegrationTest | 使用 CAMPUSBRIDGE_MYSQL_TEST_*；数据库名必须为 campusbridge_content_test；重建业务表 | 内容、附件、会话及通知 |
 | ContentQueryIntegrationTest | 使用 CAMPUSBRIDGE_TEST_MYSQL_*；MySQL 下建连接级临时表，数据库名须以 _test 结尾；未设置时使用 H2 | 聚合筛选、排序、总数与深分页 |
 
 未设置环境变量时，前两组跳过，查询测试退回 H2。命令通过不能自动说明已执行 MySQL 验证；检查报告中具体类及 skipped 数量。

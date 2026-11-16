@@ -388,47 +388,11 @@ class ContentPersistenceIntegrationTest {
     }
 
     @Test
-    void notificationMigrationPreservesMessageIdsUnreadStateTimestampsAndAttachmentReferences() throws Exception {
-        jdbc.execute("ALTER TABLE conversations DROP INDEX uk_conversations_system_related,"
-                + " DROP COLUMN system_related_key");
-        jdbc.update("INSERT INTO conversations(id,type,owner_id,peer_user_id,related_type,related_id,"
-                + "replyable,last_message_at) VALUES"
-                + "(1,'SYSTEM',1,2,'POST',10,0,'2026-11-07 10:00:00'),"
-                + "(2,'SYSTEM',1,2,'POST',10,0,'2026-11-07 12:00:00'),"
-                + "(3,'PRIVATE',1,2,'POST',10,1,'2026-11-07 09:00:00')");
-        jdbc.update("INSERT INTO messages(id,conversation_id,sender_id,type,content,read_at,created_at) VALUES"
-                + "(101,1,2,'SYSTEM_NOTIFICATION','first',NULL,'2026-11-07 10:00:00'),"
-                + "(102,2,2,'SYSTEM_NOTIFICATION','second','2026-11-07 11:30:00','2026-11-07 11:00:00'),"
-                + "(103,3,1,'TEXT','private','2026-11-07 09:00:00','2026-11-07 09:00:00')");
-        jdbc.update("INSERT INTO attachments(id,uploader_id,owner_type,owner_id,type,file_name,file_url,"
-                + "content_type,size,status) VALUES"
-                + "(1,2,'MESSAGE',102,'IMAGE','test.png','https://example.test/test.png','image/png',1,'BOUND')");
-        String messageFields = "SELECT id,sender_id,type,content,read_at,created_at FROM messages ORDER BY id";
-        var originalMessages = jdbc.queryForList(messageFields);
-        String privateFields = "SELECT id,type,owner_id,peer_user_id,related_type,related_id,"
-                + "replyable,last_message_at,created_at FROM conversations WHERE id=3";
-        var originalPrivate = jdbc.queryForMap(privateFields);
-
-        try (Connection connection = dataSource.getConnection()) {
-            ScriptUtils.executeSqlScript(connection, new ByteArrayResource(Files.readAllBytes(
-                    Path.of("sql/migrate_system_notification_conversations.sql"))));
-        }
-
-        assertThat(jdbc.queryForList(messageFields)).isEqualTo(originalMessages);
-        assertThat(jdbc.queryForMap(privateFields)).isEqualTo(originalPrivate);
-        assertThat(jdbc.queryForList(
-                "SELECT conversation_id FROM messages WHERE id IN (101,102)", Long.class))
-                .containsExactly(1L, 1L);
-        assertThat(jdbc.queryForObject("SELECT owner_id FROM attachments WHERE id=1", Long.class)).isEqualTo(102);
-        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM conversations WHERE type='SYSTEM'", Integer.class))
-                .isEqualTo(1);
-        assertThat(jdbc.queryForObject(
-                "SELECT DATE_FORMAT(last_message_at,'%Y-%m-%d %H:%i:%s') "
-                        + "FROM conversations WHERE id=1", String.class))
-                .isEqualTo("2026-11-07 12:00:00");
-        assertThatThrownBy(() -> jdbc.update(
-                "INSERT INTO conversations(type,owner_id,related_type,related_id,replyable)"
-                + " VALUES('SYSTEM',1,'POST',10,0)"))
+    void systemConversationUniqueConstraintRejectsDuplicateRelatedObject() {
+        String insert = "INSERT INTO conversations(type,owner_id,related_type,related_id,replyable)"
+                + " VALUES('SYSTEM',1,'POST',10,0)";
+        jdbc.update(insert);
+        assertThatThrownBy(() -> jdbc.update(insert))
                 .isInstanceOf(org.springframework.dao.DuplicateKeyException.class);
     }
 

@@ -22,7 +22,7 @@
 | AUTH-04 | 校园认证返回 challenge hash | 直接返回数据库实体 | CampusVerificationMapper、VerificationServiceImpl | 查询只返回客户端需要的认证字段 |
 | TASK-01 | 私有任务进入公共列表，游客详情看到 provider 等敏感字段 | 查询没有统一状态和脱敏边界 | TaskMapper、ContentMapper、TaskController、GuestTaskMasker | 公共查询过滤私有状态；游客列表和详情统一脱敏 |
 | TASK-02 | 旧编辑请求覆盖接单或完成状态 | 先读后写，没有锁和预期状态校验 | TaskServiceImpl、TaskMapper | 编辑、重发、申请、完成和审核按任务行锁与条件更新 |
-| TASK-03 | 草稿缺字段被数据库 NOT NULL 拒绝，或草稿重发绕过校验 | 草稿和正式发布共用 DDL 约束，重发只改变状态 | schema.sql、migrate_task_draft_fields.sql、TaskServiceImpl | 草稿列可空；正式发布和重发执行完整校验 |
+| TASK-03 | 草稿缺字段被数据库 NOT NULL 拒绝，或草稿重发绕过校验 | 草稿和正式发布共用 DDL 约束，重发只改变状态 | schema.sql、TaskServiceImpl | 草稿列可空；正式发布和重发执行完整校验 |
 | TASK-04 | 完成、取消、管理员争议处理的积分规则不一致 | 多个入口各自实现副作用 | CompletionServiceImpl、TaskServiceImpl、TaskModerationService、CreditServiceImpl | 状态、历史、通知和积分在同一事务中按明确规则提交 |
 | TASK-05 | 首次积分建档并发丢失更新 | 初始化和累计更新不是同一锁定路径 | UserCreditMapper、CreditServiceImpl | 唯一键初始化后锁定 credit 行再累计并写流水 |
 | TASK-06 | 超时扫描跨任务持锁，状态变化后仍可能继续处理 | 候选查询和实际变更之间缺少重新检查 | TaskTimeoutServiceImpl | 每个任务独立事务，锁内重新检查 status、时间和提醒历史 |
@@ -41,7 +41,7 @@
 | 问题 | 触发条件、实现与影响 | 依据及处理方向 |
 | --- | --- | --- |
 | 高：私聊上下文缺少资源校验 | createConversation 只检查 POST/TASK 类型、非空 relatedId、对方启用及拉黑；不查询关联对象是否存在或双方可见。不能把关联编号当作授权证据 | [ConversationServiceImpl](../../backend/src/main/java/com/campusbridge/service/impl/ConversationServiceImpl.java)；按 SRS FR-CHAT-01 通过所属业务查询能力检查上下文 |
-| 高：个人信息仍保存原值 | phone_cipher、real_name_cipher、student_number_cipher 的写入取原始输入；哈希列和 cipher 命名不能证明加密 | [AuthServiceImpl](../../backend/src/main/java/com/campusbridge/service/impl/AuthServiceImpl.java)、[VerificationServiceImpl](../../backend/src/main/java/com/campusbridge/service/impl/VerificationServiceImpl.java)；按待决事项第 3 节选定方案后迁移 |
+| 高：个人信息仍保存原值 | phone_cipher、real_name_cipher、student_number_cipher 的写入取原始输入；哈希列和 cipher 命名不能证明加密 | [AuthServiceImpl](../../backend/src/main/java/com/campusbridge/service/impl/AuthServiceImpl.java)、[VerificationServiceImpl](../../backend/src/main/java/com/campusbridge/service/impl/VerificationServiceImpl.java)；按待决事项第 3 节选定方案后实现 |
 | 高：附件 URL 缺少统一私有访问 | 业务详情可按归属限制元数据，但 AliOSSUtils 返回普通对象 URL；没有应用层签名下载路径，实际字节权限依赖桶策略 | [AliOSSUtils](../../backend/src/main/java/com/campusbridge/utils/AliOSSUtils.java)；按 SRS NFR-SEC-01 同时处理元数据与文件访问 |
 | 高：不完整草稿无法补全发布字段 | UpdateTaskRequest 没有 category、campus、location、deliveryLocation 等字段；保存时缺少类别/校区/地点的草稿不能通过原编号编辑再重发 | [RequestDtos.UpdateTaskRequest](../../backend/src/main/java/com/campusbridge/dto/request/RequestDtos.java)、[TaskServiceImpl](../../backend/src/main/java/com/campusbridge/service/impl/TaskServiceImpl.java)；按 FR-TASK-02 完成草稿编辑链路 |
 | 中：前端草稿仍保留旧限制 | TaskPublishView 要求字段完整才同步，草稿编辑分支提示“后端更新错误”并只存本地；恢复后发布新任务再删除原草稿，与服务端沿原编号发布不同 | [TaskPublishView](../../frontend/src/views/TaskPublishView.vue)；对齐草稿保存、编辑、发布及失败反馈，不仅修改提示文字 |
@@ -77,7 +77,7 @@
 | HTTP 验收 | 51 项请求检查通过，包含主流程及拒绝路径 | 沿用历史记录，本轮未重新发 HTTP 请求 |
 | 前端 | 58 项测试通过，lint 26 条 warning、无 error，构建成功 | 沿用历史记录，本轮未执行前端测试或构建 |
 
-上述数字是先前执行或现存报告的证据，不是本次文档修订运行的新结果，也不能证明表 3 中尚未修复的差距已经满足规格。历史验证未覆盖真实 SMTP、OSS、OCR、浏览器端到端、性能压测和远端部署；迁移未在生产数据库执行。
+上述数字是先前执行或现存报告的证据，不是本次文档修订运行的新结果，也不能证明表 3 中尚未修复的差距已经满足规格。历史验证未覆盖真实 SMTP、OSS、OCR、浏览器端到端、性能压测和远端部署。
 
 ### 4.2 2026-11-16 的文档复核
 
@@ -86,7 +86,7 @@
 - SRS 保留业务规则、状态、字段约束和验收条件；草稿、上下文权限等要求用于指导后续实现。
 - 架构维护模块写入权、关系模型、核心协作和事务设计；代码未达成之处登记在第 3 节。
 - API 使用说明记录当前协议和兼容差异，完整路由仍从代码导出。
-- 开发运行说明维护可执行命令、配置、迁移与测试环境；单次结果留在本记录。
+- 开发运行说明维护可执行命令、配置、数据库重建与测试环境；单次结果留在本记录。
 - 产品与部署取舍集中维护于待决事项；历史归档原件保持不变。
 
 本次文档核验包含正文与源码对照、引用及编号检查、归档哈希和文字差异检查。业务代码、数据库结构及生成 OpenAPI 未在本次修订中改动。
