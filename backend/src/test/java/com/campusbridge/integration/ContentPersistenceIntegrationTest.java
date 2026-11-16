@@ -1,5 +1,16 @@
 package com.campusbridge.integration;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.config.GlobalConfig;
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
+import com.campusbridge.config.MybatisPlusConfig;
+import com.campusbridge.mapper.UserProfileMapper;
+import com.campusbridge.pojo.UserProfile;
+import com.campusbridge.service.impl.VerificationServiceImpl;
+import com.campusbridge.service.impl.ReportServiceImpl;
+import org.springframework.test.util.ReflectionTestUtils;
+
 import com.campusbridge.mapper.AttachmentMapper;
 import com.campusbridge.mapper.ConversationMapper;
 import com.campusbridge.mapper.MessageMapper;
@@ -19,6 +30,7 @@ import com.campusbridge.mapper.ReplyMapper;
 import com.campusbridge.mapper.ReportMapper;
 import com.campusbridge.pojo.CampusVerification;
 import com.campusbridge.pojo.Post;
+import com.campusbridge.dto.view.PostView;
 import com.campusbridge.service.impl.InteractionServiceImpl;
 import org.apache.ibatis.session.SqlSession;
 import org.apache.ibatis.session.SqlSessionFactory;
@@ -26,7 +38,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
-import org.mybatis.spring.SqlSessionFactoryBean;
+import com.baomidou.mybatisplus.spring.MybatisSqlSessionFactoryBean;
 import org.mybatis.spring.SqlSessionTemplate;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -40,6 +52,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
+import java.time.LocalDateTime;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -78,14 +91,20 @@ class ContentPersistenceIntegrationTest {
             ScriptUtils.executeSqlScript(connection, new ByteArrayResource(schema.getBytes(StandardCharsets.UTF_8)));
             connection.createStatement().execute("SET FOREIGN_KEY_CHECKS=1");
         }
-        SqlSessionFactoryBean factory = new SqlSessionFactoryBean();
+        MybatisSqlSessionFactoryBean factory = new MybatisSqlSessionFactoryBean();
         factory.setDataSource(dataSource);
-        org.apache.ibatis.session.Configuration configuration = new org.apache.ibatis.session.Configuration();
+        MybatisConfiguration configuration = new MybatisConfiguration();
         configuration.setMapUnderscoreToCamelCase(true);
         factory.setConfiguration(configuration);
+        factory.setGlobalConfig(new GlobalConfig()
+                .setDbConfig(new GlobalConfig.DbConfig()
+                        .setInsertStrategy(FieldStrategy.ALWAYS)
+                        .setUpdateStrategy(FieldStrategy.ALWAYS)));
         factory.setMapperLocations(new PathMatchingResourcePatternResolver()
                 .getResources("classpath:com/campusbridge/mapper/*.xml"));
+        factory.setPlugins(new MybatisPlusConfig().mybatisPlusInterceptor());
         sessions = factory.getObject();
+        sessions.getConfiguration().addMappers("com.campusbridge.mapper");
     }
 
     @BeforeEach
@@ -93,7 +112,7 @@ class ContentPersistenceIntegrationTest {
         try (Connection connection = dataSource.getConnection()) {
             connection.createStatement().execute("SET FOREIGN_KEY_CHECKS=0");
             for (String table : new String[]{"attachments", "post_interactions", "replies", "posts",
-                    "reports", "campus_verifications", "messages", "conversations", "user_blocks", "users"}) {
+                    "reports", "campus_verifications", "messages", "conversations", "user_blocks", "user_profiles", "users"}) {
                 connection.createStatement().execute("TRUNCATE TABLE " + table);
             }
             connection.createStatement().execute("SET FOREIGN_KEY_CHECKS=1");
@@ -110,9 +129,40 @@ class ContentPersistenceIntegrationTest {
                 + "(12,1,'INQUIRY_HELP','Draft','Body','DRAFT')");
         try (SqlSession session = sessions.openSession(true)) {
             PostMapper mapper = session.getMapper(PostMapper.class);
-            assertThat(mapper.selectWithFilters(null, null, null, 0, 20)).extracting(Post::getId).containsExactly(10L);
-            assertThat(mapper.countWithFilters(null, null, null)).isEqualTo(1);
-            assertThat(mapper.selectWithFilters(null, "HIDDEN", null, 0, 20)).isEmpty();
+            var page = mapper.selectWithFilters(new Page<>(1, 20), null, null, null);
+            assertThat(page.getRecords()).extracting(PostView::getId).containsExactly(10L);
+            assertThat(page.getTotal()).isEqualTo(1);
+            assertThat(mapper.selectWithFilters(new Page<>(1, 20), null, "HIDDEN", null).getRecords()).isEmpty();
+        }
+    }
+
+    @Test
+    void postAndReplyFiltersKeepPageTotalsConsistent() {
+        jdbc.update("INSERT INTO posts(id,author_id,category,title,content,status) "
+                + "VALUES(11,1,'INQUIRY_HELP','Parcel question','Body','PUBLISHED'),"
+                + "(12,1,'INQUIRY_HELP','Parcel delivery','Body','PUBLISHED'),"
+                + "(13,1,'INQUIRY_HELP','Parcel draft','Body','DRAFT'),"
+                + "(14,1,'INQUIRY_HELP','Other question','Body','PUBLISHED')");
+        jdbc.update("INSERT INTO replies(post_id,author_id,content,created_at) "
+                + "VALUES(11,2,'First reply','2026-01-01 10:00:00'),"
+                + "(11,2,'Second reply','2026-01-01 11:00:00'),"
+                + "(12,2,'Latest reply','2026-01-01 12:00:00'),"
+                + "(13,2,'Draft reply','2026-01-01 13:00:00')");
+        try (SqlSession session = sessions.openSession(true)) {
+            PostMapper mapper = session.getMapper(PostMapper.class);
+            var posts = mapper.selectWithFilters(new Page<>(2, 1), "INQUIRY_HELP", "PUBLISHED", "Parcel");
+            assertThat(posts.getRecords()).hasSize(1);
+            assertThat(posts.getTotal()).isEqualTo(2);
+            var replied = mapper.selectRepliedByUser(new Page<>(1, 20), 2L, "INQUIRY_HELP", "PUBLISHED", "Parcel");
+            assertThat(replied.getRecords()).extracting(PostView::getId).containsExactly(12L, 11L);
+            assertThat(replied.getTotal()).isEqualTo(2);
+            var missing = mapper.selectRepliedByUser(new Page<>(1, 20), 2L, "INQUIRY_HELP", "PUBLISHED", "missing");
+            assertThat(missing.getRecords()).isEmpty();
+            assertThat(missing.getTotal()).isZero();
+            var beyondLastPage = mapper.selectRepliedByUser(new Page<>(3, 1), 2L, "INQUIRY_HELP", "PUBLISHED", "Parcel");
+            assertThat(beyondLastPage.getRecords()).isEmpty();
+            assertThat(beyondLastPage.getTotal()).isEqualTo(2);
+            assertThat(beyondLastPage.getCurrent()).isEqualTo(3);
         }
     }
 
@@ -124,8 +174,8 @@ class ContentPersistenceIntegrationTest {
             jdbc.update("UPDATE posts SET like_count=8,reply_count=4 WHERE id=10");
             old.setTitle("Edited");
             assertThat(mapper.updateContent(old, "PUBLISHED")).isEqualTo(1);
-            assertThat(mapper.selectById(10L).getLikeCount()).isEqualTo(8);
-            assertThat(mapper.selectById(10L).getReplyCount()).isEqualTo(4);
+            assertThat(mapper.selectDetailById(10L).getLikeCount()).isEqualTo(8);
+            assertThat(mapper.selectDetailById(10L).getReplyCount()).isEqualTo(4);
             jdbc.update("UPDATE posts SET status='DELETED' WHERE id=10");
             assertThat(mapper.updateContent(old, "PUBLISHED")).isZero();
         }
@@ -215,6 +265,53 @@ class ContentPersistenceIntegrationTest {
     }
 
     @Test
+    void concurrentReportDecisionsOnlyUpdateOneRow() throws Exception {
+        jdbc.update("INSERT INTO reports(id,reporter_id,target_type,target_id,reason,status) "
+                + "VALUES(1,1,'USER',2,'Spam','PROCESSING')");
+        CountDownLatch start = new CountDownLatch(1);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            java.util.concurrent.Callable<Integer> resolve = () -> {
+                try (SqlSession session = sessions.openSession(true)) {
+                    start.await();
+                    return session.getMapper(ReportMapper.class).updateStatusById(1L, "PUNISHED");
+                }
+            };
+            Future<Integer> first = executor.submit(resolve);
+            Future<Integer> second = executor.submit(resolve);
+            start.countDown();
+            assertThat(first.get() + second.get()).isEqualTo(1);
+            assertThat(jdbc.queryForObject("SELECT status FROM reports WHERE id=1", String.class))
+                    .isEqualTo("PUNISHED");
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void pendingVerificationUpdatesClearOptionalFieldsAndDeleteOnlyPendingRows() {
+        jdbc.update("INSERT INTO campus_verifications(id,user_id,method,real_name_cipher,"
+                + "student_number_cipher,school,department,evidence_url,reject_reason,status) "
+                + "VALUES(1,1,'MANUAL_REVIEW','Name','12345678','Campus','Old department','old.png','Old reason','PENDING')");
+        try (SqlSession session = sessions.openSession(true)) {
+            CampusVerificationMapper mapper = session.getMapper(CampusVerificationMapper.class);
+            CampusVerification entity = mapper.selectById(1L);
+            entity.setSchool("Updated campus");
+            entity.setDepartment(null);
+            entity.setEvidenceUrl(null);
+            entity.setRejectReason(null);
+            assertThat(mapper.updatePending(entity)).isEqualTo(1);
+            var updated = mapper.selectById(1L);
+            assertThat(updated.getSchool()).isEqualTo("Updated campus");
+            assertThat(updated.getDepartment()).isNull();
+            assertThat(updated.getEvidenceUrl()).isNull();
+            assertThat(updated.getRejectReason()).isNull();
+            assertThat(mapper.deletePendingById(1L)).isEqualTo(1);
+            assertThat(mapper.selectById(1L)).isNull();
+        }
+    }
+
+    @Test
     void lateVerificationReviewCannotOverwriteFinalDecision() {
         jdbc.update("INSERT INTO campus_verifications(id,user_id,method,real_name_cipher,"
                 + "student_number_cipher,school,status) "
@@ -243,10 +340,10 @@ class ContentPersistenceIntegrationTest {
             assertThat(jdbc.queryForObject("SELECT accepted_reply_id FROM posts WHERE id=10", Long.class))
                     .isEqualTo(20);
             assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM post_interactions", Integer.class)).isZero();
-            assertThat(posts.deleteById(10L)).isEqualTo(1);
+            assertThat(posts.markDeletedById(10L)).isEqualTo(1);
             assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM replies WHERE post_id=10", Integer.class))
                     .isEqualTo(1);
-            assertThat(posts.selectWithFilters(null, null, null, 0, 20)).isEmpty();
+            assertThat(posts.selectWithFilters(new Page<>(1, 20), null, null, null).getRecords()).isEmpty();
         }
     }
 
@@ -408,4 +505,166 @@ class ContentPersistenceIntegrationTest {
             assertThat(mapper.selectById(1L).getOwnerId()).isEqualTo(10L);
         }
     }
+
+
+    @Test
+    void generatedProfileIdAndNullableFieldsRoundTripThroughBaseMapper() {
+        try (SqlSession session = sessions.openSession(true)) {
+            UserProfileMapper profiles = session.getMapper(UserProfileMapper.class);
+            UserProfile profile = new UserProfile();
+            profile.setUserId(1L);
+            profile.setNickname("Student");
+            profile.setBio("Old bio");
+            profile.setContactInfo("Old contact");
+            profile.setInterestTags("[\"reading\"]");
+            profile.setCreatedAt(LocalDateTime.now());
+            profile.setUpdatedAt(LocalDateTime.now());
+            assertThat(profiles.insert(profile)).isEqualTo(1);
+            assertThat(profile.getId()).isPositive();
+
+            UserProfile current = profiles.selectByUserId(1L);
+            current.setBio(null);
+            current.setContactInfo(null);
+            current.setInterestTags(null);
+            assertThat(profiles.updateById(current)).isEqualTo(1);
+            UserProfile updated = profiles.selectById(profile.getId());
+            assertThat(updated.getNickname()).isEqualTo("Student");
+            assertThat(updated.getBio()).isNull();
+            assertThat(updated.getContactInfo()).isNull();
+            assertThat(updated.getInterestTags()).isNull();
+            assertThat(profiles.deleteById(profile.getId())).isEqualTo(1);
+            assertThat(profiles.selectByUserId(1L)).isNull();
+        }
+    }
+
+    @Test
+    void authorViewAndEntityWritesUseIndependentModels() {
+        jdbc.update("INSERT INTO user_profiles(user_id,nickname) VALUES(1,'Student')");
+        try (SqlSession session = sessions.openSession(true)) {
+            PostMapper posts = session.getMapper(PostMapper.class);
+            PostView view = posts.selectDetailById(10L);
+            assertThat(view.getAuthorName()).isEqualTo("Student");
+            Post post = posts.selectById(10L);
+            view.setTitle("Display-only change");
+            assertThat(post.getTitle()).isEqualTo("Original");
+            post.setId(null);
+            post.setTitle("Another post");
+            assertThat(posts.insert(post)).isEqualTo(1);
+            assertThat(post.getId()).isGreaterThan(10L);
+            post.setTitle("Updated title");
+            assertThat(posts.updateById(post)).isEqualTo(1);
+            assertThat(posts.selectDetailById(post.getId()).getAuthorName()).isEqualTo("Student");
+            assertThat(posts.selectDetailById(post.getId()).getTitle()).isEqualTo("Updated title");
+        }
+    }
+
+    @Test
+    void verificationPaginationCountsOnlyPendingRowsAndKeepsEmptyPageTotal() {
+        jdbc.update("INSERT INTO campus_verifications "
+                + "(user_id,method,real_name_cipher,student_number_cipher,school,status,created_at) VALUES "
+                + "(1,'MANUAL_REVIEW','A','1','Campus','PENDING','2026-01-01'),"
+                + "(1,'MANUAL_REVIEW','B','2','Campus','PENDING','2026-01-02'),"
+                + "(2,'MANUAL_REVIEW','C','3','Campus','VERIFIED','2026-01-03')");
+        try (SqlSession session = sessions.openSession(true)) {
+            VerificationServiceImpl service = new VerificationServiceImpl();
+            ReflectionTestUtils.setField(service, "campusVerificationMapper",
+                    session.getMapper(CampusVerificationMapper.class));
+            var page = service.listPending(2, 1);
+            assertThat(page.getTotal()).isEqualTo(2);
+            assertThat(page.getItems()).extracting(CampusVerification::getRealNameCipher).containsExactly("A");
+            var beyondEnd = service.listPending(3, 1);
+            assertThat(beyondEnd.getItems()).isEmpty();
+            assertThat(beyondEnd.getTotal()).isEqualTo(2);
+        }
+    }
+
+    @Test
+    void reportPaginationPreservesReporterScopeAndOptionalStatus() {
+        jdbc.update("INSERT INTO reports(reporter_id,target_type,target_id,reason,status) VALUES "
+                + "(1,'POST',10,'First','PENDING'),(1,'POST',10,'Second','RESOLVED'),"
+                + "(2,'POST',10,'Other user','PENDING')");
+        try (SqlSession session = sessions.openSession(true)) {
+            ReportServiceImpl service = new ReportServiceImpl(session.getMapper(ReportMapper.class),
+                    null, null, null, null, null, null, null, null, null);
+            var own = service.listReports(1L, null, 1, 1);
+            assertThat(own.getTotal()).isEqualTo(2);
+            assertThat(own.getItems()).extracting(com.campusbridge.pojo.Report::getReason)
+                    .containsExactly("Second");
+            var filtered = service.listReports(1L, "pending", 1, 20);
+            assertThat(filtered.getTotal()).isEqualTo(1);
+            assertThat(filtered.getItems()).extracting(com.campusbridge.pojo.Report::getReason)
+                    .containsExactly("First");
+            var admin = service.listReportsForAdmin("PENDING", 1, 20);
+            assertThat(admin.getTotal()).isEqualTo(2);
+            assertThat(admin.getItems()).extracting(com.campusbridge.pojo.Report::getReporterId)
+                    .containsExactly(2L, 1L);
+        }
+    }
+
+    @Test
+    void replyAndConversationQueriesMapDisplayFieldsWithoutChangingEntities() {
+        jdbc.update("INSERT INTO user_profiles(user_id,nickname) VALUES(1,'Author'),(2,'Reader')");
+        jdbc.update("INSERT INTO replies(id,post_id,author_id,content,status) "
+                + "VALUES(20,10,2,'Reply','PUBLISHED')");
+        jdbc.update("INSERT INTO conversations(id,type,title,owner_id,peer_user_id,related_type,related_id,replyable) "
+                + "VALUES(100,'PRIVATE','Chat',1,2,'POST',10,1)");
+        jdbc.update("INSERT INTO messages(conversation_id,sender_id,type,content,created_at,read_at) VALUES "
+                + "(100,1,'TEXT','Read message','2026-01-01 10:00:00','2026-01-01 10:01:00'),"
+                + "(100,2,'TEXT','Latest message','2026-01-01 10:02:00',NULL)");
+        try (SqlSession session = sessions.openSession(true)) {
+            ReplyMapper replies = session.getMapper(ReplyMapper.class);
+            assertThat(replies.selectByPostId(10L, 0, 20))
+                    .extracting(com.campusbridge.dto.view.ReplyView::getAuthorName).containsExactly("Reader");
+            assertThat(replies.selectById(20L).getAuthorId()).isEqualTo(2L);
+            ConversationMapper conversations = session.getMapper(ConversationMapper.class);
+            var view = conversations.selectOwnedViewById(100L, 1L);
+            assertThat(view.getUnreadCount()).isEqualTo(1);
+            assertThat(view.getLastMessagePreview()).isEqualTo("Latest message");
+            assertThat(view.getLastReadAt()).isEqualTo(LocalDateTime.of(2026, 1, 1, 10, 1));
+            assertThat(conversations.selectOwnedById(100L, 2L)).isNull();
+            assertThat(conversations.selectByOwnerId(new Page<>(1, 20), 1L).getRecords()).singleElement()
+                    .satisfies(item -> assertThat(item.getUnreadCount()).isEqualTo(1));
+            var entity = conversations.selectPrivateByOwnerAndPeer(1L, 2L);
+            entity.setTitle("Updated chat");
+            assertThat(conversations.updateById(entity)).isEqualTo(1);
+            assertThat(conversations.selectOwnedViewById(100L, 1L).getLastMessagePreview())
+                    .isEqualTo("Latest message");
+        }
+    }
+    @Test
+    void conversationPagesKeepOwnerTotalsOrderAndMessageSummaries() {
+        jdbc.update("INSERT INTO conversations(id,type,title,owner_id,peer_user_id,replyable,last_message_at) "
+                + "VALUES(100,'PRIVATE','Private chat',1,2,1,'2026-01-01 10:00:00'),"
+                + "(101,'SYSTEM','Notice',1,NULL,0,'2026-01-01 11:00:00'),"
+                + "(102,'PRIVATE','Peer view',2,1,1,'2026-01-01 12:00:00')");
+        jdbc.update("INSERT INTO messages(conversation_id,sender_id,type,content,created_at) "
+                + "VALUES(100,2,'TEXT','First message','2026-01-01 09:00:00'),"
+                + "(100,2,'TEXT','Latest message','2026-01-01 10:00:00')");
+        try (SqlSession session = sessions.openSession(true)) {
+            ConversationServiceImpl service = new ConversationServiceImpl(
+                    session.getMapper(ConversationMapper.class), session.getMapper(MessageMapper.class),
+                    session.getMapper(UserMapper.class), session.getMapper(UserBlockMapper.class),
+                    session.getMapper(AttachmentMapper.class));
+            var first = service.listConversations(1L, 1, 1);
+            assertThat(first.getTotal()).isEqualTo(2);
+            assertThat(first.getItems()).singleElement().satisfies(item -> {
+                assertThat(item.getId()).isEqualTo(101L);
+                assertThat(item.getUnreadCount()).isZero();
+            });
+            var second = service.listConversations(1L, 2, 1);
+            assertThat(second.getTotal()).isEqualTo(2);
+            assertThat(second.getPage()).isEqualTo(2);
+            assertThat(second.getSize()).isEqualTo(1);
+            assertThat(second.getItems()).singleElement().satisfies(item -> {
+                assertThat(item.getId()).isEqualTo(100L);
+                assertThat(item.getUnreadCount()).isEqualTo(2);
+                assertThat(item.getLastMessagePreview()).isEqualTo("Latest message");
+            });
+            var beyondLastPage = service.listConversations(1L, 3, 1);
+            assertThat(beyondLastPage.getItems()).isEmpty();
+            assertThat(beyondLastPage.getTotal()).isEqualTo(2);
+            assertThat(beyondLastPage.getPage()).isEqualTo(3);
+        }
+    }
+
 }

@@ -4,8 +4,8 @@ import com.campusbridge.mapper.PostInteractionMapper;
 import com.campusbridge.mapper.PostMapper;
 import com.campusbridge.mapper.TaskApplicationMapper;
 import com.campusbridge.mapper.TaskMapper;
-import com.campusbridge.pojo.Post;
-import com.campusbridge.pojo.Task;
+import com.campusbridge.dto.view.PostView;
+import com.campusbridge.dto.view.TaskView;
 import com.campusbridge.service.RecommendationService;
 import org.springframework.stereotype.Service;
 
@@ -63,7 +63,7 @@ public class RecommendationServiceImpl implements RecommendationService {
     }
 
     @Override
-    public List<Task> getRecommendedTasks(Long userId, int limit) {
+    public List<TaskView> getRecommendedTasks(Long userId, int limit) {
         if (userId == null || limit <= 0) {
             return Collections.emptyList();
         }
@@ -78,7 +78,7 @@ public class RecommendationServiceImpl implements RecommendationService {
                 .getOrDefault("preferredRewardTypes", Collections.emptyList());
 
         // 获取所有 OPEN 状态且未截止的任务
-        List<Task> candidates = taskMapper.selectOpenTasksWithDeadline();
+        List<TaskView> candidates = taskMapper.selectOpenTasksWithDeadline();
         if (candidates.isEmpty()) {
             return Collections.emptyList();
         }
@@ -96,7 +96,7 @@ public class RecommendationServiceImpl implements RecommendationService {
     }
 
     @Override
-    public List<Post> getRecommendedPosts(Long userId, int limit) {
+    public List<PostView> getRecommendedPosts(Long userId, int limit) {
         if (userId == null || limit <= 0) {
             return Collections.emptyList();
         }
@@ -107,7 +107,7 @@ public class RecommendationServiceImpl implements RecommendationService {
                 .getOrDefault("interactionCategories", Collections.emptyList());
 
         // 获取所有已发布的帖子
-        List<Post> candidates = postMapper.selectAllPublishedPosts();
+        List<PostView> candidates = postMapper.selectAllPublishedPosts();
         if (candidates.isEmpty()) {
             return Collections.emptyList();
         }
@@ -122,7 +122,7 @@ public class RecommendationServiceImpl implements RecommendationService {
         return scoredPosts.stream().map(ps -> ps.post).collect(Collectors.toList());
     }
 
-    private int calculateTaskScore(Task task, List<String> preferredCategories,
+    private int calculateTaskScore(TaskView task, List<String> preferredCategories,
                                     List<String> preferredCampuses, List<String> preferredRewards) {
         int score = 0;
 
@@ -168,7 +168,7 @@ public class RecommendationServiceImpl implements RecommendationService {
         return score;
     }
 
-    private int calculatePostScore(Post post, List<String> interactionCategories) {
+    private int calculatePostScore(PostView post, List<String> interactionCategories) {
         int score = 0;
 
         // 1. 分类匹配 (0-5分)
@@ -194,20 +194,20 @@ public class RecommendationServiceImpl implements RecommendationService {
     }
 
     private static class TaskScore {
-        Task task;
+        TaskView task;
         int score;
 
-        TaskScore(Task task, int score) {
+        TaskScore(TaskView task, int score) {
             this.task = task;
             this.score = score;
         }
     }
 
     private static class PostScore {
-        Post post;
+        PostView post;
         int score;
 
-        PostScore(Post post, int score) {
+        PostScore(PostView post, int score) {
             this.post = post;
             this.score = score;
         }

@@ -1,5 +1,8 @@
 package com.campusbridge.service.impl;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.campusbridge.dto.query.TaskQuery;
+import com.campusbridge.dto.view.TaskPageView;
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
 import com.campusbridge.dto.enums.ApiEnums;
@@ -10,6 +13,7 @@ import com.campusbridge.mapper.TaskApplicationMapper;
 import com.campusbridge.pojo.TaskApplication;
 import com.campusbridge.pojo.CampusVerification;
 import com.campusbridge.pojo.Task;
+import com.campusbridge.dto.view.TaskView;
 import com.campusbridge.service.ContentModerationService;
 import com.campusbridge.service.CreditService;
 import com.campusbridge.service.NotificationService;
@@ -19,9 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @Transactional
 @Service
@@ -79,7 +81,7 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
-    public Task createTask(Long requesterId, RequestDtos.CreateTaskRequest request) {
+    public TaskView createTask(Long requesterId, RequestDtos.CreateTaskRequest request) {
         requireRequesterId(requesterId);
         requireVerifiedUser(requesterId);
         validateCreateTaskRequest(request);
@@ -99,7 +101,7 @@ public class TaskServiceImpl implements TaskService {
                 task.getStatus(),
                 requesterId,
                 HISTORY_NOTE_CREATED);
-        return task;
+        return TaskView.from(task);
     }
 
     private void requireRequesterId(Long requesterId) {
@@ -111,55 +113,28 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
-    public Map<String, Object> listTasks(
-            String keyword,
-            String category,
-            String campus,
-            String status,
-            String rewardType,
-            Boolean requiresProof,
-            Boolean excludeExpired,
-            String sortBy,
-            Integer page,
-            Integer size) {
-        int pageNum = page != null && page > 0 ? page : 1;
-        int pageSize = size != null && size > 0 && size <= 100 ? size : 20;
-        int offset = (pageNum - 1) * pageSize;
+    public TaskPageView listTasks(TaskQuery query) {
+        Integer page = query.getPage();
+        Integer size = query.getSize();
+        query.setPage(page != null && page > 0 ? page : 1);
+        query.setSize(size != null && size > 0 && size <= 100 ? size : 20);
+        query.setIncludePrivate(false);
 
-        Map<String, Object> params = new HashMap<>();
-        params.put("keyword", keyword);
-        params.put("category", category);
-        params.put("campus", campus);
-        params.put("status", status);
-        params.put("rewardType", rewardType);
-        params.put("requiresProof", requiresProof);
-        params.put("excludeExpired", Boolean.TRUE.equals(excludeExpired));
-        params.put("sortBy", sortBy);
-        params.put("offset", offset);
-        params.put("limit", pageSize);
-
-        List<Task> tasks = taskMapper.selectWithFilters(params);
-        long total = taskMapper.countWithFilters(params);
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("tasks", tasks);
-        result.put("total", total);
-        result.put("page", pageNum);
-        result.put("size", pageSize);
-        return result;
+        Page<TaskView> result = taskMapper.selectWithFilters(new Page<>(query.getPage(), query.getSize()), query);
+        return new TaskPageView(result.getRecords(), result.getTotal(), query.getPage(), query.getSize());
     }
 
     @Override
-    public Task getTaskDetail(Long taskId) {
+    public TaskView getTaskDetail(Long taskId) {
         return getTaskDetail(taskId, null);
     }
 
     @Override
-    public Task getTaskDetail(Long taskId, Long currentUserId) {
+    public TaskView getTaskDetail(Long taskId, Long currentUserId) {
         if (taskId == null) {
             throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "taskId must not be null");
         }
-        Task task = taskMapper.selectById(taskId);
+        TaskView task = taskMapper.selectDetailById(taskId);
         if (task == null) {
             throw new BusinessException(ErrorCode.TASK_001_NOT_FOUND);
         }
@@ -172,7 +147,7 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
-    public Task updateTask(Long operatorId, Long taskId, RequestDtos.UpdateTaskRequest request) {
+    public TaskView updateTask(Long operatorId, Long taskId, RequestDtos.UpdateTaskRequest request) {
         requireOperatorId(operatorId);
         if (taskId == null) {
             throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "taskId must not be null");
@@ -217,11 +192,11 @@ public class TaskServiceImpl implements TaskService {
                 operatorId,
                 HISTORY_NOTE_UPDATED);
 
-        return existingTask;
+        return taskMapper.selectDetailById(existingTask.getId());
     }
 
     @Override
-    public Task cancelTask(Long operatorId, Long taskId, String reason) {
+    public TaskView cancelTask(Long operatorId, Long taskId, String reason) {
         requireOperatorId(operatorId);
         if (taskId == null) {
             throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "taskId must not be null");
@@ -280,11 +255,11 @@ public class TaskServiceImpl implements TaskService {
 
         task.setStatus(STATUS_CANCELLED);
         task.setUpdatedAt(now);
-        return task;
+        return taskMapper.selectDetailById(task.getId());
     }
 
     @Override
-    public Task withdrawFromTask(Long providerId, Long taskId, String reason) {
+    public TaskView withdrawFromTask(Long providerId, Long taskId, String reason) {
         requireOperatorId(providerId);
         if (taskId == null || isBlank(reason)) {
             throw new BusinessException(
@@ -349,10 +324,9 @@ public class TaskServiceImpl implements TaskService {
                 "接单者退出任务：" + normalizedReason);
 
         task.setProviderId(null);
-        task.setProviderName(null);
         task.setStatus(STATUS_OPEN);
         task.setUpdatedAt(now);
-        return task;
+        return taskMapper.selectDetailById(task.getId());
     }
 
     @Override
@@ -380,7 +354,7 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
-    public Task saveDraft(Long requesterId, RequestDtos.CreateTaskRequest request) {
+    public TaskView saveDraft(Long requesterId, RequestDtos.CreateTaskRequest request) {
         requireRequesterId(requesterId);
         requireVerifiedUser(requesterId);
 
@@ -403,11 +377,11 @@ public class TaskServiceImpl implements TaskService {
                 requesterId,
                 HISTORY_NOTE_DRAFT_SAVED);
 
-        return task;
+        return TaskView.from(task);
     }
 
     @Override
-    public Task resendTask(Long operatorId, Long taskId) {
+    public TaskView resendTask(Long operatorId, Long taskId) {
         requireOperatorId(operatorId);
         if (taskId == null) {
             throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "taskId must not be null");
@@ -448,14 +422,13 @@ public class TaskServiceImpl implements TaskService {
                 HISTORY_NOTE_RESENT);
 
         task.setProviderId(null);
-        task.setProviderName(null);
         task.setStatus(toStatus);
         task.setUpdatedAt(now);
-        return task;
+        return taskMapper.selectDetailById(task.getId());
     }
 
     @Override
-    public Task transitionTaskStatus(
+    public TaskView transitionTaskStatus(
             Long operatorId,
             Long taskId,
             RequestDtos.TaskStatusTransitionRequest request) {
@@ -499,7 +472,7 @@ public class TaskServiceImpl implements TaskService {
 
         task.setStatus(toStatus);
         task.setUpdatedAt(updatedAt);
-        return task;
+        return taskMapper.selectDetailById(task.getId());
     }
 
     private void requireVerifiedUser(Long requesterId) {

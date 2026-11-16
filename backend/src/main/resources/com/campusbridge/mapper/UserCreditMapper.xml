@@ -2,47 +2,10 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.campusbridge.mapper.UserCreditMapper">
 
-  <insert id="insert" parameterType="com.campusbridge.pojo.UserCredit" useGeneratedKeys="true" keyProperty="id">
-    INSERT INTO user_credits (user_id, points, level, updated_at)
-    VALUES (#{userId}, #{points}, #{level}, #{updatedAt})
-  </insert>
-
   <insert id="initializeForUser">
     INSERT INTO user_credits (user_id, points, level, updated_at)
     VALUES (#{userId}, 0, 1, CURRENT_TIMESTAMP)
     ON DUPLICATE KEY UPDATE user_id = user_credits.user_id
   </insert>
-
-  <select id="selectById" resultType="com.campusbridge.pojo.UserCredit">
-    SELECT * FROM user_credits
-    WHERE id = #{id}
-  </select>
-
-  <select id="selectByUserId" resultType="com.campusbridge.pojo.UserCredit">
-    SELECT * FROM user_credits
-    WHERE user_id = #{userId}
-  </select>
-
-  <select id="selectByUserIdForUpdate" resultType="com.campusbridge.pojo.UserCredit">
-    SELECT * FROM user_credits WHERE user_id = #{userId} FOR UPDATE
-  </select>
-
-  <select id="selectAll" resultType="com.campusbridge.pojo.UserCredit">
-    SELECT * FROM user_credits
-  </select>
-
-  <update id="updateById" parameterType="com.campusbridge.pojo.UserCredit">
-    UPDATE user_credits
-    SET user_id = #{userId},
-      points = #{points},
-      level = #{level},
-      updated_at = #{updatedAt}
-    WHERE id = #{id}
-  </update>
-
-  <delete id="deleteById">
-    DELETE FROM user_credits
-    WHERE id = #{id}
-  </delete>
 
 </mapper>

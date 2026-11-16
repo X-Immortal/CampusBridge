@@ -1,7 +1,7 @@
 package com.campusbridge.unit;
 
 import com.campusbridge.common.GuestTaskMasker;
-import com.campusbridge.pojo.Task;
+import com.campusbridge.dto.view.TaskView;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -10,9 +10,9 @@ class GuestTaskMaskerTest {
 
     @Test
     void guestRequestMasksSensitiveTaskFields() {
-        Task task = sampleTask();
+        TaskView task = sampleTask();
 
-        Task masked = GuestTaskMasker.maskForGuest(task, null);
+        TaskView masked = GuestTaskMasker.maskForGuest(task, null);
 
         assertThat(masked).isNotNull();
         assertThat(masked.getTitle()).isEqualTo("帮取快递");
@@ -25,9 +25,9 @@ class GuestTaskMaskerTest {
 
     @Test
     void authenticatedRequestLeavesTaskUntouched() {
-        Task task = sampleTask();
+        TaskView task = sampleTask();
 
-        Task result = GuestTaskMasker.maskForGuest(task, 42L);
+        TaskView result = GuestTaskMasker.maskForGuest(task, 42L);
 
         assertThat(result).isSameAs(task);
         assertThat(result.getProviderId()).isEqualTo(999L);
@@ -49,8 +49,8 @@ class GuestTaskMaskerTest {
         assertThat(GuestTaskMasker.isAnonymous(7L)).isFalse();
     }
 
-    private Task sampleTask() {
-        Task task = new Task();
+    private TaskView sampleTask() {
+        TaskView task = new TaskView();
         task.setId(10L);
         task.setRequesterId(100L);
         task.setProviderId(999L);

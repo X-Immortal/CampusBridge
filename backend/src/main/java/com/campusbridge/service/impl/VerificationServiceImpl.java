@@ -6,7 +6,8 @@ import com.campusbridge.dto.response.ResponseDtos;
 import com.campusbridge.mapper.CampusVerificationMapper;
 import com.campusbridge.pojo.CampusVerification;
 import com.campusbridge.service.VerificationService;
-import com.github.pagehelper.PageHelper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -186,11 +187,13 @@ public class VerificationServiceImpl implements VerificationService {
     public ResponseDtos.PagedResult<CampusVerification> listPending(int page, int size) {
         int safePage = Math.max(page, 1);
         int safeSize = Math.min(Math.max(size, 1), 100);
-        PageHelper.startPage(safePage, safeSize);
-        List<CampusVerification> list = campusVerificationMapper.selectByStatus(STATUS_PENDING);
-        long total = list instanceof com.github.pagehelper.Page<?> pageResult
-                ? pageResult.getTotal()
-                : list.size();
+        Page<CampusVerification> result = campusVerificationMapper.selectPage(
+                new Page<>(safePage, safeSize),
+                Wrappers.<CampusVerification>lambdaQuery()
+                        .eq(CampusVerification::getStatus, STATUS_PENDING)
+                        .orderByDesc(CampusVerification::getCreatedAt));
+        List<CampusVerification> list = result.getRecords();
+        long total = result.getTotal();
         list.forEach(this::hideEmailChallenge);
         return new ResponseDtos.PagedResult<>(list, safePage, safeSize, total);
     }

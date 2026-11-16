@@ -4,7 +4,7 @@ import com.campusbridge.common.CurrentUserResolver;
 import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.mapper.PostInteractionMapper;
 import com.campusbridge.mapper.PostMapper;
-import com.campusbridge.pojo.Post;
+import com.campusbridge.dto.view.PostView;
 import com.campusbridge.pojo.Result;
 import com.campusbridge.service.InteractionService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -79,7 +79,7 @@ public class InteractionController {
         if (postIds == null || postIds.isEmpty()) {
             return Result.success(Collections.emptyList());
         }
-        List<Post> posts = postMapper.selectByIds(postIds);
+        List<PostView> posts = postMapper.selectPublishedByIds(postIds);
         return Result.success(posts);
     }
 }

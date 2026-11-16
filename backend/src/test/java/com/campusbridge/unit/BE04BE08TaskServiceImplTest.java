@@ -9,6 +9,7 @@ import com.campusbridge.mapper.TaskMapper;
 import com.campusbridge.mapper.TaskApplicationMapper;
 import com.campusbridge.pojo.CampusVerification;
 import com.campusbridge.pojo.Task;
+import com.campusbridge.dto.view.TaskView;
 import com.campusbridge.pojo.TaskApplication;
 import com.campusbridge.service.ContentModerationService;
 import com.campusbridge.service.CreditService;
@@ -81,7 +82,7 @@ class BE04BE08TaskServiceImplTest {
             return 1;
         });
 
-        Task created = taskService.createTask(REQUESTER_ID, normalCreateRequest());
+        TaskView created = taskService.createTask(REQUESTER_ID, normalCreateRequest());
 
         assertThat(created.getId()).isEqualTo(TASK_ID);
         assertThat(created.getRequesterId()).isEqualTo(REQUESTER_ID);
@@ -139,13 +140,15 @@ class BE04BE08TaskServiceImplTest {
         Task acceptedTask = task("ACCEPTED");
         acceptedTask.setProviderId(PROVIDER_ID);
         when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(acceptedTask);
+        when(taskMapper.selectDetailById(TASK_ID))
+                .thenAnswer(invocation -> TaskView.from(acceptedTask));
         when(taskMapper.updateStatusById(
                 eq(TASK_ID),
                 eq("ACCEPTED"),
                 eq("IN_PROGRESS"),
                 any(LocalDateTime.class))).thenReturn(1);
 
-        Task transitioned = taskService.transitionTaskStatus(
+        TaskView transitioned = taskService.transitionTaskStatus(
                 PROVIDER_ID,
                 TASK_ID,
                 transitionRequest(ApiEnums.TaskStatusTransitionAction.START, null));
@@ -188,11 +191,13 @@ class BE04BE08TaskServiceImplTest {
         Task openTask = task("OPEN");
         openTask.setProviderId(null);
         when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(openTask);
+        when(taskMapper.selectDetailById(TASK_ID))
+                .thenAnswer(invocation -> TaskView.from(openTask));
         when(taskMapper.updateStatusById(
                 eq(TASK_ID), eq("OPEN"), eq("CANCELLED"), any()))
                 .thenReturn(1);
 
-        Task result = taskService.cancelTask(REQUESTER_ID, TASK_ID, null);
+        TaskView result = taskService.cancelTask(REQUESTER_ID, TASK_ID, null);
 
         assertThat(result.getStatus()).isEqualTo("CANCELLED");
         verify(notificationService).notifyTaskStatusChanged(
@@ -236,6 +241,8 @@ class BE04BE08TaskServiceImplTest {
         application.setApplicantId(PROVIDER_ID);
         application.setStatus("ACCEPTED");
         when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(acceptedTask);
+        when(taskMapper.selectDetailById(TASK_ID))
+                .thenAnswer(invocation -> TaskView.from(acceptedTask));
         when(taskMapper.releaseProviderById(
                 eq(TASK_ID), eq(PROVIDER_ID), eq("ACCEPTED"), any()))
                 .thenReturn(1);
@@ -244,7 +251,7 @@ class BE04BE08TaskServiceImplTest {
         when(taskApplicationMapper.updateStatusById(eq(20L), eq("ACCEPTED"), eq("WITHDRAWN"), any()))
                 .thenReturn(1);
 
-        Task result = taskService.withdrawFromTask(PROVIDER_ID, TASK_ID, "时间安排发生变化");
+        TaskView result = taskService.withdrawFromTask(PROVIDER_ID, TASK_ID, "时间安排发生变化");
 
         assertThat(result.getStatus()).isEqualTo("OPEN");
         assertThat(result.getProviderId()).isNull();
@@ -267,7 +274,7 @@ class BE04BE08TaskServiceImplTest {
             return 1;
         });
 
-        Task draft = taskService.saveDraft(REQUESTER_ID, normalCreateRequest());
+        TaskView draft = taskService.saveDraft(REQUESTER_ID, normalCreateRequest());
 
         assertThat(draft.getStatus()).isEqualTo("DRAFT");
         assertThat(draft.getDeliveryLocation()).isEqualTo("5号宿舍楼");

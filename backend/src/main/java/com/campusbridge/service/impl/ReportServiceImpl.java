@@ -1,5 +1,7 @@
 package com.campusbridge.service.impl;
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
 import com.campusbridge.dto.enums.ApiEnums;
@@ -27,7 +29,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Set;
 
 @Transactional
@@ -124,15 +125,12 @@ public class ReportServiceImpl implements ReportService {
         int safePage = normalizePage(page);
         int safeSize = normalizeSize(size);
         String normalizedStatus = normalizeStatusFilter(status);
-        int offset = (safePage - 1) * safeSize;
-
-        List<Report> reports = reportMapper.selectByReporterId(
-                reporterId,
-                normalizedStatus,
-                offset,
-                safeSize);
-        long total = reportMapper.countByReporterId(reporterId, normalizedStatus);
-        return new ResponseDtos.PagedResult<>(reports, safePage, safeSize, total);
+        Page<Report> result = reportMapper.selectPage(new Page<>(safePage, safeSize),
+                Wrappers.<Report>lambdaQuery()
+                        .eq(Report::getReporterId, reporterId)
+                        .eq(normalizedStatus != null, Report::getStatus, normalizedStatus)
+                        .orderByDesc(Report::getCreatedAt, Report::getId));
+        return new ResponseDtos.PagedResult<>(result.getRecords(), safePage, safeSize, result.getTotal());
     }
 
     @Override
@@ -143,14 +141,11 @@ public class ReportServiceImpl implements ReportService {
         int safePage = normalizePage(page);
         int safeSize = normalizeSize(size);
         String normalizedStatus = normalizeStatusFilter(status);
-        int offset = (safePage - 1) * safeSize;
-
-        List<Report> reports = reportMapper.selectForAdmin(
-                normalizedStatus,
-                offset,
-                safeSize);
-        long total = reportMapper.countForAdmin(normalizedStatus);
-        return new ResponseDtos.PagedResult<>(reports, safePage, safeSize, total);
+        Page<Report> result = reportMapper.selectPage(new Page<>(safePage, safeSize),
+                Wrappers.<Report>lambdaQuery()
+                        .eq(normalizedStatus != null, Report::getStatus, normalizedStatus)
+                        .orderByDesc(Report::getCreatedAt, Report::getId));
+        return new ResponseDtos.PagedResult<>(result.getRecords(), safePage, safeSize, result.getTotal());
     }
 
     @Override

@@ -10,6 +10,7 @@ import com.campusbridge.mapper.UserProfileMapper;
 import com.campusbridge.mapper.UserCreditMapper;
 import com.campusbridge.mapper.CampusVerificationMapper;
 import com.campusbridge.pojo.Task;
+import com.campusbridge.dto.view.TaskView;
 import com.campusbridge.pojo.TaskApplication;
 import com.campusbridge.service.NotificationService;
 import com.campusbridge.service.TaskHistoryService;
@@ -231,13 +232,16 @@ class BE07TaskApplicationServiceImplTest {
         Task task = task(TASK_ID, REQUESTER_ID, "OPEN");
         when(taskApplicationMapper.selectByApplicantId(APPLICANT_ID))
                 .thenReturn(List.of(application));
-        when(taskMapper.selectById(TASK_ID)).thenReturn(task);
+        TaskView taskView = TaskView.from(task);
+        taskView.setRequesterName("Requester");
+        when(taskMapper.selectDetailById(TASK_ID)).thenReturn(taskView);
 
         var result = applicationService.listMyApplications(APPLICANT_ID);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getApplication()).isSameAs(application);
-        assertThat(result.get(0).getTask()).isSameAs(task);
+        assertThat(result.get(0).getTask()).isSameAs(taskView);
+        assertThat(result.get(0).getTask().getRequesterName()).isEqualTo("Requester");
     }
 
     @Test

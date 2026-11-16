@@ -2,7 +2,7 @@
 
 CampusBridge 是校园互助应用，提供社区交流、跑腿与代办任务、校园认证、私聊与站内通知，以及评价积分和管理员处理。任务按“发布—申请—选人—履约—确认—评价”流转；现金报酬作为协商信息记录。
 
-技术栈为 Vue 3 / Vite、Java 17 / Spring Boot、MyBatis、MySQL 9.7 LTS，验证码邮件使用 SMTP，附件使用阿里云 OSS。
+技术栈为 Vue 3 / Vite、Java 17 / Spring Boot、MyBatis-Plus、MySQL 9.7 LTS，验证码邮件使用 SMTP，附件使用阿里云 OSS。
 
 ## 文档导航
 

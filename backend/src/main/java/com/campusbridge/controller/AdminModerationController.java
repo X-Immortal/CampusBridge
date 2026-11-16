@@ -1,12 +1,15 @@
 package com.campusbridge.controller;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.campusbridge.dto.query.TaskQuery;
+import com.campusbridge.dto.response.ResponseDtos;
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.CurrentUserResolver;
 import com.campusbridge.common.ErrorCode;
 import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.mapper.TaskMapper;
 import com.campusbridge.pojo.Result;
-import com.campusbridge.pojo.Task;
+import com.campusbridge.dto.view.TaskView;
 import com.campusbridge.service.ReportService;
 import com.campusbridge.service.VerificationService;
 import com.campusbridge.service.impl.TaskModerationService;
@@ -19,8 +22,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -55,16 +56,16 @@ public class AdminModerationController {
             @RequestParam(required = false, defaultValue = "20") Integer size) {
         int safePage = page == null || page < 1 ? 1 : page;
         int safeSize = size == null || size < 1 ? 20 : Math.min(size, 100);
-        int offset = (safePage - 1) * safeSize;
 
-        Map<String, Object> params = new HashMap<>();
-        params.put("status", STATUS_PENDING_REVIEW);
-        params.put("includePrivate", true);
-        params.put("offset", offset);
-        params.put("limit", safeSize);
+        TaskQuery query = TaskQuery.builder()
+                .status(STATUS_PENDING_REVIEW)
+                .page(safePage)
+                .size(safeSize)
+                .includePrivate(true)
+                .build();
 
-        List<Task> tasks = taskMapper.selectWithFilters(params);
-        return Result.success(tasks);
+        Page<TaskView> result = taskMapper.selectWithFilters(new Page<>(safePage, safeSize, false), query);
+        return Result.success(result.getRecords());
     }
 
     @PostMapping("/moderation/tasks/{taskId}/approve")
@@ -143,22 +144,16 @@ public class AdminModerationController {
             @RequestParam(required = false, defaultValue = "20") Integer size) {
         int safePage = page == null || page < 1 ? 1 : page;
         int safeSize = size == null || size < 1 ? 20 : Math.min(size, 100);
-        int offset = (safePage - 1) * safeSize;
 
-        Map<String, Object> params = new HashMap<>();
-        params.put("status", STATUS_DISPUTED);
-        params.put("offset", offset);
-        params.put("limit", safeSize);
+        TaskQuery query = TaskQuery.builder()
+                .status(STATUS_DISPUTED)
+                .page(safePage)
+                .size(safeSize)
+                .build();
 
-        List<Task> tasks = taskMapper.selectWithFilters(params);
-        long total = taskMapper.countWithFilters(params);
-
-        Map<String, Object> result = new HashMap<>();
-        result.put("items", tasks);
-        result.put("page", safePage);
-        result.put("size", safeSize);
-        result.put("total", total);
-        return Result.success(result);
+        Page<TaskView> result = taskMapper.selectWithFilters(new Page<>(safePage, safeSize), query);
+        return Result.success(new ResponseDtos.PagedResult<>(
+                result.getRecords(), safePage, safeSize, result.getTotal()));
     }
 
     @PostMapping("/appeals/{taskId}/dismiss")

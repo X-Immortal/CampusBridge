@@ -2,18 +2,18 @@ package com.campusbridge.service;
 
 import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.dto.response.ResponseDtos;
-import com.campusbridge.pojo.Conversation;
+import com.campusbridge.dto.view.ConversationView;
 import com.campusbridge.pojo.Message;
 
 import java.util.Map;
 
 public interface ConversationService {
-    ResponseDtos.PagedResult<Conversation> listConversations(
+    ResponseDtos.PagedResult<ConversationView> listConversations(
             Long ownerId,
             Integer page,
             Integer size);
 
-    Conversation createConversation(
+    ConversationView createConversation(
             Long ownerId,
             RequestDtos.CreateConversationRequest request);
 
@@ -28,7 +28,7 @@ public interface ConversationService {
             Long conversationId,
             RequestDtos.SendMessageRequest request);
 
-    Conversation markConversationRead(
+    ConversationView markConversationRead(
             Long ownerId,
             Long conversationId);
 

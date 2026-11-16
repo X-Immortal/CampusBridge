@@ -4,10 +4,10 @@ import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.pojo.User;
 import org.apache.ibatis.datasource.unpooled.UnpooledDataSource;
 import org.apache.ibatis.mapping.Environment;
-import org.apache.ibatis.session.Configuration;
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import org.apache.ibatis.session.SqlSession;
 import org.apache.ibatis.session.SqlSessionFactory;
-import org.apache.ibatis.session.SqlSessionFactoryBuilder;
+import com.baomidou.mybatisplus.core.MybatisSqlSessionFactoryBuilder;
 import org.apache.ibatis.transaction.jdbc.JdbcTransactionFactory;
 import org.junit.jupiter.api.Test;
 
@@ -30,11 +30,11 @@ class UserMapperAccountUpdateTest {
                       role VARCHAR(20), enabled INT, created_at TIMESTAMP, updated_at TIMESTAMP)
                     """);
             sql.execute("INSERT INTO users (id, username, role, enabled) VALUES (1, 'admin', 'ADMIN', 1)");
-            Configuration configuration = new Configuration(
+            MybatisConfiguration configuration = new MybatisConfiguration(
                     new Environment("test", new JdbcTransactionFactory(), dataSource));
             configuration.setMapUnderscoreToCamelCase(true);
             configuration.addMapper(UserMapper.class);
-            SqlSessionFactory factory = new SqlSessionFactoryBuilder().build(configuration);
+            SqlSessionFactory factory = new MybatisSqlSessionFactoryBuilder().build(configuration);
             try (SqlSession session = factory.openSession(true)) {
                 UserMapper users = session.getMapper(UserMapper.class);
                 assertThat(users.selectById(1L).getEnabled()).isEqualTo(1);

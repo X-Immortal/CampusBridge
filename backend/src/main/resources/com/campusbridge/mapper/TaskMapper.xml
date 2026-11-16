@@ -2,12 +2,7 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.campusbridge.mapper.TaskMapper">
 
-  <insert id="insert" parameterType="com.campusbridge.pojo.Task" useGeneratedKeys="true" keyProperty="id">
-    INSERT INTO tasks (requester_id, provider_id, category, title, description, campus, location, delivery_location, deadline, reward_type, reward_description, reward_amount, completion_standard, requires_proof, only_in_app_contact, allow_offline_contact, is_instant_task, route_hint, risk_disclosure_confirmed, sensitive_reason, status, created_at, updated_at)
-    VALUES (#{requesterId}, #{providerId}, #{category}, #{title}, #{description}, #{campus}, #{location}, #{deliveryLocation}, #{deadline}, #{rewardType}, #{rewardDescription}, #{rewardAmount}, #{completionStandard}, #{requiresProof}, #{onlyInAppContact}, #{allowOfflineContact}, #{isInstantTask}, #{routeHint}, #{riskDisclosureConfirmed}, #{sensitiveReason}, #{status}, #{createdAt}, #{updatedAt})
-  </insert>
-
-  <select id="selectById" resultType="com.campusbridge.pojo.Task">
+  <select id="selectDetailById" resultType="com.campusbridge.dto.view.TaskView">
     SELECT t.*, req.nickname AS requester_name, prov.nickname AS provider_name
     FROM tasks t
     LEFT JOIN user_profiles req ON req.user_id = t.requester_id
@@ -15,171 +10,54 @@
     WHERE t.id = #{id}
   </select>
 
-  <select id="selectByIdForUpdate" resultType="com.campusbridge.pojo.Task">
-    SELECT t.*,
-      (SELECT nickname FROM user_profiles WHERE user_id = t.requester_id) AS requester_name,
-      (SELECT nickname FROM user_profiles WHERE user_id = t.provider_id) AS provider_name
-    FROM tasks t WHERE t.id = #{id} FOR UPDATE
-  </select>
-
-  <update id="reopenById">
-    UPDATE tasks
-    SET provider_id = NULL, status = 'OPEN', updated_at = #{updatedAt}
-    WHERE id = #{id} AND status = #{fromStatus}
-  </update>
-
-  <select id="selectAll" resultType="com.campusbridge.pojo.Task">
-    SELECT t.*, req.nickname AS requester_name, prov.nickname AS provider_name
-    FROM tasks t
-    LEFT JOIN user_profiles req ON req.user_id = t.requester_id
-    LEFT JOIN user_profiles prov ON prov.user_id = t.provider_id
-  </select>
-
-  <update id="updateById" parameterType="com.campusbridge.pojo.Task">
-    UPDATE tasks
-    SET requester_id = #{requesterId},
-      provider_id = #{providerId},
-      category = #{category},
-      title = #{title},
-      description = #{description},
-      campus = #{campus},
-      location = #{location},
-      delivery_location = #{deliveryLocation},
-      deadline = #{deadline},
-      reward_type = #{rewardType},
-      reward_description = #{rewardDescription},
-      reward_amount = #{rewardAmount},
-      completion_standard = #{completionStandard},
-      requires_proof = #{requiresProof},
-      only_in_app_contact = #{onlyInAppContact},
-      allow_offline_contact = #{allowOfflineContact},
-      is_instant_task = #{isInstantTask},
-      route_hint = #{routeHint},
-      risk_disclosure_confirmed = #{riskDisclosureConfirmed},
-      sensitive_reason = #{sensitiveReason},
-      status = #{status},
-      created_at = #{createdAt},
-      updated_at = #{updatedAt}
-    WHERE id = #{id}
-  </update>
-
-  <update id="updateStatusById">
-    UPDATE tasks
-    SET status = #{toStatus},
-        updated_at = #{updatedAt}
-    WHERE id = #{id}
-      AND status = #{fromStatus}
-  </update>
-
-  <update id="acceptProviderById">
-    UPDATE tasks
-    SET provider_id = #{providerId},
-        status = 'ACCEPTED',
-        updated_at = #{updatedAt}
-    WHERE id = #{id}
-      AND requester_id = #{requesterId}
-      AND status = 'OPEN'
-      AND provider_id IS NULL
-  </update>
-
-  <update id="releaseProviderById">
-    UPDATE tasks
-    SET provider_id = NULL,
-        status = 'OPEN',
-        updated_at = #{updatedAt}
-    WHERE id = #{id}
-      AND provider_id = #{providerId}
-      AND status = #{fromStatus}
-  </update>
-
-  <delete id="deleteById">
-    DELETE FROM tasks
-    WHERE id = #{id}
-  </delete>
-
-  <select id="selectWithFilters" resultType="com.campusbridge.pojo.Task">
+  <select id="selectWithFilters" resultType="com.campusbridge.dto.view.TaskView">
     SELECT t.*, req.nickname AS requester_name, prov.nickname AS provider_name
     FROM tasks t
     LEFT JOIN user_profiles req ON req.user_id = t.requester_id
     LEFT JOIN user_profiles prov ON prov.user_id = t.provider_id
     <where>
-      <if test="includePrivate != true">
+      <if test="query.includePrivate != true">
         AND t.status NOT IN ('DRAFT', 'PENDING_REVIEW', 'REJECTED')
       </if>
-      <if test="keyword != null and keyword != ''">
-        AND (t.title LIKE CONCAT('%', #{keyword}, '%') OR t.description LIKE CONCAT('%', #{keyword}, '%'))
+      <if test="query.keyword != null and query.keyword != ''">
+        AND (t.title LIKE CONCAT('%', #{query.keyword}, '%') OR t.description LIKE CONCAT('%', #{query.keyword}, '%'))
       </if>
-      <if test="category != null and category != ''">
-        AND t.category = #{category}
+      <if test="query.category != null and query.category != ''">
+        AND t.category = #{query.category}
       </if>
-      <if test="campus != null and campus != ''">
-        AND t.campus = #{campus}
+      <if test="query.campus != null and query.campus != ''">
+        AND t.campus = #{query.campus}
       </if>
-      <if test="status != null and status != ''">
-        AND t.status = #{status}
+      <if test="query.status != null and query.status != ''">
+        AND t.status = #{query.status}
       </if>
-      <if test="status == null or status == ''">
+      <if test="query.status == null or query.status == ''">
         AND t.status NOT IN ('DISPUTED', 'CANCELLED')
       </if>
-      <if test="rewardType != null and rewardType != ''">
-        AND t.reward_type = #{rewardType}
+      <if test="query.rewardType != null and query.rewardType != ''">
+        AND t.reward_type = #{query.rewardType}
       </if>
-      <if test="requiresProof != null">
-        AND t.requires_proof = #{requiresProof}
+      <if test="query.requiresProof != null">
+        AND t.requires_proof = #{query.requiresProof}
       </if>
-      <if test="excludeExpired == true">
+      <if test="query.excludeExpired == true">
         AND t.deadline &gt; NOW()
       </if>
     </where>
     <choose>
-      <when test="sortBy == 'DEADLINE_ASC'">
+      <when test="query.sortBy == 'DEADLINE_ASC'">
         ORDER BY t.deadline ASC
       </when>
-      <when test="sortBy == 'DEADLINE_DESC'">
+      <when test="query.sortBy == 'DEADLINE_DESC'">
         ORDER BY t.deadline DESC
       </when>
-      <when test="sortBy == 'CREATED_AT_DESC'">
+      <when test="query.sortBy == 'CREATED_AT_DESC'">
         ORDER BY t.created_at DESC
       </when>
       <otherwise>
         ORDER BY t.created_at DESC
       </otherwise>
     </choose>
-    LIMIT #{limit} OFFSET #{offset}
-  </select>
-
-  <select id="countWithFilters" resultType="long">
-    SELECT COUNT(*)
-    FROM tasks t
-    <where>
-      <if test="includePrivate != true">
-        AND t.status NOT IN ('DRAFT', 'PENDING_REVIEW', 'REJECTED')
-      </if>
-      <if test="keyword != null and keyword != ''">
-        AND (t.title LIKE CONCAT('%', #{keyword}, '%') OR t.description LIKE CONCAT('%', #{keyword}, '%'))
-      </if>
-      <if test="category != null and category != ''">
-        AND t.category = #{category}
-      </if>
-      <if test="campus != null and campus != ''">
-        AND t.campus = #{campus}
-      </if>
-      <if test="status != null and status != ''">
-        AND t.status = #{status}
-      </if>
-      <if test="status == null or status == ''">
-        AND t.status NOT IN ('DISPUTED', 'CANCELLED')
-      </if>
-      <if test="rewardType != null and rewardType != ''">
-        AND t.reward_type = #{rewardType}
-      </if>
-      <if test="requiresProof != null">
-        AND t.requires_proof = #{requiresProof}
-      </if>
-      <if test="excludeExpired == true">
-        AND t.deadline &gt; NOW()
-      </if>
-    </where>
   </select>
 
   <select id="selectTasksNeedingTimeoutReminder" resultType="com.campusbridge.pojo.Task">
@@ -213,7 +91,7 @@
     LIMIT #{limit}
   </select>
 
-  <select id="selectRecommendedTasks" resultType="com.campusbridge.pojo.Task">
+  <select id="selectRecommendedTasks" resultType="com.campusbridge.dto.view.TaskView">
     SELECT * FROM tasks
     WHERE status = #{status}
       AND deadline &gt; NOW()
@@ -234,7 +112,7 @@
     LIMIT #{limit}
   </select>
 
-  <select id="selectOpenTasksWithDeadline" resultType="com.campusbridge.pojo.Task">
+  <select id="selectOpenTasksWithDeadline" resultType="com.campusbridge.dto.view.TaskView">
     SELECT t.*, req.nickname AS requester_name
     FROM tasks t
     LEFT JOIN user_profiles req ON req.user_id = t.requester_id

@@ -1,5 +1,7 @@
 package com.campusbridge.controller;
 
+import com.campusbridge.dto.query.TaskQuery;
+import com.campusbridge.dto.view.TaskPageView;
 import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.pojo.Result;
 import com.campusbridge.common.CurrentUserResolver;
@@ -20,7 +22,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/tasks")
@@ -72,24 +73,21 @@ public class TaskController {
             @RequestParam(required = false, defaultValue = "CREATED_AT_DESC") String sortBy,
             @RequestParam(required = false, defaultValue = "1") Integer page,
             @RequestParam(required = false, defaultValue = "20") Integer size) {
-        Map<String, Object> result = taskService.listTasks(
-                keyword,
-                category,
-                campus,
-                status,
-                rewardType,
-                requiresProof,
-                excludeExpired,
-                sortBy,
-                page,
-                size);
+        TaskQuery query = TaskQuery.builder()
+                .keyword(keyword)
+                .category(category)
+                .campus(campus)
+                .status(status)
+                .rewardType(rewardType)
+                .requiresProof(requiresProof)
+                .excludeExpired(excludeExpired)
+                .sortBy(sortBy)
+                .page(page)
+                .size(size)
+                .build();
+        TaskPageView result = taskService.listTasks(query);
         Long currentUserId = currentUserResolver.resolveOptionalUserId(servletRequest);
-        if (result.get("tasks") instanceof java.util.List<?> listedTasks) {
-            listedTasks.stream()
-                    .filter(com.campusbridge.pojo.Task.class::isInstance)
-                    .map(com.campusbridge.pojo.Task.class::cast)
-                    .forEach(task -> GuestTaskMasker.maskForGuest(task, currentUserId));
-        }
+        result.getTasks().forEach(task -> GuestTaskMasker.maskForGuest(task, currentUserId));
         return Result.success(result);
     }
 

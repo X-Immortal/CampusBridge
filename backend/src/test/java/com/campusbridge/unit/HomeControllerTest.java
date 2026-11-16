@@ -3,9 +3,9 @@ package com.campusbridge.unit;
 import com.campusbridge.controller.HomeController;
 import com.campusbridge.mapper.PostMapper;
 import com.campusbridge.mapper.TaskMapper;
-import com.campusbridge.pojo.Post;
+import com.campusbridge.dto.view.PostView;
 import com.campusbridge.pojo.Result;
-import com.campusbridge.pojo.Task;
+import com.campusbridge.dto.view.TaskView;
 import com.campusbridge.service.RecommendationService;
 import com.campusbridge.utils.AuthContextUtil;
 import org.junit.jupiter.api.Test;
@@ -36,13 +36,13 @@ class HomeControllerTest {
     @Test
     @SuppressWarnings("unchecked")
     void recommendationsExposeOnlyPublicTaskAndPostFields() {
-        Post post = new Post();
+        PostView post = new PostView();
         post.setId(1L);
         post.setAuthorId(2L);
         post.setAuthorName("同学甲");
         post.setTitle("热门帖子");
 
-        Task task = new Task();
+        TaskView task = new TaskView();
         task.setId(3L);
         task.setRequesterId(4L);
         task.setTitle("代取快递");

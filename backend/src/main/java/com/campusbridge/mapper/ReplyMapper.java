@@ -1,5 +1,7 @@
 package com.campusbridge.mapper;
 
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.campusbridge.dto.view.ReplyView;
 import com.campusbridge.pojo.Reply;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -7,25 +9,15 @@ import org.apache.ibatis.annotations.Param;
 import java.util.List;
 
 @Mapper
-public interface ReplyMapper {
-    int insert(Reply entity);
+public interface ReplyMapper extends BaseMapper<Reply> {
 
-    Reply selectById(Long id);
-
-    List<Reply> selectAll();
-
-    List<Reply> selectByPostId(
+    List<ReplyView> selectByPostId(
             @Param("postId") Long postId,
             @Param("offset") Integer offset,
             @Param("size") Integer size);
 
-    List<Reply> selectByAuthorAndPostIds(
+    List<ReplyView> selectByAuthorAndPostIds(
             @Param("authorId") Long authorId,
             @Param("postIds") List<Long> postIds);
 
-    long countByPostId(@Param("postId") Long postId);
-
-    int updateById(Reply entity);
-
-    int deleteById(Long id);
 }

@@ -3,12 +3,12 @@ package com.campusbridge.service;
 import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.dto.response.ResponseDtos;
 import com.campusbridge.dto.view.ViewDtos;
-import com.campusbridge.pojo.Post;
+import com.campusbridge.dto.view.PostView;
 
 public interface PostService {
-    Post createPost(Long userId, RequestDtos.CreatePostRequest request);
+    PostView createPost(Long userId, RequestDtos.CreatePostRequest request);
 
-    ResponseDtos.PagedResult<Post> listPosts(
+    ResponseDtos.PagedResult<PostView> listPosts(
             String keyword, String category, String status, Integer page, Integer size);
 
     ResponseDtos.PagedResult<ViewDtos.MyReplyPostView> listPostsRepliedByUser(
@@ -16,7 +16,7 @@ public interface PostService {
 
     ViewDtos.PostDetailView getPostDetail(Long postId, Long currentUserId);
 
-    Post updatePost(Long userId, Long postId, RequestDtos.UpdatePostRequest request);
+    PostView updatePost(Long userId, Long postId, RequestDtos.UpdatePostRequest request);
 
     void deletePost(Long userId, Long postId);
 }

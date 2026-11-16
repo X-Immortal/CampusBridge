@@ -190,7 +190,7 @@ class BE16ReportServiceImplTest {
         assertThatThrownBy(() -> reportService.createReport(REPORTER_ID, request))
                 .isInstanceOf(BusinessException.class);
         verify(messageMapper).selectOwnedById(123L, REPORTER_ID);
-        verify(reportMapper, never()).insert(any());
+        verify(reportMapper, never()).insert(any(Report.class));
     }
 
     private RequestDtos.CreateReportRequest taskReportRequest() {

@@ -24,39 +24,15 @@
     ) AS last_read_at
   </sql>
 
-  <insert id="insert" parameterType="com.campusbridge.pojo.Conversation" useGeneratedKeys="true" keyProperty="id">
-    INSERT INTO conversations (type, title, owner_id, peer_user_id, related_type, related_id, replyable, last_message_at, created_at)
-    VALUES (#{type}, #{title}, #{ownerId}, #{peerUserId}, #{relatedType}, #{relatedId}, #{replyable}, #{lastMessageAt}, #{createdAt})
-  </insert>
-
-  <select id="selectById" resultType="com.campusbridge.pojo.Conversation">
-    SELECT
-      <include refid="conversationColumns"/>
-    FROM conversations c
-    WHERE c.id = #{id}
-  </select>
-
-  <select id="selectAll" resultType="com.campusbridge.pojo.Conversation">
-    SELECT
-      <include refid="conversationColumns"/>
-    FROM conversations c
-  </select>
-
-  <select id="selectByOwnerId" resultType="com.campusbridge.pojo.Conversation">
+  <select id="selectByOwnerId" resultType="com.campusbridge.dto.view.ConversationView">
     SELECT
       <include refid="conversationColumns"/>
     FROM conversations c
     WHERE c.owner_id = #{ownerId}
     ORDER BY c.last_message_at DESC, c.id DESC
-    LIMIT #{size} OFFSET #{offset}
   </select>
 
-  <select id="countByOwnerId" resultType="long">
-    SELECT COUNT(*) FROM conversations
-    WHERE owner_id = #{ownerId}
-  </select>
-
-  <select id="selectOwnedById" resultType="com.campusbridge.pojo.Conversation">
+  <select id="selectOwnedViewById" resultType="com.campusbridge.dto.view.ConversationView">
     SELECT
       <include refid="conversationColumns"/>
     FROM conversations c
@@ -64,68 +40,11 @@
       AND c.owner_id = #{ownerId}
   </select>
 
-  <select id="selectByOwnerAndRelated" resultType="com.campusbridge.pojo.Conversation">
-    SELECT
-      <include refid="conversationColumns"/>
-    FROM conversations c
-    WHERE c.owner_id = #{ownerId}
-      AND c.type = #{type}
-      AND c.related_type = #{relatedType}
-      AND c.related_id = #{relatedId}
-    ORDER BY c.id ASC
-    LIMIT 1
-  </select>
-
-  <select id="selectPrivateByOwnerAndPeer" resultType="com.campusbridge.pojo.Conversation">
-    SELECT
-      <include refid="conversationColumns"/>
-    FROM conversations c
-    WHERE c.owner_id = #{ownerId}
-      AND c.peer_user_id = #{peerUserId}
-      AND c.type = 'PRIVATE'
-      AND c.replyable = 1
-    ORDER BY c.id ASC
-    LIMIT 1
-  </select>
-
-  <update id="updateById" parameterType="com.campusbridge.pojo.Conversation">
-    UPDATE conversations
-    SET type = #{type},
-      title = #{title},
-      owner_id = #{ownerId},
-      peer_user_id = #{peerUserId},
-      related_type = #{relatedType},
-      related_id = #{relatedId},
-      replyable = #{replyable},
-      last_message_at = #{lastMessageAt},
-      created_at = #{createdAt}
-    WHERE id = #{id}
-  </update>
-
   <update id="updateLastMessageAt">
     UPDATE conversations
     SET peer_user_id = #{peerUserId},
         last_message_at = GREATEST(COALESCE(last_message_at, #{lastMessageAt}), #{lastMessageAt})
     WHERE id = #{id}
   </update>
-
-  <delete id="deleteById">
-    DELETE FROM conversations
-    WHERE id = #{id}
-  </delete>
-
-  <select id="selectPrivateByOwnerAndPeerCurrent" resultType="com.campusbridge.pojo.Conversation">
-    SELECT c.* FROM conversations c
-    WHERE c.owner_id = #{ownerId} AND c.peer_user_id = #{peerUserId}
-      AND c.type = 'PRIVATE' AND c.replyable = 1
-    LIMIT 1 FOR UPDATE
-  </select>
-
-  <select id="selectByOwnerAndRelatedCurrent" resultType="com.campusbridge.pojo.Conversation">
-    SELECT c.* FROM conversations c
-    WHERE c.owner_id = #{ownerId} AND c.type = #{type}
-      AND c.related_type = #{relatedType} AND c.related_id = #{relatedId}
-    LIMIT 1 FOR UPDATE
-  </select>
 
 </mapper>

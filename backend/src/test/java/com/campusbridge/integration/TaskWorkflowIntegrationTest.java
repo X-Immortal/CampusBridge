@@ -6,7 +6,7 @@ import com.campusbridge.pojo.User;
 import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.pojo.CompletionProof;
 import com.campusbridge.pojo.Review;
-import com.campusbridge.pojo.Task;
+import com.campusbridge.dto.view.TaskView;
 import com.campusbridge.pojo.TaskApplication;
 import com.campusbridge.service.CompletionService;
 import com.campusbridge.service.ReviewService;
@@ -283,8 +283,8 @@ class TaskWorkflowIntegrationTest {
                 .andExpect(status().isCreated());
     }
 
-    private Task openTask() {
-        Task task = new Task();
+    private TaskView openTask() {
+        TaskView task = new TaskView();
         task.setId(TASK_ID);
         task.setRequesterId(REQUESTER_ID);
         task.setStatus("OPEN");
@@ -294,8 +294,8 @@ class TaskWorkflowIntegrationTest {
         return task;
     }
 
-    private Task taskWithStatus(String status) {
-        Task task = openTask();
+    private TaskView taskWithStatus(String status) {
+        TaskView task = openTask();
         task.setStatus(status);
         return task;
     }

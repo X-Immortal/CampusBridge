@@ -1,5 +1,7 @@
 package com.campusbridge.service.impl;
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
 import com.campusbridge.dto.enums.ApiEnums;
@@ -12,6 +14,7 @@ import com.campusbridge.mapper.UserBlockMapper;
 import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.pojo.Attachment;
 import com.campusbridge.pojo.Conversation;
+import com.campusbridge.dto.view.ConversationView;
 import com.campusbridge.pojo.Message;
 import com.campusbridge.pojo.User;
 import com.campusbridge.service.ConversationService;
@@ -60,24 +63,18 @@ public class ConversationServiceImpl implements ConversationService {
     }
 
     @Override
-    public ResponseDtos.PagedResult<Conversation> listConversations(
+    public ResponseDtos.PagedResult<ConversationView> listConversations(
             Long ownerId,
             Integer page,
             Integer size) {
         requireUserId(ownerId);
-        PageWindow window = toPageWindow(page, size);
-        List<Conversation> conversations =
-                conversationMapper.selectByOwnerId(ownerId, window.offset, window.size);
-        long total = conversationMapper.countByOwnerId(ownerId);
+        Page<ConversationView> result = conversationMapper.selectByOwnerId(toPage(page, size), ownerId);
         return new ResponseDtos.PagedResult<>(
-                conversations,
-                window.page,
-                window.size,
-                total);
+                result.getRecords(), (int) result.getCurrent(), (int) result.getSize(), result.getTotal());
     }
 
     @Override
-    public Conversation createConversation(
+    public ConversationView createConversation(
             Long ownerId,
             RequestDtos.CreateConversationRequest request) {
         requireUserId(ownerId);
@@ -113,7 +110,7 @@ public class ConversationServiceImpl implements ConversationService {
             insertMessage(ownerMessage);
             insertMessage(peerMessage);
         }
-        return conversation;
+        return conversationMapper.selectOwnedViewById(conversation.getId(), ownerId);
     }
 
     @Override
@@ -127,15 +124,11 @@ public class ConversationServiceImpl implements ConversationService {
         LocalDateTime readAt = LocalDateTime.now();
         messageMapper.markUnreadAsRead(conversation.getId(), readAt);
 
-        PageWindow window = toPageWindow(page, size);
-        List<Message> messages =
-                messageMapper.selectByConversationId(conversation.getId(), window.offset, window.size);
-        long total = messageMapper.countByConversationId(conversation.getId());
+        Page<Message> result = messageMapper.selectPage(toPage(page, size),
+                Wrappers.<Message>lambdaQuery().eq(Message::getConversationId, conversation.getId())
+                        .orderByDesc(Message::getCreatedAt, Message::getId));
         return new ResponseDtos.PagedResult<>(
-                messages,
-                window.page,
-                window.size,
-                total);
+                result.getRecords(), (int) result.getCurrent(), (int) result.getSize(), result.getTotal());
     }
 
     @Override
@@ -185,13 +178,13 @@ public class ConversationServiceImpl implements ConversationService {
     }
 
     @Override
-    public Conversation markConversationRead(
+    public ConversationView markConversationRead(
             Long ownerId,
             Long conversationId) {
         requireUserId(ownerId);
         Conversation conversation = requireOwnedConversation(ownerId, conversationId);
         messageMapper.markUnreadAsRead(conversation.getId(), LocalDateTime.now());
-        return conversationMapper.selectOwnedById(conversation.getId(), ownerId);
+        return conversationMapper.selectOwnedViewById(conversation.getId(), ownerId);
     }
 
     @Override
@@ -434,11 +427,10 @@ public class ConversationServiceImpl implements ConversationService {
         conversation.setLastMessageAt(lastMessageAt);
     }
 
-    private PageWindow toPageWindow(Integer page, Integer size) {
+    private <T> Page<T> toPage(Integer page, Integer size) {
         int normalizedPage = page == null || page < 1 ? DEFAULT_PAGE : page;
         int normalizedSize = size == null || size < 1 ? DEFAULT_SIZE : Math.min(size, MAX_SIZE);
-        int offset = (normalizedPage - 1) * normalizedSize;
-        return new PageWindow(normalizedPage, normalizedSize, offset);
+        return new Page<>(normalizedPage, normalizedSize);
     }
 
     private void requireUserId(Long userId) {
@@ -465,15 +457,4 @@ public class ConversationServiceImpl implements ConversationService {
         return value == null || value.isBlank();
     }
 
-    private static class PageWindow {
-        private final int page;
-        private final int size;
-        private final int offset;
-
-        PageWindow(int page, int size, int offset) {
-            this.page = page;
-            this.size = size;
-            this.offset = offset;
-        }
-    }
 }

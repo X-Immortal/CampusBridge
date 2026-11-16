@@ -3,13 +3,9 @@ package com.campusbridge.dto.view;
 import com.campusbridge.dto.enums.ApiEnums;
 import com.campusbridge.pojo.CompletionProof;
 import com.campusbridge.pojo.Attachment;
-import com.campusbridge.pojo.Conversation;
 import com.campusbridge.pojo.Message;
-import com.campusbridge.pojo.Post;
 import com.campusbridge.pojo.Report;
-import com.campusbridge.pojo.Reply;
 import com.campusbridge.pojo.Review;
-import com.campusbridge.pojo.Task;
 import com.campusbridge.pojo.TaskApplication;
 import com.campusbridge.pojo.TaskHistory;
 import com.campusbridge.pojo.User;
@@ -71,7 +67,7 @@ public final class ViewDtos {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class TaskDetailView {
-        private Task task;
+        private TaskView task;
         private List<TaskApplication> applications;
         private CompletionProof completionProof;
         private List<Attachment> attachments;
@@ -83,8 +79,8 @@ public final class ViewDtos {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class PostDetailView {
-        private Post post;
-        private List<Reply> replies;
+        private PostView post;
+        private List<ReplyView> replies;
         private Boolean likedByCurrentUser;
         private Boolean markedByCurrentUser;
         private Long acceptedReplyId;
@@ -95,8 +91,8 @@ public final class ViewDtos {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class MyReplyPostView {
-        private Post post;
-        private List<Reply> replies;
+        private PostView post;
+        private List<ReplyView> replies;
         private LocalDateTime lastReplyAt;
         private Long replyTotal;
     }
@@ -105,7 +101,7 @@ public final class ViewDtos {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class ConversationMessageView {
-        private Conversation conversation;
+        private ConversationView conversation;
         private List<Message> messages;
     }
 
@@ -153,7 +149,7 @@ public final class ViewDtos {
     @AllArgsConstructor
     public static class MyTaskApplicationView {
         private TaskApplication application;
-        private Task task;
+        private TaskView task;
     }
 
     @Data

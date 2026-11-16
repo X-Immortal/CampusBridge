@@ -1,30 +1,34 @@
 package com.campusbridge.mapper;
 
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.campusbridge.pojo.Attachment;
 import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
 @Mapper
-public interface AttachmentMapper {
-    int insert(Attachment entity);
+public interface AttachmentMapper extends BaseMapper<Attachment> {
 
-    Attachment selectById(Long id);
+    default List<Attachment> selectByOwner(
+            String ownerType,
+            Long ownerId) {
+        return selectList(Wrappers.<Attachment>lambdaQuery()
+                .eq(Attachment::getOwnerType, ownerType).eq(Attachment::getOwnerId, ownerId)
+                .in(Attachment::getStatus, "ACTIVE", "BOUND")
+                .orderByAsc(Attachment::getCreatedAt, Attachment::getId));
+    }
 
-    List<Attachment> selectAll();
+    default int bindTemporaryToOwner(Long attachmentId, Long uploaderId, String ownerType, Long ownerId) {
+        return update(null, Wrappers.<Attachment>lambdaUpdate()
+                .set(Attachment::getOwnerType, ownerType)
+                .set(Attachment::getOwnerId, ownerId)
+                .set(Attachment::getStatus, "BOUND")
+                .eq(Attachment::getId, attachmentId)
+                .eq(Attachment::getUploaderId, uploaderId)
+                .eq(Attachment::getOwnerType, ownerType)
+                .isNull(Attachment::getOwnerId)
+                .eq(Attachment::getStatus, "TEMPORARY"));
+    }
 
-    List<Attachment> selectByOwner(
-            @Param("ownerType") String ownerType,
-            @Param("ownerId") Long ownerId);
-
-    int updateById(Attachment entity);
-
-    int bindTemporaryToOwner(
-            @Param("attachmentId") Long attachmentId,
-            @Param("uploaderId") Long uploaderId,
-            @Param("ownerType") String ownerType,
-            @Param("ownerId") Long ownerId);
-
-    int deleteById(Long id);
 }

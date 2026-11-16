@@ -1,41 +1,18 @@
 package com.campusbridge.mapper;
 
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.campusbridge.pojo.Report;
 import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
-
-import java.util.List;
 
 @Mapper
-public interface ReportMapper {
-    int insert(Report entity);
+public interface ReportMapper extends BaseMapper<Report> {
 
-    Report selectById(Long id);
+    default int updateStatusById(Long id, String status) {
+        return update(null, Wrappers.<Report>lambdaUpdate()
+                .set(Report::getStatus, status)
+                .eq(Report::getId, id)
+                .in(Report::getStatus, "PENDING", "PROCESSING"));
+    }
 
-    List<Report> selectAll();
-
-    List<Report> selectByReporterId(
-            @Param("reporterId") Long reporterId,
-            @Param("status") String status,
-            @Param("offset") Integer offset,
-            @Param("size") Integer size);
-
-    long countByReporterId(
-            @Param("reporterId") Long reporterId,
-            @Param("status") String status);
-
-    List<Report> selectForAdmin(
-            @Param("status") String status,
-            @Param("offset") Integer offset,
-            @Param("size") Integer size);
-
-    long countForAdmin(@Param("status") String status);
-
-    int updateStatusById(
-            @Param("id") Long id,
-            @Param("status") String status);
-
-    int updateById(Report entity);
-
-    int deleteById(Long id);
 }

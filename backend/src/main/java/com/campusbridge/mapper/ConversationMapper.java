@@ -1,55 +1,68 @@
 package com.campusbridge.mapper;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.campusbridge.dto.view.ConversationView;
 import com.campusbridge.pojo.Conversation;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Mapper
-public interface ConversationMapper {
-    int insert(Conversation entity);
+public interface ConversationMapper extends BaseMapper<Conversation> {
 
-    Conversation selectById(Long id);
+    Page<ConversationView> selectByOwnerId(Page<ConversationView> page, @Param("ownerId") Long ownerId);
 
-    List<Conversation> selectAll();
+    default Conversation selectOwnedById(Long id, Long ownerId) {
+        return selectOne(Wrappers.<Conversation>lambdaQuery()
+                .eq(Conversation::getId, id).eq(Conversation::getOwnerId, ownerId));
+    }
 
-    List<Conversation> selectByOwnerId(
-            @Param("ownerId") Long ownerId,
-            @Param("offset") Integer offset,
-            @Param("size") Integer size);
+    ConversationView selectOwnedViewById(@Param("id") Long id, @Param("ownerId") Long ownerId);
 
-    long countByOwnerId(Long ownerId);
+    default Conversation selectByOwnerAndRelated(
+            Long ownerId, String type, String relatedType, Long relatedId) {
+        return selectOne(Wrappers.<Conversation>lambdaQuery()
+                .eq(Conversation::getOwnerId, ownerId)
+                .eq(Conversation::getType, type)
+                .eq(Conversation::getRelatedType, relatedType)
+                .eq(Conversation::getRelatedId, relatedId)
+                .orderByAsc(Conversation::getId).last("LIMIT 1"));
+    }
 
-    Conversation selectOwnedById(
-            @Param("id") Long id,
-            @Param("ownerId") Long ownerId);
+    default Conversation selectPrivateByOwnerAndPeer(Long ownerId, Long peerUserId) {
+        return selectOne(Wrappers.<Conversation>lambdaQuery()
+                .eq(Conversation::getOwnerId, ownerId)
+                .eq(Conversation::getPeerUserId, peerUserId)
+                .eq(Conversation::getType, "PRIVATE")
+                .eq(Conversation::getReplyable, 1)
+                .orderByAsc(Conversation::getId).last("LIMIT 1"));
+    }
 
-    Conversation selectByOwnerAndRelated(
-            @Param("ownerId") Long ownerId,
-            @Param("type") String type,
-            @Param("relatedType") String relatedType,
-            @Param("relatedId") Long relatedId);
+    default Conversation selectPrivateByOwnerAndPeerCurrent(Long ownerId, Long peerUserId) {
+        return selectOne(Wrappers.<Conversation>lambdaQuery()
+                .eq(Conversation::getOwnerId, ownerId)
+                .eq(Conversation::getPeerUserId, peerUserId)
+                .eq(Conversation::getType, "PRIVATE")
+                .eq(Conversation::getReplyable, 1)
+                .last("LIMIT 1 FOR UPDATE"));
+    }
 
-    Conversation selectPrivateByOwnerAndPeer(
-            @Param("ownerId") Long ownerId,
-            @Param("peerUserId") Long peerUserId);
-
-    Conversation selectPrivateByOwnerAndPeerCurrent(
-            @Param("ownerId") Long ownerId,
-            @Param("peerUserId") Long peerUserId);
-
-    Conversation selectByOwnerAndRelatedCurrent(
-            @Param("ownerId") Long ownerId, @Param("type") String type,
-            @Param("relatedType") String relatedType, @Param("relatedId") Long relatedId);
-
-    int updateById(Conversation entity);
+    default Conversation selectByOwnerAndRelatedCurrent(
+            Long ownerId, String type, String relatedType, Long relatedId) {
+        return selectOne(Wrappers.<Conversation>lambdaQuery()
+                .eq(Conversation::getOwnerId, ownerId)
+                .eq(Conversation::getType, type)
+                .eq(Conversation::getRelatedType, relatedType)
+                .eq(Conversation::getRelatedId, relatedId)
+                .last("LIMIT 1 FOR UPDATE"));
+    }
 
     int updateLastMessageAt(
             @Param("id") Long id,
             @Param("peerUserId") Long peerUserId,
             @Param("lastMessageAt") LocalDateTime lastMessageAt);
 
-    int deleteById(Long id);
 }

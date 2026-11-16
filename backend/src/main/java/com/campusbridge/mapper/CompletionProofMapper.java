@@ -1,21 +1,16 @@
 package com.campusbridge.mapper;
 
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.campusbridge.pojo.CompletionProof;
 import org.apache.ibatis.annotations.Mapper;
 
-import java.util.List;
-
 @Mapper
-public interface CompletionProofMapper {
-    int insert(CompletionProof entity);
+public interface CompletionProofMapper extends BaseMapper<CompletionProof> {
 
-    CompletionProof selectById(Long id);
+    default CompletionProof selectByTaskId(Long taskId) {
+        return selectOne(Wrappers.<CompletionProof>lambdaQuery().eq(CompletionProof::getTaskId, taskId)
+                .orderByDesc(CompletionProof::getSubmittedAt, CompletionProof::getId).last("LIMIT 1"));
+    }
 
-    CompletionProof selectByTaskId(Long taskId);
-
-    List<CompletionProof> selectAll();
-
-    int updateById(CompletionProof entity);
-
-    int deleteById(Long id);
 }

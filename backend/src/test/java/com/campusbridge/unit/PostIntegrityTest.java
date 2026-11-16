@@ -9,6 +9,8 @@ import com.campusbridge.mapper.PostMapper;
 import com.campusbridge.mapper.ReplyMapper;
 import com.campusbridge.pojo.Attachment;
 import com.campusbridge.pojo.Post;
+import com.campusbridge.dto.view.PostView;
+import com.campusbridge.pojo.PostInteraction;
 import com.campusbridge.pojo.Reply;
 import com.campusbridge.service.NotificationService;
 import com.campusbridge.service.impl.ContentModerationServiceImpl;
@@ -53,7 +55,7 @@ class PostIntegrityTest {
         RequestDtos.CreatePostRequest request = request();
         request.setTitle(" ");
         assertThatThrownBy(() -> service.createPost(1L, request)).isInstanceOf(BusinessException.class);
-        verify(posts, never()).insert(any());
+        verify(posts, never()).insert(any(Post.class));
     }
 
     @Test
@@ -78,20 +80,20 @@ class PostIntegrityTest {
 
     @Test
     void anonymousOrOtherUserCannotReadHiddenPost() {
-        when(posts.selectById(10L)).thenReturn(post("HIDDEN"));
+        when(posts.selectDetailById(10L)).thenReturn(PostView.from(post("HIDDEN")));
         assertThatThrownBy(() -> service.getPostDetail(10L, null)).isInstanceOf(BusinessException.class);
         assertThatThrownBy(() -> service.getPostDetail(10L, 2L)).isInstanceOf(BusinessException.class);
     }
 
     @Test
     void ownerCanReadHiddenPost() {
-        when(posts.selectById(10L)).thenReturn(post("HIDDEN"));
+        when(posts.selectDetailById(10L)).thenReturn(PostView.from(post("HIDDEN")));
         assertThat(service.getPostDetail(10L, 1L).getPost().getId()).isEqualTo(10L);
     }
 
     @Test
     void deletedPostIsNotReadableEvenByAuthor() {
-        when(posts.selectById(10L)).thenReturn(post("DELETED"));
+        when(posts.selectDetailById(10L)).thenReturn(PostView.from(post("DELETED")));
         assertThatThrownBy(() -> service.getPostDetail(10L, 1L)).isInstanceOf(BusinessException.class);
     }
 
@@ -104,7 +106,7 @@ class PostIntegrityTest {
         attachment.setStatus("TEMPORARY");
         when(attachments.selectById(3L)).thenReturn(attachment);
         when(attachments.bindTemporaryToOwner(3L, 1L, "POST", 10L)).thenReturn(1);
-        when(posts.insert(any())).thenAnswer(invocation -> {
+        when(posts.insert(any(Post.class))).thenAnswer(invocation -> {
             ((Post) invocation.getArgument(0)).setId(10L);
             return 1;
         });
@@ -114,19 +116,19 @@ class PostIntegrityTest {
         service.createPost(1L, request);
 
         verify(attachments).bindTemporaryToOwner(3L, 1L, "POST", 10L);
-        verify(attachments, never()).updateById(any());
+        verify(attachments, never()).updateById(any(Attachment.class));
     }
 
     @Test
     void replyUsesAtomicCountAndRejectsClosedPosts() {
         when(posts.selectById(10L)).thenReturn(post("PUBLISHED"), post("CLOSED"));
-        when(replies.insert(any())).thenReturn(1);
+        when(replies.insert(any(Reply.class))).thenReturn(1);
         when(posts.incrementReplyCount(10L)).thenReturn(1);
         RequestDtos.CreateReplyRequest request = new RequestDtos.CreateReplyRequest();
         request.setContent("Reply");
         replyService.createReply(2L, 10L, request);
         verify(posts).incrementReplyCount(10L);
-        verify(posts, never()).updateById(any());
+        verify(posts, never()).updateById(any(Post.class));
         assertThatThrownBy(() -> replyService.createReply(2L, 10L, request)).isInstanceOf(BusinessException.class);
     }
 
@@ -143,7 +145,7 @@ class PostIntegrityTest {
         assertThat(interactionService.acceptReply(1L, 10L, 20L).getType()).isEqualTo("ACCEPT_REPLY");
 
         verify(posts).updateAcceptedReply(10L, 20L);
-        verify(interactions, never()).insert(any());
+        verify(interactions, never()).insert(any(PostInteraction.class));
     }
 
     private Post post(String status) {

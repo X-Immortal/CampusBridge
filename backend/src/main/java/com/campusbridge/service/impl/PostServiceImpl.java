@@ -1,11 +1,14 @@
 package com.campusbridge.service.impl;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
 import com.campusbridge.dto.enums.ApiEnums;
 import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.dto.response.ResponseDtos;
 import com.campusbridge.dto.view.ViewDtos;
+import com.campusbridge.dto.view.PostView;
+import com.campusbridge.dto.view.ReplyView;
 import com.campusbridge.mapper.AttachmentMapper;
 import com.campusbridge.mapper.PostInteractionMapper;
 import com.campusbridge.mapper.PostMapper;
@@ -13,7 +16,6 @@ import com.campusbridge.mapper.ReplyMapper;
 import com.campusbridge.pojo.Attachment;
 import com.campusbridge.pojo.Post;
 import com.campusbridge.pojo.PostInteraction;
-import com.campusbridge.pojo.Reply;
 import com.campusbridge.service.ContentModerationService;
 import com.campusbridge.service.PostService;
 import org.springframework.stereotype.Service;
@@ -56,7 +58,7 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
-    public Post createPost(Long userId, RequestDtos.CreatePostRequest request) {
+    public PostView createPost(Long userId, RequestDtos.CreatePostRequest request) {
         validatePostRequest(request);
         contentModerationService.assertPostPublishAllowed(userId, request);
 
@@ -78,19 +80,17 @@ public class PostServiceImpl implements PostService {
                     "Failed to create post");
         }
         bindAttachments(userId, post.getId(), request.getAttachmentIds());
-        return post;
+        return PostView.from(post);
     }
 
     @Override
-    public ResponseDtos.PagedResult<Post> listPosts(
+    public ResponseDtos.PagedResult<PostView> listPosts(
             String keyword, String category, String status, Integer page, Integer size) {
         int safePage = page == null || page < 1 ? DEFAULT_PAGE : page;
         int safeSize = size == null || size < 1 ? DEFAULT_SIZE : Math.min(size, MAX_SIZE);
-        int offset = (safePage - 1) * safeSize;
 
-        List<Post> posts = postMapper.selectWithFilters(category, status, keyword, offset, safeSize);
-        long total = postMapper.countWithFilters(category, status, keyword);
-        return new ResponseDtos.PagedResult<>(posts, safePage, safeSize, total);
+        Page<PostView> result = postMapper.selectWithFilters(new Page<>(safePage, safeSize), category, status, keyword);
+        return new ResponseDtos.PagedResult<>(result.getRecords(), safePage, safeSize, result.getTotal());
     }
 
     @Override
@@ -102,24 +102,24 @@ public class PostServiceImpl implements PostService {
 
         int safePage = page == null || page < 1 ? DEFAULT_PAGE : page;
         int safeSize = size == null || size < 1 ? DEFAULT_SIZE : Math.min(size, MAX_SIZE);
-        int offset = (safePage - 1) * safeSize;
 
-        List<Post> posts = postMapper.selectRepliedByUser(userId, category, status, keyword, offset, safeSize);
+        Page<PostView> result = postMapper.selectRepliedByUser(
+                new Page<>(safePage, safeSize), userId, category, status, keyword);
+        List<PostView> posts = result.getRecords();
         if (posts.isEmpty()) {
-            long total = postMapper.countRepliedByUser(userId, category, status, keyword);
-            return new ResponseDtos.PagedResult<>(Collections.emptyList(), safePage, safeSize, total);
+            return new ResponseDtos.PagedResult<>(Collections.emptyList(), safePage, safeSize, result.getTotal());
         }
 
-        List<Long> postIds = posts.stream().map(Post::getId).toList();
-        Map<Long, List<Reply>> repliesByPostId = replyMapper.selectByAuthorAndPostIds(userId, postIds)
+        List<Long> postIds = posts.stream().map(PostView::getId).toList();
+        Map<Long, List<ReplyView>> repliesByPostId = replyMapper.selectByAuthorAndPostIds(userId, postIds)
                 .stream()
-                .collect(Collectors.groupingBy(Reply::getPostId));
+                .collect(Collectors.groupingBy(ReplyView::getPostId));
 
         List<ViewDtos.MyReplyPostView> items = posts.stream()
                 .map(post -> {
-                    List<Reply> replies = repliesByPostId.getOrDefault(post.getId(), Collections.emptyList());
+                    List<ReplyView> replies = repliesByPostId.getOrDefault(post.getId(), Collections.emptyList());
                     LocalDateTime lastReplyAt = replies.stream()
-                            .map(Reply::getCreatedAt)
+                            .map(ReplyView::getCreatedAt)
                             .filter(value -> value != null)
                             .max(LocalDateTime::compareTo)
                             .orElse(null);
@@ -130,17 +130,20 @@ public class PostServiceImpl implements PostService {
                             (long) replies.size());
                 })
                 .toList();
-        long total = postMapper.countRepliedByUser(userId, category, status, keyword);
-        return new ResponseDtos.PagedResult<>(items, safePage, safeSize, total);
+        return new ResponseDtos.PagedResult<>(items, safePage, safeSize, result.getTotal());
     }
 
     @Override
     public ViewDtos.PostDetailView getPostDetail(Long postId, Long currentUserId) {
-        Post post = requirePostExists(postId);
-        if (!isPublic(post) && !post.getAuthorId().equals(currentUserId)) {
+        PostView post = postMapper.selectDetailById(postId);
+        if (post == null || "DELETED".equals(post.getStatus())) {
             throw new BusinessException(ErrorCode.POST_001_NOT_FOUND);
         }
-        List<Reply> replies = replyMapper.selectByPostId(postId, 0, 50);
+        if (!("PUBLISHED".equals(post.getStatus()) || "CLOSED".equals(post.getStatus()))
+                && !post.getAuthorId().equals(currentUserId)) {
+            throw new BusinessException(ErrorCode.POST_001_NOT_FOUND);
+        }
+        List<ReplyView> replies = replyMapper.selectByPostId(postId, 0, 50);
         boolean likedByCurrentUser = false;
         boolean markedByCurrentUser = false;
         if (currentUserId != null) {
@@ -157,7 +160,7 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
-    public Post updatePost(Long userId, Long postId, RequestDtos.UpdatePostRequest request) {
+    public PostView updatePost(Long userId, Long postId, RequestDtos.UpdatePostRequest request) {
         Post post = requirePostExists(postId);
         if (!userId.equals(post.getAuthorId())) {
             throw new BusinessException(ErrorCode.POST_002_PERMISSION_DENIED);
@@ -194,7 +197,7 @@ public class PostServiceImpl implements PostService {
             throw new BusinessException(ErrorCode.COMMON_003_CONFLICT,
                     "Post status changed before update");
         }
-        return post;
+        return postMapper.selectDetailById(postId);
     }
 
     @Override
@@ -203,7 +206,7 @@ public class PostServiceImpl implements PostService {
         if (!userId.equals(post.getAuthorId())) {
             throw new BusinessException(ErrorCode.POST_002_PERMISSION_DENIED);
         }
-        postMapper.deleteById(postId);
+        postMapper.markDeletedById(postId);
     }
 
     private void bindAttachments(

@@ -1,5 +1,9 @@
 package com.campusbridge.pojo;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
+
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
@@ -8,10 +12,11 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@TableName("posts")
 public class Post {
+    @TableId(type = IdType.AUTO)
     private Long id;
     private Long authorId;
-    private String authorName;
     private String category;
     private String title;
     private String content;

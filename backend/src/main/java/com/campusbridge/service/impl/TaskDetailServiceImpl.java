@@ -9,7 +9,7 @@ import com.campusbridge.mapper.ReviewMapper;
 import com.campusbridge.mapper.TaskHistoryMapper;
 import com.campusbridge.pojo.Attachment;
 import com.campusbridge.pojo.CompletionProof;
-import com.campusbridge.pojo.Task;
+import com.campusbridge.dto.view.TaskView;
 import com.campusbridge.service.TaskDetailService;
 import com.campusbridge.service.TaskService;
 import org.springframework.stereotype.Service;
@@ -48,7 +48,7 @@ public class TaskDetailServiceImpl implements TaskDetailService {
                     "taskId must not be null");
         }
 
-        Task task = taskService.getTaskDetail(taskId, currentUserId);
+        TaskView task = taskService.getTaskDetail(taskId, currentUserId);
 
         if (!isParticipant(task, currentUserId)) {
             return new ViewDtos.TaskDetailView(
@@ -74,7 +74,7 @@ public class TaskDetailServiceImpl implements TaskDetailService {
                 reviewMapper.selectByTaskId(taskId));
     }
 
-    private boolean isParticipant(Task task, Long currentUserId) {
+    private boolean isParticipant(TaskView task, Long currentUserId) {
         if (currentUserId == null) {
             return false;
         }

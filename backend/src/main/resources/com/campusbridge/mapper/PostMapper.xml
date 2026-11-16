@@ -2,65 +2,52 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.campusbridge.mapper.PostMapper">
 
-  <insert id="insert" parameterType="com.campusbridge.pojo.Post" useGeneratedKeys="true" keyProperty="id">
-    INSERT INTO posts (author_id, category, title, content, status, reply_count, like_count, mark_count, accepted_reply_id, created_at, updated_at)
-    VALUES (#{authorId}, #{category}, #{title}, #{content}, #{status}, #{replyCount}, #{likeCount}, #{markCount}, #{acceptedReplyId}, #{createdAt}, #{updatedAt})
-  </insert>
+  <sql id="postFilters">
+    AND p.status IN ('PUBLISHED', 'CLOSED')
+    <if test="category != null and category != ''">
+      AND p.category = #{category}
+    </if>
+    <if test="status != null and status != ''">
+      AND p.status = #{status}
+    </if>
+    <if test="keyword != null and keyword != ''">
+      AND (p.title LIKE CONCAT('%', #{keyword}, '%') OR p.content LIKE CONCAT('%', #{keyword}, '%'))
+    </if>
+  </sql>
 
-  <select id="selectById" resultType="com.campusbridge.pojo.Post">
+  <sql id="repliedByUserFilter">
+    AND EXISTS (
+      SELECT 1
+      FROM replies r
+      WHERE r.post_id = p.id
+        AND r.author_id = #{userId}
+    )
+  </sql>
+
+  <select id="selectDetailById" resultType="com.campusbridge.dto.view.PostView">
     SELECT p.*, up.nickname AS author_name
     FROM posts p
     LEFT JOIN user_profiles up ON up.user_id = p.author_id
     WHERE p.id = #{id}
   </select>
 
-  <select id="selectAll" resultType="com.campusbridge.pojo.Post">
-    SELECT p.*, up.nickname AS author_name
-    FROM posts p
-    LEFT JOIN user_profiles up ON up.user_id = p.author_id
-  </select>
-
-  <select id="selectWithFilters" resultType="com.campusbridge.pojo.Post">
+  <select id="selectWithFilters" resultType="com.campusbridge.dto.view.PostView">
     SELECT p.*, up.nickname AS author_name
     FROM posts p
     LEFT JOIN user_profiles up ON up.user_id = p.author_id
     <where>
-      AND p.status IN ('PUBLISHED', 'CLOSED')
-      <if test="category != null and category != ''">
-        AND p.category = #{category}
-      </if>
-      <if test="status != null and status != ''">
-        AND p.status = #{status}
-      </if>
-      <if test="keyword != null and keyword != ''">
-        AND (p.title LIKE CONCAT('%', #{keyword}, '%') OR p.content LIKE CONCAT('%', #{keyword}, '%'))
-      </if>
+      <include refid="postFilters"/>
     </where>
     ORDER BY p.created_at DESC, p.id DESC
-    LIMIT #{size} OFFSET #{offset}
   </select>
 
-  <select id="selectRepliedByUser" resultType="com.campusbridge.pojo.Post">
+  <select id="selectRepliedByUser" resultType="com.campusbridge.dto.view.PostView">
     SELECT p.*, up.nickname AS author_name
     FROM posts p
     LEFT JOIN user_profiles up ON up.user_id = p.author_id
     <where>
-      AND p.status IN ('PUBLISHED', 'CLOSED')
-      AND EXISTS (
-        SELECT 1
-        FROM replies r
-        WHERE r.post_id = p.id
-          AND r.author_id = #{userId}
-      )
-      <if test="category != null and category != ''">
-        AND p.category = #{category}
-      </if>
-      <if test="status != null and status != ''">
-        AND p.status = #{status}
-      </if>
-      <if test="keyword != null and keyword != ''">
-        AND (p.title LIKE CONCAT('%', #{keyword}, '%') OR p.content LIKE CONCAT('%', #{keyword}, '%'))
-      </if>
+      <include refid="postFilters"/>
+      <include refid="repliedByUserFilter"/>
     </where>
     ORDER BY (
       SELECT MAX(r2.created_at)
@@ -68,69 +55,9 @@
       WHERE r2.post_id = p.id
         AND r2.author_id = #{userId}
     ) DESC, p.id DESC
-    LIMIT #{size} OFFSET #{offset}
   </select>
 
-  <select id="countWithFilters" resultType="long">
-    SELECT COUNT(*) FROM posts p
-    <where>
-      AND p.status IN ('PUBLISHED', 'CLOSED')
-      <if test="category != null and category != ''">
-        AND category = #{category}
-      </if>
-      <if test="status != null and status != ''">
-        AND status = #{status}
-      </if>
-      <if test="keyword != null and keyword != ''">
-        AND (title LIKE CONCAT('%', #{keyword}, '%') OR content LIKE CONCAT('%', #{keyword}, '%'))
-      </if>
-    </where>
-  </select>
-
-  <select id="countRepliedByUser" resultType="long">
-    SELECT COUNT(*) FROM posts p
-    <where>
-      AND p.status IN ('PUBLISHED', 'CLOSED')
-      AND EXISTS (
-        SELECT 1
-        FROM replies r
-        WHERE r.post_id = p.id
-          AND r.author_id = #{userId}
-      )
-      <if test="category != null and category != ''">
-        AND p.category = #{category}
-      </if>
-      <if test="status != null and status != ''">
-        AND p.status = #{status}
-      </if>
-      <if test="keyword != null and keyword != ''">
-        AND (p.title LIKE CONCAT('%', #{keyword}, '%') OR p.content LIKE CONCAT('%', #{keyword}, '%'))
-      </if>
-    </where>
-  </select>
-
-  <update id="updateById" parameterType="com.campusbridge.pojo.Post">
-    UPDATE posts
-    SET author_id = #{authorId},
-      category = #{category},
-      title = #{title},
-      content = #{content},
-      status = #{status},
-      reply_count = #{replyCount},
-      like_count = #{likeCount},
-      mark_count = #{markCount},
-      accepted_reply_id = #{acceptedReplyId},
-      created_at = #{createdAt},
-      updated_at = #{updatedAt}
-    WHERE id = #{id}
-  </update>
-
-  <delete id="deleteById">
-    UPDATE posts SET status = 'DELETED', updated_at = CURRENT_TIMESTAMP
-    WHERE id = #{id} AND status != 'DELETED'
-  </delete>
-
-  <select id="selectHotPosts" resultType="com.campusbridge.pojo.Post">
+  <select id="selectHotPosts" resultType="com.campusbridge.dto.view.PostView">
     SELECT p.*, up.nickname AS author_name
     FROM posts p
     LEFT JOIN user_profiles up ON up.user_id = p.author_id
@@ -141,7 +68,7 @@
     LIMIT #{size}
   </select>
 
-  <select id="selectByIds" resultType="com.campusbridge.pojo.Post">
+  <select id="selectPublishedByIds" resultType="com.campusbridge.dto.view.PostView">
     SELECT p.*, up.nickname AS author_name
     FROM posts p
     LEFT JOIN user_profiles up ON up.user_id = p.author_id
@@ -152,24 +79,13 @@
     ORDER BY p.created_at DESC
   </select>
 
-  <select id="selectAllPublishedPosts" resultType="com.campusbridge.pojo.Post">
+  <select id="selectAllPublishedPosts" resultType="com.campusbridge.dto.view.PostView">
     SELECT p.*, up.nickname AS author_name
     FROM posts p
     LEFT JOIN user_profiles up ON up.user_id = p.author_id
     WHERE p.status = 'PUBLISHED'
     ORDER BY p.created_at DESC
   </select>
-
-  <update id="updateContent">
-    UPDATE posts
-    SET title = #{post.title}, content = #{post.content}, status = #{post.status}, updated_at = #{post.updatedAt}
-    WHERE id = #{post.id} AND author_id = #{post.authorId} AND status = #{expectedStatus}
-  </update>
-
-  <update id="incrementReplyCount">
-    UPDATE posts SET reply_count = reply_count + 1
-    WHERE id = #{id} AND status = 'PUBLISHED'
-  </update>
 
   <update id="adjustInteractionCount">
     UPDATE posts
@@ -179,11 +95,6 @@
         <otherwise>mark_count = GREATEST(0, mark_count + #{delta})</otherwise>
       </choose>
     </set>
-    WHERE id = #{id} AND status IN ('PUBLISHED', 'CLOSED')
-  </update>
-
-  <update id="updateAcceptedReply">
-    UPDATE posts SET accepted_reply_id = #{replyId}
     WHERE id = #{id} AND status IN ('PUBLISHED', 'CLOSED')
   </update>
 

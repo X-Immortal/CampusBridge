@@ -1,9 +1,11 @@
 package com.campusbridge.integration;
 
+import com.campusbridge.dto.query.TaskQuery;
+import com.campusbridge.dto.view.TaskPageView;
 import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.pojo.User;
 
-import com.campusbridge.pojo.Task;
+import com.campusbridge.dto.view.TaskView;
 import com.campusbridge.dto.view.ViewDtos;
 import com.campusbridge.service.PostService;
 import com.campusbridge.service.TaskDetailService;
@@ -20,10 +22,9 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
@@ -80,8 +81,8 @@ class GuestAccessIntegrationTest {
         return "Bearer " + jwtUtil.generateToken(USER_ID, "USER");
     }
 
-    private Task publicTask() {
-        Task task = new Task();
+    private TaskView publicTask() {
+        TaskView task = new TaskView();
         task.setId(TASK_ID);
         task.setRequesterId(REQUESTER_ID);
         task.setProviderId(999L);
@@ -114,14 +115,8 @@ class GuestAccessIntegrationTest {
 
     @Test
     void guestCanListTasksWithoutToken() throws Exception {
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("tasks", new Object[]{});
-        payload.put("total", 0);
-        payload.put("page", 1);
-        payload.put("size", 20);
-        when(taskService.listTasks(isNull(), isNull(), isNull(), isNull(), isNull(), isNull(),
-                eq(false), eq("CREATED_AT_DESC"), eq(1), eq(20)))
-                .thenReturn(payload);
+        when(taskService.listTasks(any(TaskQuery.class)))
+                .thenReturn(new TaskPageView(List.of(), 0, 1, 20));
 
         mockMvc.perform(get("/api/v1/tasks"))
                 .andExpect(status().isOk())

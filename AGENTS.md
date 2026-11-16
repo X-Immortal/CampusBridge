@@ -14,7 +14,7 @@
 
 ## 实施约束
 
-1. 沿用 Vue 3、Spring Boot、MyBatis、MySQL 的现有架构；业务规则以 CampusBridge 的 SRS 和已确认决策为准。
+1. 沿用 Vue 3、Spring Boot、MyBatis-Plus、MySQL 的现有架构；业务规则以 CampusBridge 的 SRS 和已确认决策为准。
 2. 遵循全局工程约定及适用的 `gense-workflow`、`backend-engineering`、`naming-discipline` 技能。按阶段维护文档：SRS 写业务规则和验收；架构写方案、职责和核心机制；接口和运行说明写调用与操作；实现差距和测试事实写评审。代码用于核实基础和发现差距，不能把缺陷反写成规格。
 3. 保持现有接口路径和字段。业务取舍或公共契约发生实质变化时，同步前端、后端和规格；尚未明确的产品规则先记录问题。
 4. 状态变更、积分、历史和站内通知保持同一业务动作的一致性。并发写入使用条件更新、行锁与数据库约束，并检查影响行数。

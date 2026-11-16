@@ -1,21 +1,15 @@
 package com.campusbridge.mapper;
 
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.campusbridge.pojo.UserProfile;
 import org.apache.ibatis.annotations.Mapper;
 
-import java.util.List;
-
 @Mapper
-public interface UserProfileMapper {
-    int insert(UserProfile entity);
+public interface UserProfileMapper extends BaseMapper<UserProfile> {
 
-    UserProfile selectById(Long id);
+    default UserProfile selectByUserId(Long userId) {
+        return selectOne(Wrappers.<UserProfile>lambdaQuery().eq(UserProfile::getUserId, userId));
+    }
 
-    UserProfile selectByUserId(Long userId);
-
-    List<UserProfile> selectAll();
-
-    int updateById(UserProfile entity);
-
-    int deleteById(Long id);
 }

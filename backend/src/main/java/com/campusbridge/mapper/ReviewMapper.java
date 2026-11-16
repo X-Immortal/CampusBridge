@@ -1,23 +1,23 @@
 package com.campusbridge.mapper;
 
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.campusbridge.pojo.Review;
 import org.apache.ibatis.annotations.Mapper;
 
 import java.util.List;
 
 @Mapper
-public interface ReviewMapper {
-    int insert(Review entity);
+public interface ReviewMapper extends BaseMapper<Review> {
 
-    Review selectById(Long id);
+    default List<Review> selectByTaskId(Long taskId) {
+        return selectList(Wrappers.<Review>lambdaQuery().eq(Review::getTaskId, taskId)
+                .orderByAsc(Review::getCreatedAt, Review::getId));
+    }
 
-    List<Review> selectAll();
+    default List<Review> selectByRevieweeId(Long revieweeId) {
+        return selectList(Wrappers.<Review>lambdaQuery().eq(Review::getRevieweeId, revieweeId)
+                .orderByDesc(Review::getCreatedAt));
+    }
 
-    List<Review> selectByTaskId(Long taskId);
-
-    List<Review> selectByRevieweeId(Long revieweeId);
-
-    int updateById(Review entity);
-
-    int deleteById(Long id);
 }

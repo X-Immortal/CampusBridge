@@ -150,7 +150,7 @@ public class TaskApplicationServiceImpl implements TaskApplicationService {
                 .stream()
                 .map(application -> new ViewDtos.MyTaskApplicationView(
                         application,
-                        taskMapper.selectById(application.getTaskId())))
+                        taskMapper.selectDetailById(application.getTaskId())))
                 .filter(view -> view.getTask() != null)
                 .toList();
     }

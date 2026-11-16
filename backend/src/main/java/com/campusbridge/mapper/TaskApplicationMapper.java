@@ -1,5 +1,7 @@
 package com.campusbridge.mapper;
 
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.campusbridge.pojo.TaskApplication;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -8,35 +10,41 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Mapper
-public interface TaskApplicationMapper {
-    int insert(TaskApplication entity);
+public interface TaskApplicationMapper extends BaseMapper<TaskApplication> {
 
-    TaskApplication selectById(Long id);
+    default TaskApplication selectByTaskIdAndApplicantId(
+            Long taskId,
+            Long applicantId) {
+        return selectOne(Wrappers.<TaskApplication>lambdaQuery()
+                .eq(TaskApplication::getTaskId, taskId).eq(TaskApplication::getApplicantId, applicantId));
+    }
 
-    TaskApplication selectByTaskIdAndApplicantId(
-            @Param("taskId") Long taskId,
-            @Param("applicantId") Long applicantId);
+    default List<TaskApplication> selectByTaskId(Long taskId) {
+        return selectList(Wrappers.<TaskApplication>lambdaQuery().eq(TaskApplication::getTaskId, taskId)
+                .orderByDesc(TaskApplication::getCreatedAt, TaskApplication::getId));
+    }
 
-    List<TaskApplication> selectByTaskId(Long taskId);
+    default List<TaskApplication> selectByApplicantId(Long applicantId) {
+        return selectList(Wrappers.<TaskApplication>lambdaQuery().eq(TaskApplication::getApplicantId, applicantId)
+                .orderByDesc(TaskApplication::getCreatedAt, TaskApplication::getId));
+    }
 
-    List<TaskApplication> selectByApplicantId(Long applicantId);
+    default int updateStatusById(Long id, String fromStatus, String toStatus, LocalDateTime handledAt) {
+        return update(null, Wrappers.<TaskApplication>lambdaUpdate()
+                .set(TaskApplication::getStatus, toStatus)
+                .set(TaskApplication::getHandledAt, handledAt)
+                .eq(TaskApplication::getId, id)
+                .eq(TaskApplication::getStatus, fromStatus));
+    }
 
-    List<TaskApplication> selectAll();
-
-    int updateById(TaskApplication entity);
-
-    int updateStatusById(
-            @Param("id") Long id,
-            @Param("fromStatus") String fromStatus,
-            @Param("toStatus") String toStatus,
-            @Param("handledAt") LocalDateTime handledAt);
-
-    int rejectOtherPendingByTaskId(
-            @Param("taskId") Long taskId,
-            @Param("acceptedApplicationId") Long acceptedApplicationId,
-            @Param("handledAt") LocalDateTime handledAt);
-
-    int deleteById(Long id);
+    default int rejectOtherPendingByTaskId(Long taskId, Long acceptedApplicationId, LocalDateTime handledAt) {
+        return update(null, Wrappers.<TaskApplication>lambdaUpdate()
+                .set(TaskApplication::getStatus, "REJECTED")
+                .set(TaskApplication::getHandledAt, handledAt)
+                .eq(TaskApplication::getTaskId, taskId)
+                .ne(TaskApplication::getId, acceptedApplicationId)
+                .eq(TaskApplication::getStatus, "PENDING"));
+    }
 
     List<String> selectPreferredCategories(
             @Param("userId") Long userId,

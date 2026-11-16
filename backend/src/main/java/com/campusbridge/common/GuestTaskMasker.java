@@ -1,6 +1,6 @@
 package com.campusbridge.common;
 
-import com.campusbridge.pojo.Task;
+import com.campusbridge.dto.view.TaskView;
 
 /**
  * Utility for masking sensitive task fields when serving anonymous (guest) requests.
@@ -16,7 +16,7 @@ public final class GuestTaskMasker {
         return currentUserId == null;
     }
 
-    public static Task maskForGuest(Task task, Long currentUserId) {
+    public static TaskView maskForGuest(TaskView task, Long currentUserId) {
         if (task == null || !isAnonymous(currentUserId)) {
             return task;
         }

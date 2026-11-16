@@ -79,13 +79,13 @@ class VerificationSafetyTest {
     @Test
     void disabledEmailWithoutExplicitDebugModeCannotCreateChallenge() {
         assertThat(verification.submit(7L, emailRequest())).isEqualTo(-4L);
-        verify(mapper, never()).insert(any());
+        verify(mapper, never()).insert(any(CampusVerification.class));
     }
 
     @Test
     void explicitDebugModeReturnsCodeButReadDoesNotExposeChallengeHash() {
         when(sender.isDebugCodeEnabled()).thenReturn(true);
-        when(mapper.insert(any())).thenAnswer(invocation -> {
+        when(mapper.insert(any(CampusVerification.class))).thenAnswer(invocation -> {
             CampusVerification entity = invocation.getArgument(0);
             entity.setId(1L);
             when(mapper.selectLatestByUserId(7L)).thenReturn(entity);

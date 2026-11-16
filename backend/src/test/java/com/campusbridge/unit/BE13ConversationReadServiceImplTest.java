@@ -1,5 +1,6 @@
 package com.campusbridge.unit;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.common.ErrorCode;
 import com.campusbridge.dto.response.ResponseDtos;
@@ -12,6 +13,7 @@ import com.campusbridge.dto.enums.ApiEnums;
 import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.pojo.Attachment;
 import com.campusbridge.pojo.Conversation;
+import com.campusbridge.dto.view.ConversationView;
 import com.campusbridge.pojo.Message;
 import com.campusbridge.pojo.User;
 import com.campusbridge.service.impl.ConversationServiceImpl;
@@ -67,10 +69,13 @@ class BE13ConversationReadServiceImplTest {
     @Test
     void listMessagesMarksOwnedConversationUnreadMessagesRead() {
         when(conversationMapper.selectOwnedById(CONVERSATION_ID, OWNER_ID))
-                .thenReturn(conversationWithUnread(3));
-        when(messageMapper.selectByConversationId(CONVERSATION_ID, 0, 20))
-                .thenReturn(List.of(message()));
-        when(messageMapper.countByConversationId(CONVERSATION_ID)).thenReturn(1L);
+                .thenReturn(conversation());
+        when(messageMapper.selectPage(any(Page.class), any())).thenAnswer(invocation -> {
+            Page<Message> result = invocation.getArgument(0);
+            result.setRecords(List.of(message()));
+            result.setTotal(1);
+            return result;
+        });
 
         ResponseDtos.PagedResult<Message> result = conversationService.listMessages(
                 OWNER_ID,
@@ -85,9 +90,12 @@ class BE13ConversationReadServiceImplTest {
     @Test
     void markConversationReadUpdatesUnreadMessagesAndReturnsFreshConversation() {
         when(conversationMapper.selectOwnedById(CONVERSATION_ID, OWNER_ID))
-                .thenReturn(conversationWithUnread(3), conversationWithUnread(0));
+                .thenReturn(conversation());
+        ConversationView view = conversationView();
+        view.setUnreadCount(0);
+        when(conversationMapper.selectOwnedViewById(CONVERSATION_ID, OWNER_ID)).thenReturn(view);
 
-        Conversation updated = conversationService.markConversationRead(OWNER_ID, CONVERSATION_ID);
+        ConversationView updated = conversationService.markConversationRead(OWNER_ID, CONVERSATION_ID);
 
         assertThat(updated.getUnreadCount()).isZero();
         verify(messageMapper).markUnreadAsRead(eq(CONVERSATION_ID), any(LocalDateTime.class));
@@ -130,7 +138,7 @@ class BE13ConversationReadServiceImplTest {
     void sendMessageRejectsConversationWhenEitherUserHasBlockedTheOther() {
         when(userMapper.selectById(2L)).thenReturn(enabledPeer());
         when(conversationMapper.selectOwnedById(CONVERSATION_ID, OWNER_ID))
-                .thenReturn(conversationWithUnread(0));
+                .thenReturn(conversation());
         when(userBlockMapper.existsEitherDirection(OWNER_ID, 2L)).thenReturn(true);
 
         RequestDtos.SendMessageRequest request = new RequestDtos.SendMessageRequest();
@@ -145,8 +153,8 @@ class BE13ConversationReadServiceImplTest {
     @Test
     void imageMessageBindsOwnedTemporaryAttachmentToCreatedMessage() {
         when(userMapper.selectById(2L)).thenReturn(enabledPeer());
-        Conversation ownerConversation = conversationWithUnread(0);
-        Conversation peerConversation = conversationWithUnread(0);
+        Conversation ownerConversation = conversation();
+        Conversation peerConversation = conversation();
         peerConversation.setId(11L);
         peerConversation.setOwnerId(2L);
         peerConversation.setPeerUserId(OWNER_ID);
@@ -184,8 +192,8 @@ class BE13ConversationReadServiceImplTest {
 
     @Test
     void createConversationReusesTheSamePrivateConversationAcrossDifferentContexts() {
-        Conversation ownerConversation = conversationWithUnread(0);
-        Conversation peerConversation = conversationWithUnread(0);
+        Conversation ownerConversation = conversation();
+        Conversation peerConversation = conversation();
         peerConversation.setId(11L);
         peerConversation.setOwnerId(2L);
         peerConversation.setPeerUserId(OWNER_ID);
@@ -204,7 +212,9 @@ class BE13ConversationReadServiceImplTest {
         request.setRelatedType("POST");
         request.setRelatedId(99L);
 
-        Conversation result = conversationService.createConversation(OWNER_ID, request);
+        when(conversationMapper.selectOwnedViewById(CONVERSATION_ID, OWNER_ID))
+                .thenReturn(conversationView());
+        ConversationView result = conversationService.createConversation(OWNER_ID, request);
 
         assertThat(result.getId()).isEqualTo(CONVERSATION_ID);
         assertThat(result.getRelatedType()).isEqualTo("TASK");
@@ -224,7 +234,7 @@ class BE13ConversationReadServiceImplTest {
         User peer = enabledPeer();
         peer.setEnabled(0);
         when(userMapper.selectById(2L)).thenReturn(peer);
-        when(conversationMapper.selectOwnedById(CONVERSATION_ID, OWNER_ID)).thenReturn(conversationWithUnread(0));
+        when(conversationMapper.selectOwnedById(CONVERSATION_ID, OWNER_ID)).thenReturn(conversation());
         RequestDtos.SendMessageRequest request = new RequestDtos.SendMessageRequest();
         request.setType(ApiEnums.MessageType.TEXT);
         request.setContent("Hello");
@@ -232,7 +242,7 @@ class BE13ConversationReadServiceImplTest {
                 .isInstanceOf(BusinessException.class);
     }
 
-    private Conversation conversationWithUnread(int unreadCount) {
+    private Conversation conversation() {
         Conversation conversation = new Conversation();
         conversation.setId(CONVERSATION_ID);
         conversation.setOwnerId(OWNER_ID);
@@ -241,8 +251,19 @@ class BE13ConversationReadServiceImplTest {
         conversation.setRelatedType("TASK");
         conversation.setRelatedId(20L);
         conversation.setReplyable(1);
-        conversation.setUnreadCount(unreadCount);
         return conversation;
+    }
+
+    private ConversationView conversationView() {
+        ConversationView view = new ConversationView();
+        view.setId(CONVERSATION_ID);
+        view.setOwnerId(OWNER_ID);
+        view.setPeerUserId(2L);
+        view.setType("PRIVATE");
+        view.setRelatedType("TASK");
+        view.setRelatedId(20L);
+        view.setReplyable(1);
+        return view;
     }
 
     private Message message() {

@@ -1,25 +1,22 @@
 package com.campusbridge.mapper;
 
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.campusbridge.pojo.UserCredit;
 import org.apache.ibatis.annotations.Mapper;
 
-import java.util.List;
-
 @Mapper
-public interface UserCreditMapper {
-    int insert(UserCredit entity);
+public interface UserCreditMapper extends BaseMapper<UserCredit> {
 
     int initializeForUser(Long userId);
 
-    UserCredit selectById(Long id);
+    default UserCredit selectByUserId(Long userId) {
+        return selectOne(Wrappers.<UserCredit>lambdaQuery().eq(UserCredit::getUserId, userId));
+    }
 
-    UserCredit selectByUserId(Long userId);
+    default UserCredit selectByUserIdForUpdate(Long userId) {
+        return selectOne(Wrappers.<UserCredit>lambdaQuery()
+                .eq(UserCredit::getUserId, userId).last("FOR UPDATE"));
+    }
 
-    UserCredit selectByUserIdForUpdate(Long userId);
-
-    List<UserCredit> selectAll();
-
-    int updateById(UserCredit entity);
-
-    int deleteById(Long id);
 }

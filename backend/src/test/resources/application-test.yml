@@ -17,7 +17,7 @@ spring:
       max-file-size: 5MB
       max-request-size: 10MB
 
-mybatis:
+mybatis-plus:
   configuration:
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
     map-underscore-to-camel-case: true

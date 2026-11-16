@@ -2,9 +2,9 @@ package com.campusbridge.controller;
 
 import com.campusbridge.mapper.PostMapper;
 import com.campusbridge.mapper.TaskMapper;
-import com.campusbridge.pojo.Post;
+import com.campusbridge.dto.view.PostView;
 import com.campusbridge.pojo.Result;
-import com.campusbridge.pojo.Task;
+import com.campusbridge.dto.view.TaskView;
 import com.campusbridge.service.RecommendationService;
 import com.campusbridge.utils.AuthContextUtil;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -36,8 +36,8 @@ public class HomeController {
     @GetMapping("/recommendations")
     public Result getRecommendations() {
         Long userId = authContextUtil.getCurrentUserId();
-        List<Post> posts;
-        List<Task> tasks;
+        List<PostView> posts;
+        List<TaskView> tasks;
 
         if (userId != null) {
             posts = recommendationService.getRecommendedPosts(userId, 8);
@@ -53,7 +53,7 @@ public class HomeController {
         return Result.success(data);
     }
 
-    private Map<String, Object> toPublicPost(Post post) {
+    private Map<String, Object> toPublicPost(PostView post) {
         Map<String, Object> item = new HashMap<>();
         item.put("id", post.getId());
         item.put("authorId", post.getAuthorId());
@@ -67,7 +67,7 @@ public class HomeController {
         return item;
     }
 
-    private Map<String, Object> toPublicTask(Task task) {
+    private Map<String, Object> toPublicTask(TaskView task) {
         Map<String, Object> item = new HashMap<>();
         item.put("id", task.getId());
         item.put("requesterId", task.getRequesterId());

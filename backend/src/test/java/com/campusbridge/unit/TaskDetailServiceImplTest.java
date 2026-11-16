@@ -6,7 +6,7 @@ import com.campusbridge.mapper.ReviewMapper;
 import com.campusbridge.mapper.TaskHistoryMapper;
 import com.campusbridge.pojo.Attachment;
 import com.campusbridge.pojo.CompletionProof;
-import com.campusbridge.pojo.Task;
+import com.campusbridge.dto.view.TaskView;
 import com.campusbridge.service.impl.TaskDetailServiceImpl;
 import com.campusbridge.service.TaskService;
 import org.junit.jupiter.api.BeforeEach;
@@ -57,7 +57,7 @@ class TaskDetailServiceImplTest {
 
     @Test
     void requesterCanSeeCompletionProofAndAttachments() {
-        Task task = task();
+        TaskView task = task();
         CompletionProof proof = proof();
         Attachment attachment = new Attachment();
         attachment.setId(30L);
@@ -76,7 +76,7 @@ class TaskDetailServiceImplTest {
 
     @Test
     void providerCanSeeOwnCompletionProofAndAttachments() {
-        Task task = task();
+        TaskView task = task();
         CompletionProof proof = proof();
         when(taskService.getTaskDetail(TASK_ID, PROVIDER_ID)).thenReturn(task);
         when(completionProofMapper.selectByTaskId(TASK_ID)).thenReturn(proof);
@@ -101,8 +101,8 @@ class TaskDetailServiceImplTest {
         verify(completionProofMapper, never()).selectByTaskId(TASK_ID);
     }
 
-    private Task task() {
-        Task task = new Task();
+    private TaskView task() {
+        TaskView task = new TaskView();
         task.setId(TASK_ID);
         task.setRequesterId(REQUESTER_ID);
         task.setProviderId(PROVIDER_ID);

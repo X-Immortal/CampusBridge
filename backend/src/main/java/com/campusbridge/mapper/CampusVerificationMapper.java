@@ -1,29 +1,29 @@
 package com.campusbridge.mapper;
 
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.campusbridge.pojo.CampusVerification;
 import org.apache.ibatis.annotations.Mapper;
 
-import org.apache.ibatis.annotations.Param;
-
-import java.util.List;
-
 @Mapper
-public interface CampusVerificationMapper {
-    int insert(CampusVerification entity);
+public interface CampusVerificationMapper extends BaseMapper<CampusVerification> {
 
-    CampusVerification selectById(Long id);
+    default CampusVerification selectLatestByUserId(Long userId) {
+        return selectOne(Wrappers.<CampusVerification>lambdaQuery()
+                .eq(CampusVerification::getUserId, userId)
+                .orderByDesc(CampusVerification::getCreatedAt, CampusVerification::getId).last("LIMIT 1"));
+    }
 
-    CampusVerification selectLatestByUserId(Long userId);
+    default int updatePending(CampusVerification entity) {
+        return update(entity, Wrappers.<CampusVerification>lambdaUpdate()
+                .eq(CampusVerification::getId, entity.getId())
+                .eq(CampusVerification::getStatus, "PENDING"));
+    }
 
-    List<CampusVerification> selectAll();
+    default int deletePendingById(Long id) {
+        return delete(Wrappers.<CampusVerification>lambdaQuery()
+                .eq(CampusVerification::getId, id)
+                .eq(CampusVerification::getStatus, "PENDING"));
+    }
 
-    List<CampusVerification> selectByStatus(@Param("status") String status);
-
-    int updateById(CampusVerification entity);
-
-    int updatePending(CampusVerification entity);
-
-    int deletePendingById(Long id);
-
-    int deleteById(Long id);
 }

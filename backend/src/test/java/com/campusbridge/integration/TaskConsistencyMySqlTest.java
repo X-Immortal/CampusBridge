@@ -1,5 +1,12 @@
 package com.campusbridge.integration;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.campusbridge.dto.query.TaskQuery;
+import com.campusbridge.config.MybatisPlusConfig;
+import com.baomidou.mybatisplus.core.MybatisConfiguration;
+import com.baomidou.mybatisplus.core.config.GlobalConfig;
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
+
 import com.campusbridge.common.BusinessException;
 import com.campusbridge.dto.enums.ApiEnums;
 import com.campusbridge.dto.request.RequestDtos;
@@ -9,6 +16,7 @@ import com.campusbridge.mapper.ConversationMapper;
 import com.campusbridge.mapper.MessageMapper;
 import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.pojo.Task;
+import com.campusbridge.dto.view.TaskView;
 import com.campusbridge.pojo.TaskApplication;
 import com.campusbridge.service.CompletionService;
 import com.campusbridge.service.ContentModerationService;
@@ -34,7 +42,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
-import org.mybatis.spring.SqlSessionFactoryBean;
+import com.baomidou.mybatisplus.spring.MybatisSqlSessionFactoryBean;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.Bean;
@@ -152,27 +160,25 @@ class TaskConsistencyMySqlTest {
 
     @Test
     void incompleteDraftIsPrivateAndCannotPublishUntilRequiredFieldsExist() {
-        Task draft = tasks.saveDraft(1L, new RequestDtos.CreateTaskRequest());
+        TaskView draft = tasks.saveDraft(1L, new RequestDtos.CreateTaskRequest());
         assertThat(tasks.getTaskDetail(draft.getId(), 1L).getStatus()).isEqualTo("DRAFT");
         assertThatThrownBy(() -> tasks.getTaskDetail(draft.getId(), null))
                 .isInstanceOf(BusinessException.class);
         assertThatThrownBy(() -> tasks.getTaskDetail(draft.getId(), 2L))
                 .isInstanceOf(BusinessException.class);
-        assertThat((List<?>) tasks.listTasks(null, null, null, null, null,
-                null, false, null, 1, 20).get("tasks")).isEmpty();
-        assertThat((List<?>) tasks.listTasks(null, null, null, "DRAFT", null,
-                null, false, null, 1, 20).get("tasks")).isEmpty();
+        assertThat(tasks.listTasks(new TaskQuery()).getTasks()).isEmpty();
+        assertThat(tasks.listTasks(TaskQuery.builder().status("DRAFT").build()).getTasks()).isEmpty();
         assertThatThrownBy(() -> tasks.resendTask(1L, draft.getId()))
                 .isInstanceOf(BusinessException.class);
         assertThat(status(draft.getId())).isEqualTo("DRAFT");
 
-        Task completeDraft = tasks.saveDraft(1L, request());
+        TaskView completeDraft = tasks.saveDraft(1L, request());
         assertThat(tasks.resendTask(1L, completeDraft.getId()).getStatus()).isEqualTo("OPEN");
     }
 
     @Test
     void invalidPublishedEditRollsBackAndAcceptedTaskCannotBeReopenedByEdit() throws Exception {
-        Task task = tasks.createTask(1L, request());
+        TaskView task = tasks.createTask(1L, request());
         RequestDtos.UpdateTaskRequest edit = new RequestDtos.UpdateTaskRequest();
         edit.setTitle(" ");
         assertThatThrownBy(() -> tasks.updateTask(1L, task.getId(), edit))
@@ -228,7 +234,7 @@ class TaskConsistencyMySqlTest {
 
     @Test
     void competingCompletionEndpointsAwardOnceAndTimeoutUsesTheSameRewardRule() throws Exception {
-        Task task = taskInState("PENDING_CONFIRMATION");
+        TaskView task = taskInState("PENDING_CONFIRMATION");
         RequestDtos.TaskStatusTransitionRequest confirm = new RequestDtos.TaskStatusTransitionRequest();
         confirm.setAction(ApiEnums.TaskStatusTransitionAction.CONFIRM_COMPLETION);
         List<Boolean> results = runTogether(List.of(
@@ -238,7 +244,7 @@ class TaskConsistencyMySqlTest {
         assertThat(jdbc.queryForObject("SELECT points FROM user_credits WHERE user_id=2", Integer.class))
                 .isEqualTo(5);
 
-        Task timeout = taskInState("PENDING_CONFIRMATION");
+        TaskView timeout = taskInState("PENDING_CONFIRMATION");
         jdbc.update("UPDATE tasks SET updated_at=DATE_SUB(NOW(), INTERVAL 3 DAY) WHERE id=?", timeout.getId());
         jdbc.update("INSERT INTO task_histories(task_id,from_status,to_status,note,created_at) "
                 + "VALUES (?,'PENDING_CONFIRMATION','PENDING_CONFIRMATION',"
@@ -253,8 +259,8 @@ class TaskConsistencyMySqlTest {
 
     @Test
     void completingDifferentTasksConcurrentlyDoesNotLoseProviderCredit() throws Exception {
-        Task first = taskInState("PENDING_CONFIRMATION");
-        Task second = taskInState("PENDING_CONFIRMATION");
+        TaskView first = taskInState("PENDING_CONFIRMATION");
+        TaskView second = taskInState("PENDING_CONFIRMATION");
         List<Boolean> outcomes = runTogether(List.of(
                 () -> attempt(() -> completions.confirmCompletion(1L, first.getId())),
                 () -> attempt(() -> completions.confirmCompletion(1L, second.getId()))));
@@ -267,7 +273,7 @@ class TaskConsistencyMySqlTest {
 
     @Test
     void administratorCompletionRollsBackStatusRewardAndHistoryIfNotificationFails() {
-        Task task = taskInState("DISPUTED");
+        TaskView task = taskInState("DISPUTED");
         doThrow(new IllegalStateException("notification persistence failed")).when(notifications)
                 .notifyTaskStatusChanged(any(), anyString(), anyString(), anyLong(), anyString());
         assertThatThrownBy(() -> context.getBean(TaskModerationService.class).dismissAppeal(4L, task.getId()))
@@ -287,8 +293,8 @@ class TaskConsistencyMySqlTest {
 
     @Test
     void oppositeParticipantRewardsCanPersistNotificationsWithoutUserRowDeadlock() throws Exception {
-        Task first = taskInState("PENDING_CONFIRMATION");
-        Task second = taskInState("PENDING_CONFIRMATION");
+        TaskView first = taskInState("PENDING_CONFIRMATION");
+        TaskView second = taskInState("PENDING_CONFIRMATION");
         jdbc.update("UPDATE tasks SET requester_id=2,provider_id=1 WHERE id=?", second.getId());
         CountDownLatch bothAwardsReached = new CountDownLatch(2);
         NotificationService delegate = context.getBean("notificationDelegate", NotificationService.class);
@@ -311,9 +317,9 @@ class TaskConsistencyMySqlTest {
 
     @Test
     void timeoutCommitsEachTaskBeforeCompetingManualCompletionOfTheNextTask() throws Exception {
-        Task first = taskInState("PENDING_CONFIRMATION");
-        Task second = taskInState("PENDING_CONFIRMATION");
-        for (Task task : List.of(first, second)) {
+        TaskView first = taskInState("PENDING_CONFIRMATION");
+        TaskView second = taskInState("PENDING_CONFIRMATION");
+        for (TaskView task : List.of(first, second)) {
             jdbc.update("UPDATE tasks SET updated_at=DATE_SUB(NOW(), INTERVAL 3 DAY) WHERE id=?", task.getId());
             jdbc.update("INSERT INTO task_histories(task_id,from_status,to_status,note,created_at) "
                     + "VALUES (?,'PENDING_CONFIRMATION','PENDING_CONFIRMATION',"
@@ -358,7 +364,7 @@ class TaskConsistencyMySqlTest {
 
     @Test
     void simultaneousCompletionProofsForOneTaskReturnAConflictWithoutAForeignKeyLockUpgrade() throws Exception {
-        Task task = taskInState("IN_PROGRESS");
+        TaskView task = taskInState("IN_PROGRESS");
         RequestDtos.SubmitCompletionRequest proof = new RequestDtos.SubmitCompletionRequest("Delivered", List.of());
         assertThat(runTogether(List.of(
                 () -> attempt(() -> completions.submitCompletionProof(2L, task.getId(), proof)),
@@ -379,7 +385,7 @@ class TaskConsistencyMySqlTest {
 
     @Test
     void genericCancelAppliesTheExistingInProgressPenalty() {
-        Task task = taskInState("IN_PROGRESS");
+        TaskView task = taskInState("IN_PROGRESS");
         RequestDtos.TaskStatusTransitionRequest cancel = new RequestDtos.TaskStatusTransitionRequest();
         cancel.setAction(ApiEnums.TaskStatusTransitionAction.CANCEL);
         cancel.setReason("Requester cancels");
@@ -391,7 +397,7 @@ class TaskConsistencyMySqlTest {
 
     @Test
     void reviewsRejectUnrelatedRecipientsAndConcurrentDuplicates() throws Exception {
-        Task task = taskInState("COMPLETED");
+        TaskView task = taskInState("COMPLETED");
         RequestDtos.CreateReviewRequest review = new RequestDtos.CreateReviewRequest(3L, 5, "Test review");
         assertThatThrownBy(() -> reviews.createReview(1L, task.getId(), review))
                 .isInstanceOf(BusinessException.class);
@@ -408,8 +414,8 @@ class TaskConsistencyMySqlTest {
 
     @Test
     void oneTemporaryAttachmentCannotBeClaimedByTwoCompletionProofs() throws Exception {
-        Task first = taskInState("IN_PROGRESS");
-        Task second = taskInState("IN_PROGRESS");
+        TaskView first = taskInState("IN_PROGRESS");
+        TaskView second = taskInState("IN_PROGRESS");
         jdbc.update("INSERT INTO attachments "
                 + "(id,uploader_id,owner_type,type,file_name,file_url,content_type,size,status) "
                 + "VALUES (1,2,'COMPLETION_PROOF','IMAGE','test.png','https://example.invalid/test.png',"
@@ -429,7 +435,7 @@ class TaskConsistencyMySqlTest {
 
     @Test
     void previousLifecycleReminderDoesNotSkipTheNewGracePeriod() {
-        Task task = taskInState("OPEN");
+        TaskView task = taskInState("OPEN");
         jdbc.update("UPDATE tasks SET deadline=DATE_SUB(NOW(), INTERVAL 1 HOUR) WHERE id=?", task.getId());
         jdbc.update("INSERT INTO task_histories(task_id,from_status,to_status,note,created_at) "
                 + "VALUES (?,'OPEN','OPEN','TIMEOUT_REMINDER_OPEN',DATE_SUB(NOW(), INTERVAL 3 DAY))", task.getId());
@@ -442,7 +448,7 @@ class TaskConsistencyMySqlTest {
 
     @Test
     void acceptingWhileAnotherUserAppliesCannotLeaveAnUnprocessedPendingApplication() throws Exception {
-        Task task = tasks.createTask(1L, request());
+        TaskView task = tasks.createTask(1L, request());
         TaskApplicationService applications = context.getBean(TaskApplicationService.class);
         RequestDtos.CreateTaskApplicationRequest apply = new RequestDtos.CreateTaskApplicationRequest("Can help");
         TaskApplication selected = applications.createApplication(2L, task.getId(), apply);
@@ -460,13 +466,52 @@ class TaskConsistencyMySqlTest {
 
     @Test
     void publicFilteringDoesNotHideTheAdministratorsPendingQueue() {
-        Task task = taskInState("PENDING_REVIEW");
+        TaskView task = taskInState("PENDING_REVIEW");
         TaskMapper mapper = context.getBean(TaskMapper.class);
-        assertThat(mapper.selectWithFilters(Map.of("status", "PENDING_REVIEW", "offset", 0, "limit", 20)))
-                .isEmpty();
-        assertThat(mapper.selectWithFilters(
-                Map.of("status", "PENDING_REVIEW", "includePrivate", true, "offset", 0, "limit", 20)))
-                .extracting(Task::getId).containsExactly(task.getId());
+        var publicPage = mapper.selectWithFilters(new Page<>(1, 20),
+                TaskQuery.builder().status("PENDING_REVIEW").build());
+        assertThat(publicPage.getRecords()).isEmpty();
+        assertThat(publicPage.getTotal()).isZero();
+        var adminPage = mapper.selectWithFilters(new Page<>(1, 20),
+                TaskQuery.builder().status("PENDING_REVIEW").includePrivate(true).build());
+        assertThat(adminPage.getRecords()).extracting(TaskView::getId).containsExactly(task.getId());
+        assertThat(adminPage.getTotal()).isEqualTo(1);
+        var recordsOnly = mapper.selectWithFilters(new Page<>(1, 20, false),
+                TaskQuery.builder().status("PENDING_REVIEW").includePrivate(true).build());
+        assertThat(recordsOnly.getRecords()).extracting(TaskView::getId).containsExactly(task.getId());
+    }
+
+    @Test
+    void filteredTaskPagesCountAllMatchesAndKeepPrivateTasksOut() {
+        TaskView first = taskInState("OPEN");
+        TaskView second = taskInState("OPEN");
+        TaskView otherCampus = taskInState("OPEN");
+        TaskView expired = taskInState("OPEN");
+        taskInState("DRAFT");
+        jdbc.update("UPDATE tasks SET campus='Other Campus' WHERE id=?", otherCampus.getId());
+        jdbc.update("UPDATE tasks SET deadline=DATE_SUB(NOW(), INTERVAL 1 DAY) WHERE id=?", expired.getId());
+        jdbc.update("UPDATE tasks SET deadline=DATE_ADD(NOW(), INTERVAL 2 DAY) WHERE id=?", second.getId());
+
+        TaskQuery query = TaskQuery.builder()
+                .keyword("parcel").category("ERRAND").campus("Test Campus")
+                .rewardType("POINTS").requiresProof(true).excludeExpired(true)
+                .sortBy("DEADLINE_ASC").page(2).size(1).includePrivate(true).build();
+        var page = tasks.listTasks(query);
+        assertThat(page.getTasks()).extracting(TaskView::getId).containsExactly(second.getId());
+        assertThat(page.getTotal()).isEqualTo(2);
+        assertThat(page.getPage()).isEqualTo(2);
+        assertThat(page.getSize()).isEqualTo(1);
+
+        query.setPage(3);
+        var emptyPage = tasks.listTasks(query);
+        assertThat(emptyPage.getTasks()).isEmpty();
+        assertThat(emptyPage.getTotal()).isEqualTo(2);
+        assertThat(emptyPage.getPage()).isEqualTo(3);
+        query.setPage(1);
+        assertThat(tasks.listTasks(query).getTasks()).extracting(TaskView::getId).containsExactly(first.getId());
+        query.setRequiresProof(false);
+        assertThat(tasks.listTasks(query).getTasks()).isEmpty();
+        assertThat(tasks.listTasks(query).getTotal()).isZero();
     }
 
     private RequestDtos.CreateTaskRequest request() {
@@ -484,8 +529,8 @@ class TaskConsistencyMySqlTest {
         return request;
     }
 
-    private Task taskInState(String state) {
-        Task task = tasks.createTask(1L, request());
+    private TaskView taskInState(String state) {
+        TaskView task = tasks.createTask(1L, request());
         jdbc.update("UPDATE tasks SET status=?, provider_id=2 WHERE id=?", state, task.getId());
         return task;
     }
@@ -559,14 +604,19 @@ class TaskConsistencyMySqlTest {
 
         @Bean
         SqlSessionFactory sqlSessionFactory(DataSource source) throws Exception {
-            SqlSessionFactoryBean factory = new SqlSessionFactoryBean();
+            MybatisSqlSessionFactoryBean factory = new MybatisSqlSessionFactoryBean();
             factory.setDataSource(source);
             factory.setMapperLocations(new PathMatchingResourcePatternResolver()
                     .getResources("classpath*:com/campusbridge/mapper/*.xml"));
-            org.apache.ibatis.session.Configuration configuration = new org.apache.ibatis.session.Configuration();
+            MybatisConfiguration configuration = new MybatisConfiguration();
             configuration.setMapUnderscoreToCamelCase(true);
             factory.setConfiguration(configuration);
-            return factory.getObject();
+            factory.setPlugins(new MybatisPlusConfig().mybatisPlusInterceptor());
+            factory.setGlobalConfig(new GlobalConfig().setDbConfig(new GlobalConfig.DbConfig()
+                    .setInsertStrategy(FieldStrategy.ALWAYS).setUpdateStrategy(FieldStrategy.ALWAYS)));
+            SqlSessionFactory sessions = factory.getObject();
+            sessions.getConfiguration().addMappers("com.campusbridge.mapper");
+            return sessions;
         }
 
         @Bean
@@ -590,5 +640,28 @@ class TaskConsistencyMySqlTest {
         ContentModerationService contentModerationService() {
             return mock(ContentModerationService.class);
         }
+    }
+
+    @Test
+    void taskNamesBelongToTheReadModelAndLockedEntityRemainsWritable() {
+        jdbc.update("INSERT INTO user_profiles(user_id,nickname) VALUES(1,'Requester'),(2,'Provider')");
+        TaskView created = tasks.createTask(1L, request());
+        jdbc.update("UPDATE tasks SET provider_id=2 WHERE id=?", created.getId());
+        TaskMapper mapper = context.getBean(TaskMapper.class);
+        TaskView view = mapper.selectDetailById(created.getId());
+        assertThat(view.getRequesterName()).isEqualTo("Requester");
+        assertThat(view.getProviderName()).isEqualTo("Provider");
+        view.setTitle("Display-only change");
+
+        new TransactionTemplate(context.getBean(PlatformTransactionManager.class)).executeWithoutResult(status -> {
+            Task entity = mapper.selectByIdForUpdate(created.getId());
+            assertThat(entity.getTitle()).isEqualTo("Collect test parcel");
+            entity.setTitle("Updated task");
+            assertThat(mapper.updateById(entity)).isEqualTo(1);
+        });
+        TaskView updated = tasks.getTaskDetail(created.getId(), 1L);
+        assertThat(updated.getTitle()).isEqualTo("Updated task");
+        assertThat(updated.getRequesterName()).isEqualTo("Requester");
+        assertThat(updated.getProviderName()).isEqualTo("Provider");
     }
 }

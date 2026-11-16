@@ -26,8 +26,14 @@ spring:
           ssl:
             enable: true
 
-# MyBatis
-mybatis:
+# MyBatis-Plus
+mybatis-plus:
+  mapper-locations: classpath*:com/campusbridge/mapper/*.xml
+  global-config:
+    db-config:
+      # 实体写入包含空值，允许编辑时清除可选字段。
+      insert-strategy: always
+      update-strategy: always
   configuration:
     map-underscore-to-camel-case: true
 

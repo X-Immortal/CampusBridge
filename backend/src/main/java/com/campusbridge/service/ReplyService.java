@@ -1,8 +1,8 @@
 package com.campusbridge.service;
 
 import com.campusbridge.dto.request.RequestDtos;
-import com.campusbridge.pojo.Reply;
+import com.campusbridge.dto.view.ReplyView;
 
 public interface ReplyService {
-    Reply createReply(Long userId, Long postId, RequestDtos.CreateReplyRequest request);
+    ReplyView createReply(Long userId, Long postId, RequestDtos.CreateReplyRequest request);
 }
