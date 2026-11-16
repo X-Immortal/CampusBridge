@@ -6,7 +6,7 @@
   "description": "CampusBridge 2.0 客户端与服务端共用的契约：StreamEvent 信封、UI Schema、白名单、mock SSE。",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test test/contract.test.ts",
+    "test": "node --experimental-strip-types --test test/contract.test.ts test/transport.test.ts test/domain.test.ts",
     "check": "npm run typecheck && npm run test",
     "mock": "node --experimental-strip-types tools/mock/server.mjs"
   },
