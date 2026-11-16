@@ -7,6 +7,7 @@ import com.campusbridge.domain.ClarificationQuestion;
 import com.campusbridge.domain.DraftField;
 import com.campusbridge.domain.TaskDraft;
 import com.campusbridge.events.EventRecorder;
+import com.campusbridge.events.StreamEventLog;
 import com.campusbridge.gateway.model.ModelGateway;
 import com.campusbridge.gateway.model.ModelResult;
 import com.campusbridge.gateway.model.ModelUnderstanding;
@@ -52,6 +53,7 @@ public class AgentOrchestrator {
     private final SessionStore sessions;
     private final SchemaValidator schemaValidator;
     private final EventRecorder events;
+    private final StreamEventLog streamEvents;
     private final Clock clock;
 
     public AgentOrchestrator(
@@ -64,6 +66,7 @@ public class AgentOrchestrator {
             SessionStore sessions,
             SchemaValidator schemaValidator,
             EventRecorder events,
+            StreamEventLog streamEvents,
             Clock clock) {
         this.modelGateway = modelGateway;
         this.clarificationPolicy = clarificationPolicy;
@@ -74,6 +77,7 @@ public class AgentOrchestrator {
         this.sessions = sessions;
         this.schemaValidator = schemaValidator;
         this.events = events;
+        this.streamEvents = streamEvents;
         this.clock = clock;
     }
 
@@ -105,7 +109,7 @@ public class AgentOrchestrator {
                 "slotCount", session.draft().filledKeys().size(),
                 "declaredCount", modelResult.understanding().declaredFields().size()));
 
-        return advance(session, modelResult.mode(), modelResult.notes());
+        return emit(session, advance(session, modelResult.mode(), modelResult.notes()));
     }
 
     private void applyUnderstanding(AgentSession session, ModelResult modelResult) {
@@ -153,7 +157,7 @@ public class AgentOrchestrator {
                 events.record("clarify.answered", session.traceId(), session.id(),
                         Map.of("field", field.key()));
             }
-            return advance(session, session.modelMode(), List.of());
+            return emit(session, advance(session, session.modelMode(), List.of()));
         }
     }
 
@@ -189,7 +193,7 @@ public class AgentOrchestrator {
                     "option", session.selectedOptionId(),
                     "taskVersion", session.draft().version(),
                     "paramDigest", digest));
-            return respond(session, card, List.of(), List.of());
+            return emit(session, respond(session, card, List.of(), List.of()));
         }
     }
 
@@ -203,7 +207,7 @@ public class AgentOrchestrator {
                         Map.of("taskId", String.valueOf(session.taskId())));
                 UiCard card = progressCard(session, "已发布", "done",
                         "这次任务早前已经建好了，没有重复建单。");
-                return respond(session, card, List.of(), List.of("本次是重复确认，未产生新事实"));
+                return emit(session, respond(session, card, List.of(), List.of("本次是重复确认，未产生新事实")));
             }
             events.record("confirm.requested", session.traceId(), session.id(),
                     Map.of("taskVersion", session.draft().version()));
@@ -220,7 +224,7 @@ public class AgentOrchestrator {
                 events.record("task.created", session.traceId(), session.id(), Map.of(
                         "taskId", String.valueOf(result.taskId()),
                         "replay", result.replay()));
-                return respond(session, card, List.of(), List.of(result.message()));
+                return emit(session, respond(session, card, List.of(), List.of(result.message())));
             }
 
             session.setState(AgentSession.AWAITING_CONFIRMATION);
@@ -229,7 +233,7 @@ public class AgentOrchestrator {
                     ? List.of(result.message())
                     : violations.stream().map(v -> v.ruleId() + "：" + v.message()).toList();
             UiCard card = rebuildConfirmation(session, warnings);
-            return respond(session, card, violations, "DENIED", List.of(result.message()));
+            return emit(session, respond(session, card, violations, "DENIED", List.of(result.message())));
         }
     }
 
@@ -257,7 +261,7 @@ public class AgentOrchestrator {
                     session.nextCardId(), session.id(), session.draft().version(), null,
                     session.draft().version(), "已取消", "done",
                     reason == null ? "你取消了这次发布" : reason, session.modelMode());
-            return respond(session, card, List.of(), "OK", List.of("没有产生任何业务事实"));
+            return emit(session, respond(session, card, List.of(), "OK", List.of("没有产生任何业务事实")));
         }
     }
 
@@ -293,8 +297,41 @@ public class AgentOrchestrator {
         return respond(session, card, List.of(), merged);
     }
 
-    private List<ChoiceOption> optionsFor(TaskDraft draft) {
-        List<ChoiceOption> options = new ArrayList<>();
+    /**
+     * 把一次同步响应投影成流事件：卡片 +（可选）任务快照 + 结束。
+     *
+     * <p>流是只读投影，不产生业务事实；{@link #view(String)} 不调用它，
+     * 避免「打开会话」被当成一次新动作重复推送。</p>
+     */
+    private AssistantResponse emit(AgentSession session, AssistantResponse response) {
+        if (streamEvents.hasEnded(session.id())) {
+            // 流已经收尾：重复确认、再次查看都不该往旧流里追加事件
+            return response;
+        }
+        if (response.card() != null) {
+            streamEvents.append(session.id(), "schema.card", Map.of("card", response.card()));
+        }
+        if (response.taskId() != null) {
+            streamEvents.append(session.id(), "task.snapshot", Map.of(
+                    "taskId", response.taskId(),
+                    "taskStatus", "OPEN",
+                    "taskVersion", session.draft().version()));
+        }
+        String reason = "done";
+        if (AgentSession.CANCELLED.equals(session.state())) {
+            reason = "cancelled";
+        }
+        // 只有会话真正收尾（建单成功 / 用户撤销）才发 stream.end；
+        // 澄清、比较、待确认都保持流打开，等下一次动作继续推。
+        boolean terminal = AgentSession.CREATED.equals(session.state())
+                || AgentSession.CANCELLED.equals(session.state());
+        if (terminal && !streamEvents.hasEnded(session.id())) {
+            streamEvents.append(session.id(), "stream.end", Map.of("reason", reason));
+        }
+        return response;
+    }
+
+    private List<ChoiceOption> optionsFor(TaskDraft draft) {        List<ChoiceOption> options = new ArrayList<>();
         if ("FRIEND_FIRST".equalsIgnoreCase(draft.text(DraftField.CONTACT_PREFERENCE))) {
             options.add(new ChoiceOption("friend", "熟人优先", "先问你以前合作过的人，回得慢一点但更放心"));
             options.add(new ChoiceOption("now", "立即匹配", "对全网开放，最快被接单，但可能是陌生同学"));

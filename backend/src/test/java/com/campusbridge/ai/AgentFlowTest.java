@@ -170,6 +170,7 @@ class AgentFlowTest {
                 new SessionStore(),
                 new SchemaValidator(),
                 events,
+                new com.campusbridge.events.StreamEventLog(),
                 AiFixture.CLOCK);
     }
 }

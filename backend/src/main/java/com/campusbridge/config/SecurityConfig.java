@@ -53,6 +53,7 @@ public class SecurityConfig {
                             // CampusBridge 2.0 · M1：对话与本体入口。M2 起接入用户身份后再收紧。
                             "/api/assistant",
                             "/api/assistant/**",
+                            "/api/stream",
                             "/api/ontology",
                             "/api/ontology/**",
                             "/api/schema/**",
