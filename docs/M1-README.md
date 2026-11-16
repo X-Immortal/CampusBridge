@@ -5,7 +5,7 @@
 | 里程碑 | 文件 | 内容 | 负责人 | 状态 |
 |---|---|---|---|---|
 | M1 | [M1-needs.md](M1-needs.md) | 5 类人物 + 18 条微需求 + 证据账本 | A | ☑ |
-| M1 | [M1-interviews.md](M1-interviews.md) | FDE 现场记录（4 份二手访谈；本学期 ≥3 场待补） | A | ◐ |
+| M1 | [M1-interviews.md](M1-interviews.md) | FDE 现场记录（4 份二手访谈；选修课不要求新增，已移除） | A | ◐ |
 | M1 | [M1-ontology.md](M1-ontology.md) | 本体 V0.1：20 概念 / 23 关系 / 15 约束（由 JSON 生成） | A | ☑ |
 | M1 | [M1-baseline-audit.md](M1-baseline-audit.md) | **1.0 接管审计**：旧语义发现/保留/改造/迁移（课件 02 p68） | A | ☑ |
 | M1 | [M1-traceability.md](M1-traceability.md) | 需求→本体→代码→事件→卡片→测试 追溯矩阵 | A | ☑ |

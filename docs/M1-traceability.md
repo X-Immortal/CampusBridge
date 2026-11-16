@@ -48,7 +48,7 @@
 | 资产 | 最少内容 | 对应到哪几行 | 状态 |
 |---|---|---|---|
 | 1 个性化需求与证据库 | 5 类人物 / 15 条微需求 | 本表 18 行；[M1-needs.md](M1-needs.md) | ☑ 18 条，证据 26 处访谈引文 |
-| 2 FDE 现场记录 | ≥3 名真实用户 + 任务旅程 | [M1-interviews.md](M1-interviews.md)（4 份 2026 春访谈为二手证据；本学期 ≥3 场待补） | ◐ |
+| 2 FDE 现场记录 | ≥3 名真实用户 + 任务旅程 | [M1-interviews.md](M1-interviews.md)（4 份 2026 春访谈为二手证据；2026-11-16 决定不新增访谈） | ◐ |
 | 3 本体 V0.1 | 15 概念 / 20 关系 / 10 约束 | [M1-ontology.md](M1-ontology.md)：20 / 23 / 15 | ☑ |
 | 4 可运行 Agent Harness | 真模型 + 规则基线可切换 | `gateway/model/ModelGateway`；`POST /api/assistant` | ☑ |
 | 5 对话、卡片与评测 | 3 流程 / 4 卡片 / 15 评测 | `evals/cases`：18 条；四类卡片见 `schema/CardFactory` | ☑ |

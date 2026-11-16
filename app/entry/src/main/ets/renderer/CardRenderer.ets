@@ -56,7 +56,7 @@ export function emptyCard(): UiCard {
  */
 @Component
 export struct CardRenderer {
-  card: UiCard = emptyCard();
+  @Prop card: UiCard = emptyCard();
   onAction: (actionId: string) => void = (actionId: string) => {};
 
   @Builder
