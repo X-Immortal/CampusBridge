@@ -9,7 +9,7 @@ import com.campusbridge.entity.User;
 import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.service.AuthService;
 import com.campusbridge.utils.JwtUtil;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -22,24 +22,17 @@ import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
+@RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
     private static final int EMAIL_CODE_TTL_MINUTES = 10;
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private final ConcurrentHashMap<Long, AccountEmailRecord> accountEmailStore = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, AccountEmailRecord> registrationCodeStore = new ConcurrentHashMap<>();
-
-    @Autowired
-    private UserMapper userMapper;
-
-    @Autowired
-    private JwtUtil jwtUtil;
-
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-
-    @Autowired
-    private EmailVerificationCodeSender emailCodeSender;
+    private final UserMapper userMapper;
+    private final JwtUtil jwtUtil;
+    private final PasswordEncoder passwordEncoder;
+    private final EmailVerificationCodeSender emailCodeSender;
 
     @Value("${campusbridge.verification.email.code-secret:campusbridge-email-code}")
     private String emailCodeSecret;

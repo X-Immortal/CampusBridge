@@ -8,6 +8,7 @@ import com.campusbridge.entity.UserCredit;
 import com.campusbridge.mapper.CreditRecordMapper;
 import com.campusbridge.mapper.UserCreditMapper;
 import com.campusbridge.service.CreditService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,19 +16,13 @@ import java.time.LocalDateTime;
 
 @Transactional
 @Service
+@RequiredArgsConstructor
 public class CreditServiceImpl implements CreditService {
     private static final int MAX_REASON_LENGTH = 255;
     private static final int MAX_SOURCE_TYPE_LENGTH = 50;
 
     private final UserCreditMapper userCreditMapper;
     private final CreditRecordMapper creditRecordMapper;
-
-    public CreditServiceImpl(
-            UserCreditMapper userCreditMapper,
-            CreditRecordMapper creditRecordMapper) {
-        this.userCreditMapper = userCreditMapper;
-        this.creditRecordMapper = creditRecordMapper;
-    }
 
     @Override
     public void adjustCredit(

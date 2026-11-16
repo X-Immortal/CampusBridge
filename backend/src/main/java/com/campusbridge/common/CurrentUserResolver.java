@@ -2,15 +2,13 @@ package com.campusbridge.common;
 
 import com.campusbridge.utils.AuthContextUtil;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class CurrentUserResolver {
     private final AuthContextUtil authContextUtil;
-
-    public CurrentUserResolver(AuthContextUtil authContextUtil) {
-        this.authContextUtil = authContextUtil;
-    }
 
     public Long requireCurrentUserId(HttpServletRequest request) {
         Long userId = resolveOptionalUserId(request);

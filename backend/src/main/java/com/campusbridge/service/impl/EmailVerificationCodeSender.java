@@ -1,7 +1,7 @@
 package com.campusbridge.service.impl;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.MailException;
@@ -14,9 +14,8 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 @Service
+@Slf4j
 public class EmailVerificationCodeSender {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(EmailVerificationCodeSender.class);
 
     private final JavaMailSender mailSender;
 
@@ -24,6 +23,7 @@ public class EmailVerificationCodeSender {
     private boolean emailEnabled;
 
     @Value("${campusbridge.verification.email.debug-code-enabled:false}")
+    @Getter
     private boolean debugCodeEnabled;
 
     @Value("${campusbridge.verification.email.from:${spring.mail.username:}}")
@@ -38,7 +38,7 @@ public class EmailVerificationCodeSender {
 
     public boolean sendCode(String toAddress, String code, LocalDateTime expiresAt) {
         if (!isDeliveryEnabled()) {
-            LOGGER.info("Email verification delivery is not configured, code generated for {}", toAddress);
+            log.info("Email verification delivery is not configured, code generated for {}", toAddress);
             return false;
         }
 
@@ -52,13 +52,9 @@ public class EmailVerificationCodeSender {
             mailSender.send(message);
             return true;
         } catch (MailException e) {
-            LOGGER.warn("Failed to send verification email to {}", toAddress, e);
+            log.warn("Failed to send verification email to {}", toAddress, e);
             return false;
         }
-    }
-
-    public boolean isDebugCodeEnabled() {
-        return debugCodeEnabled;
     }
 
     public boolean isDeliveryRequired() {

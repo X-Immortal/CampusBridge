@@ -5,6 +5,7 @@ import com.campusbridge.dto.query.ContentQuery;
 import com.campusbridge.dto.view.ContentItemView;
 import com.campusbridge.mapper.ContentMapper;
 import com.campusbridge.service.ContentService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -13,16 +14,13 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class ContentServiceImpl implements ContentService {
     private static final int DEFAULT_PAGE = 1;
     private static final int DEFAULT_SIZE = 20;
     private static final int MAX_SIZE = 100;
 
     private final ContentMapper contentMapper;
-
-    public ContentServiceImpl(ContentMapper contentMapper) {
-        this.contentMapper = contentMapper;
-    }
 
     @Override
     public PagedResult<ContentItemView> listContent(

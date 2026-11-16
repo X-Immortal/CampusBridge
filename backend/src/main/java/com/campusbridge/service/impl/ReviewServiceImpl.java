@@ -9,6 +9,7 @@ import com.campusbridge.mapper.ReviewMapper;
 import com.campusbridge.mapper.TaskMapper;
 import com.campusbridge.service.NotificationService;
 import com.campusbridge.service.ReviewService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +19,7 @@ import java.util.List;
 
 @Transactional
 @Service
+@RequiredArgsConstructor
 public class ReviewServiceImpl implements ReviewService {
     private static final String STATUS_COMPLETED = "COMPLETED";
     private static final String STATUS_REVIEWED = "REVIEWED";
@@ -25,15 +27,6 @@ public class ReviewServiceImpl implements ReviewService {
     private final ReviewMapper reviewMapper;
     private final TaskMapper taskMapper;
     private final NotificationService notificationService;
-
-    public ReviewServiceImpl(
-            ReviewMapper reviewMapper,
-            TaskMapper taskMapper,
-            NotificationService notificationService) {
-        this.reviewMapper = reviewMapper;
-        this.taskMapper = taskMapper;
-        this.notificationService = notificationService;
-    }
 
     @Override
     public Review createReview(Long reviewerId, Long taskId, CreateReviewRequest request) {

@@ -12,6 +12,7 @@ import com.campusbridge.dto.view.EmailChangeCodeSentView;
 import com.campusbridge.service.AuthService;
 import com.campusbridge.service.impl.EmailVerificationCodeSender;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -19,20 +20,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/account")
+@RequiredArgsConstructor
 public class AccountController {
 
     private final CurrentUserResolver currentUserResolver;
     private final AuthService authService;
     private final EmailVerificationCodeSender emailCodeSender;
-
-    public AccountController(
-            CurrentUserResolver currentUserResolver,
-            AuthService authService,
-            EmailVerificationCodeSender emailCodeSender) {
-        this.currentUserResolver = currentUserResolver;
-        this.authService = authService;
-        this.emailCodeSender = emailCodeSender;
-    }
 
     @PutMapping("/password")
     public ApiResponse<Void> changePassword(

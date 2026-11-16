@@ -1,9 +1,11 @@
 package com.campusbridge.common;
 
+import lombok.Getter;
 import org.springframework.http.HttpStatus;
 
 import java.util.List;
 
+@Getter
 public class BusinessException extends RuntimeException {
     private final ErrorCode errorCode;
     private final List<String> details;
@@ -26,17 +28,5 @@ public class BusinessException extends RuntimeException {
 
     public BusinessException(ErrorCode errorCode, String message, String detail) {
         this(errorCode, message, List.of(detail));
-    }
-
-    public ErrorCode getErrorCode() {
-        return errorCode;
-    }
-
-    public List<String> getDetails() {
-        return details;
-    }
-
-    public HttpStatus getHttpStatus() {
-        return httpStatus;
     }
 }

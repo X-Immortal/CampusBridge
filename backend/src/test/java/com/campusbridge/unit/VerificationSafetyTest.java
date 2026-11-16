@@ -37,12 +37,8 @@ class VerificationSafetyTest {
         mapper = mock(CampusVerificationMapper.class);
         ocr = mock(VerificationOcrClient.class);
         sender = mock(EmailVerificationCodeSender.class);
-        autoReview = new VerificationAutoReviewService();
-        ReflectionTestUtils.setField(autoReview, "campusVerificationMapper", mapper);
-        ReflectionTestUtils.setField(autoReview, "verificationOcrClient", ocr);
-        verification = new VerificationServiceImpl();
-        ReflectionTestUtils.setField(verification, "campusVerificationMapper", mapper);
-        ReflectionTestUtils.setField(verification, "emailVerificationCodeSender", sender);
+        autoReview = new VerificationAutoReviewService(mapper, ocr);
+        verification = new VerificationServiceImpl(mapper, sender);
         ReflectionTestUtils.setField(verification, "emailCodeSecret", "test-only-secret");
     }
 

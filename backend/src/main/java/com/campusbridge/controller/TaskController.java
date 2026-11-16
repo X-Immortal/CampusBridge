@@ -17,6 +17,7 @@ import com.campusbridge.service.CompletionService;
 import com.campusbridge.service.TaskDetailService;
 import com.campusbridge.service.TaskService;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -31,22 +32,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/tasks")
+@RequiredArgsConstructor
 public class TaskController {
     private final CurrentUserResolver currentUserResolver;
     private final TaskService taskService;
     private final TaskDetailService taskDetailService;
     private final CompletionService completionService;
-
-    public TaskController(
-            CurrentUserResolver currentUserResolver,
-            TaskService taskService,
-            TaskDetailService taskDetailService,
-            CompletionService completionService) {
-        this.currentUserResolver = currentUserResolver;
-        this.taskService = taskService;
-        this.taskDetailService = taskDetailService;
-        this.completionService = completionService;
-    }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)

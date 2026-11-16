@@ -24,6 +24,7 @@ import com.campusbridge.mapper.MessageMapper;
 import com.campusbridge.mapper.UserBlockMapper;
 import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.service.ConversationService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +37,7 @@ import java.util.Set;
 
 @Transactional
 @Service
+@RequiredArgsConstructor
 public class ConversationServiceImpl implements ConversationService {
     private static final int DEFAULT_PAGE = 1;
     private static final int DEFAULT_SIZE = 20;
@@ -53,19 +55,6 @@ public class ConversationServiceImpl implements ConversationService {
     private final UserMapper userMapper;
     private final UserBlockMapper userBlockMapper;
     private final AttachmentMapper attachmentMapper;
-
-    public ConversationServiceImpl(
-            ConversationMapper conversationMapper,
-            MessageMapper messageMapper,
-            UserMapper userMapper,
-            UserBlockMapper userBlockMapper,
-            AttachmentMapper attachmentMapper) {
-        this.conversationMapper = conversationMapper;
-        this.messageMapper = messageMapper;
-        this.userMapper = userMapper;
-        this.userBlockMapper = userBlockMapper;
-        this.attachmentMapper = attachmentMapper;
-    }
 
     @Override
     public PagedResult<ConversationView> listConversations(
@@ -456,5 +445,4 @@ public class ConversationServiceImpl implements ConversationService {
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
     }
-
 }

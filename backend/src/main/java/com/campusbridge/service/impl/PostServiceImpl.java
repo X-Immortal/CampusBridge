@@ -22,6 +22,7 @@ import com.campusbridge.mapper.PostMapper;
 import com.campusbridge.mapper.ReplyMapper;
 import com.campusbridge.service.ContentModerationService;
 import com.campusbridge.service.PostService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +36,7 @@ import java.util.stream.Collectors;
 
 @Transactional
 @Service
+@RequiredArgsConstructor
 public class PostServiceImpl implements PostService {
     private static final int DEFAULT_PAGE = 1;
     private static final int DEFAULT_SIZE = 20;
@@ -47,19 +49,6 @@ public class PostServiceImpl implements PostService {
     private final PostInteractionMapper postInteractionMapper;
     private final AttachmentMapper attachmentMapper;
     private final ContentModerationService contentModerationService;
-
-    public PostServiceImpl(
-            PostMapper postMapper,
-            ReplyMapper replyMapper,
-            PostInteractionMapper postInteractionMapper,
-            AttachmentMapper attachmentMapper,
-            ContentModerationService contentModerationService) {
-        this.postMapper = postMapper;
-        this.replyMapper = replyMapper;
-        this.postInteractionMapper = postInteractionMapper;
-        this.attachmentMapper = attachmentMapper;
-        this.contentModerationService = contentModerationService;
-    }
 
     @Override
     public PostView createPost(Long userId, CreatePostRequest request) {

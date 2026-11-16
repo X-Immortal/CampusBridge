@@ -49,20 +49,12 @@ class TypedResponseErrorIntegrationTest {
         AuthContextUtil auth = mock(AuthContextUtil.class);
         when(auth.getCurrentUserId()).thenReturn(7L);
 
-        VerificationServiceImpl verificationService = new VerificationServiceImpl();
-        ReflectionTestUtils.setField(verificationService, "campusVerificationMapper", verifications);
-        ReflectionTestUtils.setField(verificationService, "emailVerificationCodeSender", sender);
+        VerificationServiceImpl verificationService = new VerificationServiceImpl(verifications, sender);
         ReflectionTestUtils.setField(verificationService, "emailCodeSecret", "test-only-secret");
-        VerificationController verificationController = new VerificationController();
-        ReflectionTestUtils.setField(verificationController, "verificationService", verificationService);
-        ReflectionTestUtils.setField(verificationController, "authContextUtil", auth);
+        VerificationController verificationController = new VerificationController(verificationService, auth);
 
-        AttachmentServiceImpl attachmentService = new AttachmentServiceImpl();
-        ReflectionTestUtils.setField(attachmentService, "attachmentMapper", attachments);
-        ReflectionTestUtils.setField(attachmentService, "aliOSSUtils", oss);
-        AttachmentController attachmentController = new AttachmentController();
-        ReflectionTestUtils.setField(attachmentController, "attachmentService", attachmentService);
-        ReflectionTestUtils.setField(attachmentController, "authContextUtil", auth);
+        AttachmentServiceImpl attachmentService = new AttachmentServiceImpl(attachments, oss);
+        AttachmentController attachmentController = new AttachmentController(attachmentService, auth);
         mvc = MockMvcBuilders.standaloneSetup(verificationController, attachmentController)
                 .setControllerAdvice(new GlobalExceptionHandler()).build();
     }

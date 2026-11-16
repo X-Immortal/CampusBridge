@@ -6,6 +6,7 @@ import com.campusbridge.dto.request.CreateReviewRequest;
 import com.campusbridge.entity.Review;
 import com.campusbridge.service.ReviewService;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -19,17 +20,11 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/tasks/{taskId}/reviews")
+@RequiredArgsConstructor
 public class ReviewController {
 
     private final CurrentUserResolver currentUserResolver;
     private final ReviewService reviewService;
-
-    public ReviewController(
-            CurrentUserResolver currentUserResolver,
-            ReviewService reviewService) {
-        this.currentUserResolver = currentUserResolver;
-        this.reviewService = reviewService;
-    }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)

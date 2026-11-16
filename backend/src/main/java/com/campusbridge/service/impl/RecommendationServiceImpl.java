@@ -8,6 +8,9 @@ import com.campusbridge.mapper.PostMapper;
 import com.campusbridge.mapper.TaskApplicationMapper;
 import com.campusbridge.mapper.TaskMapper;
 import com.campusbridge.service.RecommendationService;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -17,22 +20,12 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class RecommendationServiceImpl implements RecommendationService {
     private final TaskMapper taskMapper;
     private final PostMapper postMapper;
     private final TaskApplicationMapper taskApplicationMapper;
     private final PostInteractionMapper postInteractionMapper;
-
-    public RecommendationServiceImpl(
-            TaskMapper taskMapper,
-            PostMapper postMapper,
-            TaskApplicationMapper taskApplicationMapper,
-            PostInteractionMapper postInteractionMapper) {
-        this.taskMapper = taskMapper;
-        this.postMapper = postMapper;
-        this.taskApplicationMapper = taskApplicationMapper;
-        this.postInteractionMapper = postInteractionMapper;
-    }
 
     @Override
     public UserPreferences getUserPreferences(Long userId) {
@@ -183,23 +176,15 @@ public class RecommendationServiceImpl implements RecommendationService {
         return score;
     }
 
+    @AllArgsConstructor(access = AccessLevel.PACKAGE)
     private static class TaskScore {
         TaskView task;
         int score;
-
-        TaskScore(TaskView task, int score) {
-            this.task = task;
-            this.score = score;
-        }
     }
 
+    @AllArgsConstructor(access = AccessLevel.PACKAGE)
     private static class PostScore {
         PostView post;
         int score;
-
-        PostScore(PostView post, int score) {
-            this.post = post;
-            this.score = score;
-        }
     }
 }

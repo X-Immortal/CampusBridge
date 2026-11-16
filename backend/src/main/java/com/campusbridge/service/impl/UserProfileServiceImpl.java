@@ -19,6 +19,7 @@ import com.campusbridge.utils.AliOSSUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -28,6 +29,7 @@ import java.util.List;
 import java.util.Set;
 
 @Service
+@RequiredArgsConstructor
 public class UserProfileServiceImpl implements UserProfileService {
     private static final int MAX_NICKNAME_LENGTH = 50;
     private static final int MAX_BIO_LENGTH = 500;
@@ -47,21 +49,6 @@ public class UserProfileServiceImpl implements UserProfileService {
     private final UserCreditMapper userCreditMapper;
     private final CampusVerificationMapper campusVerificationMapper;
     private final AliOSSUtils aliOSSUtils;
-
-    public UserProfileServiceImpl(
-            UserMapper userMapper,
-            UserProfileMapper userProfileMapper,
-            ObjectMapper objectMapper,
-            UserCreditMapper userCreditMapper,
-            CampusVerificationMapper campusVerificationMapper,
-            AliOSSUtils aliOSSUtils) {
-        this.userMapper = userMapper;
-        this.userProfileMapper = userProfileMapper;
-        this.objectMapper = objectMapper;
-        this.userCreditMapper = userCreditMapper;
-        this.campusVerificationMapper = campusVerificationMapper;
-        this.aliOSSUtils = aliOSSUtils;
-    }
 
     @Override
     public UserView getCurrentUser(Long currentUserId) {

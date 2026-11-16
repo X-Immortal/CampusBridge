@@ -10,6 +10,7 @@ import com.campusbridge.mapper.PostMapper;
 import com.campusbridge.mapper.TaskMapper;
 import com.campusbridge.service.RecommendationService;
 import com.campusbridge.utils.AuthContextUtil;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -18,21 +19,12 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/home")
+@RequiredArgsConstructor
 public class HomeController {
     private final PostMapper postMapper;
     private final TaskMapper taskMapper;
     private final RecommendationService recommendationService;
     private final AuthContextUtil authContextUtil;
-
-    public HomeController(PostMapper postMapper,
-                          TaskMapper taskMapper,
-                          RecommendationService recommendationService,
-                          AuthContextUtil authContextUtil) {
-        this.postMapper = postMapper;
-        this.taskMapper = taskMapper;
-        this.recommendationService = recommendationService;
-        this.authContextUtil = authContextUtil;
-    }
 
     @GetMapping("/recommendations")
     public ApiResponse<HomeRecommendationsView> getRecommendations() {

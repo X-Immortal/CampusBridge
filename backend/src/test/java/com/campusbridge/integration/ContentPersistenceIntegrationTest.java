@@ -32,6 +32,7 @@ import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.mapper.UserProfileMapper;
 import com.campusbridge.service.NotificationService;
 import com.campusbridge.service.impl.ConversationServiceImpl;
+import com.campusbridge.service.impl.EmailVerificationCodeSender;
 import com.campusbridge.service.impl.InteractionServiceImpl;
 import com.campusbridge.service.impl.NotificationServiceImpl;
 import com.campusbridge.service.impl.ReplyServiceImpl;
@@ -50,7 +51,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.jdbc.datasource.init.ScriptUtils;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.nio.charset.StandardCharsets;
@@ -592,9 +592,8 @@ class ContentPersistenceIntegrationTest {
                 + "(1,'MANUAL_REVIEW','B','2','Campus','PENDING','2026-01-02'),"
                 + "(2,'MANUAL_REVIEW','C','3','Campus','VERIFIED','2026-01-03')");
         try (SqlSession session = sessions.openSession(true)) {
-            VerificationServiceImpl service = new VerificationServiceImpl();
-            ReflectionTestUtils.setField(service, "campusVerificationMapper",
-                    session.getMapper(CampusVerificationMapper.class));
+            VerificationServiceImpl service = new VerificationServiceImpl(
+                    session.getMapper(CampusVerificationMapper.class), mock(EmailVerificationCodeSender.class));
             var page = service.listPending(2, 1);
             assertThat(page.getTotal()).isEqualTo(2);
             assertThat(page.getItems()).extracting(CampusVerification::getRealNameCipher).containsExactly("A");

@@ -12,12 +12,14 @@ import com.campusbridge.mapper.ReviewMapper;
 import com.campusbridge.mapper.TaskHistoryMapper;
 import com.campusbridge.service.TaskDetailService;
 import com.campusbridge.service.TaskService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.Collections;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class TaskDetailServiceImpl implements TaskDetailService {
     private static final String OWNER_TYPE_COMPLETION_PROOF = "COMPLETION_PROOF";
 
@@ -26,19 +28,6 @@ public class TaskDetailServiceImpl implements TaskDetailService {
     private final AttachmentMapper attachmentMapper;
     private final TaskHistoryMapper taskHistoryMapper;
     private final ReviewMapper reviewMapper;
-
-    public TaskDetailServiceImpl(
-            TaskService taskService,
-            CompletionProofMapper completionProofMapper,
-            AttachmentMapper attachmentMapper,
-            TaskHistoryMapper taskHistoryMapper,
-            ReviewMapper reviewMapper) {
-        this.taskService = taskService;
-        this.completionProofMapper = completionProofMapper;
-        this.attachmentMapper = attachmentMapper;
-        this.taskHistoryMapper = taskHistoryMapper;
-        this.reviewMapper = reviewMapper;
-    }
 
     @Override
     public TaskDetailView getTaskDetail(Long taskId, Long currentUserId) {

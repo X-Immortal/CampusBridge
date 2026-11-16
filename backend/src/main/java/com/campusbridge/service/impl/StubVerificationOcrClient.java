@@ -4,7 +4,7 @@ import com.campusbridge.dto.response.OcrExtractResult;
 import com.campusbridge.service.VerificationOcrClient;
 import com.campusbridge.utils.AliOcrUtils;
 import com.fasterxml.jackson.databind.JsonNode;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -14,6 +14,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Service
+@RequiredArgsConstructor
 public class StubVerificationOcrClient implements VerificationOcrClient {
 
     private static final Pattern STUDENT_NUMBER_PATTERN = Pattern.compile("\\b\\d{8,14}\\b");
@@ -27,8 +28,7 @@ public class StubVerificationOcrClient implements VerificationOcrClient {
             "(?:\\u5927\\u5b66|\\u5b66\\u9662|university|college|school)",
             Pattern.CASE_INSENSITIVE);
 
-    @Autowired
-    private AliOcrUtils aliOcrUtils;
+    private final AliOcrUtils aliOcrUtils;
 
     @Override
     public OcrExtractResult extractStudentCard(String evidenceUrl) {

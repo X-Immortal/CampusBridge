@@ -7,6 +7,7 @@ import com.campusbridge.dto.request.CreateReportRequest;
 import com.campusbridge.entity.Report;
 import com.campusbridge.service.ReportService;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -18,16 +19,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/reports")
+@RequiredArgsConstructor
 public class ReportController {
     private final CurrentUserResolver currentUserResolver;
     private final ReportService reportService;
-
-    public ReportController(
-            CurrentUserResolver currentUserResolver,
-            ReportService reportService) {
-        this.currentUserResolver = currentUserResolver;
-        this.reportService = reportService;
-    }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)

@@ -27,6 +27,7 @@ import com.campusbridge.service.CreditService;
 import com.campusbridge.service.NotificationService;
 import com.campusbridge.service.ReportService;
 import com.campusbridge.service.TaskHistoryService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +36,7 @@ import java.util.Set;
 
 @Transactional
 @Service
+@RequiredArgsConstructor
 public class ReportServiceImpl implements ReportService {
     private static final int DEFAULT_PAGE = 1;
     private static final int DEFAULT_SIZE = 20;
@@ -64,29 +66,6 @@ public class ReportServiceImpl implements ReportService {
     private final TaskHistoryService taskHistoryService;
     private final NotificationService notificationService;
     private final CreditService creditService;
-
-    public ReportServiceImpl(
-            ReportMapper reportMapper,
-            ModerationRecordMapper moderationRecordMapper,
-            TaskMapper taskMapper,
-            UserMapper userMapper,
-            PostMapper postMapper,
-            ReplyMapper replyMapper,
-            MessageMapper messageMapper,
-            TaskHistoryService taskHistoryService,
-            NotificationService notificationService,
-            CreditService creditService) {
-        this.reportMapper = reportMapper;
-        this.moderationRecordMapper = moderationRecordMapper;
-        this.taskMapper = taskMapper;
-        this.userMapper = userMapper;
-        this.postMapper = postMapper;
-        this.replyMapper = replyMapper;
-        this.messageMapper = messageMapper;
-        this.taskHistoryService = taskHistoryService;
-        this.notificationService = notificationService;
-        this.creditService = creditService;
-    }
 
     @Override
     public Report createReport(Long reporterId, CreateReportRequest request) {

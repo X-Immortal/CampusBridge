@@ -13,6 +13,7 @@ import com.campusbridge.dto.view.ReplyView;
 import com.campusbridge.service.PostService;
 import com.campusbridge.service.ReplyService;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,19 +28,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/posts")
+@RequiredArgsConstructor
 public class PostController {
     private final CurrentUserResolver currentUserResolver;
     private final PostService postService;
     private final ReplyService replyService;
-
-    public PostController(
-            CurrentUserResolver currentUserResolver,
-            PostService postService,
-            ReplyService replyService) {
-        this.currentUserResolver = currentUserResolver;
-        this.postService = postService;
-        this.replyService = replyService;
-    }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)

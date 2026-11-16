@@ -8,6 +8,7 @@ import com.campusbridge.dto.view.DashboardTodo;
 import com.campusbridge.dto.view.DashboardTrend;
 import com.campusbridge.mapper.AdminDashboardMapper;
 import com.campusbridge.service.AdminDashboardService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +24,7 @@ import java.util.Set;
 
 @Transactional(readOnly = true)
 @Service
+@RequiredArgsConstructor
 public class AdminDashboardServiceImpl implements AdminDashboardService {
 
     private static final int DEFAULT_DAYS = 7;
@@ -62,10 +64,6 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     }
 
     private final AdminDashboardMapper adminDashboardMapper;
-
-    public AdminDashboardServiceImpl(AdminDashboardMapper adminDashboardMapper) {
-        this.adminDashboardMapper = adminDashboardMapper;
-    }
 
     @Override
     public DashboardSummary getSummary() {

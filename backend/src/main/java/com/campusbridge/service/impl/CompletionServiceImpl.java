@@ -13,6 +13,7 @@ import com.campusbridge.service.CompletionService;
 import com.campusbridge.service.CreditService;
 import com.campusbridge.service.NotificationService;
 import com.campusbridge.service.TaskHistoryService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +24,7 @@ import java.util.Set;
 
 @Transactional
 @Service
+@RequiredArgsConstructor
 public class CompletionServiceImpl implements CompletionService {
     private static final String STATUS_IN_PROGRESS = "IN_PROGRESS";
     private static final String STATUS_PENDING_CONFIRMATION = "PENDING_CONFIRMATION";
@@ -40,21 +42,6 @@ public class CompletionServiceImpl implements CompletionService {
     private final TaskHistoryService taskHistoryService;
     private final CreditService creditService;
     private final NotificationService notificationService;
-
-    public CompletionServiceImpl(
-            CompletionProofMapper completionProofMapper,
-            AttachmentMapper attachmentMapper,
-            TaskMapper taskMapper,
-            TaskHistoryService taskHistoryService,
-            CreditService creditService,
-            NotificationService notificationService) {
-        this.completionProofMapper = completionProofMapper;
-        this.attachmentMapper = attachmentMapper;
-        this.taskMapper = taskMapper;
-        this.taskHistoryService = taskHistoryService;
-        this.creditService = creditService;
-        this.notificationService = notificationService;
-    }
 
     @Override
     public CompletionProof submitCompletionProof(

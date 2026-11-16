@@ -8,7 +8,7 @@ import com.campusbridge.dto.view.EmailCodeSentView;
 import com.campusbridge.dto.view.LoginView;
 import com.campusbridge.service.AuthService;
 import com.campusbridge.service.impl.EmailVerificationCodeSender;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -18,13 +18,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/auth")
+@RequiredArgsConstructor
 public class AuthController {
 
-    @Autowired
-    private AuthService authService;
-
-    @Autowired
-    private EmailVerificationCodeSender emailCodeSender;
+    private final AuthService authService;
+    private final EmailVerificationCodeSender emailCodeSender;
 
     @PostMapping("/register/send-code")
     public ApiResponse<EmailCodeSentView> sendRegistrationCode(@RequestBody EmailRequest body) {

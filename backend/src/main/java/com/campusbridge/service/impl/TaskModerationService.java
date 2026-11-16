@@ -7,6 +7,7 @@ import com.campusbridge.mapper.TaskMapper;
 import com.campusbridge.service.CreditService;
 import com.campusbridge.service.NotificationService;
 import com.campusbridge.service.TaskHistoryService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,22 +15,12 @@ import java.time.LocalDateTime;
 
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class TaskModerationService {
     private final TaskMapper taskMapper;
     private final TaskHistoryService taskHistoryService;
     private final CreditService creditService;
     private final NotificationService notificationService;
-
-    public TaskModerationService(
-            TaskMapper taskMapper,
-            TaskHistoryService taskHistoryService,
-            CreditService creditService,
-            NotificationService notificationService) {
-        this.taskMapper = taskMapper;
-        this.taskHistoryService = taskHistoryService;
-        this.creditService = creditService;
-        this.notificationService = notificationService;
-    }
 
     public Task approveTask(Long adminUserId, Long taskId) {
         Task task = transition(taskId, "PENDING_REVIEW", "OPEN");

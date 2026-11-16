@@ -10,7 +10,7 @@ import com.campusbridge.dto.view.VerificationSubmissionView;
 import com.campusbridge.entity.CampusVerification;
 import com.campusbridge.service.VerificationService;
 import com.campusbridge.utils.AuthContextUtil;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,13 +22,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/verifications")
+@RequiredArgsConstructor
 public class VerificationController {
 
-    @Autowired
-    private VerificationService verificationService;
-
-    @Autowired
-    private AuthContextUtil authContextUtil;
+    private final VerificationService verificationService;
+    private final AuthContextUtil authContextUtil;
 
     @PostMapping
     @ResponseStatus(HttpStatus.ACCEPTED)

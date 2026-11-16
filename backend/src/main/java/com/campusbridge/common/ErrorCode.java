@@ -1,9 +1,11 @@
 package com.campusbridge.common;
 
-import com.campusbridge.entity.Attachment;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 
+@Getter
+@RequiredArgsConstructor
 public enum ErrorCode {
     AUTH_001_UNAUTHORIZED(
             "AUTH_001_UNAUTHORIZED",
@@ -60,17 +62,7 @@ public enum ErrorCode {
     COMMON_003_CONFLICT("COMMON_003_CONFLICT", "资源状态冲突", HttpStatus.CONFLICT),
     COMMON_999_INTERNAL_ERROR("COMMON_999_INTERNAL_ERROR", "服务器内部错误", HttpStatus.INTERNAL_SERVER_ERROR);
 
-    @Getter
     private final String code;
-    @Getter
     private final String defaultMessage;
-    @Getter
     private final HttpStatus httpStatus;
-
-    ErrorCode(String code, String defaultMessage, HttpStatus httpStatus) {
-        this.code = code;
-        this.defaultMessage = defaultMessage;
-        this.httpStatus = httpStatus;
-    }
-
 }

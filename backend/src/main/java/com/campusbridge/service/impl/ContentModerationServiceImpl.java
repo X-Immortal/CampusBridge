@@ -5,17 +5,15 @@ import com.campusbridge.common.ErrorCode;
 import com.campusbridge.dto.request.CreatePostRequest;
 import com.campusbridge.dto.request.CreateTaskRequest;
 import com.campusbridge.service.ContentModerationService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Locale;
 
 @Service
+@Slf4j
 public class ContentModerationServiceImpl implements ContentModerationService {
-    private static final Logger LOGGER = LoggerFactory.getLogger(ContentModerationServiceImpl.class);
-
     private static final int EXCERPT_LENGTH = 120;
     private static final String TARGET_TYPE_POST = "POST";
     private static final String TARGET_TYPE_TASK = "TASK";
@@ -88,7 +86,7 @@ public class ContentModerationServiceImpl implements ContentModerationService {
         }
 
         String excerpt = buildExcerpt(content, hit.index());
-        LOGGER.warn(
+        log.warn(
                 "Content blocked: targetType={}, operatorId={}, ruleCode={}, keyword={}, excerpt={}",
                 targetType,
                 operatorId,

@@ -9,6 +9,7 @@ import com.campusbridge.mapper.PostInteractionMapper;
 import com.campusbridge.mapper.PostMapper;
 import com.campusbridge.service.InteractionService;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,22 +26,12 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/posts")
+@RequiredArgsConstructor
 public class InteractionController {
     private final CurrentUserResolver currentUserResolver;
     private final InteractionService interactionService;
     private final PostInteractionMapper postInteractionMapper;
     private final PostMapper postMapper;
-
-    public InteractionController(
-            CurrentUserResolver currentUserResolver,
-            InteractionService interactionService,
-            PostInteractionMapper postInteractionMapper,
-            PostMapper postMapper) {
-        this.currentUserResolver = currentUserResolver;
-        this.interactionService = interactionService;
-        this.postInteractionMapper = postInteractionMapper;
-        this.postMapper = postMapper;
-    }
 
     @PostMapping("/{postId}/interactions")
     @ResponseStatus(HttpStatus.CREATED)

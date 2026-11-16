@@ -7,7 +7,7 @@ import com.campusbridge.entity.Attachment;
 import com.campusbridge.entity.User;
 import com.campusbridge.service.AttachmentService;
 import com.campusbridge.utils.AuthContextUtil;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -19,13 +19,11 @@ import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/v1/attachments")
+@RequiredArgsConstructor
 public class AttachmentController {
 
-    @Autowired
-    private AttachmentService attachmentService;
-
-    @Autowired
-    private AuthContextUtil authContextUtil;
+    private final AttachmentService attachmentService;
+    private final AuthContextUtil authContextUtil;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)

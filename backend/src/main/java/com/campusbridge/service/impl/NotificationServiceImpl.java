@@ -14,6 +14,7 @@ import com.campusbridge.mapper.ConversationMapper;
 import com.campusbridge.mapper.MessageMapper;
 import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.service.NotificationService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +23,7 @@ import java.time.LocalDateTime;
 
 @Transactional
 @Service
+@RequiredArgsConstructor
 public class NotificationServiceImpl implements NotificationService {
     private static final int MAX_TITLE_IN_MESSAGE = 40;
 
@@ -39,15 +41,6 @@ public class NotificationServiceImpl implements NotificationService {
     private final ConversationMapper conversationMapper;
     private final MessageMapper messageMapper;
     private final UserMapper userMapper;
-
-    public NotificationServiceImpl(
-            ConversationMapper conversationMapper,
-            MessageMapper messageMapper,
-            UserMapper userMapper) {
-        this.conversationMapper = conversationMapper;
-        this.messageMapper = messageMapper;
-        this.userMapper = userMapper;
-    }
 
     @Override
     public void notifyPostReplyCreated(

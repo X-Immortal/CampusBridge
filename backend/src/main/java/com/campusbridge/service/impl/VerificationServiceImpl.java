@@ -14,7 +14,7 @@ import com.campusbridge.entity.CampusVerification;
 import com.campusbridge.enums.VerificationMethod;
 import com.campusbridge.mapper.CampusVerificationMapper;
 import com.campusbridge.service.VerificationService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 @Service
+@RequiredArgsConstructor
 public class VerificationServiceImpl implements VerificationService {
 
     private static final String STATUS_PENDING = "PENDING";
@@ -38,11 +39,8 @@ public class VerificationServiceImpl implements VerificationService {
     private static final Pattern EMAIL_PATTERN = Pattern.compile(
             "^[^@\\s]+@[^@\\s]*\\.edu\\.cn$", Pattern.CASE_INSENSITIVE);
 
-    @Autowired
-    private CampusVerificationMapper campusVerificationMapper;
-
-    @Autowired
-    private EmailVerificationCodeSender emailVerificationCodeSender;
+    private final CampusVerificationMapper campusVerificationMapper;
+    private final EmailVerificationCodeSender emailVerificationCodeSender;
 
     @Value("${campusbridge.verification.email.code-secret:campusbridge-email-code}")
     private String emailCodeSecret;

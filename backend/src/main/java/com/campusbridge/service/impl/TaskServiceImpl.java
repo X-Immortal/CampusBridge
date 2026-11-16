@@ -23,6 +23,7 @@ import com.campusbridge.service.CreditService;
 import com.campusbridge.service.NotificationService;
 import com.campusbridge.service.TaskHistoryService;
 import com.campusbridge.service.TaskService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +32,7 @@ import java.util.List;
 
 @Transactional
 @Service
+@RequiredArgsConstructor
 public class TaskServiceImpl implements TaskService {
     private static final int MAX_TITLE_LENGTH = 100;
     private static final int MAX_DESCRIPTION_LENGTH = 2000;
@@ -66,23 +68,6 @@ public class TaskServiceImpl implements TaskService {
     private static final String STATUS_CANCELLED = "CANCELLED";
     private static final String STATUS_DISPUTED = "DISPUTED";
     private static final String STATUS_WITHDRAWN = "WITHDRAWN";
-
-    public TaskServiceImpl(
-            TaskMapper taskMapper,
-            CampusVerificationMapper campusVerificationMapper,
-            TaskHistoryService taskHistoryService,
-            ContentModerationService contentModerationService,
-            NotificationService notificationService,
-            TaskApplicationMapper taskApplicationMapper,
-            CreditService creditService) {
-        this.taskMapper = taskMapper;
-        this.campusVerificationMapper = campusVerificationMapper;
-        this.taskHistoryService = taskHistoryService;
-        this.contentModerationService = contentModerationService;
-        this.notificationService = notificationService;
-        this.taskApplicationMapper = taskApplicationMapper;
-        this.creditService = creditService;
-    }
 
     @Override
     public TaskView createTask(Long requesterId, CreateTaskRequest request) {

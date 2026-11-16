@@ -5,17 +5,15 @@ import com.campusbridge.common.ErrorCode;
 import com.campusbridge.entity.TaskHistory;
 import com.campusbridge.mapper.TaskHistoryMapper;
 import com.campusbridge.service.TaskHistoryService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 
 @Service
+@RequiredArgsConstructor
 public class TaskHistoryServiceImpl implements TaskHistoryService {
     private final TaskHistoryMapper taskHistoryMapper;
-
-    public TaskHistoryServiceImpl(TaskHistoryMapper taskHistoryMapper) {
-        this.taskHistoryMapper = taskHistoryMapper;
-    }
 
     @Override
     public boolean hasReminder(

@@ -11,6 +11,7 @@ import com.campusbridge.dto.view.UnreadSummaryView;
 import com.campusbridge.entity.Message;
 import com.campusbridge.service.ConversationService;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,16 +24,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/conversations")
+@RequiredArgsConstructor
 public class ConversationController {
     private final CurrentUserResolver currentUserResolver;
     private final ConversationService conversationService;
-
-    public ConversationController(
-            CurrentUserResolver currentUserResolver,
-            ConversationService conversationService) {
-        this.currentUserResolver = currentUserResolver;
-        this.conversationService = conversationService;
-    }
 
     @GetMapping
     public ApiResponse<PagedResult<ConversationView>> listConversations(

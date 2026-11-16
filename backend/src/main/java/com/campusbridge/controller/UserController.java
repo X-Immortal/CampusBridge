@@ -11,6 +11,7 @@ import com.campusbridge.entity.Review;
 import com.campusbridge.service.ReviewService;
 import com.campusbridge.service.UserProfileService;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -25,19 +26,11 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/users")
+@RequiredArgsConstructor
 public class UserController {
     private final CurrentUserResolver currentUserResolver;
     private final UserProfileService userProfileService;
     private final ReviewService reviewService;
-
-    public UserController(
-            CurrentUserResolver currentUserResolver,
-            UserProfileService userProfileService,
-            ReviewService reviewService) {
-        this.currentUserResolver = currentUserResolver;
-        this.userProfileService = userProfileService;
-        this.reviewService = reviewService;
-    }
 
     @GetMapping("/me")
     public ApiResponse<UserView> getCurrentUser(HttpServletRequest request) {

@@ -10,6 +10,7 @@ import com.campusbridge.mapper.PostMapper;
 import com.campusbridge.mapper.ReplyMapper;
 import com.campusbridge.service.NotificationService;
 import com.campusbridge.service.ReplyService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,19 +18,11 @@ import java.time.LocalDateTime;
 
 @Transactional
 @Service
+@RequiredArgsConstructor
 public class ReplyServiceImpl implements ReplyService {
     private final ReplyMapper replyMapper;
     private final PostMapper postMapper;
     private final NotificationService notificationService;
-
-    public ReplyServiceImpl(
-            ReplyMapper replyMapper,
-            PostMapper postMapper,
-            NotificationService notificationService) {
-        this.replyMapper = replyMapper;
-        this.postMapper = postMapper;
-        this.notificationService = notificationService;
-    }
 
     @Override
     public ReplyView createReply(Long userId, Long postId, CreateReplyRequest request) {

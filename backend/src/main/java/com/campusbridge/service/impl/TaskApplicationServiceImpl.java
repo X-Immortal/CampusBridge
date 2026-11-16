@@ -20,6 +20,7 @@ import com.campusbridge.mapper.UserProfileMapper;
 import com.campusbridge.service.NotificationService;
 import com.campusbridge.service.TaskApplicationService;
 import com.campusbridge.service.TaskHistoryService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +30,7 @@ import java.util.List;
 
 @Transactional
 @Service
+@RequiredArgsConstructor
 public class TaskApplicationServiceImpl implements TaskApplicationService {
     private static final int MAX_MESSAGE_LENGTH = 300;
 
@@ -47,25 +49,6 @@ public class TaskApplicationServiceImpl implements TaskApplicationService {
     private final CampusVerificationMapper campusVerificationMapper;
     private final TaskHistoryService taskHistoryService;
     private final NotificationService notificationService;
-
-    public TaskApplicationServiceImpl(
-            TaskApplicationMapper taskApplicationMapper,
-            TaskMapper taskMapper,
-            UserMapper userMapper,
-            UserProfileMapper userProfileMapper,
-            UserCreditMapper userCreditMapper,
-            CampusVerificationMapper campusVerificationMapper,
-            TaskHistoryService taskHistoryService,
-            NotificationService notificationService) {
-        this.taskApplicationMapper = taskApplicationMapper;
-        this.taskMapper = taskMapper;
-        this.userMapper = userMapper;
-        this.userProfileMapper = userProfileMapper;
-        this.userCreditMapper = userCreditMapper;
-        this.campusVerificationMapper = campusVerificationMapper;
-        this.taskHistoryService = taskHistoryService;
-        this.notificationService = notificationService;
-    }
 
     @Override
     public TaskApplication createApplication(

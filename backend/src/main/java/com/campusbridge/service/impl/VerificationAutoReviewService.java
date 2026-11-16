@@ -4,9 +4,8 @@ import com.campusbridge.dto.response.OcrExtractResult;
 import com.campusbridge.entity.CampusVerification;
 import com.campusbridge.mapper.CampusVerificationMapper;
 import com.campusbridge.service.VerificationOcrClient;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -14,15 +13,12 @@ import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 
 @Service
+@Slf4j
+@RequiredArgsConstructor
 public class VerificationAutoReviewService {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(VerificationAutoReviewService.class);
-
-    @Autowired
-    private CampusVerificationMapper campusVerificationMapper;
-
-    @Autowired
-    private VerificationOcrClient verificationOcrClient;
+    private final CampusVerificationMapper campusVerificationMapper;
+    private final VerificationOcrClient verificationOcrClient;
 
     public void enqueueStudentCardReview(Long verificationId) {
         if (verificationId == null) {
@@ -41,7 +37,7 @@ public class VerificationAutoReviewService {
             OcrExtractResult ocrResult =
                     verificationOcrClient.extractStudentCard(entity.getEvidenceUrl());
             if (ocrResult == null || !ocrResult.isAvailable()) {
-                LOGGER.info("OCR unavailable; verification remains pending, verificationId={}", verificationId);
+                log.info("OCR unavailable; verification remains pending, verificationId={}", verificationId);
                 return;
             }
 
@@ -54,7 +50,7 @@ public class VerificationAutoReviewService {
                 return;
             }
         } catch (Exception e) {
-            LOGGER.warn("Auto review failed, verificationId={}", verificationId, e);
+            log.warn("Auto review failed, verificationId={}", verificationId, e);
         }
     }
 

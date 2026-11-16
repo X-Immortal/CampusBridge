@@ -18,6 +18,7 @@ import com.campusbridge.service.ReportService;
 import com.campusbridge.service.VerificationService;
 import com.campusbridge.service.impl.TaskModerationService;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -30,6 +31,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/admin")
+@RequiredArgsConstructor
 public class AdminModerationController {
     private static final String STATUS_PENDING_REVIEW = "PENDING_REVIEW";
     private static final String STATUS_DISPUTED = "DISPUTED";
@@ -39,19 +41,6 @@ public class AdminModerationController {
     private final VerificationService verificationService;
     private final TaskMapper taskMapper;
     private final TaskModerationService taskModerationService;
-
-    public AdminModerationController(
-            CurrentUserResolver currentUserResolver,
-            ReportService reportService,
-            VerificationService verificationService,
-            TaskMapper taskMapper,
-            TaskModerationService taskModerationService) {
-        this.currentUserResolver = currentUserResolver;
-        this.reportService = reportService;
-        this.verificationService = verificationService;
-        this.taskMapper = taskMapper;
-        this.taskModerationService = taskModerationService;
-    }
 
     @GetMapping("/moderation/tasks/pending")
     public ApiResponse<List<TaskView>> listPendingTasks(
@@ -176,5 +165,4 @@ public class AdminModerationController {
         taskModerationService.punishAppeal(adminUserId, taskId);
         return ApiResponse.success();
     }
-
 }

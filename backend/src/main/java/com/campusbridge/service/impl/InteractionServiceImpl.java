@@ -11,6 +11,7 @@ import com.campusbridge.mapper.PostInteractionMapper;
 import com.campusbridge.mapper.PostMapper;
 import com.campusbridge.mapper.ReplyMapper;
 import com.campusbridge.service.InteractionService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,21 +20,13 @@ import java.time.LocalDateTime;
 
 @Transactional
 @Service
+@RequiredArgsConstructor
 public class InteractionServiceImpl implements InteractionService {
     private static final String TARGET_TYPE_POST = "POST";
 
     private final PostInteractionMapper interactionMapper;
     private final PostMapper postMapper;
     private final ReplyMapper replyMapper;
-
-    public InteractionServiceImpl(
-            PostInteractionMapper interactionMapper,
-            PostMapper postMapper,
-            ReplyMapper replyMapper) {
-        this.interactionMapper = interactionMapper;
-        this.postMapper = postMapper;
-        this.replyMapper = replyMapper;
-    }
 
     @Override
     public PostInteraction createInteraction(

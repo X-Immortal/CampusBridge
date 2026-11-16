@@ -9,9 +9,8 @@ import com.campusbridge.enums.AttachmentType;
 import com.campusbridge.mapper.AttachmentMapper;
 import com.campusbridge.service.AttachmentService;
 import com.campusbridge.utils.AliOSSUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -19,15 +18,12 @@ import org.springframework.web.multipart.MultipartFile;
 import java.time.LocalDateTime;
 
 @Service
+@Slf4j
+@RequiredArgsConstructor
 public class AttachmentServiceImpl implements AttachmentService {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(AttachmentServiceImpl.class);
-
-    @Autowired
-    private AttachmentMapper attachmentMapper;
-
-    @Autowired
-    private AliOSSUtils aliOSSUtils;
+    private final AttachmentMapper attachmentMapper;
+    private final AliOSSUtils aliOSSUtils;
 
     @Override
     public Attachment uploadAttachment(Long uploaderId, MultipartFile file, String expectedOwnerType, String type) {
@@ -55,7 +51,7 @@ public class AttachmentServiceImpl implements AttachmentService {
         try {
             fileUrl = aliOSSUtils.upload(file);
         } catch (Exception e) {
-            LOGGER.error("Attachment upload failed: uploaderId={}", uploaderId, e);
+            log.error("Attachment upload failed: uploaderId={}", uploaderId, e);
             throw new BusinessException(ErrorCode.ATTACH_004_UPLOAD_FAILED);
         }
 

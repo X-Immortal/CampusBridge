@@ -7,6 +7,7 @@ import com.campusbridge.dto.view.TaskApplicationCandidateView;
 import com.campusbridge.entity.TaskApplication;
 import com.campusbridge.service.TaskApplicationService;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -20,16 +21,10 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/tasks/{taskId}/applications")
+@RequiredArgsConstructor
 public class TaskApplicationController {
     private final CurrentUserResolver currentUserResolver;
     private final TaskApplicationService taskApplicationService;
-
-    public TaskApplicationController(
-            CurrentUserResolver currentUserResolver,
-            TaskApplicationService taskApplicationService) {
-        this.currentUserResolver = currentUserResolver;
-        this.taskApplicationService = taskApplicationService;
-    }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)

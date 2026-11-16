@@ -9,6 +9,7 @@ import com.campusbridge.entity.UserBlock;
 import com.campusbridge.mapper.UserBlockMapper;
 import com.campusbridge.mapper.UserMapper;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,19 +23,11 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/blocks")
+@RequiredArgsConstructor
 public class BlockController {
     private final CurrentUserResolver currentUserResolver;
     private final UserBlockMapper userBlockMapper;
     private final UserMapper userMapper;
-
-    public BlockController(
-            CurrentUserResolver currentUserResolver,
-            UserBlockMapper userBlockMapper,
-            UserMapper userMapper) {
-        this.currentUserResolver = currentUserResolver;
-        this.userBlockMapper = userBlockMapper;
-        this.userMapper = userMapper;
-    }
 
     @PostMapping("/{blockedUserId}")
     public ApiResponse<String> blockUser(

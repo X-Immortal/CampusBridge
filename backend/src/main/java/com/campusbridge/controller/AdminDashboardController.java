@@ -6,6 +6,7 @@ import com.campusbridge.dto.view.DashboardSummary;
 import com.campusbridge.dto.view.DashboardTodo;
 import com.campusbridge.dto.view.DashboardTrend;
 import com.campusbridge.service.AdminDashboardService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -15,6 +16,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/admin/dashboard")
+@RequiredArgsConstructor
 public class AdminDashboardController {
 
     private static final int MIN_DAYS = 1;
@@ -22,10 +24,6 @@ public class AdminDashboardController {
     private static final int DEFAULT_DAYS = 7;
 
     private final AdminDashboardService adminDashboardService;
-
-    public AdminDashboardController(AdminDashboardService adminDashboardService) {
-        this.adminDashboardService = adminDashboardService;
-    }
 
     @GetMapping("/summary")
     public ApiResponse<DashboardSummary> summary() {
