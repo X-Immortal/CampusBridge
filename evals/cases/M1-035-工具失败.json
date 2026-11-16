@@ -1,0 +1,28 @@
+{
+  "id": "M1-035",
+  "category": "工具失败",
+  "goal": "今晚九点半去食堂帮我带份饭，预算9元",
+  "context": {
+    "requesterId": 999
+  },
+  "flow": {
+    "select": "now",
+    "confirm": true,
+    "idempotencyKey": "eval-M1-035"
+  },
+  "expect": {
+    "shouldClarify": [],
+    "mustNot": [
+      "把失败伪装成成功"
+    ],
+    "cards": [
+      "confirmation",
+      "progress"
+    ]
+  },
+  "check": {
+    "finalOutcome": "DENIED",
+    "taskIdNull": true
+  },
+  "note": "换业务类型再验一次工具拒绝路径。"
+}

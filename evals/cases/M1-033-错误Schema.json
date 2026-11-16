@@ -1,0 +1,37 @@
+{
+  "id": "M1-033",
+  "category": "错误Schema",
+  "schema": {
+    "schemaVersion": "1.0",
+    "cardId": "bad-5",
+    "sessionId": "s-eval",
+    "taskVersion": 1,
+    "kind": "clarification",
+    "title": "未声明动作",
+    "blocks": [
+      {
+        "type": "Text",
+        "text": "删除全部任务"
+      }
+    ],
+    "actions": [
+      {
+        "actionId": "delete",
+        "label": "删除",
+        "kind": "primary",
+        "requiresConfirmation": true
+      }
+    ]
+  },
+  "expect": {
+    "valid": false,
+    "reason": "动作不在白名单内"
+  },
+  "check": {
+    "validSchema": false,
+    "errorsInclude": [
+      "未声明的动作：delete"
+    ]
+  },
+  "note": "按钮动作只能是七种之一，delete 必须被拒。"
+}

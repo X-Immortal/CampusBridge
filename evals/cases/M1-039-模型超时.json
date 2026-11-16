@@ -1,0 +1,29 @@
+{
+  "id": "M1-039",
+  "category": "模型超时",
+  "goal": "想找人帮我搬行李，越快越好",
+  "context": {
+    "model": "unavailable"
+  },
+  "expect": {
+    "shouldClarify": [
+      "时间",
+      "地点",
+      "报酬"
+    ],
+    "mustNot": [
+      "假装模型成功"
+    ],
+    "cards": [
+      "clarification"
+    ]
+  },
+  "check": {
+    "degraded": true,
+    "cardKindIn": [
+      "clarification"
+    ],
+    "taskIdNull": true
+  },
+  "note": "模型不可用 + 信息缺失：规则基线仍然要问全。"
+}

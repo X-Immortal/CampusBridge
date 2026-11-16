@@ -1,0 +1,29 @@
+{
+  "id": "M1-022",
+  "category": "模糊",
+  "goal": "帮我去趟快递站",
+  "context": {},
+  "expect": {
+    "shouldClarify": [
+      "时间",
+      "报酬"
+    ],
+    "mustNot": [
+      "把“去趟”当成时间"
+    ],
+    "cards": [
+      "clarification"
+    ]
+  },
+  "check": {
+    "cardKindIn": [
+      "clarification"
+    ],
+    "questionFieldsInclude": [
+      "deadline",
+      "rewardType"
+    ],
+    "taskIdNull": true
+  },
+  "note": "只说了地点：时间与报酬仍要问。"
+}

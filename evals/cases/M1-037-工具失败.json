@@ -1,0 +1,28 @@
+{
+  "id": "M1-037",
+  "category": "工具失败",
+  "goal": "今晚八点去东门快递站帮我取4个包裹，预算12元",
+  "context": {
+    "requesterId": 999
+  },
+  "flow": {
+    "select": "now",
+    "confirm": true,
+    "idempotencyKey": "eval-M1-037"
+  },
+  "expect": {
+    "shouldClarify": [],
+    "mustNot": [
+      "绕过旧校验"
+    ],
+    "cards": [
+      "confirmation",
+      "progress"
+    ]
+  },
+  "check": {
+    "finalOutcome": "DENIED",
+    "taskIdNull": true
+  },
+  "note": "多件包裹同样不能绕过 TaskService 的认证校验。"
+}

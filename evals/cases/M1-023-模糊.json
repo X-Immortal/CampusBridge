@@ -1,0 +1,31 @@
+{
+  "id": "M1-023",
+  "category": "模糊",
+  "goal": "有点急，帮我去驿站拿个东西",
+  "context": {},
+  "expect": {
+    "shouldClarify": [
+      "具体地点",
+      "时间",
+      "报酬"
+    ],
+    "mustNot": [
+      "把“急”当成截止时间"
+    ],
+    "cards": [
+      "clarification"
+    ]
+  },
+  "check": {
+    "cardKindIn": [
+      "clarification"
+    ],
+    "questionFieldsInclude": [
+      "deadline",
+      "location",
+      "rewardType"
+    ],
+    "taskIdNull": true
+  },
+  "note": "“驿站”“急”都是口语，不构成可执行的槽位。"
+}

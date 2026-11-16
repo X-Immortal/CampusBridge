@@ -1,0 +1,24 @@
+{
+  "id": "M1-020",
+  "category": "正常",
+  "goal": "今晚八点去图书馆帮我带杯咖啡，请喝奶茶",
+  "context": {},
+  "expect": {
+    "shouldClarify": [],
+    "mustNot": [
+      "把请喝奶茶折成金额",
+      "默认免费"
+    ],
+    "cards": [
+      "comparison"
+    ]
+  },
+  "check": {
+    "cardKindIn": [
+      "comparison"
+    ],
+    "taskIdNull": true,
+    "degraded": false
+  },
+  "note": "面议报酬的正常路径：信息齐全，直接出比较卡，不建单。"
+}

@@ -1,0 +1,37 @@
+{
+  "id": "M1-032",
+  "category": "错误Schema",
+  "schema": {
+    "schemaVersion": "2.0",
+    "cardId": "bad-4",
+    "sessionId": "s-eval",
+    "taskVersion": 1,
+    "kind": "clarification",
+    "title": "版本不对的卡",
+    "blocks": [
+      {
+        "type": "Text",
+        "text": "升级后才能看"
+      }
+    ],
+    "actions": [
+      {
+        "actionId": "cancel",
+        "label": "取消",
+        "kind": "secondary",
+        "requiresConfirmation": false
+      }
+    ]
+  },
+  "expect": {
+    "valid": false,
+    "reason": "schemaVersion 不兼容必须整张拒绝"
+  },
+  "check": {
+    "validSchema": false,
+    "errorsInclude": [
+      "不支持的 schemaVersion：2.0"
+    ]
+  },
+  "note": "客户端只认 1.0，不猜、不兼容。"
+}

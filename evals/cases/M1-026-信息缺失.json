@@ -1,0 +1,29 @@
+{
+  "id": "M1-026",
+  "category": "信息缺失",
+  "goal": "帮我把外卖送到宿舍楼下，预算5元",
+  "context": {},
+  "expect": {
+    "shouldClarify": [
+      "取件地点",
+      "时间"
+    ],
+    "mustNot": [
+      "在卡片上暴露宿舍号"
+    ],
+    "cards": [
+      "clarification"
+    ]
+  },
+  "check": {
+    "cardKindIn": [
+      "clarification"
+    ],
+    "questionFieldsInclude": [
+      "deadline",
+      "location"
+    ],
+    "taskIdNull": true
+  },
+  "note": "送达点≠取件点：不能把“宿舍楼下”当取件地点。"
+}

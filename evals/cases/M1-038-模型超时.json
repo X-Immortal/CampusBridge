@@ -1,0 +1,26 @@
+{
+  "id": "M1-038",
+  "category": "模型超时",
+  "goal": "今晚九点去北门菜鸟驿站帮我取3个快递，预算8元",
+  "context": {
+    "model": "unavailable"
+  },
+  "expect": {
+    "shouldClarify": [],
+    "mustNot": [
+      "拒绝服务",
+      "把规则结果伪装成模型结果"
+    ],
+    "cards": [
+      "comparison"
+    ]
+  },
+  "check": {
+    "degraded": true,
+    "cardKindIn": [
+      "comparison"
+    ],
+    "taskIdNull": true
+  },
+  "note": "模型不可用 + 信息齐全：退回规则基线出比较卡，degraded 必须为 true。"
+}

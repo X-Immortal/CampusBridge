@@ -1,0 +1,29 @@
+{
+  "id": "M1-024",
+  "category": "信息缺失",
+  "goal": "今晚九点取快递",
+  "context": {},
+  "expect": {
+    "shouldClarify": [
+      "地点",
+      "报酬"
+    ],
+    "mustNot": [
+      "编造取件点"
+    ],
+    "cards": [
+      "clarification"
+    ]
+  },
+  "check": {
+    "cardKindIn": [
+      "clarification"
+    ],
+    "questionFieldsInclude": [
+      "location",
+      "rewardType"
+    ],
+    "taskIdNull": true
+  },
+  "note": "有时间没地点没报酬：只问缺的两项。"
+}

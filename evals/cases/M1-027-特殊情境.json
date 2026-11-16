@@ -1,0 +1,30 @@
+{
+  "id": "M1-027",
+  "category": "特殊情境",
+  "goal": "今晚十一点半帮我把电脑送到宿舍楼下，预算20元",
+  "context": {},
+  "expect": {
+    "shouldClarify": [
+      "取件地点",
+      "风险披露"
+    ],
+    "mustNot": [
+      "跳过风险披露",
+      "直接发布"
+    ],
+    "cards": [
+      "clarification"
+    ]
+  },
+  "check": {
+    "cardKindIn": [
+      "clarification"
+    ],
+    "questionFieldsInclude": [
+      "location",
+      "riskDisclosureConfirmed"
+    ],
+    "taskIdNull": true
+  },
+  "note": "深夜 + 宿舍 + 贵重物品：风险等级必须升高并要求披露。"
+}

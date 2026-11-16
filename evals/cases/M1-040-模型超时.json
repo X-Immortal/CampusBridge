@@ -1,0 +1,25 @@
+{
+  "id": "M1-040",
+  "category": "模型超时",
+  "goal": "今晚八点去图书馆帮我带杯咖啡，请喝奶茶",
+  "context": {
+    "model": "unavailable"
+  },
+  "expect": {
+    "shouldClarify": [],
+    "mustNot": [
+      "把面议拒绝掉"
+    ],
+    "cards": [
+      "comparison"
+    ]
+  },
+  "check": {
+    "degraded": true,
+    "cardKindIn": [
+      "comparison"
+    ],
+    "taskIdNull": true
+  },
+  "note": "模型不可用时的面议路径：仍能出比较卡，但必须标记降级。"
+}

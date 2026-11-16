@@ -1,0 +1,31 @@
+{
+  "id": "M1-019",
+  "category": "正常",
+  "goal": "今晚九点去北门菜鸟驿站帮我取3个快递，预算10元",
+  "context": {},
+  "flow": {
+    "select": "now",
+    "confirm": true,
+    "idempotencyKey": "eval-M1-019"
+  },
+  "expect": {
+    "shouldClarify": [],
+    "mustNot": [
+      "未确认就建单",
+      "建单两次"
+    ],
+    "cards": [
+      "comparison",
+      "confirmation",
+      "progress"
+    ]
+  },
+  "check": {
+    "finalOutcome": "OK",
+    "taskIdNotNull": true,
+    "stateIn": [
+      "CREATED"
+    ]
+  },
+  "note": "正常链路第二例：换金额与件数，仍应比较 → 确认 → 建单。"
+}

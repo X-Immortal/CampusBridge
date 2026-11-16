@@ -1,0 +1,32 @@
+{
+  "id": "M1-028",
+  "category": "特殊情境",
+  "goal": "I need someone to pick up my parcel at 21:00 tonight, budget 10 CNY",
+  "context": {
+    "persona": "P4",
+    "locale": "en"
+  },
+  "expect": {
+    "shouldClarify": [
+      "取件地点",
+      "报酬形态"
+    ],
+    "mustNot": [
+      "假装完全理解英文"
+    ],
+    "cards": [
+      "clarification"
+    ]
+  },
+  "check": {
+    "cardKindIn": [
+      "clarification"
+    ],
+    "questionFieldsInclude": [
+      "location",
+      "rewardType"
+    ],
+    "taskIdNull": true
+  },
+  "note": "英文输入第二个样本：规则基线只抽到时间，地点/报酬必须问。"
+}

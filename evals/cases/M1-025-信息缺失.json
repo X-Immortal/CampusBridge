@@ -1,0 +1,27 @@
+{
+  "id": "M1-025",
+  "category": "信息缺失",
+  "goal": "去北门菜鸟驿站取快递，预算8元",
+  "context": {},
+  "expect": {
+    "shouldClarify": [
+      "时间"
+    ],
+    "mustNot": [
+      "自己补 21:00"
+    ],
+    "cards": [
+      "clarification"
+    ]
+  },
+  "check": {
+    "cardKindIn": [
+      "clarification"
+    ],
+    "questionFieldsInclude": [
+      "deadline"
+    ],
+    "taskIdNull": true
+  },
+  "note": "地点和报酬都有，只缺时间。"
+}

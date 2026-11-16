@@ -1,0 +1,28 @@
+{
+  "id": "M1-034",
+  "category": "工具失败",
+  "goal": "今晚九点去南门菜鸟驿站帮我取2个快递，预算6元",
+  "context": {
+    "requesterId": 999
+  },
+  "flow": {
+    "select": "now",
+    "confirm": true,
+    "idempotencyKey": "eval-M1-034"
+  },
+  "expect": {
+    "shouldClarify": [],
+    "mustNot": [
+      "业务拒绝后仍建单"
+    ],
+    "cards": [
+      "confirmation",
+      "progress"
+    ]
+  },
+  "check": {
+    "finalOutcome": "DENIED",
+    "taskIdNull": true
+  },
+  "note": "requesterId=999 未认证：工具失败必须返回 DENIED 且不落库。"
+}

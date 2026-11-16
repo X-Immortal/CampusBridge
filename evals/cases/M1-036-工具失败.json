@@ -1,0 +1,28 @@
+{
+  "id": "M1-036",
+  "category": "工具失败",
+  "goal": "今晚七点去北门菜鸟驿站取1个快递，预算5元",
+  "context": {
+    "requesterId": 999
+  },
+  "flow": {
+    "select": "now",
+    "confirm": true,
+    "idempotencyKey": "eval-M1-036"
+  },
+  "expect": {
+    "shouldClarify": [],
+    "mustNot": [
+      "失败后仍返回 taskId"
+    ],
+    "cards": [
+      "confirmation",
+      "progress"
+    ]
+  },
+  "check": {
+    "finalOutcome": "DENIED",
+    "taskIdNull": true
+  },
+  "note": "单件低报酬也走同一工具网关，拒绝逻辑不因金额变化。"
+}

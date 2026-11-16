@@ -1,0 +1,32 @@
+{
+  "id": "M1-021",
+  "category": "模糊",
+  "goal": "帮个忙，越快越好",
+  "context": {},
+  "expect": {
+    "shouldClarify": [
+      "时间",
+      "地点",
+      "报酬"
+    ],
+    "mustNot": [
+      "默认免费",
+      "编造时间"
+    ],
+    "cards": [
+      "clarification"
+    ]
+  },
+  "check": {
+    "cardKindIn": [
+      "clarification"
+    ],
+    "questionFieldsInclude": [
+      "deadline",
+      "location",
+      "rewardType"
+    ],
+    "taskIdNull": true
+  },
+  "note": "三个槽位全空：必须逐项追问，而不是直接发布。"
+}

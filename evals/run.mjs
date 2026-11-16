@@ -181,7 +181,7 @@ async function runCase(testCase, baseUrl) {
   const trace = { steps: [] };
   if (testCase.schema) {
     trace.schema = await postJson(baseUrl, '/api/schema/validate', testCase.schema);
-    trace.steps.push({ name: 'schema.validate', status: trace.schema.status });
+    trace.steps.push({ name: 'schema.validate', status: trace.schema.status, ms: trace.schema.ms });
     return trace;
   }
   const start = await postJson(baseUrl, '/api/assistant', {
@@ -189,7 +189,7 @@ async function runCase(testCase, baseUrl) {
     context: testCase.context ?? {},
   });
   trace.start = start;
-  trace.steps.push({ name: 'assistant.start', status: start.status });
+  trace.steps.push({ name: 'assistant.start', status: start.status, ms: start.ms });
   let current = start;
 
   const flow = testCase.flow;
@@ -197,11 +197,11 @@ async function runCase(testCase, baseUrl) {
     const sessionPath = `/api/assistant/sessions/${start.body.sessionId}`;
     if (flow.answers) {
       current = await postJson(baseUrl, `${sessionPath}/answers`, { answers: flow.answers });
-      trace.steps.push({ name: 'answers', status: current.status });
+      trace.steps.push({ name: 'answers', status: current.status, ms: current.ms });
     }
     if (flow.select) {
       current = await postJson(baseUrl, `${sessionPath}/select`, { optionId: flow.select });
-      trace.steps.push({ name: 'select', status: current.status });
+      trace.steps.push({ name: 'select', status: current.status, ms: current.ms });
     }
     if (flow.confirm) {
       const token = current.body?.card?.token?.value;
@@ -209,11 +209,11 @@ async function runCase(testCase, baseUrl) {
         token,
         idempotencyKey: flow.idempotencyKey ?? `eval-${testCase.id}`,
       });
-      trace.steps.push({ name: 'confirm', status: current.status });
+      trace.steps.push({ name: 'confirm', status: current.status, ms: current.ms });
     }
     if (flow.cancel) {
       current = await postJson(baseUrl, `${sessionPath}/cancel`, { reason: 'eval cancel' });
-      trace.steps.push({ name: 'cancel', status: current.status });
+      trace.steps.push({ name: 'cancel', status: current.status, ms: current.ms });
     }
   }
   trace.final = current;
