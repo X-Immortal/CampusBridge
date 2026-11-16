@@ -138,7 +138,7 @@ class BE04BE08TaskServiceImplTest {
     void transitionTaskStatusStartsAcceptedTaskAndWritesHistory() {
         Task acceptedTask = task("ACCEPTED");
         acceptedTask.setProviderId(PROVIDER_ID);
-        when(taskMapper.selectById(TASK_ID)).thenReturn(acceptedTask);
+        when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(acceptedTask);
         when(taskMapper.updateStatusById(
                 eq(TASK_ID),
                 eq("ACCEPTED"),
@@ -161,7 +161,7 @@ class BE04BE08TaskServiceImplTest {
 
     @Test
     void transitionTaskStatusRejectsIllegalTransition() {
-        when(taskMapper.selectById(TASK_ID)).thenReturn(task("COMPLETED"));
+        when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(task("COMPLETED"));
 
         assertThatThrownBy(() -> taskService.transitionTaskStatus(
                 REQUESTER_ID,
@@ -174,10 +174,6 @@ class BE04BE08TaskServiceImplTest {
 
     @Test
     void transitionTaskStatusRequiresReasonForDispute() {
-        Task inProgressTask = task("IN_PROGRESS");
-        inProgressTask.setProviderId(PROVIDER_ID);
-        when(taskMapper.selectById(TASK_ID)).thenReturn(inProgressTask);
-
         assertThatThrownBy(() -> taskService.transitionTaskStatus(
                 PROVIDER_ID,
                 TASK_ID,
@@ -191,7 +187,7 @@ class BE04BE08TaskServiceImplTest {
     void requesterCanCancelOpenTaskWithoutReason() {
         Task openTask = task("OPEN");
         openTask.setProviderId(null);
-        when(taskMapper.selectById(TASK_ID)).thenReturn(openTask);
+        when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(openTask);
         when(taskMapper.updateStatusById(
                 eq(TASK_ID), eq("OPEN"), eq("CANCELLED"), any()))
                 .thenReturn(1);
@@ -210,7 +206,7 @@ class BE04BE08TaskServiceImplTest {
     @Test
     void requesterCancellingInProgressTaskLosesOnePointAndNotifiesProvider() {
         Task inProgressTask = task("IN_PROGRESS");
-        when(taskMapper.selectById(TASK_ID)).thenReturn(inProgressTask);
+        when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(inProgressTask);
         when(taskMapper.updateStatusById(
                 eq(TASK_ID), eq("IN_PROGRESS"), eq("CANCELLED"), any()))
                 .thenReturn(1);
@@ -239,7 +235,7 @@ class BE04BE08TaskServiceImplTest {
         application.setTaskId(TASK_ID);
         application.setApplicantId(PROVIDER_ID);
         application.setStatus("ACCEPTED");
-        when(taskMapper.selectById(TASK_ID)).thenReturn(acceptedTask);
+        when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(acceptedTask);
         when(taskMapper.releaseProviderById(
                 eq(TASK_ID), eq(PROVIDER_ID), eq("ACCEPTED"), any()))
                 .thenReturn(1);
@@ -280,7 +276,7 @@ class BE04BE08TaskServiceImplTest {
     @Test
     void deleteDraftRemovesHistoryBeforeTask() {
         Task draft = task("DRAFT");
-        when(taskMapper.selectById(TASK_ID)).thenReturn(draft);
+        when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(draft);
         when(taskMapper.deleteById(TASK_ID)).thenReturn(1);
 
         taskService.deleteDraft(REQUESTER_ID, TASK_ID);

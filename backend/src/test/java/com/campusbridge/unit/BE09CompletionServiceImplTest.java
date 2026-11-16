@@ -25,11 +25,8 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -75,7 +72,7 @@ class BE09CompletionServiceImplTest {
     @Test
     void submitProofTransitionsInProgressToPendingConfirmation() {
         Task task = task(TASK_ID, REQUESTER_ID, PROVIDER_ID, "IN_PROGRESS", "POINTS", 20);
-        when(taskMapper.selectById(TASK_ID)).thenReturn(task);
+        when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(task);
         when(completionProofMapper.insert(any(CompletionProof.class))).thenReturn(1);
         when(taskMapper.updateStatusById(
                 eq(TASK_ID), eq("IN_PROGRESS"), eq("PENDING_CONFIRMATION"), any()))
@@ -96,7 +93,7 @@ class BE09CompletionServiceImplTest {
     @Test
     void submitProofRejectsNonProvider() {
         Task task = task(TASK_ID, REQUESTER_ID, PROVIDER_ID, "IN_PROGRESS", "POINTS", 20);
-        when(taskMapper.selectById(TASK_ID)).thenReturn(task);
+        when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(task);
 
         assertThatThrownBy(() -> completionService.submitCompletionProof(
                 999L, TASK_ID, submitRequest("done")))
@@ -108,7 +105,7 @@ class BE09CompletionServiceImplTest {
     @Test
     void submitProofRejectsWrongStatus() {
         Task task = task(TASK_ID, REQUESTER_ID, PROVIDER_ID, "ACCEPTED", "POINTS", 20);
-        when(taskMapper.selectById(TASK_ID)).thenReturn(task);
+        when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(task);
 
         assertThatThrownBy(() -> completionService.submitCompletionProof(
                 PROVIDER_ID, TASK_ID, submitRequest("done")))
@@ -134,14 +131,14 @@ class BE09CompletionServiceImplTest {
         attachment.setUploaderId(PROVIDER_ID);
         attachment.setOwnerType("COMPLETION_PROOF");
         attachment.setStatus("TEMPORARY");
-        when(taskMapper.selectById(TASK_ID)).thenReturn(task);
+        when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(task);
         when(completionProofMapper.insert(any(CompletionProof.class))).thenAnswer(invocation -> {
             CompletionProof proof = invocation.getArgument(0);
             proof.setId(40L);
             return 1;
         });
         when(attachmentMapper.selectById(30L)).thenReturn(attachment);
-        when(attachmentMapper.updateById(attachment)).thenReturn(1);
+        when(attachmentMapper.bindTemporaryToOwner(30L, PROVIDER_ID, "COMPLETION_PROOF", 40L)).thenReturn(1);
         when(taskMapper.updateStatusById(
                 eq(TASK_ID), eq("IN_PROGRESS"), eq("PENDING_CONFIRMATION"), any()))
                 .thenReturn(1);
@@ -150,9 +147,7 @@ class BE09CompletionServiceImplTest {
 
         completionService.submitCompletionProof(PROVIDER_ID, TASK_ID, request);
 
-        assertThat(attachment.getOwnerId()).isEqualTo(40L);
-        assertThat(attachment.getStatus()).isEqualTo("ACTIVE");
-        verify(attachmentMapper).updateById(attachment);
+        verify(attachmentMapper).bindTemporaryToOwner(30L, PROVIDER_ID, "COMPLETION_PROOF", 40L);
     }
 
     // ---- confirmCompletion ----
@@ -160,15 +155,14 @@ class BE09CompletionServiceImplTest {
     @Test
     void confirmCompletionSettlesPointsReward() {
         Task task = task(TASK_ID, REQUESTER_ID, PROVIDER_ID, "PENDING_CONFIRMATION", "POINTS", 20);
-        when(taskMapper.selectById(TASK_ID)).thenReturn(task);
+        when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(task);
         when(taskMapper.updateStatusById(
                 eq(TASK_ID), eq("PENDING_CONFIRMATION"), eq("COMPLETED"), any()))
                 .thenReturn(1);
 
         completionService.confirmCompletion(REQUESTER_ID, TASK_ID);
 
-        verify(creditService).adjustCredit(
-                PROVIDER_ID, 20, "任务 #10 积分报酬收入", "TASK", TASK_ID);
+        verify(creditService).awardTaskReward(task);
         verify(taskHistoryService).recordHistory(TASK_ID,
                 "PENDING_CONFIRMATION", "COMPLETED", REQUESTER_ID,
                 "COMPLETION_CONFIRMED");
@@ -179,7 +173,7 @@ class BE09CompletionServiceImplTest {
     @Test
     void confirmCompletionRejectsNonRequester() {
         Task task = task(TASK_ID, REQUESTER_ID, PROVIDER_ID, "PENDING_CONFIRMATION", "POINTS", 20);
-        when(taskMapper.selectById(TASK_ID)).thenReturn(task);
+        when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(task);
 
         assertThatThrownBy(() -> completionService.confirmCompletion(PROVIDER_ID, TASK_ID))
                 .isInstanceOf(BusinessException.class)
@@ -188,17 +182,16 @@ class BE09CompletionServiceImplTest {
     }
 
     @Test
-    void confirmCompletionSkipsSettlementForNonPointsReward() {
+    void confirmCompletionDelegatesRewardPolicyForNonPointsTask() {
         Task task = task(TASK_ID, REQUESTER_ID, PROVIDER_ID, "PENDING_CONFIRMATION", "CASH", 50);
-        when(taskMapper.selectById(TASK_ID)).thenReturn(task);
+        when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(task);
         when(taskMapper.updateStatusById(
                 eq(TASK_ID), eq("PENDING_CONFIRMATION"), eq("COMPLETED"), any()))
                 .thenReturn(1);
 
         completionService.confirmCompletion(REQUESTER_ID, TASK_ID);
 
-        verify(creditService, never())
-                .adjustCredit(anyLong(), anyInt(), any(), any(), any());
+        verify(creditService).awardTaskReward(task);
     }
 
     // ---- rejectCompletion ----
@@ -206,7 +199,7 @@ class BE09CompletionServiceImplTest {
     @Test
     void rejectCompletionReturnsToInProgress() {
         Task task = task(TASK_ID, REQUESTER_ID, PROVIDER_ID, "PENDING_CONFIRMATION", "POINTS", 20);
-        when(taskMapper.selectById(TASK_ID)).thenReturn(task);
+        when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(task);
         when(taskMapper.updateStatusById(
                 eq(TASK_ID), eq("PENDING_CONFIRMATION"), eq("IN_PROGRESS"), any()))
                 .thenReturn(1);
@@ -233,7 +226,7 @@ class BE09CompletionServiceImplTest {
     @Test
     void disputeCompletionMarksTaskDisputed() {
         Task task = task(TASK_ID, REQUESTER_ID, PROVIDER_ID, "PENDING_CONFIRMATION", "POINTS", 20);
-        when(taskMapper.selectById(TASK_ID)).thenReturn(task);
+        when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(task);
         when(taskMapper.updateStatusById(
                 eq(TASK_ID), eq("PENDING_CONFIRMATION"), eq("DISPUTED"), any()))
                 .thenReturn(1);
@@ -250,7 +243,7 @@ class BE09CompletionServiceImplTest {
     @Test
     void disputeCompletionRejectsNonParticipant() {
         Task task = task(TASK_ID, REQUESTER_ID, PROVIDER_ID, "IN_PROGRESS", "POINTS", 20);
-        when(taskMapper.selectById(TASK_ID)).thenReturn(task);
+        when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(task);
 
         assertThatThrownBy(() -> completionService.disputeCompletion(999L, TASK_ID, "reason"))
                 .isInstanceOf(BusinessException.class)
@@ -261,7 +254,7 @@ class BE09CompletionServiceImplTest {
     @Test
     void disputeCompletionRejectsWrongStatus() {
         Task task = task(TASK_ID, REQUESTER_ID, PROVIDER_ID, "COMPLETED", "POINTS", 20);
-        when(taskMapper.selectById(TASK_ID)).thenReturn(task);
+        when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(task);
 
         assertThatThrownBy(() -> completionService.disputeCompletion(REQUESTER_ID, TASK_ID, "reason"))
                 .isInstanceOf(BusinessException.class)

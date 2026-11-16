@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.campusbridge.mapper.ContentMapper">
+
+  <sql id="postFilters">
+    p.status IN ('PUBLISHED', 'CLOSED')
+    <choose>
+      <when test="status != null">AND p.status = #{status}</when>
+      <otherwise>AND p.status = 'PUBLISHED'</otherwise>
+    </choose>
+    <if test="categoryCode != null">AND p.category = #{categoryCode}</if>
+    <if test="keyword != null">
+      AND (p.title LIKE CONCAT('%', #{keyword}, '%') OR p.content LIKE CONCAT('%', #{keyword}, '%'))
+    </if>
+  </sql>
+
+  <sql id="taskFilters">
+    t.status NOT IN ('DRAFT', 'PENDING_REVIEW', 'REJECTED')
+    <choose>
+      <when test="status != null">AND t.status = #{status}</when>
+      <otherwise>AND t.status NOT IN ('DISPUTED', 'CANCELLED')</otherwise>
+    </choose>
+    <if test="categoryCode != null">AND t.category = #{categoryCode}</if>
+    <if test="campus != null">AND t.campus = #{campus}</if>
+    <if test="rewardType != null">AND t.reward_type = #{rewardType}</if>
+    <if test="keyword != null">
+      AND (t.title LIKE CONCAT('%', #{keyword}, '%') OR t.description LIKE CONCAT('%', #{keyword}, '%'))
+    </if>
+    <if test="locationKeyword != null">
+      AND (t.location LIKE CONCAT('%', #{locationKeyword}, '%')
+        OR t.delivery_location LIKE CONCAT('%', #{locationKeyword}, '%'))
+    </if>
+  </sql>
+
+  <sql id="contentRows">
+    <if test="includePosts">
+      SELECT 'POST' AS item_type, p.id AS source_id, p.title,
+        CASE WHEN CHAR_LENGTH(p.content) &gt; 120 THEN CONCAT(LEFT(p.content, 120), '...')
+          ELSE p.content END AS summary,
+        p.author_id, NULL AS author_name, p.category AS category_name, p.status AS status_label,
+        p.created_at,
+        <choose>
+          <when test="orderByDeadline">NULL AS sort_time,</when>
+          <otherwise>p.created_at AS sort_time,</otherwise>
+        </choose>
+        NULL AS reward_label, NULL AS deadline
+      FROM posts p WHERE <include refid="postFilters"/>
+    </if>
+    <if test="includePosts and includeTasks">UNION ALL</if>
+    <if test="includeTasks">
+      SELECT 'TASK' AS item_type, t.id AS source_id, t.title,
+        CASE WHEN CHAR_LENGTH(t.description) &gt; 120 THEN CONCAT(LEFT(t.description, 120), '...')
+          ELSE t.description END AS summary,
+        t.requester_id AS author_id, NULL AS author_name, t.category AS category_name, t.status AS status_label,
+        t.created_at,
+        <choose>
+          <when test="orderByDeadline">t.deadline AS sort_time,</when>
+          <otherwise>t.created_at AS sort_time,</otherwise>
+        </choose>
+        CASE WHEN t.reward_description IS NOT NULL AND TRIM(t.reward_description) != ''
+          THEN CONCAT(COALESCE(CONCAT(t.reward_type, ' · '), ''), t.reward_description)
+          ELSE t.reward_type END AS reward_label,
+        t.deadline
+      FROM tasks t WHERE <include refid="taskFilters"/>
+    </if>
+  </sql>
+
+  <select id="selectPage" resultType="com.campusbridge.dto.view.ViewDtos$ContentItemView">
+    SELECT item_type, source_id, title, summary, author_id, author_name, category_name,
+      status_label, created_at, sort_time, reward_label
+    FROM (<include refid="contentRows"/>) content
+    <choose>
+      <when test="orderByDeadline">
+        ORDER BY CASE WHEN deadline IS NULL THEN 1 ELSE 0 END, deadline ASC,
+          created_at DESC, item_type ASC, source_id DESC
+      </when>
+      <otherwise>ORDER BY created_at DESC, item_type ASC, source_id DESC</otherwise>
+    </choose>
+    LIMIT #{limit} OFFSET #{offset}
+  </select>
+
+  <select id="count" resultType="long">
+    SELECT SUM(matches) FROM (
+      <if test="includePosts">
+        SELECT COUNT(*) AS matches FROM posts p WHERE <include refid="postFilters"/>
+      </if>
+      <if test="includePosts and includeTasks">UNION ALL</if>
+      <if test="includeTasks">
+        SELECT COUNT(*) AS matches FROM tasks t WHERE <include refid="taskFilters"/>
+      </if>
+    ) counts
+  </select>
+
+</mapper>

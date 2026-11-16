@@ -10,6 +10,7 @@ import com.campusbridge.pojo.Task;
 import com.campusbridge.service.ReviewService;
 import com.campusbridge.service.NotificationService;
 import org.springframework.stereotype.Service;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -67,7 +68,16 @@ public class ReviewServiceImpl implements ReviewService {
                     "Only task participants can review");
         }
 
-        List<Review> existingReviews = reviewMapper.selectAll();
+        Long otherParticipantId = isRequester ? task.getProviderId() : task.getRequesterId();
+        if (!request.getRevieweeId().equals(otherParticipantId)) {
+            throw new BusinessException(ErrorCode.TASK_003_PERMISSION_DENIED,
+                    "Only the other task participant can be reviewed");
+        }
+        if (request.getComment() != null && request.getComment().length() > 500) {
+            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "comment is too long");
+        }
+
+        List<Review> existingReviews = reviewMapper.selectByTaskId(taskId);
         boolean alreadyReviewed = existingReviews.stream()
                 .anyMatch(r -> r.getTaskId().equals(taskId) && r.getReviewerId().equals(reviewerId));
         if (alreadyReviewed) {
@@ -82,9 +92,13 @@ public class ReviewServiceImpl implements ReviewService {
         review.setComment(request.getComment());
         review.setCreatedAt(LocalDateTime.now());
 
-        if (reviewMapper.insert(review) != 1) {
-            throw new BusinessException(ErrorCode.COMMON_999_INTERNAL_ERROR,
-                    "Failed to create review");
+        try {
+            if (reviewMapper.insert(review) != 1) {
+                throw new BusinessException(ErrorCode.COMMON_999_INTERNAL_ERROR,
+                        "Failed to create review");
+            }
+        } catch (DuplicateKeyException ex) {
+            throw new BusinessException(ErrorCode.REVIEW_001_DUPLICATE_REVIEW);
         }
 
         notificationService.notifyTaskReviewCreated(task, review, reviewerId);
@@ -104,9 +118,7 @@ public class ReviewServiceImpl implements ReviewService {
             throw new BusinessException(ErrorCode.TASK_001_NOT_FOUND);
         }
 
-        return reviewMapper.selectAll().stream()
-                .filter(r -> r.getTaskId().equals(taskId))
-                .collect(java.util.stream.Collectors.toList());
+        return reviewMapper.selectByTaskId(taskId);
     }
 
     @Override

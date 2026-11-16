@@ -32,15 +32,19 @@ public class ReplyServiceImpl implements ReplyService {
 
     @Override
     public Reply createReply(Long userId, Long postId, RequestDtos.CreateReplyRequest request) {
+        if (request == null || request.getContent() == null || request.getContent().isBlank()) {
+            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "Reply content is required");
+        }
         Post post = postMapper.selectById(postId);
-        if (post == null) {
+        if (post == null || !"PUBLISHED".equals(post.getStatus())) {
             throw new BusinessException(ErrorCode.POST_001_NOT_FOUND);
         }
 
         Reply parentReply = null;
         if (request.getParentReplyId() != null) {
             parentReply = replyMapper.selectById(request.getParentReplyId());
-            if (parentReply == null || !postId.equals(parentReply.getPostId())) {
+            if (parentReply == null || !postId.equals(parentReply.getPostId())
+                    || !"PUBLISHED".equals(parentReply.getStatus())) {
                 throw new BusinessException(
                         ErrorCode.COMMON_001_VALIDATION_ERROR,
                         "parent reply does not belong to this post");
@@ -57,13 +61,16 @@ public class ReplyServiceImpl implements ReplyService {
         reply.setLikeCount(0);
         reply.setCreatedAt(now);
 
+        // Lock the parent before the child insert acquires its foreign-key shared lock.
+        if (postMapper.incrementReplyCount(postId) != 1) {
+            throw new BusinessException(ErrorCode.COMMON_003_CONFLICT, "Post no longer accepts replies");
+        }
+
         if (replyMapper.insert(reply) != 1) {
             throw new BusinessException(ErrorCode.COMMON_999_INTERNAL_ERROR,
                     "Failed to create reply");
         }
 
-        post.setReplyCount((post.getReplyCount() == null ? 0 : post.getReplyCount()) + 1);
-        postMapper.updateById(post);
         notificationService.notifyPostReplyCreated(post, reply, parentReply, userId);
 
         return reply;

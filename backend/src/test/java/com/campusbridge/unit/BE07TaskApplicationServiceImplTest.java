@@ -74,7 +74,7 @@ class BE07TaskApplicationServiceImplTest {
     @Test
     void createApplicationSucceedsForOpenTask() {
         Task task = task(TASK_ID, REQUESTER_ID, "OPEN");
-        when(taskMapper.selectById(TASK_ID)).thenReturn(task);
+        when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(task);
         when(taskApplicationMapper.selectByTaskIdAndApplicantId(TASK_ID, APPLICANT_ID)).thenReturn(null);
         when(taskApplicationMapper.insert(any(TaskApplication.class))).thenReturn(1);
 
@@ -91,7 +91,7 @@ class BE07TaskApplicationServiceImplTest {
     @Test
     void createApplicationRejectsApplicationToOwnTask() {
         Task task = task(TASK_ID, APPLICANT_ID, "OPEN");
-        when(taskMapper.selectById(TASK_ID)).thenReturn(task);
+        when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(task);
 
         assertThatThrownBy(() -> applicationService.createApplication(
                 APPLICANT_ID, TASK_ID, appRequest("message")))
@@ -103,7 +103,7 @@ class BE07TaskApplicationServiceImplTest {
     @Test
     void createApplicationRejectsNonOpenTask() {
         Task task = task(TASK_ID, REQUESTER_ID, "IN_PROGRESS");
-        when(taskMapper.selectById(TASK_ID)).thenReturn(task);
+        when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(task);
 
         assertThatThrownBy(() -> applicationService.createApplication(
                 APPLICANT_ID, TASK_ID, appRequest("message")))
@@ -115,7 +115,7 @@ class BE07TaskApplicationServiceImplTest {
     @Test
     void createApplicationRejectsDuplicateApplication() {
         Task task = task(TASK_ID, REQUESTER_ID, "OPEN");
-        when(taskMapper.selectById(TASK_ID)).thenReturn(task);
+        when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(task);
         when(taskApplicationMapper.selectByTaskIdAndApplicantId(TASK_ID, APPLICANT_ID))
                 .thenReturn(new TaskApplication());
 
@@ -131,7 +131,7 @@ class BE07TaskApplicationServiceImplTest {
         Task task = task(TASK_ID, REQUESTER_ID, "OPEN");
         TaskApplication application = pendingApplication(APPLICATION_ID, TASK_ID, APPLICANT_ID);
         application.setStatus("WITHDRAWN");
-        when(taskMapper.selectById(TASK_ID)).thenReturn(task);
+        when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(task);
         when(taskApplicationMapper.selectByTaskIdAndApplicantId(TASK_ID, APPLICANT_ID))
                 .thenReturn(application);
         when(taskApplicationMapper.updateById(application)).thenReturn(1);
@@ -166,7 +166,7 @@ class BE07TaskApplicationServiceImplTest {
 
     @Test
     void createApplicationRejectsTaskNotFound() {
-        when(taskMapper.selectById(TASK_ID)).thenReturn(null);
+        when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(null);
 
         assertThatThrownBy(() -> applicationService.createApplication(
                 APPLICANT_ID, TASK_ID, appRequest("message")))
@@ -181,7 +181,7 @@ class BE07TaskApplicationServiceImplTest {
     void acceptApplicationUpdatesTaskAndRejectsOthers() {
         Task task = task(TASK_ID, REQUESTER_ID, "OPEN");
         TaskApplication application = pendingApplication(APPLICATION_ID, TASK_ID, APPLICANT_ID);
-        when(taskMapper.selectById(TASK_ID)).thenReturn(task);
+        when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(task);
         when(taskApplicationMapper.selectById(APPLICATION_ID)).thenReturn(application);
         when(taskMapper.acceptProviderById(
                 eq(TASK_ID), eq(REQUESTER_ID), eq(APPLICANT_ID), any())).thenReturn(1);
@@ -203,7 +203,7 @@ class BE07TaskApplicationServiceImplTest {
     @Test
     void acceptApplicationRejectsNonRequester() {
         Task task = task(TASK_ID, REQUESTER_ID, "OPEN");
-        when(taskMapper.selectById(TASK_ID)).thenReturn(task);
+        when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(task);
 
         assertThatThrownBy(() -> applicationService.acceptApplication(999L, TASK_ID, APPLICATION_ID))
                 .isInstanceOf(BusinessException.class)
@@ -214,7 +214,7 @@ class BE07TaskApplicationServiceImplTest {
     @Test
     void acceptApplicationRejectsApplicationNotFound() {
         Task task = task(TASK_ID, REQUESTER_ID, "OPEN");
-        when(taskMapper.selectById(TASK_ID)).thenReturn(task);
+        when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(task);
         when(taskApplicationMapper.selectById(APPLICATION_ID)).thenReturn(null);
 
         assertThatThrownBy(() -> applicationService.acceptApplication(REQUESTER_ID, TASK_ID, APPLICATION_ID))

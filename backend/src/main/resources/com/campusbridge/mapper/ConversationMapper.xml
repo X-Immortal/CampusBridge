@@ -105,7 +105,7 @@
   <update id="updateLastMessageAt">
     UPDATE conversations
     SET peer_user_id = #{peerUserId},
-        last_message_at = #{lastMessageAt}
+        last_message_at = GREATEST(COALESCE(last_message_at, #{lastMessageAt}), #{lastMessageAt})
     WHERE id = #{id}
   </update>
 
@@ -113,5 +113,19 @@
     DELETE FROM conversations
     WHERE id = #{id}
   </delete>
+
+  <select id="selectPrivateByOwnerAndPeerCurrent" resultType="com.campusbridge.pojo.Conversation">
+    SELECT c.* FROM conversations c
+    WHERE c.owner_id = #{ownerId} AND c.peer_user_id = #{peerUserId}
+      AND c.type = 'PRIVATE' AND c.replyable = 1
+    LIMIT 1 FOR UPDATE
+  </select>
+
+  <select id="selectByOwnerAndRelatedCurrent" resultType="com.campusbridge.pojo.Conversation">
+    SELECT c.* FROM conversations c
+    WHERE c.owner_id = #{ownerId} AND c.type = #{type}
+      AND c.related_type = #{relatedType} AND c.related_id = #{relatedId}
+    LIMIT 1 FOR UPDATE
+  </select>
 
 </mapper>

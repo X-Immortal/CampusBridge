@@ -19,6 +19,7 @@ import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
@@ -50,7 +51,8 @@ public class AuthServiceImpl implements AuthService {
                 || request.username == null || request.username.isBlank()
                 || request.password == null || request.password.isBlank()
                 || request.email == null || request.email.isBlank()
-                || request.phone == null || request.phone.isBlank()) {
+                || request.phone == null || request.phone.isBlank()
+                || request.code == null || request.code.isBlank()) {
             return null;
         }
 
@@ -58,24 +60,16 @@ public class AuthServiceImpl implements AuthService {
             return -1L;
         }
 
-        if (!registrationCodeStore.containsKey(request.email.toLowerCase().trim())) {
-            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "请先发送邮箱验证码");
-        }
-        AccountEmailRecord record = registrationCodeStore.get(request.email.toLowerCase().trim());
-        if (record.expiresAt.isBefore(LocalDateTime.now())) {
-            registrationCodeStore.remove(request.email.toLowerCase().trim());
-            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "验证码已过期，请重新发送");
-        }
-        String expectedHash = sha256(
-                emailCodeSecret + ":" + request.email.toLowerCase().trim() + ":" + request.code.trim());
-        if (!expectedHash.equals(record.codeHash)) {
-            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "验证码不正确");
-        }
-        registrationCodeStore.remove(request.email.toLowerCase().trim());
-
         String phoneHash = sha256(request.phone);
         if (userMapper.selectByPhoneHash(phoneHash) != null) {
             return -2L;
+        }
+
+        String email = normalizeEmail(request.email);
+        AccountEmailRecord record = registrationCodeStore.get(email);
+        requireValidCode(record, request.code);
+        if (!registrationCodeStore.remove(email, record)) {
+            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "验证码已使用或已更新，请重新发送");
         }
 
         User user = new User();
@@ -83,7 +77,7 @@ public class AuthServiceImpl implements AuthService {
         user.setPasswordHash(passwordEncoder.encode(request.password));
         user.setPhoneCipher(request.phone);
         user.setPhoneHash(phoneHash);
-        user.setEmail(request.email);
+        user.setEmail(email);
         user.setRole("USER");
         user.setEnabled(1);
         user.setCreatedAt(LocalDateTime.now());
@@ -101,15 +95,15 @@ public class AuthServiceImpl implements AuthService {
         if (email == null || email.isBlank()) {
             throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "邮箱不能为空");
         }
-        String normalizedEmail = email.toLowerCase().trim();
+        String normalizedEmail = normalizeEmail(email);
         String code = String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
         LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(EMAIL_CODE_TTL_MINUTES);
         boolean sent = emailCodeSender.sendCode(normalizedEmail, code, expiresAt);
-        if (!sent && emailCodeSender.isDeliveryRequired()) {
+        if (!sent && !emailCodeSender.isDebugCodeEnabled()) {
             throw new BusinessException(ErrorCode.COMMON_999_INTERNAL_ERROR, "验证码发送失败，请检查邮箱配置");
         }
         registrationCodeStore.put(normalizedEmail, new AccountEmailRecord(
-                normalizedEmail, code, expiresAt,
+                normalizedEmail, expiresAt,
                 sha256(emailCodeSecret + ":" + normalizedEmail + ":" + code)));
         return code;
     }
@@ -149,51 +143,42 @@ public class AuthServiceImpl implements AuthService {
                 || !passwordEncoder.matches(oldPassword, user.getPasswordHash())) {
             throw new BusinessException(ErrorCode.AUTH_002_INVALID_CREDENTIALS, "旧密码不正确");
         }
-        user.setPasswordHash(passwordEncoder.encode(newPassword));
-        user.setUpdatedAt(LocalDateTime.now());
-        userMapper.updateById(user);
+        userMapper.updatePassword(userId, passwordEncoder.encode(newPassword), LocalDateTime.now());
     }
 
     @Override
     public String sendAccountEmailCode(Long userId, String email) {
         requireUser(userId);
+        if (email == null || email.isBlank()) {
+            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "邮箱不能为空");
+        }
+        email = normalizeEmail(email);
         String code = String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
         LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(EMAIL_CODE_TTL_MINUTES);
         boolean sent = emailCodeSender.sendCode(email, code, expiresAt);
-        if (!sent && emailCodeSender.isDeliveryRequired()) {
+        if (!sent && !emailCodeSender.isDebugCodeEnabled()) {
             throw new BusinessException(ErrorCode.COMMON_999_INTERNAL_ERROR, "验证码发送失败，请检查邮箱配置");
         }
         accountEmailStore.put(userId, new AccountEmailRecord(
-                email, code, expiresAt,
-                sha256(emailCodeSecret + ":" + email.toLowerCase().trim() + ":" + code)));
+                email, expiresAt,
+                sha256(emailCodeSecret + ":" + normalizeEmail(email) + ":" + code)));
         return code;
     }
 
     @Override
     public void confirmAccountEmailChange(Long userId, String code) {
         AccountEmailRecord record = accountEmailStore.get(userId);
-        if (record == null) {
-            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "未发送验证码或已过期，请重新发送");
+        requireValidCode(record, code);
+        if (!accountEmailStore.remove(userId, record)) {
+            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "验证码已使用或已更新，请重新发送");
         }
-        if (record.expiresAt.isBefore(LocalDateTime.now())) {
-            accountEmailStore.remove(userId);
-            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "验证码已过期，请重新发送");
-        }
-        String expectedHash = sha256(
-                emailCodeSecret + ":" + record.email.toLowerCase().trim() + ":" + code.trim());
-        if (!expectedHash.equals(record.codeHash)) {
-            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "验证码不正确");
-        }
-        User user = requireUser(userId);
-        user.setEmail(record.email);
-        user.setUpdatedAt(LocalDateTime.now());
-        userMapper.updateById(user);
-        accountEmailStore.remove(userId);
+        requireUser(userId);
+        userMapper.updateEmail(userId, record.email, LocalDateTime.now());
     }
 
     @Override
     public void updatePhone(Long userId, String phone) {
-        User user = requireUser(userId);
+        requireUser(userId);
         String phoneHash = sha256(phone);
         if (phone != null && !phone.isBlank()) {
             User existing = userMapper.selectByPhoneHash(phoneHash);
@@ -201,10 +186,27 @@ public class AuthServiceImpl implements AuthService {
                 throw new BusinessException(ErrorCode.COMMON_003_CONFLICT, "该手机号已被其他账号使用");
             }
         }
-        user.setPhoneCipher(phone);
-        user.setPhoneHash(phoneHash);
-        user.setUpdatedAt(LocalDateTime.now());
-        userMapper.updateById(user);
+        userMapper.updatePhone(userId, phone, phoneHash, LocalDateTime.now());
+    }
+
+    private void requireValidCode(AccountEmailRecord record, String code) {
+        if (record == null) {
+            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "请先发送邮箱验证码");
+        }
+        if (code == null || code.isBlank()) {
+            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "验证码不能为空");
+        }
+        if (!record.expiresAt.isAfter(LocalDateTime.now())) {
+            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "验证码已过期，请重新发送");
+        }
+        String expectedHash = sha256(emailCodeSecret + ":" + record.email + ":" + code.trim());
+        if (!expectedHash.equals(record.codeHash)) {
+            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "验证码不正确");
+        }
+    }
+
+    private String normalizeEmail(String email) {
+        return email.trim().toLowerCase(Locale.ROOT);
     }
 
     private User requireUser(Long userId) {
@@ -233,6 +235,6 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private record AccountEmailRecord(
-            String email, String code, LocalDateTime expiresAt, String codeHash) {
+            String email, LocalDateTime expiresAt, String codeHash) {
     }
 }

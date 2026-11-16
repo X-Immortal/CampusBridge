@@ -36,6 +36,14 @@ public interface ConversationMapper {
             @Param("ownerId") Long ownerId,
             @Param("peerUserId") Long peerUserId);
 
+    Conversation selectPrivateByOwnerAndPeerCurrent(
+            @Param("ownerId") Long ownerId,
+            @Param("peerUserId") Long peerUserId);
+
+    Conversation selectByOwnerAndRelatedCurrent(
+            @Param("ownerId") Long ownerId, @Param("type") String type,
+            @Param("relatedType") String relatedType, @Param("relatedId") Long relatedId);
+
     int updateById(Conversation entity);
 
     int updateLastMessageAt(

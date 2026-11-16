@@ -33,7 +33,6 @@ public class TaskServiceImpl implements TaskService {
     private static final int MAX_REWARD_DESCRIPTION_LENGTH = 200;
     private static final int MAX_COMPLETION_STANDARD_LENGTH = 500;
     private static final int MAX_SENSITIVE_REASON_LENGTH = 300;
-    private static final int MAX_ATTACHMENT_COUNT = 9;
     private static final int MAX_TRANSITION_REASON_LENGTH = 300;
     private static final int MAX_POINTS_REWARD_AMOUNT = 10;
 
@@ -164,6 +163,11 @@ public class TaskServiceImpl implements TaskService {
         if (task == null) {
             throw new BusinessException(ErrorCode.TASK_001_NOT_FOUND);
         }
+        if ((STATUS_DRAFT.equals(task.getStatus())
+                || "PENDING_REVIEW".equals(task.getStatus()) || "REJECTED".equals(task.getStatus()))
+                && !task.getRequesterId().equals(currentUserId)) {
+            throw new BusinessException(ErrorCode.TASK_001_NOT_FOUND);
+        }
         return task;
     }
 
@@ -177,7 +181,7 @@ public class TaskServiceImpl implements TaskService {
             throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "Request body must not be null");
         }
 
-        Task existingTask = taskMapper.selectById(taskId);
+        Task existingTask = taskMapper.selectByIdForUpdate(taskId);
         if (existingTask == null) {
             throw new BusinessException(ErrorCode.TASK_001_NOT_FOUND);
         }
@@ -193,6 +197,11 @@ public class TaskServiceImpl implements TaskService {
         validateUpdateTaskRequest(request, existingTask);
 
         applyUpdateToTask(existingTask, request);
+        if (STATUS_OPEN.equals(existingTask.getStatus())) {
+            RequestDtos.CreateTaskRequest updated = buildResendRequest(existingTask);
+            validateCreateTaskRequest(updated);
+            contentModerationService.assertTaskPublishAllowed(operatorId, updated);
+        }
         LocalDateTime now = LocalDateTime.now();
         existingTask.setUpdatedAt(now);
 
@@ -218,7 +227,7 @@ public class TaskServiceImpl implements TaskService {
             throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "taskId must not be null");
         }
 
-        Task task = taskMapper.selectById(taskId);
+        Task task = taskMapper.selectByIdForUpdate(taskId);
         if (task == null) {
             throw new BusinessException(ErrorCode.TASK_001_NOT_FOUND);
         }
@@ -284,7 +293,7 @@ public class TaskServiceImpl implements TaskService {
         }
         validateLength(reason, MAX_TRANSITION_REASON_LENGTH, "reason is too long");
 
-        Task task = taskMapper.selectById(taskId);
+        Task task = taskMapper.selectByIdForUpdate(taskId);
         if (task == null) {
             throw new BusinessException(ErrorCode.TASK_001_NOT_FOUND);
         }
@@ -353,7 +362,7 @@ public class TaskServiceImpl implements TaskService {
             throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "taskId must not be null");
         }
 
-        Task task = taskMapper.selectById(taskId);
+        Task task = taskMapper.selectByIdForUpdate(taskId);
         if (task == null) {
             throw new BusinessException(ErrorCode.TASK_001_NOT_FOUND);
         }
@@ -404,7 +413,7 @@ public class TaskServiceImpl implements TaskService {
             throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "taskId must not be null");
         }
 
-        Task task = taskMapper.selectById(taskId);
+        Task task = taskMapper.selectByIdForUpdate(taskId);
         if (task == null) {
             throw new BusinessException(ErrorCode.TASK_001_NOT_FOUND);
         }
@@ -417,15 +426,16 @@ public class TaskServiceImpl implements TaskService {
             throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
         }
 
+        requireVerifiedUser(operatorId);
         RequestDtos.CreateTaskRequest resendRequest = buildResendRequest(task);
-        validateRewardAmount(resendRequest.getRewardType(), resendRequest.getRewardAmount());
+        validateCreateTaskRequest(resendRequest);
         contentModerationService.assertTaskPublishAllowed(operatorId, resendRequest);
 
         String fromStatus = task.getStatus();
         String toStatus = resolveInitialStatusForResend(task);
         LocalDateTime now = LocalDateTime.now();
 
-        int affectedRows = taskMapper.updateStatusById(taskId, fromStatus, toStatus, now);
+        int affectedRows = taskMapper.reopenById(taskId, fromStatus, now);
         if (affectedRows != 1) {
             throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
         }
@@ -437,6 +447,8 @@ public class TaskServiceImpl implements TaskService {
                 operatorId,
                 HISTORY_NOTE_RESENT);
 
+        task.setProviderId(null);
+        task.setProviderName(null);
         task.setStatus(toStatus);
         task.setUpdatedAt(now);
         return task;
@@ -448,8 +460,12 @@ public class TaskServiceImpl implements TaskService {
             Long taskId,
             RequestDtos.TaskStatusTransitionRequest request) {
         validateTransitionRequest(operatorId, taskId, request);
+        validateTransitionReason(request);
+        if (request.getAction() == ApiEnums.TaskStatusTransitionAction.CANCEL) {
+            return cancelTask(operatorId, taskId, request.getReason());
+        }
 
-        Task task = taskMapper.selectById(taskId);
+        Task task = taskMapper.selectByIdForUpdate(taskId);
         if (task == null) {
             throw new BusinessException(ErrorCode.TASK_001_NOT_FOUND);
         }
@@ -457,12 +473,15 @@ public class TaskServiceImpl implements TaskService {
         String fromStatus = task.getStatus();
         String toStatus = resolveTargetStatus(fromStatus, request.getAction());
         validateTransitionPermission(task, operatorId, request.getAction());
-        validateTransitionReason(request);
 
         LocalDateTime updatedAt = LocalDateTime.now();
         int affectedRows = taskMapper.updateStatusById(taskId, fromStatus, toStatus, updatedAt);
         if (affectedRows != 1) {
             throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
+        }
+
+        if (STATUS_COMPLETED.equals(toStatus)) {
+            creditService.awardTaskReward(task);
         }
 
         taskHistoryService.recordHistory(
@@ -524,6 +543,7 @@ public class TaskServiceImpl implements TaskService {
                 request.getSensitiveReason(),
                 MAX_SENSITIVE_REASON_LENGTH,
                 "sensitiveReason is too long");
+        validateLength(request.getRouteHint(), 300, "routeHint is too long");
         validateAttachmentIds(request.getAttachmentIds());
         validateDeadline(request.getDeadline());
         validateRewardAmount(request.getRewardType(), request.getRewardAmount());
@@ -536,8 +556,8 @@ public class TaskServiceImpl implements TaskService {
     }
 
     private void validateAttachmentIds(List<Long> attachmentIds) {
-        if (attachmentIds != null && attachmentIds.size() > MAX_ATTACHMENT_COUNT) {
-            throwValidation("attachmentIds exceeds limit");
+        if (attachmentIds != null && !attachmentIds.isEmpty()) {
+            throwValidation("Task publication attachments are not supported");
         }
     }
 
@@ -836,7 +856,16 @@ public class TaskServiceImpl implements TaskService {
         if (request.getDescription() != null) {
             validateLength(request.getDescription(), MAX_DESCRIPTION_LENGTH, "description is too long");
         }
+        validateLength(request.getCampus(), MAX_CAMPUS_LENGTH, "campus is too long");
+        validateLength(request.getLocation(), MAX_LOCATION_LENGTH, "location is too long");
         validateLength(request.getDeliveryLocation(), MAX_LOCATION_LENGTH, "deliveryLocation is too long");
+        validateLength(request.getRewardDescription(),
+                MAX_REWARD_DESCRIPTION_LENGTH, "rewardDescription is too long");
+        validateLength(request.getCompletionStandard(),
+                MAX_COMPLETION_STANDARD_LENGTH, "completionStandard is too long");
+        validateLength(request.getSensitiveReason(), MAX_SENSITIVE_REASON_LENGTH, "sensitiveReason is too long");
+        validateLength(request.getRouteHint(), 300, "routeHint is too long");
+        validateAttachmentIds(request.getAttachmentIds());
         validateRewardAmount(request.getRewardType(), request.getRewardAmount());
     }
 
@@ -871,23 +900,23 @@ public class TaskServiceImpl implements TaskService {
 
     private RequestDtos.CreateTaskRequest buildResendRequest(Task task) {
         RequestDtos.CreateTaskRequest request = new RequestDtos.CreateTaskRequest();
-        request.setCategory(ApiEnums.TaskCategory.valueOf(task.getCategory()));
+        request.setCategory(task.getCategory() == null ? null : ApiEnums.TaskCategory.valueOf(task.getCategory()));
         request.setTitle(task.getTitle());
         request.setDescription(task.getDescription());
         request.setCampus(task.getCampus());
         request.setLocation(task.getLocation());
         request.setDeliveryLocation(task.getDeliveryLocation());
         request.setDeadline(task.getDeadline());
-        request.setRewardType(ApiEnums.RewardType.valueOf(task.getRewardType()));
+        request.setRewardType(task.getRewardType() == null ? null : ApiEnums.RewardType.valueOf(task.getRewardType()));
         request.setRewardDescription(task.getRewardDescription());
         request.setRewardAmount(task.getRewardAmount());
         request.setCompletionStandard(task.getCompletionStandard());
-        request.setRequiresProof(task.getRequiresProof() == 1);
-        request.setOnlyInAppContact(task.getOnlyInAppContact() == 1);
-        request.setAllowOfflineContact(task.getAllowOfflineContact() == 1);
-        request.setIsInstantTask(task.getIsInstantTask() == 1);
+        request.setRequiresProof(Integer.valueOf(1).equals(task.getRequiresProof()));
+        request.setOnlyInAppContact(Integer.valueOf(1).equals(task.getOnlyInAppContact()));
+        request.setAllowOfflineContact(Integer.valueOf(1).equals(task.getAllowOfflineContact()));
+        request.setIsInstantTask(Integer.valueOf(1).equals(task.getIsInstantTask()));
         request.setRouteHint(task.getRouteHint());
-        request.setRiskDisclosureConfirmed(task.getRiskDisclosureConfirmed() == 1);
+        request.setRiskDisclosureConfirmed(Integer.valueOf(1).equals(task.getRiskDisclosureConfirmed()));
         request.setSensitiveReason(task.getSensitiveReason());
         return request;
     }

@@ -1,0 +1,569 @@
+# AI 原始核心类设计
+
+## 1. 设计范围说明
+
+本文档基于 P1 需求规格说明书和 P2 架构设计文档，整理当前阶段应优先设计的核心类。
+
+考虑到 P1 需求较多，P3 阶段不追求一次性覆盖所有扩展功能，而是优先围绕以下核心业务闭环进行类设计：
+
+```text
+用户认证与档案 -> 发布任务 -> 浏览筛选任务 -> 申请/接单 -> 站内沟通
+-> 提交完成凭证 -> 确认完成 -> 双向评价 -> 举报/争议入口
+```
+
+暂缓深入设计的能力包括：复杂推荐算法、真实支付、积分商城、完整消息推送、复杂处罚策略、对象存储、Redis、MQ、Elasticsearch 等。
+
+## 2. 类设计总览
+
+| 模块 | 类/枚举 | 说明 |
+|---|---|---|
+| 用户与身份 | `User` | 用户账号主体 |
+| 用户与身份 | `UserProfile` | 用户公开档案 |
+| 用户与身份 | `CampusVerification` | 校内认证记录 |
+| 用户与身份 | `UserRole` | 用户角色枚举 |
+| 用户与身份 | `VerificationStatus` | 认证状态枚举 |
+| 任务与生命周期 | `Task` | 互助任务主体 |
+| 任务与生命周期 | `TaskCategory` | 任务分类枚举 |
+| 任务与生命周期 | `TaskStatus` | 任务状态枚举 |
+| 任务与生命周期 | `RewardType` | 奖励方式枚举 |
+| 任务与生命周期 | `TaskApplication` | 接单申请记录 |
+| 沟通与凭证 | `Conversation` | 任务关联会话 |
+| 沟通与凭证 | `Message` | 站内消息 |
+| 沟通与凭证 | `MessageType` | 消息类型枚举 |
+| 沟通与凭证 | `CompletionProof` | 完成凭证 |
+| 评价与信用 | `Review` | 双向评价 |
+| 评价与信用 | `CreditRecord` | 信用记录 |
+| 治理与审计 | `Report` | 举报记录 |
+| 治理与审计 | `Dispute` | 争议/申诉记录 |
+| 治理与审计 | `ModerationCase` | 审核/仲裁案例 |
+| 治理与审计 | `AuditLog` | 审计日志 |
+| 治理与审计 | `ModerationStatus` | 审核处理状态枚举 |
+| 服务接口 | `TaskLifecycleService` | 任务状态流转核心服务 |
+| 服务接口 | `TaskQueryService` | 任务查询与筛选服务 |
+| 服务接口 | `ReviewService` | 评价与信用服务 |
+| 服务接口 | `ModerationService` | 举报、争议与审核服务 |
+
+## 3. 用户与身份模块
+
+### 3.1 User
+
+**职责：** 表示平台用户账号，承担登录身份、角色、认证状态等基础信息。
+
+| 属性 | 类型 | 说明 |
+|---|---|---|
+| `id` | `Long` | 用户唯一标识 |
+| `username` | `String` | 登录名或账号名 |
+| `passwordHash` | `String` | 加密后的密码 |
+| `phone` | `String` | 手机号，可按隐私策略加密或脱敏 |
+| `email` | `String` | 邮箱 |
+| `role` | `UserRole` | 用户角色 |
+| `verificationStatus` | `VerificationStatus` | 校内认证状态 |
+| `enabled` | `Boolean` | 账号是否可用 |
+| `createdAt` | `LocalDateTime` | 创建时间 |
+| `updatedAt` | `LocalDateTime` | 更新时间 |
+
+**关键方法：**
+
+| 方法 | 返回值 | 说明 |
+|---|---|---|
+| `isVerified()` | `boolean` | 判断用户是否已完成校内认证 |
+| `isAdmin()` | `boolean` | 判断用户是否为管理员 |
+| `disable()` | `void` | 禁用账号 |
+| `enable()` | `void` | 启用账号 |
+| `changePassword(String newPasswordHash)` | `void` | 修改密码哈希 |
+
+### 3.2 UserProfile
+
+**职责：** 表示用户公开档案，与账号敏感信息分离，控制前台展示范围。
+
+| 属性 | 类型 | 说明 |
+|---|---|---|
+| `id` | `Long` | 档案唯一标识 |
+| `userId` | `Long` | 所属用户 ID |
+| `nickname` | `String` | 昵称 |
+| `bio` | `String` | 个人简介，可选 |
+| `campus` | `String` | 常驻校区 |
+| `serviceTime` | `String` | 可服务时段 |
+| `skillTags` | `List<String>` | 能力标签 |
+| `avatarUrl` | `String` | 头像地址 |
+| `creditScore` | `Integer` | 信用分或信用等级基础值 |
+
+**关键方法：**
+
+| 方法 | 返回值 | 说明 |
+|---|---|---|
+| `updateBasicInfo(String nickname, String bio, String campus)` | `void` | 更新基础公开资料 |
+| `updateSkillTags(List<String> tags)` | `void` | 更新能力标签 |
+| `updateServiceTime(String serviceTime)` | `void` | 更新可服务时段 |
+
+### 3.3 CampusVerification
+
+**职责：** 表示校内身份认证记录，支撑后台实名追溯与前台隐私保护。
+
+| 属性 | 类型 | 说明 |
+|---|---|---|
+| `id` | `Long` | 认证记录 ID |
+| `userId` | `Long` | 用户 ID |
+| `realName` | `String` | 真实姓名，后台可见 |
+| `studentNumber` | `String` | 学号，后台可见 |
+| `school` | `String` | 学校 |
+| `department` | `String` | 院系 |
+| `status` | `VerificationStatus` | 认证状态 |
+| `submittedAt` | `LocalDateTime` | 提交时间 |
+| `reviewedAt` | `LocalDateTime` | 审核时间 |
+| `reviewerId` | `Long` | 审核管理员 ID |
+| `rejectReason` | `String` | 驳回原因 |
+
+**关键方法：**
+
+| 方法 | 返回值 | 说明 |
+|---|---|---|
+| `approve(Long reviewerId)` | `void` | 审核通过 |
+| `reject(Long reviewerId, String reason)` | `void` | 审核驳回 |
+| `isPending()` | `boolean` | 判断是否待审核 |
+
+### 3.4 UserRole
+
+**职责：** 用户角色枚举。
+
+```text
+USER
+ADMIN
+```
+
+### 3.5 VerificationStatus
+
+**职责：** 校内认证状态枚举。
+
+```text
+UNVERIFIED
+PENDING
+VERIFIED
+REJECTED
+```
+
+## 4. 任务与生命周期模块
+
+### 4.1 Task
+
+**职责：** 表示一条校园互助任务，是系统最核心的业务实体。
+
+| 属性 | 类型 | 说明 |
+|---|---|---|
+| `id` | `Long` | 任务 ID |
+| `publisherId` | `Long` | 发布者 ID |
+| `assigneeId` | `Long` | 被选中的帮助者 ID，可为空 |
+| `title` | `String` | 任务标题 |
+| `description` | `String` | 任务说明 |
+| `category` | `TaskCategory` | 任务分类 |
+| `campus` | `String` | 校区 |
+| `location` | `String` | 具体地点 |
+| `deadline` | `LocalDateTime` | 截止时间 |
+| `rewardType` | `RewardType` | 奖励方式 |
+| `rewardDescription` | `String` | 奖励说明 |
+| `completionStandard` | `String` | 完成标准 |
+| `contactPreference` | `String` | 沟通/接触偏好 |
+| `requiresProof` | `Boolean` | 是否要求完成凭证 |
+| `status` | `TaskStatus` | 当前任务状态 |
+| `createdAt` | `LocalDateTime` | 创建时间 |
+| `updatedAt` | `LocalDateTime` | 更新时间 |
+
+**关键方法：**
+
+| 方法 | 返回值 | 说明 |
+|---|---|---|
+| `publish()` | `void` | 将草稿发布为待接单或待审核状态 |
+| `markPendingReview()` | `void` | 标记为待审核 |
+| `open()` | `void` | 审核通过后开放接单 |
+| `assignTo(Long helperId)` | `void` | 选择帮助者并进入进行中 |
+| `submitForConfirmation()` | `void` | 帮助者提交完成后进入待确认 |
+| `complete()` | `void` | 求助者确认完成 |
+| `cancel()` | `void` | 取消任务 |
+| `markDisputed()` | `void` | 标记为争议中 |
+| `isOwnedBy(Long userId)` | `boolean` | 判断指定用户是否为发布者 |
+| `isAssignedTo(Long userId)` | `boolean` | 判断指定用户是否为帮助者 |
+
+### 4.2 TaskCategory
+
+**职责：** 任务分类枚举。
+
+```text
+ERRAND_PICKUP          跑腿代取
+CONSULTING             咨询答疑
+LEARNING_MATERIAL      学习资料共享
+SECOND_HAND            二手交易
+LOST_AND_FOUND         失物招领
+TEAM_UP                组队协作
+ATTENDANCE_HELP        出勤/签到协助
+OTHER                  其他
+```
+
+### 4.3 TaskStatus
+
+**职责：** 任务生命周期状态枚举。
+
+```text
+DRAFT                  草稿
+PENDING_REVIEW         待审核
+OPEN                   待接单
+IN_PROGRESS            进行中
+PENDING_CONFIRMATION   待确认
+COMPLETED              已完成
+CANCELLED              已取消
+DISPUTED               争议中
+```
+
+### 4.4 RewardType
+
+**职责：** 奖励方式枚举。
+
+```text
+FREE                   无偿互助
+POINTS                 积分
+CASH                   小额报酬
+NEGOTIABLE             双方协商
+```
+
+### 4.5 TaskApplication
+
+**职责：** 表示帮助者对某个任务的接单申请，支持求助者从多个候选者中选择。
+
+| 属性 | 类型 | 说明 |
+|---|---|---|
+| `id` | `Long` | 申请 ID |
+| `taskId` | `Long` | 任务 ID |
+| `applicantId` | `Long` | 申请人 ID |
+| `message` | `String` | 申请说明 |
+| `status` | `ApplicationStatus` | 申请状态 |
+| `createdAt` | `LocalDateTime` | 申请时间 |
+| `handledAt` | `LocalDateTime` | 处理时间 |
+
+**关键方法：**
+
+| 方法 | 返回值 | 说明 |
+|---|---|---|
+| `accept()` | `void` | 接受申请 |
+| `reject()` | `void` | 拒绝申请 |
+| `withdraw()` | `void` | 申请人撤回申请 |
+| `isPending()` | `boolean` | 判断是否待处理 |
+
+### 4.6 ApplicationStatus
+
+**职责：** 接单申请状态枚举。
+
+```text
+PENDING
+ACCEPTED
+REJECTED
+WITHDRAWN
+```
+
+## 5. 沟通与凭证模块
+
+### 5.1 Conversation
+
+**职责：** 表示与任务绑定的站内会话。
+
+| 属性 | 类型 | 说明 |
+|---|---|---|
+| `id` | `Long` | 会话 ID |
+| `taskId` | `Long` | 关联任务 ID |
+| `publisherId` | `Long` | 求助者 ID |
+| `helperId` | `Long` | 帮助者 ID |
+| `createdAt` | `LocalDateTime` | 创建时间 |
+| `lastMessageAt` | `LocalDateTime` | 最后一条消息时间 |
+| `closed` | `Boolean` | 会话是否关闭 |
+
+**关键方法：**
+
+| 方法 | 返回值 | 说明 |
+|---|---|---|
+| `containsParticipant(Long userId)` | `boolean` | 判断用户是否属于该会话 |
+| `close()` | `void` | 关闭会话 |
+| `touch(LocalDateTime messageTime)` | `void` | 更新最后消息时间 |
+
+### 5.2 Message
+
+**职责：** 表示站内消息，第一版支持文字和图片。
+
+| 属性 | 类型 | 说明 |
+|---|---|---|
+| `id` | `Long` | 消息 ID |
+| `conversationId` | `Long` | 会话 ID |
+| `senderId` | `Long` | 发送者 ID |
+| `type` | `MessageType` | 消息类型 |
+| `content` | `String` | 文本内容或图片地址 |
+| `sentAt` | `LocalDateTime` | 发送时间 |
+| `readAt` | `LocalDateTime` | 阅读时间 |
+
+**关键方法：**
+
+| 方法 | 返回值 | 说明 |
+|---|---|---|
+| `markRead(LocalDateTime readAt)` | `void` | 标记已读 |
+| `isSentBy(Long userId)` | `boolean` | 判断消息发送者 |
+
+### 5.3 MessageType
+
+**职责：** 消息类型枚举。
+
+```text
+TEXT
+IMAGE
+SYSTEM
+```
+
+### 5.4 CompletionProof
+
+**职责：** 表示帮助者提交的任务完成凭证。
+
+| 属性 | 类型 | 说明 |
+|---|---|---|
+| `id` | `Long` | 凭证 ID |
+| `taskId` | `Long` | 任务 ID |
+| `submitterId` | `Long` | 提交人 ID |
+| `description` | `String` | 完成说明 |
+| `imageUrls` | `List<String>` | 凭证图片地址 |
+| `submittedAt` | `LocalDateTime` | 提交时间 |
+
+**关键方法：**
+
+| 方法 | 返回值 | 说明 |
+|---|---|---|
+| `hasImage()` | `boolean` | 判断是否包含图片凭证 |
+| `isSubmittedBy(Long userId)` | `boolean` | 判断提交人 |
+
+## 6. 评价与信用模块
+
+### 6.1 Review
+
+**职责：** 表示任务完成后的双向评价。
+
+| 属性 | 类型 | 说明 |
+|---|---|---|
+| `id` | `Long` | 评价 ID |
+| `taskId` | `Long` | 任务 ID |
+| `reviewerId` | `Long` | 评价人 ID |
+| `revieweeId` | `Long` | 被评价人 ID |
+| `rating` | `Integer` | 评分，例如 1-5 |
+| `comment` | `String` | 文字评价 |
+| `createdAt` | `LocalDateTime` | 创建时间 |
+
+**关键方法：**
+
+| 方法 | 返回值 | 说明 |
+|---|---|---|
+| `isPositive()` | `boolean` | 判断是否为较好评价 |
+| `validateRating()` | `void` | 校验评分范围 |
+| `isWrittenBy(Long userId)` | `boolean` | 判断评价人 |
+
+### 6.2 CreditRecord
+
+**职责：** 记录用户信用变化来源，用于后续展示和筛选。
+
+| 属性 | 类型 | 说明 |
+|---|---|---|
+| `id` | `Long` | 信用记录 ID |
+| `userId` | `Long` | 用户 ID |
+| `taskId` | `Long` | 关联任务 ID |
+| `changeValue` | `Integer` | 信用变化值 |
+| `reason` | `String` | 变化原因 |
+| `createdAt` | `LocalDateTime` | 创建时间 |
+
+**关键方法：**
+
+| 方法 | 返回值 | 说明 |
+|---|---|---|
+| `isPenalty()` | `boolean` | 判断是否为扣分记录 |
+| `isReward()` | `boolean` | 判断是否为加分记录 |
+
+## 7. 治理与审计模块
+
+### 7.1 Report
+
+**职责：** 表示用户对任务、用户或消息的举报。
+
+| 属性 | 类型 | 说明 |
+|---|---|---|
+| `id` | `Long` | 举报 ID |
+| `reporterId` | `Long` | 举报人 ID |
+| `targetType` | `String` | 举报对象类型，如任务、用户、消息 |
+| `targetId` | `Long` | 举报对象 ID |
+| `taskId` | `Long` | 关联任务 ID，可为空 |
+| `reason` | `String` | 举报理由 |
+| `description` | `String` | 补充说明 |
+| `status` | `ModerationStatus` | 处理状态 |
+| `createdAt` | `LocalDateTime` | 创建时间 |
+
+**关键方法：**
+
+| 方法 | 返回值 | 说明 |
+|---|---|---|
+| `markProcessing()` | `void` | 标记处理中 |
+| `resolve()` | `void` | 标记已处理 |
+| `reject()` | `void` | 标记驳回 |
+
+### 7.2 Dispute
+
+**职责：** 表示围绕任务完成结果产生的争议或申诉。
+
+| 属性 | 类型 | 说明 |
+|---|---|---|
+| `id` | `Long` | 争议 ID |
+| `taskId` | `Long` | 任务 ID |
+| `initiatorId` | `Long` | 发起人 ID |
+| `reason` | `String` | 争议原因 |
+| `description` | `String` | 争议说明 |
+| `status` | `ModerationStatus` | 处理状态 |
+| `createdAt` | `LocalDateTime` | 创建时间 |
+| `resolvedAt` | `LocalDateTime` | 解决时间 |
+
+**关键方法：**
+
+| 方法 | 返回值 | 说明 |
+|---|---|---|
+| `resolve()` | `void` | 标记争议已解决 |
+| `reject()` | `void` | 驳回争议 |
+| `isOpen()` | `boolean` | 判断是否仍在处理中 |
+
+### 7.3 ModerationCase
+
+**职责：** 表示管理员审核敏感任务或仲裁举报/争议的处理案例。
+
+| 属性 | 类型 | 说明 |
+|---|---|---|
+| `id` | `Long` | 案例 ID |
+| `caseType` | `String` | 案例类型，如敏感任务审核、举报、争议 |
+| `targetId` | `Long` | 处理对象 ID |
+| `handlerId` | `Long` | 管理员 ID |
+| `status` | `ModerationStatus` | 处理状态 |
+| `decision` | `String` | 处理结论 |
+| `createdAt` | `LocalDateTime` | 创建时间 |
+| `handledAt` | `LocalDateTime` | 处理时间 |
+
+**关键方法：**
+
+| 方法 | 返回值 | 说明 |
+|---|---|---|
+| `approve(Long handlerId, String decision)` | `void` | 审核通过 |
+| `reject(Long handlerId, String decision)` | `void` | 审核驳回 |
+| `punish(Long handlerId, String decision)` | `void` | 作出处罚 |
+
+### 7.4 AuditLog
+
+**职责：** 记录关键操作，为追责、仲裁和审计提供证据。
+
+| 属性 | 类型 | 说明 |
+|---|---|---|
+| `id` | `Long` | 日志 ID |
+| `actorId` | `Long` | 操作人 ID |
+| `action` | `String` | 操作名称 |
+| `targetType` | `String` | 操作对象类型 |
+| `targetId` | `Long` | 操作对象 ID |
+| `detail` | `String` | 操作详情 |
+| `createdAt` | `LocalDateTime` | 创建时间 |
+
+**关键方法：**
+
+| 方法 | 返回值 | 说明 |
+|---|---|---|
+| `of(Long actorId, String action, String targetType, Long targetId)` | `AuditLog` | 创建审计日志 |
+
+### 7.5 ModerationStatus
+
+**职责：** 审核、举报、争议处理状态枚举。
+
+```text
+PENDING
+PROCESSING
+APPROVED
+REJECTED
+RESOLVED
+PUNISHED
+```
+
+## 8. 核心服务接口
+
+### 8.1 TaskLifecycleService
+
+**职责：** 集中管理任务状态流转，避免状态变更逻辑散落在 Controller 中。
+
+| 方法 | 返回值 | 说明 |
+|---|---|---|
+| `createDraft(CreateTaskCommand command)` | `Task` | 创建任务草稿 |
+| `publishTask(Long taskId, Long publisherId)` | `Task` | 发布任务 |
+| `applyForTask(Long taskId, Long applicantId, String message)` | `TaskApplication` | 申请接单 |
+| `acceptApplication(Long taskId, Long applicationId, Long publisherId)` | `Task` | 接受候选帮助者 |
+| `cancelTask(Long taskId, Long operatorId)` | `Task` | 取消任务 |
+| `submitCompletionProof(Long taskId, Long helperId, SubmitProofCommand command)` | `CompletionProof` | 提交完成凭证 |
+| `confirmCompletion(Long taskId, Long publisherId)` | `Task` | 确认任务完成 |
+| `rejectCompletion(Long taskId, Long publisherId, String reason)` | `Task` | 驳回完成结果 |
+| `markDisputed(Long taskId, Long operatorId, String reason)` | `Task` | 将任务转入争议中 |
+
+### 8.2 TaskQueryService
+
+**职责：** 负责任务浏览、搜索和筛选，不承担状态流转。
+
+| 方法 | 返回值 | 说明 |
+|---|---|---|
+| `searchTasks(TaskSearchCriteria criteria)` | `Page<Task>` | 按关键词、分类、校区、奖励方式等筛选任务 |
+| `getTaskDetail(Long taskId)` | `TaskDetailView` | 查询任务详情 |
+| `listApplications(Long taskId, Long publisherId)` | `List<TaskApplication>` | 查询候选接单申请 |
+
+### 8.3 ReviewService
+
+**职责：** 处理任务完成后的双向评价与信用记录。
+
+| 方法 | 返回值 | 说明 |
+|---|---|---|
+| `submitReview(Long taskId, Long reviewerId, ReviewCommand command)` | `Review` | 提交评价 |
+| `createCreditRecord(Long userId, Long taskId, int changeValue, String reason)` | `CreditRecord` | 创建信用变化记录 |
+| `getUserCreditRecords(Long userId)` | `List<CreditRecord>` | 查询用户信用记录 |
+
+### 8.4 ModerationService
+
+**职责：** 处理敏感任务审核、举报、争议和处罚入口。
+
+| 方法 | 返回值 | 说明 |
+|---|---|---|
+| `submitReport(ReportCommand command)` | `Report` | 提交举报 |
+| `openDispute(Long taskId, Long initiatorId, String reason)` | `Dispute` | 发起争议 |
+| `reviewSensitiveTask(Long taskId, Long adminId, boolean approved, String decision)` | `ModerationCase` | 审核敏感任务 |
+| `resolveReport(Long reportId, Long adminId, String decision)` | `ModerationCase` | 处理举报 |
+| `resolveDispute(Long disputeId, Long adminId, String decision)` | `ModerationCase` | 处理争议 |
+
+## 9. 仓储接口建议
+
+P3 类图中可以只列出核心仓储接口，不必展开所有 SQL 细节。
+
+| 接口 | 主要职责 |
+|---|---|
+| `UserRepository` | 保存、查询用户账号 |
+| `UserProfileRepository` | 保存、查询用户公开档案 |
+| `CampusVerificationRepository` | 保存、查询认证记录 |
+| `TaskRepository` | 保存、查询任务 |
+| `TaskApplicationRepository` | 保存、查询接单申请 |
+| `ConversationRepository` | 保存、查询会话 |
+| `MessageRepository` | 保存、查询消息 |
+| `CompletionProofRepository` | 保存、查询完成凭证 |
+| `ReviewRepository` | 保存、查询评价 |
+| `CreditRecordRepository` | 保存、查询信用记录 |
+| `ReportRepository` | 保存、查询举报 |
+| `DisputeRepository` | 保存、查询争议 |
+| `ModerationCaseRepository` | 保存、查询审核/仲裁案例 |
+| `AuditLogRepository` | 保存、查询审计日志 |
+
+## 10. 原始设计开放问题
+
+1. `User` 是否需要同时支持手机号、邮箱和学号登录，还是第一版只支持一种账号方式。
+2. `CampusVerification` 是否应该由管理员审核，还是第一版直接模拟认证通过。
+3. `TaskCategory` 使用枚举还是数据库表。若分类需要配置化，建议改为实体表。
+4. `Task` 中是否保留 `contactPreference`，还是拆成更结构化的字段。
+5. `RewardType.CASH` 是否会引入真实支付问题。若不实现支付，可只作为“线下协商说明”。
+6. `Conversation` 是否在接单申请阶段创建，还是在求助者接受帮助者后创建。
+7. `CreditRecord` 是只记录信用变化，还是也承担积分变化。建议后续将积分拆成 `PointRecord`。
+8. `Report`、`Dispute`、`ModerationCase` 是否会过度重叠，需要在修正版本中合并或明确边界。
+9. `AuditLog` 是否仅记录核心动作，避免日志表过度膨胀。
+10. 轻量事件机制是否在第一版实现。若实现，应只用于通知、审计和信用更新，不承载主状态流转。
+
+

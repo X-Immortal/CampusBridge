@@ -9,9 +9,13 @@ import java.util.List;
 public interface UserCreditMapper {
     int insert(UserCredit entity);
 
+    int initializeForUser(Long userId);
+
     UserCredit selectById(Long id);
 
     UserCredit selectByUserId(Long userId);
+
+    UserCredit selectByUserIdForUpdate(Long userId);
 
     List<UserCredit> selectAll();
 

@@ -57,7 +57,7 @@
   <update id="updateStatusById">
     UPDATE reports
     SET status = #{status}
-    WHERE id = #{id}
+    WHERE id = #{id} AND status IN ('PENDING', 'PROCESSING')
   </update>
 
   <update id="updateById" parameterType="com.campusbridge.pojo.Report">

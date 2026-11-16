@@ -40,6 +40,21 @@
     WHERE id = #{id}
   </update>
 
+  <update id="updatePassword">
+    UPDATE users SET password_hash = #{passwordHash}, updated_at = #{updatedAt}
+    WHERE id = #{id}
+  </update>
+
+  <update id="updateEmail">
+    UPDATE users SET email = #{email}, updated_at = #{updatedAt}
+    WHERE id = #{id}
+  </update>
+
+  <update id="updatePhone">
+    UPDATE users SET phone_cipher = #{phoneCipher}, phone_hash = #{phoneHash}, updated_at = #{updatedAt}
+    WHERE id = #{id}
+  </update>
+
   <delete id="deleteById">
     DELETE FROM users
     WHERE id = #{id}

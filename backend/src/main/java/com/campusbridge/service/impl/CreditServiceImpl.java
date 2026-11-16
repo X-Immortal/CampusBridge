@@ -6,6 +6,7 @@ import com.campusbridge.mapper.CreditRecordMapper;
 import com.campusbridge.mapper.UserCreditMapper;
 import com.campusbridge.pojo.CreditRecord;
 import com.campusbridge.pojo.UserCredit;
+import com.campusbridge.pojo.Task;
 import com.campusbridge.service.CreditService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,30 +45,17 @@ public class CreditServiceImpl implements CreditService {
             return;
         }
 
+        userCreditMapper.initializeForUser(userId);
+        UserCredit credit = userCreditMapper.selectByUserIdForUpdate(userId);
         LocalDateTime now = LocalDateTime.now();
-        UserCredit credit = userCreditMapper.selectByUserId(userId);
-        if (credit == null) {
-            credit = new UserCredit();
-            credit.setUserId(userId);
-            credit.setPoints(changeValue);
-            credit.setLevel(calculateLevel(changeValue));
-            credit.setUpdatedAt(now);
-            if (userCreditMapper.insert(credit) != 1) {
-                throw new BusinessException(
-                        ErrorCode.COMMON_999_INTERNAL_ERROR,
-                        "Failed to create user credit");
-            }
-        } else {
-            int currentPoints = credit.getPoints() == null ? 0 : credit.getPoints();
-            int nextPoints = currentPoints + changeValue;
-            credit.setPoints(nextPoints);
-            credit.setLevel(calculateLevel(nextPoints));
-            credit.setUpdatedAt(now);
-            if (userCreditMapper.updateById(credit) != 1) {
-                throw new BusinessException(
-                        ErrorCode.COMMON_999_INTERNAL_ERROR,
-                        "Failed to update user credit");
-            }
+        int nextPoints = credit.getPoints() + changeValue;
+        credit.setPoints(nextPoints);
+        credit.setLevel(calculateLevel(nextPoints));
+        credit.setUpdatedAt(now);
+        if (userCreditMapper.updateById(credit) != 1) {
+            throw new BusinessException(
+                    ErrorCode.COMMON_999_INTERNAL_ERROR,
+                    "Failed to update user credit");
         }
 
         CreditRecord record = new CreditRecord();
@@ -82,6 +70,15 @@ public class CreditServiceImpl implements CreditService {
             throw new BusinessException(
                     ErrorCode.COMMON_999_INTERNAL_ERROR,
                     "Failed to create credit record");
+        }
+    }
+
+    @Override
+    public void awardTaskReward(Task task) {
+        Integer amount = task.getRewardAmount();
+        if ("POINTS".equals(task.getRewardType()) && amount != null && amount > 0) {
+            adjustCredit(task.getProviderId(), amount,
+                    "任务 #" + task.getId() + " 积分报酬收入", "TASK", task.getId());
         }
     }
 

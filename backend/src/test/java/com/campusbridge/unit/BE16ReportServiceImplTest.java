@@ -32,6 +32,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -166,6 +168,29 @@ class BE16ReportServiceImplTest {
                 resolveRequest(ApiEnums.ModerationStatus.PUNISHED, "duplicate handling")))
                 .isInstanceOfSatisfying(BusinessException.class, ex ->
                         assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.COMMON_003_CONFLICT));
+    }
+
+    @Test
+    void resolveRaceDoesNotWriteModerationOrRepeatCreditChange() {
+        when(reportMapper.selectById(REPORT_ID)).thenReturn(taskReport("PENDING"));
+        when(reportMapper.updateStatusById(REPORT_ID, "PUNISHED")).thenReturn(0);
+        assertThatThrownBy(() -> reportService.resolveReport(
+                ADMIN_ID, REPORT_ID, resolveRequest(ApiEnums.ModerationStatus.PUNISHED, "race")))
+                .isInstanceOfSatisfying(BusinessException.class, ex ->
+                        assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.COMMON_003_CONFLICT));
+        verifyNoInteractions(moderationRecordMapper, creditService);
+    }
+
+    @Test
+    void cannotReportMessageFromAnotherUsersConversation() {
+        RequestDtos.CreateReportRequest request = new RequestDtos.CreateReportRequest();
+        request.setTargetType(ApiEnums.ReportTargetType.MESSAGE);
+        request.setTargetId(123L);
+        request.setReason("Spam");
+        assertThatThrownBy(() -> reportService.createReport(REPORTER_ID, request))
+                .isInstanceOf(BusinessException.class);
+        verify(messageMapper).selectOwnedById(123L, REPORTER_ID);
+        verify(reportMapper, never()).insert(any());
     }
 
     private RequestDtos.CreateReportRequest taskReportRequest() {

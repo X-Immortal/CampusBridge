@@ -25,6 +25,7 @@
     FROM posts p
     LEFT JOIN user_profiles up ON up.user_id = p.author_id
     <where>
+      AND p.status IN ('PUBLISHED', 'CLOSED')
       <if test="category != null and category != ''">
         AND p.category = #{category}
       </if>
@@ -44,6 +45,7 @@
     FROM posts p
     LEFT JOIN user_profiles up ON up.user_id = p.author_id
     <where>
+      AND p.status IN ('PUBLISHED', 'CLOSED')
       AND EXISTS (
         SELECT 1
         FROM replies r
@@ -70,8 +72,9 @@
   </select>
 
   <select id="countWithFilters" resultType="long">
-    SELECT COUNT(*) FROM posts
+    SELECT COUNT(*) FROM posts p
     <where>
+      AND p.status IN ('PUBLISHED', 'CLOSED')
       <if test="category != null and category != ''">
         AND category = #{category}
       </if>
@@ -87,6 +90,7 @@
   <select id="countRepliedByUser" resultType="long">
     SELECT COUNT(*) FROM posts p
     <where>
+      AND p.status IN ('PUBLISHED', 'CLOSED')
       AND EXISTS (
         SELECT 1
         FROM replies r
@@ -122,8 +126,8 @@
   </update>
 
   <delete id="deleteById">
-    DELETE FROM posts
-    WHERE id = #{id}
+    UPDATE posts SET status = 'DELETED', updated_at = CURRENT_TIMESTAMP
+    WHERE id = #{id} AND status != 'DELETED'
   </delete>
 
   <select id="selectHotPosts" resultType="com.campusbridge.pojo.Post">
@@ -141,7 +145,7 @@
     SELECT p.*, up.nickname AS author_name
     FROM posts p
     LEFT JOIN user_profiles up ON up.user_id = p.author_id
-    WHERE p.id IN
+    WHERE p.status IN ('PUBLISHED', 'CLOSED') AND p.id IN
     <foreach collection="ids" item="id" open="(" separator="," close=")">
       #{id}
     </foreach>
@@ -155,5 +159,32 @@
     WHERE p.status = 'PUBLISHED'
     ORDER BY p.created_at DESC
   </select>
+
+  <update id="updateContent">
+    UPDATE posts
+    SET title = #{post.title}, content = #{post.content}, status = #{post.status}, updated_at = #{post.updatedAt}
+    WHERE id = #{post.id} AND author_id = #{post.authorId} AND status = #{expectedStatus}
+  </update>
+
+  <update id="incrementReplyCount">
+    UPDATE posts SET reply_count = reply_count + 1
+    WHERE id = #{id} AND status = 'PUBLISHED'
+  </update>
+
+  <update id="adjustInteractionCount">
+    UPDATE posts
+    <set>
+      <choose>
+        <when test="type == 'LIKE'">like_count = GREATEST(0, like_count + #{delta})</when>
+        <otherwise>mark_count = GREATEST(0, mark_count + #{delta})</otherwise>
+      </choose>
+    </set>
+    WHERE id = #{id} AND status IN ('PUBLISHED', 'CLOSED')
+  </update>
+
+  <update id="updateAcceptedReply">
+    UPDATE posts SET accepted_reply_id = #{replyId}
+    WHERE id = #{id} AND status IN ('PUBLISHED', 'CLOSED')
+  </update>
 
 </mapper>

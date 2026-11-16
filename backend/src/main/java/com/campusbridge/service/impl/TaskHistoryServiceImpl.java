@@ -18,6 +18,12 @@ public class TaskHistoryServiceImpl implements TaskHistoryService {
     }
 
     @Override
+    public boolean hasReminder(
+            Long taskId, String note, LocalDateTime activeSince, LocalDateTime createdBefore) {
+        return taskHistoryMapper.existsReminder(taskId, note, activeSince, createdBefore);
+    }
+
+    @Override
     public void recordHistory(
             Long taskId,
             String fromStatus,

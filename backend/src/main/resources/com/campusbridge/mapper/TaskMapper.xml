@@ -15,6 +15,19 @@
     WHERE t.id = #{id}
   </select>
 
+  <select id="selectByIdForUpdate" resultType="com.campusbridge.pojo.Task">
+    SELECT t.*,
+      (SELECT nickname FROM user_profiles WHERE user_id = t.requester_id) AS requester_name,
+      (SELECT nickname FROM user_profiles WHERE user_id = t.provider_id) AS provider_name
+    FROM tasks t WHERE t.id = #{id} FOR UPDATE
+  </select>
+
+  <update id="reopenById">
+    UPDATE tasks
+    SET provider_id = NULL, status = 'OPEN', updated_at = #{updatedAt}
+    WHERE id = #{id} AND status = #{fromStatus}
+  </update>
+
   <select id="selectAll" resultType="com.campusbridge.pojo.Task">
     SELECT t.*, req.nickname AS requester_name, prov.nickname AS provider_name
     FROM tasks t
@@ -90,6 +103,9 @@
     LEFT JOIN user_profiles req ON req.user_id = t.requester_id
     LEFT JOIN user_profiles prov ON prov.user_id = t.provider_id
     <where>
+      <if test="includePrivate != true">
+        AND t.status NOT IN ('DRAFT', 'PENDING_REVIEW', 'REJECTED')
+      </if>
       <if test="keyword != null and keyword != ''">
         AND (t.title LIKE CONCAT('%', #{keyword}, '%') OR t.description LIKE CONCAT('%', #{keyword}, '%'))
       </if>
@@ -136,6 +152,9 @@
     SELECT COUNT(*)
     FROM tasks t
     <where>
+      <if test="includePrivate != true">
+        AND t.status NOT IN ('DRAFT', 'PENDING_REVIEW', 'REJECTED')
+      </if>
       <if test="keyword != null and keyword != ''">
         AND (t.title LIKE CONCAT('%', #{keyword}, '%') OR t.description LIKE CONCAT('%', #{keyword}, '%'))
       </if>
@@ -174,6 +193,7 @@
         SELECT 1 FROM task_histories h
         WHERE h.task_id = t.id
           AND h.note = #{reminderNote}
+          AND h.created_at &gt;= t.updated_at
       )
     ORDER BY t.updated_at ASC, t.id ASC
     LIMIT #{limit}
@@ -186,6 +206,7 @@
         SELECT 1 FROM task_histories h
         WHERE h.task_id = t.id
           AND h.note = #{reminderNote}
+          AND h.created_at &gt;= t.updated_at
           AND h.created_at &lt;= #{reminderCreatedBefore}
       )
     ORDER BY t.updated_at ASC, t.id ASC

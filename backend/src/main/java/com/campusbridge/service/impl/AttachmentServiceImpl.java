@@ -37,6 +37,9 @@ public class AttachmentServiceImpl implements AttachmentService {
         }
 
         ApiEnums.AttachmentType attachmentType = parseAttachmentType(type);
+        if (StringUtils.hasText(type) && attachmentType == null) {
+            return -3L;
+        }
         if (attachmentType == null) {
             attachmentType = inferAttachmentType(file.getContentType());
         }

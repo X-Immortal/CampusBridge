@@ -1,0 +1,229 @@
+﻿%%{init: {"theme": "base", "themeVariables": {"fontFamily": "Arial, Microsoft YaHei, sans-serif", "fontSize": "14px", "primaryTextColor": "#1f2933", "lineColor": "#333333"}, "flowchart": {"curve": "linear"}, "class": {"hideEmptyMembersBox": true}}}%%
+classDiagram
+direction LR
+class User {
+  id: Long
+  username: String
+  passwordHash: String
+  phone/email: String
+  role: UserRole
+  verificationStatus: VerificationStatus
+  isVerified(): boolean
+  enable()/disable(): void
+}
+class UserProfile {
+  userId: Long
+  nickname: String
+  campus: String
+  skillTags: List~String~
+  creditScore: Integer
+  updateBasicInfo(...): void
+  updateSkillTags(...): void
+}
+class CampusVerification {
+  userId: Long
+  realName: String
+  studentNumber: String
+  school/department: String
+  status: VerificationStatus
+  reviewerId: Long
+  approve(Long): void
+  reject(Long,String): void
+}
+class UserRole {
+  type: enumeration value list
+  USER value
+  ADMIN value
+}
+class VerificationStatus {
+  type: enumeration value list
+  UNVERIFIED value
+  PENDING value
+  VERIFIED value
+  REJECTED value
+}
+class CreditRecord {
+  userId: Long
+  taskId: Long
+  changeValue: Integer
+  reason: String
+}
+class Task {
+  publisherId: Long
+  assigneeId: Long
+  title/description: String
+  category: TaskCategory
+  campus/location: String
+  deadline: LocalDateTime
+  rewardType: RewardType
+  requiresProof: Boolean
+  status: TaskStatus
+  publish()/open(): void
+  assignTo(Long): void
+  complete()/cancel(): void
+}
+class TaskCategory {
+  type: enumeration value list
+  ERRAND value
+  SECOND_HAND value
+  TEAM_UP value
+}
+class TaskStatus {
+  type: enumeration value list
+  DRAFT value
+  OPEN value
+  IN_PROGRESS value
+  COMPLETED value
+  CANCELLED value
+}
+class RewardType {
+  type: enumeration value list
+  FREE value
+  POINTS value
+  CASH value
+}
+class TaskApplication {
+  taskId: Long
+  applicantId: Long
+  status: String
+  accept(): void
+}
+class Conversation {
+  taskId: Long
+  publisherId: Long
+  helperId: Long
+  closed: Boolean
+  close()/touch(): void
+}
+class Message {
+  conversationId: Long
+  senderId: Long
+  type: MessageType
+  content: String
+  markRead(...): void
+}
+class CompletionProof {
+  taskId: Long
+  submitterId: Long
+  description: String
+  imageUrls: List~String~
+}
+class Review {
+  taskId: Long
+  reviewerId: Long
+  revieweeId: Long
+  rating/comment: String
+}
+class Report {
+  reporterId: Long
+  targetType: String
+  targetId/taskId: Long
+  status: ModerationStatus
+  resolve()/reject(): void
+}
+class Dispute {
+  taskId: Long
+  initiatorId: Long
+  reason/description: String
+  status: ModerationStatus
+}
+class ModerationCase {
+  caseType: String
+  targetId: Long
+  handlerId: Long
+  decision: String
+  approve()/punish(): void
+}
+class AuditLog {
+  actorId: Long
+  action: String
+  targetType/targetId: String
+  detail: String
+}
+class ModerationStatus {
+  type: enumeration value list
+  PENDING value
+  PROCESSING value
+  APPROVED value
+  REJECTED value
+  RESOLVED value
+  PUNISHED value
+}
+class TaskLifecycleService {
+  <<service>>
+  publishTask(...): Task
+  applyForTask(...): TaskApplication
+  confirmCompletion(...): Task
+}
+class TaskQueryService {
+  <<service>>
+  searchTasks(...): Page~Task~
+  getTaskDetail(...): TaskDetailView
+  listApplications(...): List
+}
+class ReviewService {
+  <<service>>
+  submitReview(...): Review
+  createCreditRecord(...): CreditRecord
+}
+class ModerationService {
+  <<service>>
+  submitReport(...): Report
+  resolveDispute(...): ModerationCase
+}
+User *-- UserProfile : 1-1
+User o-- CampusVerification : 1-*
+User --> UserRole : role
+CampusVerification --> VerificationStatus : status
+User --> Task : publisher/assignee
+Task o-- TaskApplication : 1-*
+Task *-- Conversation : 0..1
+Conversation *-- Message : 1-*
+Task *-- CompletionProof : 0..1
+Task o-- Review : 0..2
+Task --> TaskCategory : category
+Task --> TaskStatus : status
+Task --> RewardType : reward
+ReviewService ..> CreditRecord : create
+Report ..> Task : report
+Dispute ..> Task : dispute
+ModerationCase ..> Report : moderate
+ModerationCase ..> Dispute : moderate
+ModerationCase ..> AuditLog : audit
+Report --> ModerationStatus : status
+Dispute --> ModerationStatus : status
+TaskLifecycleService ..> Task : lifecycle
+TaskQueryService ..> Task : query
+ModerationService ..> Report : report
+class User:::user
+class UserProfile:::user
+class CampusVerification:::user
+class UserRole:::user
+class VerificationStatus:::user
+class CreditRecord:::user
+class Task:::task
+class TaskCategory:::task
+class TaskStatus:::task
+class RewardType:::task
+class TaskApplication:::task
+class Conversation:::msg
+class Message:::msg
+class CompletionProof:::msg
+class Review:::msg
+class Report:::govern
+class Dispute:::govern
+class ModerationCase:::govern
+class AuditLog:::govern
+class ModerationStatus:::govern
+class TaskLifecycleService:::service
+class TaskQueryService:::service
+class ReviewService:::service
+class ModerationService:::service
+classDef view fill:#E9F5FF,stroke:#2F80ED,color:#1f2933;
+classDef user fill:#F0F7EA,stroke:#5A9C42,color:#1f2933;
+classDef post fill:#FFF6DE,stroke:#D99A00,color:#1f2933;
+classDef task fill:#FDECEC,stroke:#D94B4B,color:#1f2933;
+classDef msg fill:#F1ECFF,stroke:#7B61D1,color:#1f2933;
+classDef attach fill:#EEF2F5,stroke:#607D8B,color:#1f2933;
+classDef govern fill:#FFF0F6,stroke:#C94F8A,color:#1f2933;
+classDef service fill:#F5F5F5,stroke:#555555,color:#1f2933;

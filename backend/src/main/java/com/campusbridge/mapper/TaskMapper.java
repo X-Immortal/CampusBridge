@@ -14,6 +14,13 @@ public interface TaskMapper {
 
     Task selectById(Long id);
 
+    Task selectByIdForUpdate(Long id);
+
+    int reopenById(
+            @Param("id") Long id,
+            @Param("fromStatus") String fromStatus,
+            @Param("updatedAt") LocalDateTime updatedAt);
+
     List<Task> selectAll();
 
     int updateById(Task entity);

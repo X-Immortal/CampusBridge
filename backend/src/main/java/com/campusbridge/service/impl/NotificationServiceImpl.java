@@ -15,6 +15,7 @@ import com.campusbridge.pojo.TaskApplication;
 import com.campusbridge.pojo.User;
 import com.campusbridge.service.NotificationService;
 import org.springframework.stereotype.Service;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -180,16 +181,12 @@ public class NotificationServiceImpl implements NotificationService {
             return;
         }
 
-        Conversation conversation = conversationMapper.selectByOwnerAndRelated(
-                recipientId,
-                CONVERSATION_TYPE_SYSTEM,
-                RELATED_TYPE_TASK,
-                task.getId());
         LocalDateTime now = LocalDateTime.now();
-        if (conversation == null) {
-            conversation = createTaskNotificationConversation(recipientId, operatorId, task, now);
-        }
+        Conversation conversation = ensureSystemConversation(
+                recipientId, operatorId, RELATED_TYPE_TASK, task.getId(), TITLE_TASK_NOTIFICATION, now);
 
+        // Acquire the parent write lock before inserting its child message.
+        conversationMapper.updateLastMessageAt(conversation.getId(), operatorId, now);
         Message message = new Message();
         message.setConversationId(conversation.getId());
         message.setSenderId(operatorId);
@@ -204,7 +201,6 @@ public class NotificationServiceImpl implements NotificationService {
                     ErrorCode.COMMON_999_INTERNAL_ERROR,
                     "Failed to create notification");
         }
-        conversationMapper.updateLastMessageAt(conversation.getId(), operatorId, now);
     }
 
     private void sendPostNotification(
@@ -219,30 +215,12 @@ public class NotificationServiceImpl implements NotificationService {
             return;
         }
 
-        Conversation conversation = conversationMapper.selectByOwnerAndRelated(
-                recipientId,
-                CONVERSATION_TYPE_SYSTEM,
-                RELATED_TYPE_POST,
-                post.getId());
         LocalDateTime now = LocalDateTime.now();
-        if (conversation == null) {
-            conversation = new Conversation();
-            conversation.setType(CONVERSATION_TYPE_SYSTEM);
-            conversation.setTitle(TITLE_POST_NOTIFICATION);
-            conversation.setOwnerId(recipientId);
-            conversation.setPeerUserId(operatorId);
-            conversation.setRelatedType(RELATED_TYPE_POST);
-            conversation.setRelatedId(post.getId());
-            conversation.setReplyable(0);
-            conversation.setLastMessageAt(now);
-            conversation.setCreatedAt(now);
-            if (conversationMapper.insert(conversation) != 1) {
-                throw new BusinessException(
-                        ErrorCode.COMMON_999_INTERNAL_ERROR,
-                        "Failed to create post notification conversation");
-            }
-        }
+        Conversation conversation = ensureSystemConversation(
+                recipientId, operatorId, RELATED_TYPE_POST, post.getId(), TITLE_POST_NOTIFICATION, now);
 
+        // Acquire the parent write lock before inserting its child message.
+        conversationMapper.updateLastMessageAt(conversation.getId(), operatorId, now);
         Message message = new Message();
         message.setConversationId(conversation.getId());
         message.setSenderId(operatorId);
@@ -255,32 +233,40 @@ public class NotificationServiceImpl implements NotificationService {
                     ErrorCode.COMMON_999_INTERNAL_ERROR,
                     "Failed to create post notification");
         }
-        conversationMapper.updateLastMessageAt(conversation.getId(), operatorId, now);
     }
 
-    private Conversation createTaskNotificationConversation(
-            Long recipientId,
-            Long operatorId,
-            Task task,
-            LocalDateTime createdAt) {
+    private Conversation ensureSystemConversation(
+            Long recipientId, Long operatorId, String relatedType, Long relatedId,
+            String title, LocalDateTime createdAt) {
+        Conversation existing = conversationMapper.selectByOwnerAndRelated(
+                recipientId, CONVERSATION_TYPE_SYSTEM, relatedType, relatedId);
+        if (existing != null) {
+            return existing;
+        }
         Conversation conversation = new Conversation();
         conversation.setType(CONVERSATION_TYPE_SYSTEM);
-        conversation.setTitle(TITLE_TASK_NOTIFICATION);
+        conversation.setTitle(title);
         conversation.setOwnerId(recipientId);
         conversation.setPeerUserId(operatorId);
-        conversation.setRelatedType(RELATED_TYPE_TASK);
-        conversation.setRelatedId(task.getId());
+        conversation.setRelatedType(relatedType);
+        conversation.setRelatedId(relatedId);
         conversation.setReplyable(0);
         conversation.setLastMessageAt(createdAt);
         conversation.setCreatedAt(createdAt);
-
-        int affectedRows = conversationMapper.insert(conversation);
-        if (affectedRows != 1) {
-            throw new BusinessException(
-                    ErrorCode.COMMON_999_INTERNAL_ERROR,
-                    "Failed to create notification conversation");
+        try {
+            if (conversationMapper.insert(conversation) != 1) {
+                throw new BusinessException(
+                        ErrorCode.COMMON_999_INTERNAL_ERROR, "Failed to create notification conversation");
+            }
+            return conversation;
+        } catch (DuplicateKeyException ex) {
+            existing = conversationMapper.selectByOwnerAndRelatedCurrent(
+                    recipientId, CONVERSATION_TYPE_SYSTEM, relatedType, relatedId);
+            if (existing == null) {
+                throw ex;
+            }
+            return existing;
         }
-        return conversation;
     }
 
     private String buildStatusContent(

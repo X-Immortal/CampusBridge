@@ -57,6 +57,7 @@ public class PostServiceImpl implements PostService {
 
     @Override
     public Post createPost(Long userId, RequestDtos.CreatePostRequest request) {
+        validatePostRequest(request);
         contentModerationService.assertPostPublishAllowed(userId, request);
 
         LocalDateTime now = LocalDateTime.now();
@@ -136,6 +137,9 @@ public class PostServiceImpl implements PostService {
     @Override
     public ViewDtos.PostDetailView getPostDetail(Long postId, Long currentUserId) {
         Post post = requirePostExists(postId);
+        if (!isPublic(post) && !post.getAuthorId().equals(currentUserId)) {
+            throw new BusinessException(ErrorCode.POST_001_NOT_FOUND);
+        }
         List<Reply> replies = replyMapper.selectByPostId(postId, 0, 50);
         boolean likedByCurrentUser = false;
         boolean markedByCurrentUser = false;
@@ -159,6 +163,10 @@ public class PostServiceImpl implements PostService {
             throw new BusinessException(ErrorCode.POST_002_PERMISSION_DENIED);
         }
 
+        if (request == null) {
+            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "Request body is required");
+        }
+        String expectedStatus = post.getStatus();
         if (request.getTitle() != null) {
             post.setTitle(request.getTitle());
         }
@@ -166,13 +174,25 @@ public class PostServiceImpl implements PostService {
             post.setContent(request.getContent());
         }
         if (request.getStatus() != null) {
+            boolean authorStatus = request.getStatus() == ApiEnums.PostStatus.PUBLISHED
+                    || request.getStatus() == ApiEnums.PostStatus.CLOSED;
+            if (!authorStatus || (!isPublic(post) && !"DRAFT".equals(post.getStatus()))) {
+                throw new BusinessException(ErrorCode.POST_002_PERMISSION_DENIED,
+                        "Only an available post or draft can be published or closed by its author");
+            }
             post.setStatus(request.getStatus().name());
         }
+        RequestDtos.CreatePostRequest content = new RequestDtos.CreatePostRequest();
+        content.setCategory(ApiEnums.PostCategory.valueOf(post.getCategory()));
+        content.setTitle(post.getTitle());
+        content.setContent(post.getContent());
+        validatePostRequest(content);
+        contentModerationService.assertPostPublishAllowed(userId, content);
         post.setUpdatedAt(LocalDateTime.now());
 
-        if (postMapper.updateById(post) != 1) {
-            throw new BusinessException(ErrorCode.COMMON_999_INTERNAL_ERROR,
-                    "Failed to update post");
+        if (postMapper.updateContent(post, expectedStatus) != 1) {
+            throw new BusinessException(ErrorCode.COMMON_003_CONFLICT,
+                    "Post status changed before update");
         }
         return post;
     }
@@ -207,10 +227,7 @@ public class PostServiceImpl implements PostService {
         for (Long attachmentId : attachmentIds) {
             Attachment attachment = attachmentMapper.selectById(attachmentId);
             validateAttachmentOwnership(attachment, userId);
-            attachment.setOwnerType(ATTACHMENT_OWNER_TYPE);
-            attachment.setOwnerId(postId);
-            attachment.setStatus("ACTIVE");
-            if (attachmentMapper.updateById(attachment) != 1) {
+            if (attachmentMapper.bindTemporaryToOwner(attachmentId, userId, ATTACHMENT_OWNER_TYPE, postId) != 1) {
                 throw new BusinessException(
                         ErrorCode.COMMON_999_INTERNAL_ERROR,
                         "Failed to bind post attachment");
@@ -230,9 +247,23 @@ public class PostServiceImpl implements PostService {
         }
     }
 
+    private boolean isPublic(Post post) {
+        return "PUBLISHED".equals(post.getStatus()) || "CLOSED".equals(post.getStatus());
+    }
+
+    private void validatePostRequest(RequestDtos.CreatePostRequest request) {
+        if (request == null || request.getCategory() == null
+                || request.getTitle() == null || request.getTitle().isBlank()
+                || request.getTitle().length() > 100
+                || request.getContent() == null || request.getContent().isBlank()) {
+            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR,
+                    "Post category, title and content are required; title limit is 100");
+        }
+    }
+
     private Post requirePostExists(Long postId) {
         Post post = postMapper.selectById(postId);
-        if (post == null) {
+        if (post == null || "DELETED".equals(post.getStatus())) {
             throw new BusinessException(ErrorCode.POST_001_NOT_FOUND);
         }
         return post;

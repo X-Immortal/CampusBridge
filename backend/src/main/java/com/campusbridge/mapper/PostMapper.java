@@ -42,6 +42,14 @@ public interface PostMapper {
 
     int updateById(Post entity);
 
+    int updateContent(@Param("post") Post entity, @Param("expectedStatus") String expectedStatus);
+
+    int incrementReplyCount(@Param("id") Long id);
+
+    int adjustInteractionCount(@Param("id") Long id, @Param("type") String type, @Param("delta") int delta);
+
+    int updateAcceptedReply(@Param("id") Long id, @Param("replyId") Long replyId);
+
     int deleteById(Long id);
 
     List<Post> selectHotPosts(@Param("size") Integer size);

@@ -20,5 +20,11 @@ public interface AttachmentMapper {
 
     int updateById(Attachment entity);
 
+    int bindTemporaryToOwner(
+            @Param("attachmentId") Long attachmentId,
+            @Param("uploaderId") Long uploaderId,
+            @Param("ownerType") String ownerType,
+            @Param("ownerId") Long ownerId);
+
     int deleteById(Long id);
 }

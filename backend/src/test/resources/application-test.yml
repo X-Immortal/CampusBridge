@@ -26,14 +26,11 @@ jwt:
   header: Authorization
   prefix: "Bearer "
 
-security:
-  jwt:
-    required: true
-
 campusbridge:
   verification:
     email:
       enabled: false
+      debug-code-enabled: true
       code-secret: test-email-code-secret
 
 aliyun:

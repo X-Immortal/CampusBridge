@@ -128,6 +128,7 @@ class BE13ConversationReadServiceImplTest {
 
     @Test
     void sendMessageRejectsConversationWhenEitherUserHasBlockedTheOther() {
+        when(userMapper.selectById(2L)).thenReturn(enabledPeer());
         when(conversationMapper.selectOwnedById(CONVERSATION_ID, OWNER_ID))
                 .thenReturn(conversationWithUnread(0));
         when(userBlockMapper.existsEitherDirection(OWNER_ID, 2L)).thenReturn(true);
@@ -143,6 +144,7 @@ class BE13ConversationReadServiceImplTest {
 
     @Test
     void imageMessageBindsOwnedTemporaryAttachmentToCreatedMessage() {
+        when(userMapper.selectById(2L)).thenReturn(enabledPeer());
         Conversation ownerConversation = conversationWithUnread(0);
         Conversation peerConversation = conversationWithUnread(0);
         peerConversation.setId(11L);
@@ -161,7 +163,7 @@ class BE13ConversationReadServiceImplTest {
         when(conversationMapper.selectPrivateByOwnerAndPeer(2L, OWNER_ID))
                 .thenReturn(peerConversation);
         when(attachmentMapper.selectById(30L)).thenReturn(attachment);
-        when(attachmentMapper.updateById(attachment)).thenReturn(1);
+        when(attachmentMapper.bindTemporaryToOwner(30L, OWNER_ID, "MESSAGE", 100L)).thenReturn(1);
         when(messageMapper.insert(any(Message.class))).thenAnswer(invocation -> {
             Message inserted = invocation.getArgument(0);
             if (inserted.getId() == null) {
@@ -177,9 +179,7 @@ class BE13ConversationReadServiceImplTest {
 
         conversationService.sendMessage(OWNER_ID, CONVERSATION_ID, request);
 
-        assertThat(attachment.getOwnerId()).isEqualTo(100L);
-        assertThat(attachment.getStatus()).isEqualTo("BOUND");
-        verify(attachmentMapper).updateById(attachment);
+        verify(attachmentMapper).bindTemporaryToOwner(30L, OWNER_ID, "MESSAGE", 100L);
     }
 
     @Test
@@ -210,6 +210,26 @@ class BE13ConversationReadServiceImplTest {
         assertThat(result.getRelatedType()).isEqualTo("TASK");
         verify(conversationMapper).selectPrivateByOwnerAndPeer(OWNER_ID, 2L);
         verify(conversationMapper).selectPrivateByOwnerAndPeer(2L, OWNER_ID);
+    }
+
+    private User enabledPeer() {
+        User user = new User();
+        user.setId(2L);
+        user.setEnabled(1);
+        return user;
+    }
+
+    @Test
+    void sendingToDisabledPeerIsRejected() {
+        User peer = enabledPeer();
+        peer.setEnabled(0);
+        when(userMapper.selectById(2L)).thenReturn(peer);
+        when(conversationMapper.selectOwnedById(CONVERSATION_ID, OWNER_ID)).thenReturn(conversationWithUnread(0));
+        RequestDtos.SendMessageRequest request = new RequestDtos.SendMessageRequest();
+        request.setType(ApiEnums.MessageType.TEXT);
+        request.setContent("Hello");
+        assertThatThrownBy(() -> conversationService.sendMessage(OWNER_ID, CONVERSATION_ID, request))
+                .isInstanceOf(BusinessException.class);
     }
 
     private Conversation conversationWithUnread(int unreadCount) {

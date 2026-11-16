@@ -40,8 +40,7 @@ public class VerificationAutoReviewService {
             VerificationOcrClient.OcrExtractResult ocrResult =
                     verificationOcrClient.extractStudentCard(entity.getEvidenceUrl());
             if (ocrResult == null || !ocrResult.isAvailable()) {
-                LOGGER.info("OCR result unavailable, auto pass in relaxed mode, verificationId={}", verificationId);
-                markAsVerified(entity);
+                LOGGER.info("OCR unavailable; verification remains pending, verificationId={}", verificationId);
                 return;
             }
 
@@ -54,7 +53,6 @@ public class VerificationAutoReviewService {
                 return;
             }
         } catch (Exception e) {
-            verifyWhenPossible(verificationId);
             LOGGER.warn("Auto review failed, verificationId={}", verificationId, e);
         }
     }
@@ -63,22 +61,14 @@ public class VerificationAutoReviewService {
         entity.setStatus("VERIFIED");
         entity.setRejectReason(null);
         entity.setReviewedAt(LocalDateTime.now());
-        campusVerificationMapper.updateById(entity);
+        campusVerificationMapper.updatePending(entity);
     }
 
     private void markAsRejected(CampusVerification entity, String reason) {
         entity.setStatus("REJECTED");
         entity.setRejectReason(reason);
         entity.setReviewedAt(LocalDateTime.now());
-        campusVerificationMapper.updateById(entity);
-    }
-
-    private void verifyWhenPossible(Long verificationId) {
-        CampusVerification current = campusVerificationMapper.selectById(verificationId);
-        if (current == null || !"PENDING".equals(current.getStatus())) {
-            return;
-        }
-        markAsVerified(current);
+        campusVerificationMapper.updatePending(entity);
     }
 
     private boolean isMatched(CampusVerification entity, VerificationOcrClient.OcrExtractResult ocrResult) {

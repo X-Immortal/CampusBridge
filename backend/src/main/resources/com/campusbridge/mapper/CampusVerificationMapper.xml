@@ -52,4 +52,26 @@
     WHERE id = #{id}
   </delete>
 
+  <update id="updatePending" parameterType="com.campusbridge.pojo.CampusVerification">
+    UPDATE campus_verifications
+    SET user_id = #{userId},
+      method = #{method},
+      real_name_cipher = #{realNameCipher},
+      student_number_cipher = #{studentNumberCipher},
+      student_number_hash = #{studentNumberHash},
+      school = #{school},
+      department = #{department},
+      evidence_url = #{evidenceUrl},
+      status = #{status},
+      reviewer_id = #{reviewerId},
+      reject_reason = #{rejectReason},
+      created_at = #{createdAt},
+      reviewed_at = #{reviewedAt}
+    WHERE id = #{id} AND status = 'PENDING'
+  </update>
+
+  <delete id="deletePendingById">
+    DELETE FROM campus_verifications WHERE id = #{id} AND status = 'PENDING'
+  </delete>
+
 </mapper>

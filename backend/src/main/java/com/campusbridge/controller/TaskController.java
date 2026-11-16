@@ -61,6 +61,7 @@ public class TaskController {
 
     @GetMapping
     public Result listTasks(
+            HttpServletRequest servletRequest,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String campus,
@@ -82,6 +83,13 @@ public class TaskController {
                 sortBy,
                 page,
                 size);
+        Long currentUserId = currentUserResolver.resolveOptionalUserId(servletRequest);
+        if (result.get("tasks") instanceof java.util.List<?> listedTasks) {
+            listedTasks.stream()
+                    .filter(com.campusbridge.pojo.Task.class::isInstance)
+                    .map(com.campusbridge.pojo.Task.class::cast)
+                    .forEach(task -> GuestTaskMasker.maskForGuest(task, currentUserId));
+        }
         return Result.success(result);
     }
 

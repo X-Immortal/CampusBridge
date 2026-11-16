@@ -12,6 +12,7 @@ import com.campusbridge.pojo.PostInteraction;
 import com.campusbridge.pojo.Reply;
 import com.campusbridge.service.InteractionService;
 import org.springframework.stereotype.Service;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -37,6 +38,9 @@ public class InteractionServiceImpl implements InteractionService {
     @Override
     public PostInteraction createInteraction(
             Long userId, Long postId, RequestDtos.CreatePostInteractionRequest request) {
+        if (request == null || request.getType() == null) {
+            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "Interaction type is required");
+        }
         String type = request.getType().name();
 
         Post post = requirePostExists(postId);
@@ -55,9 +59,12 @@ public class InteractionServiceImpl implements InteractionService {
         interaction.setType(type);
         interaction.setCreatedAt(LocalDateTime.now());
 
-        if (interactionMapper.insert(interaction) != 1) {
-            throw new BusinessException(ErrorCode.COMMON_999_INTERNAL_ERROR,
-                    "Failed to create interaction");
+        try {
+            if (interactionMapper.insert(interaction) != 1) {
+                throw new BusinessException(ErrorCode.COMMON_999_INTERNAL_ERROR, "Failed to create interaction");
+            }
+        } catch (DuplicateKeyException ex) {
+            throw new BusinessException(ErrorCode.COMMON_003_CONFLICT, "Already interacted with this post");
         }
 
         updatePostCount(post, type, 1);
@@ -66,6 +73,10 @@ public class InteractionServiceImpl implements InteractionService {
 
     @Override
     public void cancelInteraction(Long userId, Long postId, String type) {
+        if (!ApiEnums.PostInteractionType.LIKE.name().equals(type)
+                && !ApiEnums.PostInteractionType.MARK.name().equals(type)) {
+            throw new BusinessException(ErrorCode.COMMON_001_VALIDATION_ERROR, "Interaction type must be LIKE or MARK");
+        }
         requirePostExists(postId);
 
         int deleted = interactionMapper.deleteByUserTargetType(
@@ -89,7 +100,7 @@ public class InteractionServiceImpl implements InteractionService {
         }
 
         Reply reply = replyMapper.selectById(replyId);
-        if (reply == null) {
+        if (reply == null || !"PUBLISHED".equals(reply.getStatus())) {
             throw new BusinessException(ErrorCode.POST_003_REPLY_NOT_FOUND);
         }
         if (!reply.getPostId().equals(postId)) {
@@ -97,8 +108,7 @@ public class InteractionServiceImpl implements InteractionService {
                     "Reply does not belong to this post");
         }
 
-        post.setAcceptedReplyId(replyId);
-        if (postMapper.updateById(post) != 1) {
+        if (postMapper.updateAcceptedReply(postId, replyId) != 1) {
             throw new BusinessException(ErrorCode.COMMON_999_INTERNAL_ERROR,
                     "Failed to accept reply");
         }
@@ -109,29 +119,21 @@ public class InteractionServiceImpl implements InteractionService {
         interaction.setTargetId(postId);
         interaction.setType("ACCEPT_REPLY");
         interaction.setCreatedAt(LocalDateTime.now());
-        interactionMapper.insert(interaction);
-
+        // Acceptance is stored in posts.accepted_reply_id; interactions persist only LIKE and MARK.
         return interaction;
     }
 
     private Post requirePostExists(Long postId) {
         Post post = postMapper.selectById(postId);
-        if (post == null) {
+        if (post == null || !("PUBLISHED".equals(post.getStatus()) || "CLOSED".equals(post.getStatus()))) {
             throw new BusinessException(ErrorCode.POST_001_NOT_FOUND);
         }
         return post;
     }
 
     private void updatePostCount(Post post, String type, int delta) {
-        if (ApiEnums.PostInteractionType.LIKE.name().equals(type)) {
-            int newCount = Math.max(0, (post.getLikeCount() == null ? 0 : post.getLikeCount()) + delta);
-            post.setLikeCount(newCount);
-        } else if (ApiEnums.PostInteractionType.MARK.name().equals(type)) {
-            int newCount = Math.max(0, (post.getMarkCount() == null ? 0 : post.getMarkCount()) + delta);
-            post.setMarkCount(newCount);
-        } else {
-            return;
+        if (postMapper.adjustInteractionCount(post.getId(), type, delta) != 1) {
+            throw new BusinessException(ErrorCode.COMMON_003_CONFLICT, "Post is no longer available");
         }
-        postMapper.updateById(post);
     }
 }

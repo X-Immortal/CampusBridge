@@ -1,0 +1,2848 @@
+openapi: 3.1.0
+info:
+  title: CampusBridge HTTP API
+  description: 由当前 Controller 与 DTO 导出。Result.data 及 Map 请求体仍是动态结构；业务必填与跨字段规则见 docs/srs.md，具体动态载荷见实现。
+  version: "1.0"
+servers:
+- url: /
+paths:
+  /api/v1/account/email:
+    put:
+      tags:
+      - account-controller
+      operationId: sendEmailChangeCode
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                type: string
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/account/email/confirm:
+    put:
+      tags:
+      - account-controller
+      operationId: confirmEmailChange
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                type: string
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/account/password:
+    put:
+      tags:
+      - account-controller
+      operationId: changePassword
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                type: string
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/account/phone:
+    put:
+      tags:
+      - account-controller
+      operationId: updatePhone
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                type: string
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/admin/appeals:
+    get:
+      tags:
+      - admin-moderation-controller
+      description: 需要当前账号具有 ADMIN 角色。
+      operationId: listAppeals
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 1
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: 账号无管理权限
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/admin/appeals/{taskId}/dismiss:
+    post:
+      tags:
+      - admin-moderation-controller
+      description: 需要当前账号具有 ADMIN 角色。
+      operationId: dismissAppeal
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: 账号无管理权限
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/admin/appeals/{taskId}/punish:
+    post:
+      tags:
+      - admin-moderation-controller
+      description: 需要当前账号具有 ADMIN 角色。
+      operationId: punishAppeal
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: 账号无管理权限
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/admin/dashboard/report-status:
+    get:
+      tags:
+      - admin-dashboard-controller
+      description: 需要当前账号具有 ADMIN 角色。
+      operationId: reportStatus
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: 账号无管理权限
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/admin/dashboard/report-target-type:
+    get:
+      tags:
+      - admin-dashboard-controller
+      description: 需要当前账号具有 ADMIN 角色。
+      operationId: reportTargetType
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: 账号无管理权限
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/admin/dashboard/summary:
+    get:
+      tags:
+      - admin-dashboard-controller
+      description: 需要当前账号具有 ADMIN 角色。
+      operationId: summary
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: 账号无管理权限
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/admin/dashboard/task-status:
+    get:
+      tags:
+      - admin-dashboard-controller
+      description: 需要当前账号具有 ADMIN 角色。
+      operationId: taskStatus
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: 账号无管理权限
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/admin/dashboard/todos:
+    get:
+      tags:
+      - admin-dashboard-controller
+      description: 需要当前账号具有 ADMIN 角色。
+      operationId: todos
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: 账号无管理权限
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/admin/dashboard/trends:
+    get:
+      tags:
+      - admin-dashboard-controller
+      description: 需要当前账号具有 ADMIN 角色。
+      operationId: trends
+      parameters:
+      - name: days
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 7
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: 账号无管理权限
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/admin/moderation/tasks/pending:
+    get:
+      tags:
+      - admin-moderation-controller
+      description: 需要当前账号具有 ADMIN 角色。
+      operationId: listPendingTasks
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 1
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: 账号无管理权限
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/admin/moderation/tasks/{taskId}/approve:
+    post:
+      tags:
+      - admin-moderation-controller
+      description: 需要当前账号具有 ADMIN 角色。
+      operationId: approveTask
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: 账号无管理权限
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/admin/moderation/tasks/{taskId}/reject:
+    post:
+      tags:
+      - admin-moderation-controller
+      description: 需要当前账号具有 ADMIN 角色。
+      operationId: rejectTask
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: 账号无管理权限
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/admin/reports:
+    get:
+      tags:
+      - admin-moderation-controller
+      description: 需要当前账号具有 ADMIN 角色。
+      operationId: listReports_1
+      parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 1
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: 账号无管理权限
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/admin/reports/{reportId}/resolve:
+    post:
+      tags:
+      - admin-moderation-controller
+      description: 需要当前账号具有 ADMIN 角色。
+      operationId: resolveReport
+      parameters:
+      - name: reportId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResolveReportRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: 账号无管理权限
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/admin/verifications/pending:
+    get:
+      tags:
+      - admin-moderation-controller
+      description: 需要当前账号具有 ADMIN 角色。
+      operationId: listPendingVerifications
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 1
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: 账号无管理权限
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/admin/verifications/{id}/approve:
+    post:
+      tags:
+      - admin-moderation-controller
+      description: 需要当前账号具有 ADMIN 角色。
+      operationId: approveVerification
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: 账号无管理权限
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/admin/verifications/{id}/reject:
+    post:
+      tags:
+      - admin-moderation-controller
+      description: 需要当前账号具有 ADMIN 角色。
+      operationId: rejectVerification
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                type: string
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: 账号无管理权限
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/attachments:
+    post:
+      tags:
+      - attachment-controller
+      operationId: uploadAttachment
+      parameters:
+      - name: X-User-Id
+        in: header
+        required: false
+        schema:
+          type: integer
+          format: int64
+      - name: X-Expected-Owner-Type
+        in: header
+        required: false
+        schema:
+          type: string
+      - name: X-Attachment-Type
+        in: header
+        required: false
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              required:
+              - file
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "201":
+          description: Created
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/auth/login:
+    post:
+      tags:
+      - auth-controller
+      operationId: login
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+  /api/v1/auth/register:
+    post:
+      tags:
+      - auth-controller
+      operationId: register
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+  /api/v1/auth/register/send-code:
+    post:
+      tags:
+      - auth-controller
+      operationId: sendRegistrationCode
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                type: string
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+  /api/v1/blocks:
+    get:
+      tags:
+      - block-controller
+      operationId: getBlockedUsers
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/blocks/check/{targetUserId}:
+    get:
+      tags:
+      - block-controller
+      operationId: checkBlock
+      parameters:
+      - name: targetUserId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/blocks/{blockedUserId}:
+    post:
+      tags:
+      - block-controller
+      operationId: blockUser
+      parameters:
+      - name: blockedUserId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+    delete:
+      tags:
+      - block-controller
+      operationId: unblockUser
+      parameters:
+      - name: blockedUserId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/content:
+    get:
+      tags:
+      - content-controller
+      operationId: listContent
+      parameters:
+      - name: keyword
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: itemTypes
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: categoryCode
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: campus
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: locationKeyword
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: rewardType
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: sortBy
+        in: query
+        required: false
+        schema:
+          type: string
+          default: CREATED_AT
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 1
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+  /api/v1/conversations:
+    get:
+      tags:
+      - conversation-controller
+      operationId: listConversations
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 1
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+    post:
+      tags:
+      - conversation-controller
+      operationId: createConversation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateConversationRequest"
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/conversations/read-all:
+    post:
+      tags:
+      - conversation-controller
+      operationId: markAllConversationsRead
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/conversations/unread-count:
+    get:
+      tags:
+      - conversation-controller
+      operationId: getUnreadSummary
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/conversations/{conversationId}/messages:
+    get:
+      tags:
+      - conversation-controller
+      operationId: listMessages
+      parameters:
+      - name: conversationId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 1
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+    post:
+      tags:
+      - conversation-controller
+      operationId: sendMessage
+      parameters:
+      - name: conversationId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendMessageRequest"
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/conversations/{conversationId}/read:
+    post:
+      tags:
+      - conversation-controller
+      operationId: markConversationRead
+      parameters:
+      - name: conversationId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/home/recommendations:
+    get:
+      tags:
+      - home-controller
+      operationId: getRecommendations
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+  /api/v1/posts:
+    get:
+      tags:
+      - post-controller
+      operationId: listPosts
+      parameters:
+      - name: keyword
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: category
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 1
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+    post:
+      tags:
+      - post-controller
+      operationId: createPost
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePostRequest"
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/posts/marked:
+    get:
+      tags:
+      - interaction-controller
+      operationId: getMarkedPosts
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/posts/replied:
+    get:
+      tags:
+      - post-controller
+      operationId: listMyRepliedPosts
+      parameters:
+      - name: keyword
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: category
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 1
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/posts/{postId}:
+    get:
+      tags:
+      - post-controller
+      operationId: getPostDetail
+      parameters:
+      - name: postId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+    delete:
+      tags:
+      - post-controller
+      operationId: deletePost
+      parameters:
+      - name: postId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+    patch:
+      tags:
+      - post-controller
+      operationId: updatePost
+      parameters:
+      - name: postId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePostRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/posts/{postId}/interactions:
+    post:
+      tags:
+      - interaction-controller
+      operationId: createInteraction
+      parameters:
+      - name: postId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePostInteractionRequest"
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+    delete:
+      tags:
+      - interaction-controller
+      operationId: cancelInteraction
+      parameters:
+      - name: postId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: type
+        in: query
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/posts/{postId}/replies:
+    post:
+      tags:
+      - post-controller
+      operationId: createReply
+      parameters:
+      - name: postId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateReplyRequest"
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/posts/{postId}/replies/{replyId}/accept:
+    post:
+      tags:
+      - interaction-controller
+      operationId: acceptReply
+      parameters:
+      - name: postId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: replyId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/reports:
+    get:
+      tags:
+      - report-controller
+      operationId: listReports
+      parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 1
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+    post:
+      tags:
+      - report-controller
+      operationId: createReport
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateReportRequest"
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/task-applications/mine:
+    get:
+      tags:
+      - my-task-application-controller
+      operationId: listMyApplications
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/task-applications/{applicationId}:
+    delete:
+      tags:
+      - my-task-application-controller
+      operationId: withdrawApplication
+      parameters:
+      - name: applicationId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/tasks:
+    get:
+      tags:
+      - task-controller
+      operationId: listTasks
+      parameters:
+      - name: keyword
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: category
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: campus
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: rewardType
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: requiresProof
+        in: query
+        required: false
+        schema:
+          type: boolean
+      - name: excludeExpired
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+      - name: sortBy
+        in: query
+        required: false
+        schema:
+          type: string
+          default: CREATED_AT_DESC
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 1
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+    post:
+      tags:
+      - task-controller
+      operationId: createTask
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTaskRequest"
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/tasks/drafts:
+    post:
+      tags:
+      - task-controller
+      operationId: saveDraft
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTaskRequest"
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/tasks/{taskId}:
+    get:
+      tags:
+      - task-controller
+      operationId: getTaskDetail
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+    put:
+      tags:
+      - task-controller
+      operationId: updateTask
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTaskRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+    delete:
+      tags:
+      - task-controller
+      operationId: cancelTask
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: reason
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/tasks/{taskId}/applications:
+    get:
+      tags:
+      - task-application-controller
+      operationId: listApplications
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+    post:
+      tags:
+      - task-application-controller
+      operationId: createApplication
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTaskApplicationRequest"
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/tasks/{taskId}/applications/{applicationId}/accept:
+    post:
+      tags:
+      - task-application-controller
+      operationId: acceptApplication
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - name: applicationId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/tasks/{taskId}/completion:
+    post:
+      tags:
+      - task-controller
+      operationId: submitCompletion
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitCompletionRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/tasks/{taskId}/completion/confirm:
+    post:
+      tags:
+      - task-controller
+      operationId: confirmCompletion
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/tasks/{taskId}/completion/dispute:
+    post:
+      tags:
+      - task-controller
+      operationId: disputeCompletion
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                type: string
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/tasks/{taskId}/completion/reject:
+    post:
+      tags:
+      - task-controller
+      operationId: rejectCompletion
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                type: string
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/tasks/{taskId}/draft:
+    delete:
+      tags:
+      - task-controller
+      operationId: deleteDraft
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/tasks/{taskId}/provider-withdrawal:
+    post:
+      tags:
+      - task-controller
+      operationId: withdrawProvider
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                type: string
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/tasks/{taskId}/resend:
+    post:
+      tags:
+      - task-controller
+      operationId: resendTask
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/tasks/{taskId}/reviews:
+    get:
+      tags:
+      - review-controller
+      operationId: listReviews
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+    post:
+      tags:
+      - review-controller
+      operationId: createReview
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateReviewRequest"
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/tasks/{taskId}/status-transitions:
+    post:
+      tags:
+      - task-controller
+      operationId: transitionTaskStatus
+      parameters:
+      - name: taskId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskStatusTransitionRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/users/me:
+    get:
+      tags:
+      - user-controller
+      operationId: getCurrentUser
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/users/me/avatar:
+    post:
+      tags:
+      - user-controller
+      operationId: uploadAvatar
+      requestBody:
+        content:
+          application/json:
+            schema:
+              required:
+              - file
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/users/me/profile:
+    get:
+      tags:
+      - user-controller
+      operationId: getMyProfile
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+    put:
+      tags:
+      - user-controller
+      operationId: updateMyProfile
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserProfileRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/users/{userId}/profile:
+    get:
+      tags:
+      - user-controller
+      operationId: getUserHomepage
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+  /api/v1/users/{userId}/reviews:
+    get:
+      tags:
+      - user-controller
+      operationId: getUserReviews
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+  /api/v1/verifications:
+    get:
+      tags:
+      - verification-controller
+      operationId: getMyVerification
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+    post:
+      tags:
+      - verification-controller
+      operationId: submitVerification
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateVerificationRequest"
+        required: true
+      responses:
+        "202":
+          description: Accepted
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/verifications/current:
+    delete:
+      tags:
+      - verification-controller
+      operationId: cancelCurrentVerification
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/verifications/email/code:
+    post:
+      tags:
+      - verification-controller
+      operationId: resendEmailVerificationCode
+      responses:
+        "202":
+          description: Accepted
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+  /api/v1/verifications/email/confirm:
+    post:
+      tags:
+      - verification-controller
+      operationId: confirmEmailVerification
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfirmEmailVerificationRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/Result"
+        "401":
+          description: 未认证或访问令牌无效
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+      security:
+      - bearerAuth: []
+components:
+  schemas:
+    ConfirmEmailVerificationRequest:
+      type: object
+      properties:
+        code:
+          type: string
+    CreateConversationRequest:
+      type: object
+      properties:
+        initialMessage:
+          type: string
+        peerUserId:
+          type: integer
+          format: int64
+        relatedId:
+          type: integer
+          format: int64
+        relatedType:
+          type: string
+    CreatePostInteractionRequest:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+          - LIKE
+          - MARK
+    CreatePostRequest:
+      type: object
+      properties:
+        attachmentIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+        category:
+          type: string
+          enum:
+          - INQUIRY_HELP
+          - SECOND_HAND
+          - TEAM_FRIEND
+          - CAMPUS_SOCIAL
+        content:
+          type: string
+        title:
+          type: string
+    CreateReplyRequest:
+      type: object
+      properties:
+        content:
+          type: string
+        parentReplyId:
+          type: integer
+          format: int64
+    CreateReportRequest:
+      type: object
+      properties:
+        description:
+          type: string
+        reason:
+          type: string
+        targetId:
+          type: integer
+          format: int64
+        targetType:
+          type: string
+          enum:
+          - POST
+          - REPLY
+          - TASK
+          - USER
+          - MESSAGE
+    CreateReviewRequest:
+      type: object
+      properties:
+        comment:
+          type: string
+        rating:
+          type: integer
+          format: int32
+        revieweeId:
+          type: integer
+          format: int64
+    CreateTaskApplicationRequest:
+      type: object
+      properties:
+        message:
+          type: string
+    CreateTaskRequest:
+      type: object
+      properties:
+        allowOfflineContact:
+          type: boolean
+        attachmentIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+        campus:
+          type: string
+        category:
+          type: string
+          enum:
+          - ERRAND
+          - AGENCY
+        completionStandard:
+          type: string
+        deadline:
+          type: string
+          format: date-time
+        deliveryLocation:
+          type: string
+        description:
+          type: string
+        isInstantTask:
+          type: boolean
+        location:
+          type: string
+        onlyInAppContact:
+          type: boolean
+        requiresProof:
+          type: boolean
+        rewardAmount:
+          type: integer
+          format: int32
+        rewardDescription:
+          type: string
+        rewardType:
+          type: string
+          enum:
+          - FREE
+          - POINTS
+          - CASH
+          - NEGOTIABLE
+        riskDisclosureConfirmed:
+          type: boolean
+        routeHint:
+          type: string
+        sensitiveReason:
+          type: string
+        title:
+          type: string
+    CreateVerificationRequest:
+      type: object
+      properties:
+        campusEmail:
+          type: string
+        department:
+          type: string
+        evidenceUrl:
+          type: string
+        method:
+          type: string
+          enum:
+          - STUDENT_CARD_IMAGE
+          - CAMPUS_EMAIL
+          - MANUAL_REVIEW
+        realName:
+          type: string
+        school:
+          type: string
+        studentNumber:
+          type: string
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        details:
+          type: array
+          items:
+            type: string
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/Meta"
+    LoginRequest:
+      type: object
+      properties:
+        password:
+          type: string
+        username:
+          type: string
+    Meta:
+      type: object
+      properties:
+        requestId:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+    RegisterRequest:
+      type: object
+      properties:
+        code:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+        phone:
+          type: string
+        username:
+          type: string
+    ResolveReportRequest:
+      type: object
+      properties:
+        creditChange:
+          type: integer
+          format: int32
+        decision:
+          type: string
+        markTaskDisputed:
+          type: boolean
+        punishedUserId:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum:
+          - PENDING
+          - PROCESSING
+          - APPROVED
+          - REJECTED
+          - RESOLVED
+          - PUNISHED
+    Result:
+      type: object
+      properties:
+        code:
+          type: string
+        data:
+          type: object
+        message:
+          type: string
+        meta:
+          $ref: "#/components/schemas/Meta"
+    SendMessageRequest:
+      type: object
+      properties:
+        attachmentIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+        content:
+          type: string
+        type:
+          type: string
+          enum:
+          - TEXT
+          - IMAGE
+          - SYSTEM_NOTIFICATION
+    SubmitCompletionRequest:
+      type: object
+      properties:
+        attachmentIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+        description:
+          type: string
+    TaskStatusTransitionRequest:
+      type: object
+      properties:
+        action:
+          type: string
+          enum:
+          - START
+          - CONFIRM_COMPLETION
+          - REJECT_COMPLETION
+          - DISPUTE
+          - CANCEL
+        reason:
+          type: string
+    UpdatePostRequest:
+      type: object
+      properties:
+        content:
+          type: string
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - PUBLISHED
+          - PENDING_REVIEW
+          - HIDDEN
+          - CLOSED
+          - DELETED
+          - REJECTED
+        title:
+          type: string
+    UpdateTaskRequest:
+      type: object
+      properties:
+        allowOfflineContact:
+          type: boolean
+        completionStandard:
+          type: string
+        deadline:
+          type: string
+          format: date-time
+        description:
+          type: string
+        onlyInAppContact:
+          type: boolean
+        requiresProof:
+          type: boolean
+        rewardAmount:
+          type: integer
+          format: int32
+        rewardDescription:
+          type: string
+        rewardType:
+          type: string
+          enum:
+          - FREE
+          - POINTS
+          - CASH
+          - NEGOTIABLE
+        title:
+          type: string
+    UpdateUserProfileRequest:
+      type: object
+      properties:
+        avatarUrl:
+          type: string
+        bio:
+          type: string
+        campus:
+          type: string
+        college:
+          type: string
+        contactInfo:
+          type: string
+        interestTags:
+          type: array
+          items:
+            type: string
+        nickname:
+          type: string
+        skillTags:
+          type: array
+          items:
+            type: string
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

@@ -20,7 +20,7 @@
     SELECT r.*, up.nickname AS author_name
     FROM replies r
     LEFT JOIN user_profiles up ON r.author_id = up.user_id
-    WHERE r.post_id = #{postId}
+    WHERE r.post_id = #{postId} AND r.status = 'PUBLISHED'
     ORDER BY r.created_at ASC, r.id ASC
     LIMIT #{size} OFFSET #{offset}
   </select>
@@ -29,7 +29,7 @@
     SELECT r.*, up.nickname AS author_name
     FROM replies r
     LEFT JOIN user_profiles up ON r.author_id = up.user_id
-    WHERE r.author_id = #{authorId}
+    WHERE r.author_id = #{authorId} AND r.status = 'PUBLISHED'
       AND r.post_id IN
       <foreach collection="postIds" item="postId" open="(" separator="," close=")">
         #{postId}

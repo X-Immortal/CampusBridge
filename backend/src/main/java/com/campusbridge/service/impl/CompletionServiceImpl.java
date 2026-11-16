@@ -13,8 +13,6 @@ import com.campusbridge.service.CompletionService;
 import com.campusbridge.service.CreditService;
 import com.campusbridge.service.NotificationService;
 import com.campusbridge.service.TaskHistoryService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,9 +33,6 @@ public class CompletionServiceImpl implements CompletionService {
     private static final int MAX_ATTACHMENT_COUNT = 9;
     private static final String ATTACHMENT_OWNER_TYPE = "COMPLETION_PROOF";
     private static final String ATTACHMENT_STATUS_TEMPORARY = "TEMPORARY";
-    private static final String ATTACHMENT_STATUS_ACTIVE = "ACTIVE";
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(CompletionServiceImpl.class);
 
     private final CompletionProofMapper completionProofMapper;
     private final AttachmentMapper attachmentMapper;
@@ -70,7 +65,7 @@ public class CompletionServiceImpl implements CompletionService {
         validateTaskId(taskId);
         validateSubmitCompletionRequest(request);
 
-        Task task = taskMapper.selectById(taskId);
+        Task task = taskMapper.selectByIdForUpdate(taskId);
         if (task == null) {
             throw new BusinessException(ErrorCode.TASK_001_NOT_FOUND);
         }
@@ -144,13 +139,11 @@ public class CompletionServiceImpl implements CompletionService {
                     "attachmentIds must be unique and non-null");
         }
 
-        for (Long attachmentId : attachmentIds) {
+        for (Long attachmentId : attachmentIds.stream().sorted().toList()) {
             Attachment attachment = attachmentMapper.selectById(attachmentId);
             validateAttachmentOwnership(attachment, submitterId);
-            attachment.setOwnerType(ATTACHMENT_OWNER_TYPE);
-            attachment.setOwnerId(proofId);
-            attachment.setStatus(ATTACHMENT_STATUS_ACTIVE);
-            if (attachmentMapper.updateById(attachment) != 1) {
+            if (attachmentMapper.bindTemporaryToOwner(
+                    attachmentId, submitterId, ATTACHMENT_OWNER_TYPE, proofId) != 1) {
                 throw new BusinessException(
                         ErrorCode.COMMON_999_INTERNAL_ERROR,
                         "Failed to bind completion attachment");
@@ -175,7 +168,7 @@ public class CompletionServiceImpl implements CompletionService {
         validateOperatorId(requesterId);
         validateTaskId(taskId);
 
-        Task task = taskMapper.selectById(taskId);
+        Task task = taskMapper.selectByIdForUpdate(taskId);
         if (task == null) {
             throw new BusinessException(ErrorCode.TASK_001_NOT_FOUND);
         }
@@ -198,7 +191,7 @@ public class CompletionServiceImpl implements CompletionService {
         }
 
         // 积分报酬结算
-        settleReward(task);
+        creditService.awardTaskReward(task);
 
         // 记录历史
         taskHistoryService.recordHistory(
@@ -215,30 +208,13 @@ public class CompletionServiceImpl implements CompletionService {
                 "发布者已确认收到任务成果。");
     }
 
-    private void settleReward(Task task) {
-        if (!"POINTS".equals(task.getRewardType())) {
-            return;
-        }
-        Integer amount = task.getRewardAmount();
-        if (amount == null || amount <= 0) {
-            return;
-        }
-        Long providerId = task.getProviderId();
-        Long taskId = task.getId();
-
-        creditService.adjustCredit(providerId, +amount,
-                "任务 #" + taskId + " 积分报酬收入", "TASK", taskId);
-
-        LOGGER.info("Awarded {} points to provider #{} for task #{}", amount, providerId, taskId);
-    }
-
     @Override
     public void rejectCompletion(Long requesterId, Long taskId, String reason) {
         validateOperatorId(requesterId);
         validateTaskId(taskId);
         validateReason(reason, true);
 
-        Task task = taskMapper.selectById(taskId);
+        Task task = taskMapper.selectByIdForUpdate(taskId);
         if (task == null) {
             throw new BusinessException(ErrorCode.TASK_001_NOT_FOUND);
         }
@@ -281,7 +257,7 @@ public class CompletionServiceImpl implements CompletionService {
         validateTaskId(taskId);
         validateReason(reason, true);
 
-        Task task = taskMapper.selectById(taskId);
+        Task task = taskMapper.selectByIdForUpdate(taskId);
         if (task == null) {
             throw new BusinessException(ErrorCode.TASK_001_NOT_FOUND);
         }

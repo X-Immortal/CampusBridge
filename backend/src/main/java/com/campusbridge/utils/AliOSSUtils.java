@@ -53,12 +53,12 @@ public class AliOSSUtils {
                 .build();
         try (InputStream inputStream = file.getInputStream()) {
             ossClient.putObject(bucketName, fileName, inputStream);
+        } finally {
+            ossClient.shutdown();
         }
 
         // 文件访问路径
         String url = endpoint.split("//")[0] + "//" + bucketName + "." + endpoint.split("//")[1] + "/" + fileName;
-        // 关闭 ossClient
-        ossClient.shutdown();
         return url; // 把上传到 oss 的路径返回
     }
 

@@ -73,7 +73,7 @@ public class TaskApplicationServiceImpl implements TaskApplicationService {
             RequestDtos.CreateTaskApplicationRequest request) {
         validateApplicationRequest(applicantId, taskId, request);
 
-        Task task = requireTask(taskId);
+        Task task = requireTaskForUpdate(taskId);
         if (!STATUS_OPEN.equals(task.getStatus())) {
             throw new BusinessException(ErrorCode.TASK_002_INVALID_STATUS_TRANSITION);
         }
@@ -203,7 +203,7 @@ public class TaskApplicationServiceImpl implements TaskApplicationService {
             throwValidation("requesterId, taskId and applicationId are required");
         }
 
-        Task task = requireTask(taskId);
+        Task task = requireTaskForUpdate(taskId);
         requireRequester(task, requesterId);
 
         TaskApplication application = taskApplicationMapper.selectById(applicationId);
@@ -274,6 +274,14 @@ public class TaskApplicationServiceImpl implements TaskApplicationService {
         if (request.getMessage().length() > MAX_MESSAGE_LENGTH) {
             throwValidation("message is too long");
         }
+    }
+
+    private Task requireTaskForUpdate(Long taskId) {
+        Task task = taskMapper.selectByIdForUpdate(taskId);
+        if (task == null) {
+            throw new BusinessException(ErrorCode.TASK_001_NOT_FOUND);
+        }
+        return task;
     }
 
     private Task requireTask(Long taskId) {

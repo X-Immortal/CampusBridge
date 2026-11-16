@@ -61,7 +61,7 @@ public class AccountController {
         Map<String, Object> payload = new java.util.HashMap<>();
         payload.put("email", newEmail);
         payload.put("sent", emailCodeSender.isDeliveryRequired());
-        if (!emailCodeSender.isDeliveryRequired()) {
+        if (emailCodeSender.isDebugCodeEnabled()) {
             payload.put("debugCode", code);
         }
         return Result.success(payload);

@@ -90,7 +90,7 @@ public class ReportServiceImpl implements ReportService {
         validateReporterId(reporterId);
         validateCreateReportRequest(request);
 
-        Object target = requireTargetExists(request.getTargetType(), request.getTargetId());
+        Object target = requireTargetExists(reporterId, request.getTargetType(), request.getTargetId());
         LocalDateTime now = LocalDateTime.now();
 
         Report report = new Report();
@@ -175,8 +175,8 @@ public class ReportServiceImpl implements ReportService {
         String status = request.getStatus().name();
         if (reportMapper.updateStatusById(reportId, status) != 1) {
             throw new BusinessException(
-                    ErrorCode.COMMON_999_INTERNAL_ERROR,
-                    "Failed to update report status");
+                    ErrorCode.COMMON_003_CONFLICT,
+                    "Report has already been resolved");
         }
         report.setStatus(status);
 
@@ -244,7 +244,7 @@ public class ReportServiceImpl implements ReportService {
         }
     }
 
-    private Object requireTargetExists(ApiEnums.ReportTargetType targetType, Long targetId) {
+    private Object requireTargetExists(Long reporterId, ApiEnums.ReportTargetType targetType, Long targetId) {
         switch (targetType) {
             case POST:
                 Post post = postMapper.selectById(targetId);
@@ -271,7 +271,7 @@ public class ReportServiceImpl implements ReportService {
                 }
                 return user;
             case MESSAGE:
-                Message message = messageMapper.selectById(targetId);
+                Message message = messageMapper.selectOwnedById(targetId, reporterId);
                 if (message == null) {
                     throwValidation("message target not found");
                 }

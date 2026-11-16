@@ -1,6 +1,14 @@
 package com.campusbridge.unit;
 
 import com.campusbridge.dto.request.RequestDtos;
+import com.campusbridge.common.BusinessException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+import java.util.List;
+import java.util.ArrayList;
 import com.campusbridge.mapper.UserMapper;
 import com.campusbridge.pojo.User;
 import com.campusbridge.service.impl.AuthServiceImpl;
@@ -18,8 +26,10 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -116,6 +126,64 @@ class BE01AuthServiceImplTest {
         when(userMapper.insert(any(User.class))).thenReturn(0);
 
         assertThat(authService.register(request)).isNull();
+    }
+
+    @Test
+    void registerRejectsMissingCodeWithoutThrowingNullPointer() {
+        assertThat(authService.register(
+                registerRequest("alice", "pass123", "13800000001", "alice@test.com", null))).isNull();
+    }
+
+    @Test
+    void registrationCodeIsConsumedOnlyOnceAcrossConcurrentRequests() throws Exception {
+        when(emailCodeSender.sendCode(any(), any(), any())).thenReturn(true);
+        String code = authService.sendRegistrationCode("alice@test.com");
+        CountDownLatch bothCheckedPhone = new CountDownLatch(2);
+        when(userMapper.selectByPhoneHash(any())).thenAnswer(invocation -> {
+            bothCheckedPhone.countDown();
+            assertThat(bothCheckedPhone.await(5, TimeUnit.SECONDS)).isTrue();
+            return null;
+        });
+        when(passwordEncoder.encode("pass123")).thenReturn("hash");
+        when(userMapper.insert(any(User.class))).thenAnswer(invocation -> {
+            User user = invocation.getArgument(0);
+            user.setId(100L);
+            return 1;
+        });
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            List<Future<Object>> results = new ArrayList<>();
+            for (int i = 0; i < 2; i++) {
+                results.add(executor.submit(() -> {
+                    try {
+                        return authService.register(
+                                registerRequest("alice", "pass123", "13800000001", "alice@test.com", code));
+                    } catch (BusinessException ex) {
+                        return ex;
+                    }
+                }));
+            }
+            List<Object> outcomes = List.of(results.get(0).get(5, TimeUnit.SECONDS),
+                    results.get(1).get(5, TimeUnit.SECONDS));
+            assertThat(outcomes.stream().filter(Long.class::isInstance).count()).isEqualTo(1);
+            assertThat(outcomes.stream().filter(BusinessException.class::isInstance).count()).isEqualTo(1);
+            verify(userMapper, times(1)).insert(any(User.class));
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void registrationFailsWhenMailIsUnavailableAndDebugModeIsDisabled() {
+        assertThatThrownBy(() -> authService.sendRegistrationCode("alice@test.com"))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("验证码发送失败");
+    }
+
+    @Test
+    void registrationAllowsExplicitDebugModeWithoutMailDelivery() {
+        when(emailCodeSender.isDebugCodeEnabled()).thenReturn(true);
+        assertThat(authService.sendRegistrationCode("alice@test.com")).matches("[0-9]{6}");
     }
 
     // ---- login ----

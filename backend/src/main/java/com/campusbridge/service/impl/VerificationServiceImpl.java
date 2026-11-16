@@ -119,7 +119,7 @@ public class VerificationServiceImpl implements VerificationService {
         latest.setEvidenceUrl(record.email());
         latest.setReviewedAt(LocalDateTime.now());
 
-        int affected = campusVerificationMapper.updateById(latest);
+        int affected = campusVerificationMapper.updatePending(latest);
         if (affected <= 0) {
             return -6L;
         }
@@ -161,7 +161,7 @@ public class VerificationServiceImpl implements VerificationService {
             return -2L;
         }
 
-        int affected = campusVerificationMapper.deleteById(latest.getId());
+        int affected = campusVerificationMapper.deletePendingById(latest.getId());
         if (affected <= 0) {
             return -3L;
         }
@@ -177,7 +177,9 @@ public class VerificationServiceImpl implements VerificationService {
         if (userId == null) {
             return null;
         }
-        return campusVerificationMapper.selectLatestByUserId(userId);
+        CampusVerification verification = campusVerificationMapper.selectLatestByUserId(userId);
+        hideEmailChallenge(verification);
+        return verification;
     }
 
     @Override
@@ -189,6 +191,7 @@ public class VerificationServiceImpl implements VerificationService {
         long total = list instanceof com.github.pagehelper.Page<?> pageResult
                 ? pageResult.getTotal()
                 : list.size();
+        list.forEach(this::hideEmailChallenge);
         return new ResponseDtos.PagedResult<>(list, safePage, safeSize, total);
     }
 
@@ -216,9 +219,9 @@ public class VerificationServiceImpl implements VerificationService {
             entity.setRejectReason(isBlank(rejectReason) ? "管理员拒绝" : rejectReason);
         }
 
-        int affected = campusVerificationMapper.updateById(entity);
+        int affected = campusVerificationMapper.updatePending(entity);
         if (affected <= 0) {
-            return -3L;
+            return -2L;
         }
 
         Map<String, Object> payload = new HashMap<>();
@@ -250,14 +253,15 @@ public class VerificationServiceImpl implements VerificationService {
         String code = generateEmailCode();
         LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(EMAIL_CODE_TTL_MINUTES);
         boolean sent = emailVerificationCodeSender.sendCode(email, code, expiresAt);
-        if (!sent && emailVerificationCodeSender.isDeliveryRequired()) {
+        if (!sent && (emailVerificationCodeSender.isDeliveryRequired()
+                || !emailVerificationCodeSender.isDebugCodeEnabled())) {
             return -4L;
         }
 
         entity.setEvidenceUrl(buildEmailCodeEvidence(email, code, expiresAt));
         int affected = insert
                 ? campusVerificationMapper.insert(entity)
-                : campusVerificationMapper.updateById(entity);
+                : campusVerificationMapper.updatePending(entity);
         if (affected <= 0) {
             return -2L;
         }
@@ -265,10 +269,19 @@ public class VerificationServiceImpl implements VerificationService {
         Map<String, Object> payload = buildPayload(entity);
         payload.put("campusEmail", email);
         payload.put("emailDelivery", sent ? "SENT" : "DEV_FALLBACK");
-        if (!sent) {
+        if (!sent && emailVerificationCodeSender.isDebugCodeEnabled()) {
             payload.put("debugCode", code);
         }
         return payload;
+    }
+
+    private void hideEmailChallenge(CampusVerification verification) {
+        if (verification != null && ApiEnums.VerificationMethod.CAMPUS_EMAIL.name().equals(verification.getMethod())) {
+            EmailCodeRecord record = parseEmailCodeRecord(verification.getEvidenceUrl());
+            if (record != null) {
+                verification.setEvidenceUrl(record.email());
+            }
+        }
     }
 
     private Map<String, Object> buildPayload(CampusVerification entity) {

@@ -53,7 +53,7 @@ class BE16ReviewServiceImplTest {
     void createReviewSucceedsForCompletedTask() {
         Task task = task(TASK_ID, REQUESTER_ID, PROVIDER_ID, "COMPLETED");
         when(taskMapper.selectById(TASK_ID)).thenReturn(task);
-        when(reviewMapper.selectAll()).thenReturn(Collections.emptyList());
+        when(reviewMapper.selectByTaskId(TASK_ID)).thenReturn(Collections.emptyList());
         when(reviewMapper.insert(any(Review.class))).thenReturn(1);
 
         Review review = reviewService.createReview(
@@ -69,7 +69,7 @@ class BE16ReviewServiceImplTest {
     void createReviewSucceedsForReviewedTask() {
         Task task = task(TASK_ID, REQUESTER_ID, PROVIDER_ID, "REVIEWED");
         when(taskMapper.selectById(TASK_ID)).thenReturn(task);
-        when(reviewMapper.selectAll()).thenReturn(Collections.emptyList());
+        when(reviewMapper.selectByTaskId(TASK_ID)).thenReturn(Collections.emptyList());
         when(reviewMapper.insert(any(Review.class))).thenReturn(1);
 
         Review review = reviewService.createReview(
@@ -127,7 +127,7 @@ class BE16ReviewServiceImplTest {
         existing.setTaskId(TASK_ID);
         existing.setReviewerId(REQUESTER_ID);
         when(taskMapper.selectById(TASK_ID)).thenReturn(task);
-        when(reviewMapper.selectAll()).thenReturn(List.of(existing));
+        when(reviewMapper.selectByTaskId(TASK_ID)).thenReturn(List.of(existing));
 
         assertThatThrownBy(() -> reviewService.createReview(
                 REQUESTER_ID, TASK_ID, reviewRequest(PROVIDER_ID, 4, "again")))
@@ -158,7 +158,7 @@ class BE16ReviewServiceImplTest {
         review.setRating(5);
 
         when(taskMapper.selectById(TASK_ID)).thenReturn(task);
-        when(reviewMapper.selectAll()).thenReturn(List.of(review));
+        when(reviewMapper.selectByTaskId(TASK_ID)).thenReturn(List.of(review));
 
         List<Review> results = reviewService.listReviews(TASK_ID);
 

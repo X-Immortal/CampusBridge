@@ -1,5 +1,8 @@
 package com.campusbridge.integration;
 
+import com.campusbridge.mapper.UserMapper;
+import com.campusbridge.pojo.User;
+
 import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.pojo.CompletionProof;
 import com.campusbridge.pojo.Review;
@@ -62,6 +65,9 @@ class TaskWorkflowIntegrationTest {
     private JwtUtil jwtUtil;
 
     @MockitoBean
+    private UserMapper userMapper;
+
+    @MockitoBean
     private TaskService taskService;
 
     @MockitoBean
@@ -78,6 +84,13 @@ class TaskWorkflowIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        for (Long id : new Long[]{REQUESTER_ID, PROVIDER_ID}) {
+            User user = new User();
+            user.setId(id);
+            user.setRole("USER");
+            user.setEnabled(1);
+            when(userMapper.selectById(id)).thenReturn(user);
+        }
         requesterToken = "Bearer " + jwtUtil.generateToken(REQUESTER_ID, "USER");
         providerToken = "Bearer " + jwtUtil.generateToken(PROVIDER_ID, "USER");
     }

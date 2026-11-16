@@ -1,5 +1,8 @@
 package com.campusbridge.integration;
 
+import com.campusbridge.mapper.UserMapper;
+import com.campusbridge.pojo.User;
+
 import com.campusbridge.pojo.Task;
 import com.campusbridge.dto.view.ViewDtos;
 import com.campusbridge.service.PostService;
@@ -57,6 +60,9 @@ class GuestAccessIntegrationTest {
     private JwtUtil jwtUtil;
 
     @MockitoBean
+    private UserMapper userMapper;
+
+    @MockitoBean
     private TaskService taskService;
 
     @MockitoBean
@@ -66,6 +72,11 @@ class GuestAccessIntegrationTest {
     private PostService postService;
 
     private String userToken() {
+        User user = new User();
+        user.setId(USER_ID);
+        user.setRole("USER");
+        user.setEnabled(1);
+        when(userMapper.selectById(USER_ID)).thenReturn(user);
         return "Bearer " + jwtUtil.generateToken(USER_ID, "USER");
     }
 

@@ -7,6 +7,17 @@
     VALUES (#{taskId}, #{fromStatus}, #{toStatus}, #{operatorId}, #{note}, #{createdAt})
   </insert>
 
+  <select id="existsReminder" resultType="boolean">
+    SELECT EXISTS(
+      SELECT 1 FROM task_histories
+      WHERE task_id = #{taskId} AND note = #{note}
+        AND created_at &gt;= #{activeSince}
+        <if test="createdBefore != null">
+          AND created_at &lt;= #{createdBefore}
+        </if>
+    )
+  </select>
+
   <select id="selectById" resultType="com.campusbridge.pojo.TaskHistory">
     SELECT * FROM task_histories
     WHERE id = #{id}

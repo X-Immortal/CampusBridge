@@ -1,5 +1,5 @@
 -- 校园互助服务平台 database schema.
--- MySQL 8.0 / InnoDB / utf8mb4 / H2 compatible
+-- MySQL 8 / InnoDB / utf8mb4
 CREATE SCHEMA IF NOT EXISTS campusbridge;
 USE campusbridge;
 CREATE TABLE `users` (
@@ -143,17 +143,17 @@ CREATE TABLE `tasks` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `requester_id` BIGINT UNSIGNED NOT NULL,
   `provider_id` BIGINT UNSIGNED NULL,
-  `category` ENUM('ERRAND','AGENCY') NOT NULL,
-  `title` VARCHAR(100) NOT NULL,
-  `description` TEXT NOT NULL,
-  `campus` VARCHAR(50) NOT NULL,
-  `location` VARCHAR(120) NOT NULL,
+  `category` ENUM('ERRAND','AGENCY') NULL,
+  `title` VARCHAR(100) NULL,
+  `description` TEXT NULL,
+  `campus` VARCHAR(50) NULL,
+  `location` VARCHAR(120) NULL,
   `delivery_location` VARCHAR(120) NULL COMMENT '送达地点，仅跑腿代取使用',
-  `deadline` DATETIME NOT NULL,
-  `reward_type` ENUM('FREE','POINTS','CASH','NEGOTIABLE') NOT NULL,
+  `deadline` DATETIME NULL,
+  `reward_type` ENUM('FREE','POINTS','CASH','NEGOTIABLE') NULL,
   `reward_description` VARCHAR(200) NULL,
   `reward_amount` INT NULL COMMENT '积分/金额奖励数值',
-  `completion_standard` VARCHAR(500) NOT NULL,
+  `completion_standard` VARCHAR(500) NULL,
   `requires_proof` TINYINT(1) NOT NULL DEFAULT 0,
   `only_in_app_contact` TINYINT(1) NOT NULL DEFAULT 1,
   `allow_offline_contact` TINYINT(1) NOT NULL DEFAULT 0,
@@ -250,6 +250,9 @@ CREATE TABLE `conversations` (
   ) STORED,
   `related_type` ENUM('POST','TASK','SYSTEM') NULL,
   `related_id` BIGINT UNSIGNED NULL,
+  `system_related_key` VARCHAR(80) GENERATED ALWAYS AS (
+    CASE WHEN `type` = 'SYSTEM' THEN CONCAT(`related_type`, ':', `related_id`) ELSE NULL END
+  ) STORED,
   `replyable` TINYINT(1) NOT NULL DEFAULT 1,
   `last_message_at` DATETIME NULL,
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -258,6 +261,7 @@ CREATE TABLE `conversations` (
   KEY `idx_conversations_peer` (`peer_user_id`),
   KEY `idx_conversations_related` (`related_type`,`related_id`),
   UNIQUE KEY `uk_conversations_private_peer` (`owner_id`,`private_peer_id`),
+  UNIQUE KEY `uk_conversations_system_related` (`owner_id`,`system_related_key`),
   CONSTRAINT `fk_conversations_owner` FOREIGN KEY (`owner_id`) REFERENCES `users` (`id`),
   CONSTRAINT `fk_conversations_peer` FOREIGN KEY (`peer_user_id`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='站内会话';
@@ -281,7 +285,7 @@ CREATE TABLE `messages` (
 CREATE TABLE `attachments` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `uploader_id` BIGINT UNSIGNED NOT NULL,
-  `owner_type` ENUM('POST','REPLY','TASK','COMPLETION_PROOF','MESSAGE','REPORT') NULL,
+  `owner_type` ENUM('POST','REPLY','TASK','COMPLETION_PROOF','MESSAGE','REPORT','VERIFICATION') NULL,
   `owner_id` BIGINT UNSIGNED NULL,
   `type` ENUM('IMAGE','FILE') NOT NULL,
   `file_name` VARCHAR(255) NOT NULL,

@@ -16,6 +16,7 @@ import com.campusbridge.pojo.Message;
 import com.campusbridge.pojo.User;
 import com.campusbridge.service.ConversationService;
 import org.springframework.stereotype.Service;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -85,20 +86,16 @@ public class ConversationServiceImpl implements ConversationService {
 
         LocalDateTime now = LocalDateTime.now();
         String relatedType = normalizeRelatedType(request.getRelatedType());
-        Conversation conversation = ensureConversation(
-                ownerId,
-                request.getPeerUserId(),
-                relatedType,
-                request.getRelatedId(),
-                now);
-        Conversation peerConversation = ensureConversation(
-                request.getPeerUserId(),
-                ownerId,
-                relatedType,
-                request.getRelatedId(),
-                now);
+        // Create both owner views in a stable order when users open the same chat concurrently.
+        Long firstId = Math.min(ownerId, request.getPeerUserId());
+        Long secondId = Math.max(ownerId, request.getPeerUserId());
+        Conversation first = ensureConversation(firstId, secondId, relatedType, request.getRelatedId(), now);
+        Conversation second = ensureConversation(secondId, firstId, relatedType, request.getRelatedId(), now);
+        Conversation conversation = ownerId.equals(firstId) ? first : second;
+        Conversation peerConversation = ownerId.equals(firstId) ? second : first;
 
         if (shouldInsertInitialMessage(conversation, request.getInitialMessage())) {
+            touchConversationPair(conversation, peerConversation, now);
             Message ownerMessage = buildMessage(
                     conversation.getId(),
                     ownerId,
@@ -115,8 +112,6 @@ public class ConversationServiceImpl implements ConversationService {
                     now);
             insertMessage(ownerMessage);
             insertMessage(peerMessage);
-            touchConversation(conversation, request.getPeerUserId(), now);
-            touchConversation(peerConversation, ownerId, now);
         }
         return conversation;
     }
@@ -156,9 +151,17 @@ public class ConversationServiceImpl implements ConversationService {
         if (!Integer.valueOf(1).equals(conversation.getReplyable())) {
             throw new BusinessException(ErrorCode.CONV_002_NOT_REPLYABLE);
         }
+        requireExistingEnabledUser(conversation.getPeerUserId());
         requireCommunicationAllowed(senderId, conversation.getPeerUserId());
 
         LocalDateTime now = LocalDateTime.now();
+        Conversation peerConversation = ensureConversation(
+                conversation.getPeerUserId(),
+                senderId,
+                conversation.getRelatedType(),
+                conversation.getRelatedId(),
+                now);
+        touchConversationPair(conversation, peerConversation, now);
         Message message = buildMessage(
                 conversation.getId(),
                 senderId,
@@ -169,12 +172,6 @@ public class ConversationServiceImpl implements ConversationService {
         insertMessage(message);
         bindMessageAttachments(message.getId(), attachments);
 
-        Conversation peerConversation = ensureConversation(
-                conversation.getPeerUserId(),
-                senderId,
-                conversation.getRelatedType(),
-                conversation.getRelatedId(),
-                now);
         Message peerMessage = buildMessage(
                 peerConversation.getId(),
                 senderId,
@@ -184,8 +181,6 @@ public class ConversationServiceImpl implements ConversationService {
                 now);
         insertMessage(peerMessage);
 
-        touchConversation(conversation, conversation.getPeerUserId(), now);
-        touchConversation(peerConversation, senderId, now);
         return message;
     }
 
@@ -305,9 +300,9 @@ public class ConversationServiceImpl implements ConversationService {
 
     private void bindMessageAttachments(Long messageId, List<Attachment> attachments) {
         for (Attachment attachment : attachments) {
-            attachment.setOwnerId(messageId);
-            attachment.setStatus(ApiEnums.AttachmentStatus.BOUND.name());
-            if (attachmentMapper.updateById(attachment) != 1) {
+            if (attachmentMapper.bindTemporaryToOwner(
+                    attachment.getId(), attachment.getUploaderId(),
+                    ApiEnums.AttachmentOwnerType.MESSAGE.name(), messageId) != 1) {
                 throw new BusinessException(ErrorCode.COMMON_999_INTERNAL_ERROR, "Failed to bind message attachment");
             }
         }
@@ -392,13 +387,18 @@ public class ConversationServiceImpl implements ConversationService {
         created.setLastMessageAt(now);
         created.setCreatedAt(now);
 
-        int affectedRows = conversationMapper.insert(created);
-        if (affectedRows != 1) {
-            throw new BusinessException(
-                    ErrorCode.COMMON_999_INTERNAL_ERROR,
-                    "Failed to create conversation");
+        try {
+            if (conversationMapper.insert(created) != 1) {
+                throw new BusinessException(ErrorCode.COMMON_999_INTERNAL_ERROR, "Failed to create conversation");
+            }
+            return created;
+        } catch (DuplicateKeyException ex) {
+            Conversation existing = conversationMapper.selectPrivateByOwnerAndPeerCurrent(ownerId, peerUserId);
+            if (existing == null) {
+                throw ex;
+            }
+            return existing;
         }
-        return created;
     }
 
     private boolean shouldInsertInitialMessage(
@@ -411,6 +411,15 @@ public class ConversationServiceImpl implements ConversationService {
                 conversation.getId(),
                 ApiEnums.MessageType.TEXT.name(),
                 initialMessage) == 0;
+    }
+
+    private void touchConversationPair(
+            Conversation owner, Conversation peer, LocalDateTime messageAt) {
+        // Both send directions lock the same parent rows before inserting message copies.
+        Conversation first = owner.getId() < peer.getId() ? owner : peer;
+        Conversation second = owner.getId() < peer.getId() ? peer : owner;
+        touchConversation(first, second.getOwnerId(), messageAt);
+        touchConversation(second, first.getOwnerId(), messageAt);
     }
 
     private void touchConversation(

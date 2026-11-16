@@ -21,5 +21,9 @@ public interface CampusVerificationMapper {
 
     int updateById(CampusVerification entity);
 
+    int updatePending(CampusVerification entity);
+
+    int deletePendingById(Long id);
+
     int deleteById(Long id);
 }

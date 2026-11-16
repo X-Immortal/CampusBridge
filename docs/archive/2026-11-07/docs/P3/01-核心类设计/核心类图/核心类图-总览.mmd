@@ -1,0 +1,70 @@
+%%{init: {"theme": "base", "themeVariables": {"fontFamily": "Arial, Microsoft YaHei, sans-serif", "fontSize": "15px", "primaryTextColor": "#1f2933", "lineColor": "#333333"}, "flowchart": {"defaultRenderer": "elk", "curve": "linear", "nodeSpacing": 46, "rankSpacing": 78, "padding": 18}}}%%
+flowchart LR
+  PostContentItemAdapter["<b>PostContentItemAdapter</b><hr/>POST<hr/>sourceType() : Class&lt;Post&gt;<br/>itemType() : POST<br/>toContentItem(Post) : ContentItemView"]:::view
+  TaskContentItemAdapter["<b>TaskContentItemAdapter</b><hr/>TASK<hr/>sourceType() : Class&lt;Task&gt;<br/>itemType() : TASK<br/>toContentItem(Task) : ContentItemView"]:::view
+  ContentItemAdapterT["<b>&lt;&lt;interface&gt;&gt;<br/>ContentItemAdapter&lt;T&gt;</b><hr/>sourceType() : Class&lt;T&gt;<br/>itemType() : ContentItemType<br/>toContentItem(T) : ContentItemView"]:::adapter
+  ContentItemView["<b>ContentItemView</b><hr/>itemType: ContentItemType<br/>sourceId: Long<br/>title: String<br/>summary: String<br/>statusLabel: String<br/>sortTime: LocalDateTime"]:::view
+
+  User["<b>User</b><hr/>id: Long<br/>username: String<br/>passwordHash: String<br/>role: UserRole<br/>enabled: Boolean<hr/>isAdmin() : boolean<br/>disable() : void<br/>enable() : void"]:::user
+  UserProfile["<b>UserProfile</b><hr/>userId: Long<br/>nickname: String<br/>campus: String<br/>college: String<br/>contactInfo: String"]:::user
+  UserCredit["<b>UserCredit</b><hr/>userId: Long<br/>points: Integer<br/>level: Integer"]:::user
+
+  Post["<b>Post</b><hr/>authorId: Long<br/>category: PostCategory<br/>title: String<br/>status: PostStatus<br/>replyCount: Integer"]:::post
+  Reply["<b>Reply</b><hr/>postId: Long<br/>authorId: Long<br/>parentReplyId: Long<br/>content: String<br/>status: PostStatus"]:::post
+  PostInteraction["<b>PostInteraction</b><hr/>userId: Long<br/>targetType: InteractionTargetType<br/>targetId: Long<br/>type: PostInteractionType"]:::post
+
+  Task["<b>Task</b><hr/>requesterId: Long<br/>providerId: Long<br/>category: TaskCategory<br/>status: TaskStatus<br/>deadline: LocalDateTime<hr/>assignProvider(Long) : void<br/>markInProgress() : void<br/>markCompleted() : void"]:::task
+  TaskApplication["<b>TaskApplication</b><hr/>taskId: Long<br/>applicantId: Long<br/>status: ApplicationStatus<br/>message: String"]:::task
+  CompletionProof["<b>CompletionProof</b><hr/>taskId: Long<br/>submitterId: Long<br/>description: String<br/>submittedAt: LocalDateTime"]:::task
+  TaskHistory["<b>TaskHistory</b><hr/>taskId: Long<br/>fromStatus: TaskStatus<br/>toStatus: TaskStatus<br/>operatorId: Long"]:::task
+  Review["<b>Review</b><hr/>taskId: Long<br/>reviewerId: Long<br/>revieweeId: Long<br/>rating: Integer<br/>comment: String"]:::task
+
+  Conversation["<b>Conversation</b><hr/>type: ConversationType<br/>ownerId: Long<br/>peerUserId: Long<br/>replyable: Boolean"]:::msg
+  Message["<b>Message</b><hr/>conversationId: Long<br/>senderId: Long<br/>type: MessageType<br/>content: String"]:::msg
+  Attachment["<b>Attachment</b><hr/>uploaderId: Long<br/>ownerType: AttachmentOwnerType<br/>ownerId: Long<br/>type: AttachmentType<br/>fileUrl: String<br/>status: AttachmentStatus"]:::attach
+  Report["<b>Report</b><hr/>reporterId: Long<br/>targetType: ReportTargetType<br/>targetId: Long<br/>status: ModerationStatus"]:::govern
+  ModerationRecord["<b>ModerationRecord</b><hr/>reportId: Long<br/>targetType: ReportTargetType<br/>handlerId: Long<br/>decision: String"]:::govern
+
+  PostContentItemAdapter -.->|adapt| ContentItemAdapterT
+  TaskContentItemAdapter -.->|adapt| ContentItemAdapterT
+  PostContentItemAdapter -.->|create| ContentItemView
+  TaskContentItemAdapter -.->|create| ContentItemView
+
+  User -->|composition 1-1| UserProfile
+  User -->|composition 1-1| UserCredit
+  User -->|author| Post
+  User -->|requester/provider| Task
+
+  Post -->|composition 1-*| Reply
+  PostInteraction -->|target| Post
+  PostInteraction -->|target| Reply
+
+  Task -->|aggregation 1-*| TaskApplication
+  Task -->|composition 0..1| CompletionProof
+  Task -->|composition 1-*| TaskHistory
+  Task -->|aggregation 0..2| Review
+
+  Conversation -->|composition 1-*| Message
+  Attachment -.->|owner| Post
+  Attachment -.->|owner| Task
+  Report -.->|target| Post
+  Report -->|aggregation 0..*| ModerationRecord
+
+  PostContentItemAdapter ~~~ TaskContentItemAdapter
+  ContentItemAdapterT ~~~ ContentItemView
+  UserProfile ~~~ UserCredit
+  Post ~~~ Task
+  TaskApplication ~~~ CompletionProof
+  CompletionProof ~~~ TaskHistory
+  TaskHistory ~~~ Review
+  Attachment ~~~ Report
+  Conversation ~~~ Message
+
+  classDef view fill:#E9F5FF,stroke:#2F80ED,color:#1f2933;
+  classDef adapter fill:#FFF6DE,stroke:#D99A00,color:#1f2933;
+  classDef user fill:#F0F7EA,stroke:#5A9C42,color:#1f2933;
+  classDef post fill:#FFF6DE,stroke:#D99A00,color:#1f2933;
+  classDef task fill:#FDECEC,stroke:#D94B4B,color:#1f2933;
+  classDef msg fill:#F1ECFF,stroke:#7B61D1,color:#1f2933;
+  classDef attach fill:#EEF2F5,stroke:#607D8B,color:#1f2933;
+  classDef govern fill:#FFF0F6,stroke:#C94F8A,color:#1f2933;

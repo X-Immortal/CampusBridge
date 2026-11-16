@@ -13,6 +13,8 @@ public interface MessageMapper {
 
     Message selectById(Long id);
 
+    Message selectOwnedById(@Param("id") Long id, @Param("ownerId") Long ownerId);
+
     List<Message> selectAll();
 
     List<Message> selectByConversationId(

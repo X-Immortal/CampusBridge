@@ -23,6 +23,9 @@ public class EmailVerificationCodeSender {
     @Value("${campusbridge.verification.email.enabled:false}")
     private boolean emailEnabled;
 
+    @Value("${campusbridge.verification.email.debug-code-enabled:false}")
+    private boolean debugCodeEnabled;
+
     @Value("${campusbridge.verification.email.from:${spring.mail.username:}}")
     private String fromAddress;
 
@@ -52,6 +55,10 @@ public class EmailVerificationCodeSender {
             LOGGER.warn("Failed to send verification email to {}", toAddress, e);
             return false;
         }
+    }
+
+    public boolean isDebugCodeEnabled() {
+        return debugCodeEnabled;
     }
 
     public boolean isDeliveryRequired() {

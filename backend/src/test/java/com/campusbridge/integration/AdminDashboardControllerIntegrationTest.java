@@ -1,5 +1,8 @@
 package com.campusbridge.integration;
 
+import com.campusbridge.mapper.UserMapper;
+import com.campusbridge.pojo.User;
+
 import com.campusbridge.dto.view.ViewDtos.DashboardDistributionItem;
 import com.campusbridge.dto.view.ViewDtos.DashboardSummary;
 import com.campusbridge.dto.view.ViewDtos.DashboardTodo;
@@ -39,12 +42,20 @@ class AdminDashboardControllerIntegrationTest {
     private JwtUtil jwtUtil;
 
     @MockitoBean
+    private UserMapper userMapper;
+
+    @MockitoBean
     private AdminDashboardService adminDashboardService;
 
     private String adminAuthHeader;
 
     @BeforeEach
     void setUp() {
+        User admin = new User();
+        admin.setId(ADMIN_ID);
+        admin.setRole("ADMIN");
+        admin.setEnabled(1);
+        when(userMapper.selectById(ADMIN_ID)).thenReturn(admin);
         adminAuthHeader = "Bearer " + jwtUtil.generateToken(ADMIN_ID, "ADMIN");
     }
 
@@ -170,6 +181,11 @@ class AdminDashboardControllerIntegrationTest {
 
     @Test
     void adminEndpointRejectsNonAdminRole() throws Exception {
+        User user = new User();
+        user.setId(ADMIN_ID);
+        user.setRole("USER");
+        user.setEnabled(1);
+        when(userMapper.selectById(ADMIN_ID)).thenReturn(user);
         String userToken = "Bearer " + jwtUtil.generateToken(ADMIN_ID, "USER");
 
         mockMvc.perform(get("/api/v1/admin/dashboard/summary")

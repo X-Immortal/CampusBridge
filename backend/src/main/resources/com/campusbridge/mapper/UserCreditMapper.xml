@@ -7,6 +7,12 @@
     VALUES (#{userId}, #{points}, #{level}, #{updatedAt})
   </insert>
 
+  <insert id="initializeForUser">
+    INSERT INTO user_credits (user_id, points, level, updated_at)
+    VALUES (#{userId}, 0, 1, CURRENT_TIMESTAMP)
+    ON DUPLICATE KEY UPDATE user_id = user_credits.user_id
+  </insert>
+
   <select id="selectById" resultType="com.campusbridge.pojo.UserCredit">
     SELECT * FROM user_credits
     WHERE id = #{id}
@@ -15,6 +21,10 @@
   <select id="selectByUserId" resultType="com.campusbridge.pojo.UserCredit">
     SELECT * FROM user_credits
     WHERE user_id = #{userId}
+  </select>
+
+  <select id="selectByUserIdForUpdate" resultType="com.campusbridge.pojo.UserCredit">
+    SELECT * FROM user_credits WHERE user_id = #{userId} FOR UPDATE
   </select>
 
   <select id="selectAll" resultType="com.campusbridge.pojo.UserCredit">

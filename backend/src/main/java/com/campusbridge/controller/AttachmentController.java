@@ -1,6 +1,8 @@
 package com.campusbridge.controller;
 
 import com.campusbridge.pojo.Result;
+import com.campusbridge.common.BusinessException;
+import com.campusbridge.common.ErrorCode;
 import com.campusbridge.service.AttachmentService;
 import com.campusbridge.utils.AuthContextUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,7 +34,7 @@ public class AttachmentController {
             @RequestHeader(value = "X-Attachment-Type", required = false) String type) {
         Long currentUserId = authContextUtil.getCurrentUserId();
         if (currentUserId == null) {
-            currentUserId = fallbackUserId;
+            throw new BusinessException(ErrorCode.AUTH_001_UNAUTHORIZED);
         }
         Object result = attachmentService.uploadAttachment(currentUserId, file, expectedOwnerType, type);
         if (result == null) {

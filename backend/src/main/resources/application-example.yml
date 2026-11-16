@@ -27,7 +27,6 @@ spring:
 # MyBatis
 mybatis:
   configuration:
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
     map-underscore-to-camel-case: true
 
 # Aliyun OSS
@@ -39,20 +38,17 @@ aliyun:
 
 # JWT
 jwt:
-  secret: ${JWT_SECRET:your-very-long-and-secure-secret-key-at-least-64-characters-for-hs256}
+  secret: ${JWT_SECRET}
   expiration: 86400000
   refresh-expiration: 2592000000
   header: Authorization
   prefix: "Bearer "
 
-security:
-  jwt:
-    required: true
-
 campusbridge:
   verification:
     email:
       enabled: ${VERIFICATION_EMAIL_ENABLED:false}
+      debug-code-enabled: false
       code-secret: ${VERIFICATION_EMAIL_CODE_SECRET:campusbridge-email-code}
 
 server:

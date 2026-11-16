@@ -5,6 +5,7 @@ import com.campusbridge.common.ErrorCode;
 import com.campusbridge.dto.request.RequestDtos;
 import com.campusbridge.pojo.Result;
 import com.campusbridge.service.AuthService;
+import com.campusbridge.service.impl.EmailVerificationCodeSender;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,12 +24,18 @@ public class AuthController {
     @Autowired
     private AuthService authService;
 
+    @Autowired
+    private EmailVerificationCodeSender emailCodeSender;
+
     @PostMapping("/register/send-code")
     public Result sendRegistrationCode(@RequestBody Map<String, String> body) {
         String email = body.get("email");
         String code = authService.sendRegistrationCode(email);
         Map<String, Object> payload = new HashMap<>();
-        payload.put("sent", true);
+        payload.put("sent", emailCodeSender.isDeliveryRequired());
+        if (emailCodeSender.isDebugCodeEnabled()) {
+            payload.put("debugCode", code);
+        }
         return Result.success(payload);
     }
 

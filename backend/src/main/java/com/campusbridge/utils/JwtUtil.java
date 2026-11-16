@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.security.Key;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -33,7 +34,7 @@ public class JwtUtil {
      * 获取签名密钥
      */
     private Key getSigningKey() {
-        byte[] keyBytes = secretKey.getBytes();
+        byte[] keyBytes = secretKey.getBytes(StandardCharsets.UTF_8);
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
@@ -49,6 +50,22 @@ public class JwtUtil {
      */
     public Long extractAccountId(String token) {
         return extractClaim(token, claims -> claims.get("accountId", Long.class));
+    }
+
+    public Long extractAccessAccountId(String token) {
+        Claims claims = extractAllClaims(token);
+        String type = claims.get("tokenType", String.class);
+        String role = claims.get("role", String.class);
+        // Legacy access tokens have a role; legacy refresh tokens do not.
+        boolean legacyAccess = type == null && ("USER".equals(role) || "ADMIN".equals(role));
+        if (!"ACCESS".equals(type) && !legacyAccess) {
+            throw new IllegalArgumentException("Access token required");
+        }
+        Long accountId = claims.get("accountId", Long.class);
+        if (accountId == null || !accountId.toString().equals(claims.getSubject())) {
+            throw new IllegalArgumentException("Token subject does not match accountId");
+        }
+        return accountId;
     }
 
     /**
@@ -97,6 +114,7 @@ public class JwtUtil {
         Map<String, Object> claims = new HashMap<>();
         claims.put("accountId", accountId);
         claims.put("role", role);
+        claims.put("tokenType", "ACCESS");
         return createToken(claims, accountId.toString(), expiration);
     }
 
@@ -106,6 +124,7 @@ public class JwtUtil {
     public String generateRefreshToken(Long accountId) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("accountId", accountId);
+        claims.put("tokenType", "REFRESH");
         return createToken(claims, accountId.toString(), refreshExpiration);
     }
 

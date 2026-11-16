@@ -3,6 +3,7 @@ package com.campusbridge.unit;
 import com.campusbridge.mapper.TaskMapper;
 import com.campusbridge.pojo.Task;
 import com.campusbridge.service.NotificationService;
+import com.campusbridge.service.CreditService;
 import com.campusbridge.service.TaskHistoryService;
 import com.campusbridge.service.impl.TaskTimeoutServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -10,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.PlatformTransactionManager;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -18,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -45,6 +48,9 @@ class BE14TaskTimeoutServiceImplTest {
     @Mock
     private NotificationService notificationService;
 
+    @Mock
+    private CreditService creditService;
+
     private TaskTimeoutServiceImpl taskTimeoutService;
 
     @BeforeEach
@@ -53,6 +59,8 @@ class BE14TaskTimeoutServiceImplTest {
                 taskMapper,
                 taskHistoryService,
                 notificationService,
+                creditService,
+                mock(PlatformTransactionManager.class),
                 SCAN_LIMIT,
                 CONFIRMATION_REMINDER_HOURS,
                 TRANSITION_GRACE_HOURS);
@@ -62,6 +70,7 @@ class BE14TaskTimeoutServiceImplTest {
     void processTimeoutsRemindsOpenTaskBeforeCancelling() {
         LocalDateTime now = LocalDateTime.now();
         Task task = task("OPEN");
+        when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(task);
         stubNoTransitionCandidates();
         when(taskMapper.selectTasksNeedingTimeoutReminder(
                 "OPEN",
@@ -90,6 +99,7 @@ class BE14TaskTimeoutServiceImplTest {
     void processTimeoutsCancelsOpenTaskAfterReminderGracePeriod() {
         LocalDateTime now = LocalDateTime.now();
         Task task = task("OPEN");
+        when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(task);
         stubNoReminderCandidates(now);
         when(taskMapper.selectTasksReadyForTimeoutTransition(
                 "OPEN",
@@ -99,6 +109,9 @@ class BE14TaskTimeoutServiceImplTest {
                 .thenReturn(List.of(task));
         when(taskMapper.updateStatusById(eq(TASK_ID), eq("OPEN"), eq("CANCELLED"), any()))
                 .thenReturn(1);
+
+        when(taskHistoryService.hasReminder(TASK_ID, NOTE_OPEN_TIMEOUT_REMINDER,
+                task.getUpdatedAt(), now.minusHours(TRANSITION_GRACE_HOURS))).thenReturn(true);
 
         int processedCount = taskTimeoutService.processTimeouts(now);
 
@@ -121,6 +134,7 @@ class BE14TaskTimeoutServiceImplTest {
     void processTimeoutsAutoCompletesPendingConfirmationAfterReminderGracePeriod() {
         LocalDateTime now = LocalDateTime.now();
         Task task = task("PENDING_CONFIRMATION");
+        when(taskMapper.selectByIdForUpdate(TASK_ID)).thenReturn(task);
         stubNoReminderCandidates(now);
         when(taskMapper.selectTasksReadyForTimeoutTransition(
                 "OPEN",
@@ -141,9 +155,13 @@ class BE14TaskTimeoutServiceImplTest {
                 any()))
                 .thenReturn(1);
 
+        when(taskHistoryService.hasReminder(TASK_ID, NOTE_CONFIRMATION_TIMEOUT_REMINDER,
+                task.getUpdatedAt(), now.minusHours(TRANSITION_GRACE_HOURS))).thenReturn(true);
+
         int processedCount = taskTimeoutService.processTimeouts(now);
 
         assertThat(processedCount).isEqualTo(1);
+        verify(creditService).awardTaskReward(task);
         verify(taskHistoryService).recordHistory(
                 TASK_ID,
                 "PENDING_CONFIRMATION",
@@ -201,6 +219,7 @@ class BE14TaskTimeoutServiceImplTest {
         task.setProviderId(PROVIDER_ID);
         task.setStatus(status);
         task.setTitle("timeout task");
+        task.setDeadline(LocalDateTime.now().minusDays(1));
         task.setUpdatedAt(LocalDateTime.now().minusDays(2));
         return task;
     }

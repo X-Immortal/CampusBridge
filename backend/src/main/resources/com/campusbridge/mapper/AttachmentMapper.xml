@@ -39,6 +39,16 @@
     WHERE id = #{id}
   </update>
 
+  <update id="bindTemporaryToOwner">
+    UPDATE attachments
+    SET owner_type = #{ownerType}, owner_id = #{ownerId}, status = 'BOUND'
+    WHERE id = #{attachmentId}
+      AND uploader_id = #{uploaderId}
+      AND owner_type = #{ownerType}
+      AND owner_id IS NULL
+      AND status = 'TEMPORARY'
+  </update>
+
   <delete id="deleteById">
     DELETE FROM attachments
     WHERE id = #{id}
