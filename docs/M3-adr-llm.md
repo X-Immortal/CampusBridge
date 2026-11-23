@@ -4,8 +4,9 @@
 > 四个必答问题，答不上来这一项就是零分。
 >
 > **本项目现状**：默认 `ai.model.mode=rule`，不依赖任何真实模型 key 也能演示全链路；
-> 只有显式配置 `baseUrl / apiKey / name` 后才走云端模型。下面的成本是按网关的估算公式
-> 算出的**预算值**，不是供应商账单；本轮验收没有使用真实 key。
+> 只有显式配置 `baseUrl / apiKey / name` 后才走云端模型。
+> 2026-11-23 已用 **OpenCode Go + DeepSeek Flash** 跑通一次完整链路（见
+> `docs/M3-opencode-run.md`）；下面的成本仍是按网关公式算出的**预算值**，不是供应商账单。
 
 ---
 
@@ -75,6 +76,10 @@
 | 长文本摘要 | 本版本不做 | 课程任务没有长摘要场景 | 不引入不必要的数据出域 |
 | 简单分类 | 规则优先 | `RuleModelClient` 的确定性抽取已覆盖 | 能用规则就不调用模型 |
 | 复杂/模糊目标 | `longcat-strong`（SUBSTITUTE 路由） | 需要更强理解；但仍受槽位白名单约束 | 成本更高，只给少数任务 |
+
+> **2026-11-23 实测**：用 OpenCode Go 的 `deepseek-v4.1-flash` 单模型跑通完整链路；
+> 这次把 `ai.model.routing.enabled=false`，验证的是“模型通道 + 提示词 + 降级”而不是多模型分流。
+> 多模型路由的单测在 `ModelGatewayPlanTest`；真实多模型账单还没测。
 
 ---
 

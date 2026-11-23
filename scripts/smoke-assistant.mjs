@@ -1,6 +1,6 @@
 /**
  * 本地冒烟：/api/assistant 四步链路（开始 → 回答 → 确认 → 建单）。
- * 仅用于本机 demo profile（8081，H2，规则基线）。
+ * 仅用于本机 demo profile（8081，H2）；规则基线或真实模型都适用。
  */
 const base = 'http://127.0.0.1:8081';
 
@@ -16,10 +16,17 @@ async function post(path, body) {
   return { status: res.status, body: json };
 }
 
+function futureDeadline() {
+  const date = new Date(Date.now() + 6 * 60 * 60 * 1000);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+    + `T${pad(date.getHours())}:${pad(date.getMinutes())}:00`;
+}
+
 const values = {
-  deadline: '2026-11-16T22:00:00',
-  location: '三号宿舍楼',
-  deliveryLocation: '三号宿舍楼东门',
+  deadline: futureDeadline(),
+  location: '北门菜鸟驿站',
+  deliveryLocation: '北门菜鸟驿站门口',
   rewardType: 'CASH',
   rewardAmount: 8,
   itemCount: 3,
@@ -29,7 +36,7 @@ const values = {
   requiresProof: true,
   onlyInAppContact: true,
   allowOfflineContact: false,
-  completionStandard: '送到三号宿舍楼东门并当面交付',
+  completionStandard: '从北门菜鸟驿站取出三个快递并送到北门门口当面交付',
   contactPreference: '站内消息',
   title: '帮取三个快递',
   category: 'ERRAND',
@@ -41,11 +48,12 @@ function answerFor(field) {
 }
 
 const start = await post('/api/assistant', {
-  goal: '我脚受伤了，今晚需要取三个快递，但不希望把宿舍号直接告诉陌生人',
+  goal: '今晚九点去北门菜鸟驿站帮我取三个快递，预算8元',
   context: { requesterId: 1 }
 });
 console.log('START', start.status, 'state=' + start.body.state, 'intent=' + start.body.intent,
-  'card=' + (start.body.card && start.body.card.kind), 'mode=' + start.body.modelMode);
+  'card=' + (start.body.card && start.body.card.kind), 'mode=' + start.body.modelMode,
+  'degraded=' + start.body.degraded);
 
 const sessionId = start.body.sessionId;
 let last = start;

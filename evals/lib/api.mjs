@@ -10,7 +10,7 @@ export async function requestJson(base, path, options = {}) {
     method = 'GET',
     body,
     headers = {},
-    timeoutMs = 15000
+    timeoutMs = 60000
   } = options;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);

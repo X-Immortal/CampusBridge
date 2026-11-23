@@ -13,6 +13,9 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -46,6 +49,14 @@ public class OpenAiCompatibleClient implements ModelClient {
             3. deadline 用 ISO-8601（yyyy-MM-ddTHH:mm），时区按 Asia/Shanghai。
             4. rewardType 只能是 FREE / POINTS / CASH / NEGOTIABLE。
             5. riskLevel 只能是 LOW / MEDIUM / HIGH；深夜、上门、贵重物品算 HIGH。
+            6. 所有相对时间（今晚/明天/九点/半小时后）都以用户消息里的“当前时间”为基准换算；
+               deadline 必须是未来时间，禁止使用训练数据里的日期。
+            7. onlyInAppContact 默认 true；只有用户明确要微信/电话/线下见面时才置 false，
+               并把 allowOfflineContact 置 true。
+            8. 用户没提到的布尔/枚举字段不要猜，留空让追问 Policy 处理；尤其不要主动把
+               onlyInAppContact 设为 false。
+            9. completionStandard 必须具体、可验收，至少 10 个汉字；
+               例如“送到三号宿舍楼东门并当面交付”，不能只写“取到快递”。
             """;
 
     private final AiProperties properties;
@@ -92,11 +103,18 @@ public class OpenAiCompatibleClient implements ModelClient {
                     "messages", List.of(
                             Map.of("role", "system", "content", SYSTEM_PROMPT),
                             Map.of("role", "user", "content", buildUserContent(goal, context)))));
-            HttpRequest request = HttpRequest.newBuilder(URI.create(stripTrailingSlash(model.getBaseUrl())
-                            + "/chat/completions"))
+            HttpRequest.Builder builder = HttpRequest.newBuilder(
+                            URI.create(stripTrailingSlash(model.getBaseUrl()) + "/chat/completions"))
                     .timeout(Duration.ofMillis(model.getTimeoutMs()))
                     .header("Content-Type", "application/json")
-                    .header("Authorization", "Bearer " + model.getApiKey())
+                    .header("Authorization", "Bearer " + model.getApiKey());
+            if (model.getSessionHeader() != null && !model.getSessionHeader().isBlank()) {
+                String session = context != null && context.get("sessionId") != null
+                        ? String.valueOf(context.get("sessionId"))
+                        : "campusbridge";
+                builder.header(model.getSessionHeader(), session);
+            }
+            HttpRequest request = builder
                     .POST(HttpRequest.BodyPublishers.ofString(requestBody, StandardCharsets.UTF_8))
                     .build();
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
@@ -150,7 +168,10 @@ public class OpenAiCompatibleClient implements ModelClient {
     }
 
     private String buildUserContent(String goal, Map<String, Object> context) {
-        StringBuilder builder = new StringBuilder("用户目标：").append(goal);
+        String now = ZonedDateTime.now(ZoneId.of("Asia/Shanghai"))
+                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss xxx"));
+        StringBuilder builder = new StringBuilder("当前时间（Asia/Shanghai）：").append(now)
+                .append("\n用户目标：").append(goal);
         if (context != null && !context.isEmpty()) {
             builder.append("\n上下文：").append(context);
         }

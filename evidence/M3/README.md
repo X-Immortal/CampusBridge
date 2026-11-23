@@ -41,6 +41,7 @@
 | 10 并发同幂等键确认 | 10/10，唯一 taskId=1，重复建单 0 | 同上 |
 | 三个故障 | **3/3 PASS**（模型超时降级、重复工具调用、流中断重连） | `node evals/faults/run-faults.mjs --base http://127.0.0.1:8081` |
 | M4 红队（回归） | **5/5 PASS** | `node evals/redteam/run.mjs --base http://127.0.0.1:8081`（需按 `docs/M4-redteam.md` 加载夹具） |
+| 真实模型链路（OpenCode Go / DeepSeek Flash） | `mode=llm`、`degraded=false`、`confirm OK taskId=3`、10 条流事件 | `07-opencode-deepseek-flow.txt`；命令见 `docs/M3-opencode-run.md` |
 
 ## 4. 本轮修掉的问题
 

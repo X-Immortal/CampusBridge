@@ -150,7 +150,11 @@ public class ModelGateway {
         int attempts = Math.max(1, properties.getModel().getMaxRetries() + 1);
         for (int attempt = 1; attempt <= attempts; attempt++) {
             try {
-                ModelUnderstanding understanding = llmClient.extract(goal, ctx, route.model());
+                // 只给模型客户端补会话标识（OpenCode Go 的 x-opencode-session），
+                // 不写回 ctx，避免污染缓存 key。
+                Map<String, Object> requestContext = new LinkedHashMap<>(ctx);
+                requestContext.put("sessionId", sessionId == null ? "campusbridge" : sessionId);
+                ModelUnderstanding understanding = llmClient.extract(goal, requestContext, route.model());
                 consecutiveFailures.set(0);
                 cache.put(cacheKey, understanding);
                 long latencyMs = System.currentTimeMillis() - startedAt;

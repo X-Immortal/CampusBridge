@@ -52,6 +52,12 @@ public class AiProperties {
 
         /** 理解结果缓存 TTL（秒）；0 表示关闭。只缓存理解结果，不缓存业务动作。 */
         private int cacheTtlSeconds = 0;
+
+        /**
+         * 可选：透传会话标识的请求头名。OpenCode Go 要求 {@code x-opencode-session}，
+         * 其他 OpenAI 兼容服务留空即可。值取自当前会话 ID。
+         */
+        private String sessionHeader;
     }
 
     @Data

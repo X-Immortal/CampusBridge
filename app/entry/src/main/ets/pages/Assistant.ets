@@ -206,7 +206,7 @@ struct Assistant {
         extraData: JSON.stringify(body),
         expectDataType: http.HttpDataType.STRING,
         connectTimeout: 5000,
-        readTimeout: 15000
+        readTimeout: 60000
       });
       return JSON.parse(String(response.result)) as AssistantResponse;
     } finally {
