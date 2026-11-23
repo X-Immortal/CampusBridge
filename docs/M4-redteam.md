@@ -16,8 +16,10 @@
 
 ```powershell
 $fixture = ([uri](Resolve-Path evals/redteam/demo-fixture.sql).Path).AbsoluteUri
-mvn -f backend/pom.xml spring-boot:run "-Dspring-boot.run.profiles=demo" "-Dspring-boot.run.arguments=--server.address=127.0.0.1 --spring.sql.init.data-locations=classpath:db/demo-data.sql,$fixture"
+mvn -f backend/pom.xml spring-boot:run "-Dspring-boot.run.profiles=demo" "-Dspring-boot.run.useTestClasspath=true" "-Dspring-boot.run.arguments=--server.address=127.0.0.1 --spring.sql.init.data-locations=classpath:db/demo-data.sql,$fixture"
 ```
+
+> `h2` 在 `pom.xml` 里是 `test` 作用域，`spring-boot:run` 默认不带测试类路径；漏掉 `-Dspring-boot.run.useTestClasspath=true` 会报 `Cannot load driver class: org.h2.Driver`。
 
 在另一终端执行。
 

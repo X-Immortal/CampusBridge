@@ -1,0 +1,64 @@
+{
+  "generatedAt": "2026-11-23T06:27:16.185Z",
+  "base": "http://127.0.0.1:8081",
+  "scenario": "all",
+  "concurrencyOverride": null,
+  "defaults": {
+    "assistant": 50,
+    "stream": 20,
+    "idempotency": 10
+  },
+  "results": {
+    "assistant": {
+      "name": "assistant",
+      "total": 50,
+      "concurrency": 50,
+      "success": 50,
+      "errors": 0,
+      "errorRate": 0,
+      "throughputPerSec": 97.12,
+      "p50Ms": 434.7,
+      "p95Ms": 500.5,
+      "p99Ms": 504.3,
+      "maxMs": 504.3,
+      "wallMs": 514.8,
+      "wallMsTotal": 515.6
+    },
+    "stream": {
+      "name": "stream",
+      "total": 20,
+      "concurrency": 20,
+      "success": 20,
+      "errors": 0,
+      "errorRate": 0,
+      "throughputPerSec": 261.86,
+      "p50Ms": 74.1,
+      "p95Ms": 74.8,
+      "p99Ms": 76.2,
+      "maxMs": 76.2,
+      "wallMs": 76.4,
+      "sessionId": "s-8a85fa92eb",
+      "firstFrameP50Ms": 58.4,
+      "firstFrameP95Ms": 64.1,
+      "wallMsTotal": 152.7
+    },
+    "idempotency": {
+      "name": "idempotency",
+      "total": 10,
+      "concurrency": 10,
+      "success": 10,
+      "errors": 0,
+      "errorRate": 0,
+      "throughputPerSec": 476.95,
+      "p50Ms": 18.9,
+      "p95Ms": 20.5,
+      "p99Ms": 20.5,
+      "maxMs": 20.5,
+      "wallMs": 21,
+      "uniqueTaskIds": 1,
+      "duplicateTasks": 0,
+      "replayedResponses": 9,
+      "wallMsTotal": 68.7
+    }
+  }
+}
