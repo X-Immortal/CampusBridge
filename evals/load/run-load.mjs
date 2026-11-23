@@ -322,3 +322,4 @@ console.log(`\n报告已写入 ${out}`);
 // 任一场景断言失败（idempotency.passed=false）则退出码非 0
 const idem = report.scenarios.idempotency;
 process.exit(idem && idem.passed === false ? 1 : 0);
+

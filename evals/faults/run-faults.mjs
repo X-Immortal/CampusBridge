@@ -205,3 +205,4 @@ for (const [name, fn] of faults) {
 console.log('─'.repeat(60));
 console.log(allPass ? '全部通过 ✅' : '存在失败 ❌');
 process.exit(allPass ? 0 : 1);
+
