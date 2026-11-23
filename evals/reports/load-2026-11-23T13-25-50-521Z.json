@@ -1,0 +1,25 @@
+{
+  "base": "http://127.0.0.1:8081",
+  "at": "2026-11-23T13:25:50.130Z",
+  "scenarios": {
+    "assistant": {
+      "scenario": "assistant",
+      "concurrency": 20,
+      "endpoint": "POST /api/assistant（完整链路）",
+      "units": 20,
+      "success": 20,
+      "failures": 0,
+      "errorRate": 0,
+      "throughputPerSec": 52.1,
+      "latencyMs": {
+        "min": 161,
+        "p50": 246,
+        "p95": 334,
+        "p99": 344,
+        "max": 344,
+        "avg": 258.6
+      },
+      "wallMs": 384
+    }
+  }
+}
