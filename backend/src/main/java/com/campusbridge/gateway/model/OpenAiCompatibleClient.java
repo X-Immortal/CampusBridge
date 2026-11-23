@@ -72,13 +72,21 @@ public class OpenAiCompatibleClient implements ModelClient {
 
     @Override
     public ModelUnderstanding extract(String goal, Map<String, Object> context) {
+        return extract(goal, context, properties.getModel().getName());
+    }
+
+    /**
+     * M3 路由入口：允许网关按 persona / 任务类型指定模型名；没指定时回退到配置里的默认模型。
+     */
+    public ModelUnderstanding extract(String goal, Map<String, Object> context, String modelName) {
         if (!configured()) {
             throw new ModelException("模型未配置（baseUrl / apiKey / name 不完整）");
         }
         AiProperties.Model model = properties.getModel();
+        String routedModel = modelName == null || modelName.isBlank() ? model.getName() : modelName;
         try {
             String requestBody = objectMapper.writeValueAsString(Map.of(
-                    "model", model.getName(),
+                    "model", routedModel,
                     "temperature", 0,
                     "response_format", Map.of("type", "json_object"),
                     "messages", List.of(

@@ -9,7 +9,11 @@ import com.campusbridge.agent.dto.StartRequest;
 import com.campusbridge.config.AiProperties;
 import com.campusbridge.domain.ClarificationQuestion;
 import com.campusbridge.events.EventRecorder;
+import com.campusbridge.gateway.model.FaultSwitch;
+import com.campusbridge.gateway.model.ModelCache;
 import com.campusbridge.gateway.model.ModelGateway;
+import com.campusbridge.gateway.model.ModelQuota;
+import com.campusbridge.gateway.model.ModelRouter;
 import com.campusbridge.gateway.model.OpenAiCompatibleClient;
 import com.campusbridge.gateway.model.RuleModelClient;
 import com.campusbridge.ontology.OntologyRegistry;
@@ -174,13 +178,22 @@ class AgentFlowTest {
         ObjectMapper mapper = new ObjectMapper();
         RuleModelClient ruleClient = new RuleModelClient(AiFixture.CLOCK);
         OpenAiCompatibleClient llmClient = new OpenAiCompatibleClient(properties, mapper);
-        ModelGateway modelGateway = new ModelGateway(properties, ruleClient, llmClient, events);
+        FaultSwitch faultSwitch = new FaultSwitch(properties);
+        ModelGateway modelGateway = new ModelGateway(
+                properties,
+                ruleClient,
+                llmClient,
+                events,
+                new ModelRouter(properties),
+                new ModelQuota(properties, AiFixture.CLOCK),
+                new ModelCache(properties, AiFixture.CLOCK),
+                faultSwitch);
 
         OntologyRegistry ontology = AiFixture.ontology();
         PolicyEngine policyEngine = AiFixture.policyEngine(ontology);
         TokenService tokenService = new TokenService(properties, AiFixture.CLOCK);
         ToolGateway toolGateway = new ToolGateway(
-                tokenService, policyEngine, taskCommands, events, AiFixture.CLOCK);
+                tokenService, policyEngine, taskCommands, events, AiFixture.CLOCK, faultSwitch);
         return new AgentOrchestrator(
                 modelGateway,
                 new ClarificationPolicy(),

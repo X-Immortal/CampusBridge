@@ -2,6 +2,7 @@ package com.campusbridge.tool;
 
 import com.campusbridge.domain.TaskDraft;
 import com.campusbridge.events.EventRecorder;
+import com.campusbridge.gateway.model.FaultSwitch;
 import com.campusbridge.policy.PolicyContext;
 import com.campusbridge.policy.PolicyEngine;
 import com.campusbridge.policy.PolicyResult;
@@ -33,6 +34,7 @@ public class ToolGateway {
     private final TaskCommandPort taskCommands;
     private final EventRecorder events;
     private final Clock clock;
+    private final FaultSwitch faultSwitch;
 
     private final Map<String, ToolResult> idempotentResults = new ConcurrentHashMap<>();
     private final Object executionLock = new Object();
@@ -42,12 +44,14 @@ public class ToolGateway {
             PolicyEngine policyEngine,
             TaskCommandPort taskCommands,
             EventRecorder events,
-            Clock clock) {
+            Clock clock,
+            FaultSwitch faultSwitch) {
         this.tokenService = tokenService;
         this.policyEngine = policyEngine;
         this.taskCommands = taskCommands;
         this.events = events;
         this.clock = clock;
+        this.faultSwitch = faultSwitch;
     }
 
     public ToolResult execute(
@@ -99,6 +103,14 @@ public class ToolGateway {
                     "action", ACTION_CREATE_TASK,
                     "taskVersion", token.taskVersion(),
                     "idempotencyKey", key));
+            if (faultSwitch.toolFail()) {
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("action", ACTION_CREATE_TASK);
+                payload.put("reason", "fault:tool_fail");
+                payload.put("idempotencyKey", key);
+                events.record("tool.failure", traceId, sessionId, payload);
+                return ToolResult.denied("工具故障开关已开启（tool_fail），本次没有落库", List.of());
+            }
             try {
                 Long taskId = taskCommands.createTask(requesterId, draft);
                 tokenService.consume(token.value());

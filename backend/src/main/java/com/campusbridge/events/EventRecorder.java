@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -28,22 +29,31 @@ public class EventRecorder {
 
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
+    private final VersionInfo versionInfo;
     private final ConcurrentLinkedDeque<AiEvent> recent = new ConcurrentLinkedDeque<>();
     private final AtomicLong sequence = new AtomicLong();
     private final AtomicBoolean persistWarningLogged = new AtomicBoolean();
 
-    public EventRecorder(JdbcTemplate jdbcTemplate, ObjectMapper objectMapper) {
+    public EventRecorder(JdbcTemplate jdbcTemplate, ObjectMapper objectMapper, VersionInfo versionInfo) {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
+        this.versionInfo = versionInfo;
     }
 
     public AiEvent record(String type, String traceId, String sessionId, Map<String, Object> payload) {
+        Map<String, Object> enriched = new LinkedHashMap<>();
+        if (payload != null) {
+            enriched.putAll(payload);
+        }
+        if (versionInfo != null) {
+            versionInfo.current().forEach(enriched::putIfAbsent);
+        }
         AiEvent event = new AiEvent(
                 sequence.incrementAndGet(),
                 type,
                 traceId,
                 sessionId,
-                payload == null ? Map.of() : payload,
+                enriched,
                 Instant.now());
         recent.addFirst(event);
         while (recent.size() > MAX_RECENT) {

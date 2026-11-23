@@ -4,6 +4,9 @@
 INSERT INTO users (username, password_hash, email, role, enabled)
 VALUES ('demo_student', 'not-a-real-hash', 'demo@example.edu.cn', 'USER', 1);
 
+INSERT INTO user_profiles (user_id, nickname, campus, college)
+VALUES (1, '演示同学', '主校区', '软件工程学院');
+
 INSERT INTO campus_verifications (
   user_id, method, real_name_cipher, student_number_cipher, student_number_hash,
   school, department, status, created_at, reviewed_at

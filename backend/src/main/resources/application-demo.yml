@@ -52,6 +52,19 @@ task:
 ai:
   model:
     mode: rule
+    routing:
+      enabled: true
+      default-model: longcat
+      rules:
+        PICKUP: longcat-fast
+        MOVING: longcat-fast
+        PURCHASE: longcat-fast
+        SUBSTITUTE: longcat-strong
+        GENERAL: longcat
+    daily-quota: 200
+    cache-ttl-seconds: 60
+  fault:
+    mode: none
   token:
     ttl-seconds: 300
 
