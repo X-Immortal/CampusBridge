@@ -9,6 +9,7 @@ import type {
 import { CardRenderer } from '../renderer/CardRenderer';
 import { SseFrameParser, StreamAssembler } from '../transport/sseParser';
 import { StreamEvent } from '../transport/events';
+import { cardProblems } from '../ui/cardGuard';
 
 const DEFAULT_BASE = 'http://127.0.0.1:8081';
 const DEMO_GOAL = '我脚受伤了，今晚需要取三个快递，但不希望把宿舍号直接告诉陌生人';
@@ -215,6 +216,12 @@ struct Assistant {
 
   private pushCard(response: AssistantResponse): void {
     if (response.card !== undefined && response.card !== null) {
+      const problems = cardProblems(response.card);
+      if (problems.length > 0) {
+        // 坏卡整张拒绝，保留上一张；绝不做“只删一个按钮”的假安全。
+        this.status = '坏卡已拒绝：' + problems.join('；');
+        return;
+      }
       this.cards = this.cards.concat([response.card]);
     }
     if (response.notes !== undefined && response.notes !== null) {

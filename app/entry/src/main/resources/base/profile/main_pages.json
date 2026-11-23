@@ -1,6 +1,9 @@
 {
   "src": [
+    "pages/Shell",
     "pages/Index",
-    "pages/Assistant"
+    "pages/Assistant",
+    "pages/TaskList",
+    "pages/TaskDetail"
   ]
 }

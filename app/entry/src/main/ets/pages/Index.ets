@@ -1,8 +1,8 @@
 import { UiCard } from '../protocol/types';
 import { router } from '@kit.ArkUI';
-import { isAllowedBlock, isKnownDraftField, isSideEffectAction } from '../protocol/whitelist';
 import { EVENT_KINDS } from '../transport/events';
 import { CardRenderer } from '../renderer/CardRenderer';
+import { cardProblems } from '../ui/cardGuard';
 import {
   BAD_CARD_JSON,
   CARD_CLARIFICATION_JSON,
@@ -13,30 +13,6 @@ import {
 
 function parseCard(json: string): UiCard {
   return JSON.parse(json) as UiCard;
-}
-
-/** 最小守卫：演示"非白名单 / 未知字段 / 缺确认"三种拒绝。完整校验器在 protocol/validator.ts（张琼文）。 */
-export function cardProblems(card: UiCard): string[] {
-  const problems: string[] = [];
-  if (card.schemaVersion !== '1.0') {
-    problems.push('schemaVersion 不认识：' + card.schemaVersion);
-  }
-  for (let i = 0; i < card.blocks.length; i++) {
-    const block = card.blocks[i];
-    if (!isAllowedBlock(block.type)) {
-      problems.push('非白名单组件：' + block.type);
-    }
-    if (block.type === 'Field' && block.field !== undefined && !isKnownDraftField(block.field)) {
-      problems.push('绑定不存在的字段：' + block.field);
-    }
-  }
-  for (let i = 0; i < card.actions.length; i++) {
-    const action = card.actions[i];
-    if (isSideEffectAction(action.actionId) && action.requiresConfirmation !== true) {
-      problems.push('副作用动作缺少确认：' + action.actionId);
-    }
-  }
-  return problems;
 }
 
 @Entry
