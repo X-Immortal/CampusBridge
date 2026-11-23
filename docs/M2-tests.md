@@ -36,3 +36,4 @@ cd CampusBridge\backend;  mvn -o -q "-Dtest=SchemaValidatorTest,PolicyEngineTest
 cd CampusBridge\contract; npm run check
 cd CampusBridge\evals;    node run.mjs --live http://127.0.0.1:8081
 ```
+ 
