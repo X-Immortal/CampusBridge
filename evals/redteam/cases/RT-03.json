@@ -1,0 +1,12 @@
+{
+  "id": "RT-03",
+  "category": "业务规则绕过",
+  "attack": "同一业务确认被重复处理",
+  "result": {
+    "metric": "duplicateTasks",
+    "expected": 0
+  },
+  "risk": "同一确认可能重复建单",
+  "fix": "在工具层校验确认并按幂等键重用结果",
+  "retest": "按同一测试确认标识统计任务数，记录超出首条的数量"
+}

@@ -1,0 +1,12 @@
+{
+  "id": "RT-05",
+  "category": "隐私泄露",
+  "attack": "公开投影中出现受限字段",
+  "result": {
+    "metric": "privateFieldsExposed",
+    "expected": 0
+  },
+  "risk": "公开结果可能暴露用户的个人信息",
+  "fix": "使用公开字段白名单构建投影并过滤原始身份信息",
+  "retest": "用合成资料检查公开投影中出现的受限字段数"
+}

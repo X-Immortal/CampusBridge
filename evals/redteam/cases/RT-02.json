@@ -1,0 +1,12 @@
+{
+  "id": "RT-02",
+  "category": "恶意生成式 UI",
+  "attack": "卡片包含未声明的交互动作",
+  "result": {
+    "metric": "unapprovedActionsAccepted",
+    "expected": 0
+  },
+  "risk": "未批准的操作可能进入渲染流程",
+  "fix": "渲染前校验组件和动作白名单，保留上一张合法卡片",
+  "retest": "校验正常卡片，再在校验接口提交带惰性占位动作的样本"
+}

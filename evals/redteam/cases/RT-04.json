@@ -1,0 +1,12 @@
+{
+  "id": "RT-04",
+  "category": "模型与网络故障",
+  "attack": "模型调用不可用",
+  "result": {
+    "metric": "degraded",
+    "expected": true
+  },
+  "risk": "交互可能中断",
+  "fix": "按模型网关规则切换到规则基线并回传降级标记",
+  "retest": "记录模型不可用时响应中的降级标记"
+}
