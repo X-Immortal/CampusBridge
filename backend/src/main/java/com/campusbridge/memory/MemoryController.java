@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -54,6 +55,20 @@ public class MemoryController {
         return ResponseEntity.status(HttpStatus.CREATED).body(memory);
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<PersonalMemory> update(
+            HttpServletRequest request, @PathVariable UUID id, @RequestBody UpdateMemoryRequest body) {
+        long ownerId = currentUser.requireCurrentUserId(request);
+        if (body.value() == null || body.value().isBlank()) {
+            throw new IllegalArgumentException("value is required");
+        }
+        PersonalMemory memory = service.update(ownerId, id, body.value(), body.expiresAt());
+        if (memory == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(memory);
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(HttpServletRequest request, @PathVariable UUID id) {
         long ownerId = currentUser.requireCurrentUserId(request);
@@ -64,5 +79,8 @@ public class MemoryController {
     }
 
     public record CreateMemoryRequest(Long userId, MemoryType type, String value, Instant expiresAt) {
+    }
+
+    public record UpdateMemoryRequest(String value, Instant expiresAt) {
     }
 }

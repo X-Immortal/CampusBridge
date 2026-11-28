@@ -16,6 +16,9 @@ import com.campusbridge.gateway.model.ModelQuota;
 import com.campusbridge.gateway.model.ModelRouter;
 import com.campusbridge.gateway.model.OpenAiCompatibleClient;
 import com.campusbridge.gateway.model.RuleModelClient;
+import com.campusbridge.memory.MemoryService;
+import com.campusbridge.memory.MemoryStore;
+import com.campusbridge.memory.MemoryType;
 import com.campusbridge.ontology.OntologyRegistry;
 import com.campusbridge.policy.PolicyEngine;
 import com.campusbridge.schema.CardFactory;
@@ -47,6 +50,7 @@ class AgentFlowTest {
 
     private final EventRecorder events = mock(EventRecorder.class);
     private final TaskCommandPort taskCommands = mock(TaskCommandPort.class);
+    private final MemoryService memoryService = new MemoryService(new MemoryStore());
     private final com.campusbridge.events.StreamEventLog streamEvents =
             new com.campusbridge.events.StreamEventLog();
 
@@ -147,6 +151,31 @@ class AgentFlowTest {
                 "text.delta", "schema.card", "tool.progress", "task.snapshot", "stream.end");
     }
 
+    @Test
+    void 目标里的长期偏好会写入个人记忆且重复确认不重复写() {
+        AssistantResponse start = orchestrator.start(new StartRequest(
+                "今晚九点去北门菜鸟驿站帮我取3个快递，预算8元，希望以后还能联系同一个人", Map.of()));
+        assertThat(start.card().kind()).isEqualTo("comparison");
+        assertThat(start.notes()).anyMatch(n -> n.contains("个人记忆"));
+        assertThat(start.card().blocks()).anyMatch(block -> "Choice".equals(block.type())
+                && block.options().stream().anyMatch(option -> "same-person".equals(option.id())));
+
+        AssistantResponse confirmation = orchestrator.select(start.sessionId(), "same-person");
+        AssistantResponse created = orchestrator.confirm(
+                start.sessionId(), confirmation.card().token().value(), "idem-memory");
+        assertThat(created.outcome()).isEqualTo("OK");
+        assertThat(created.notes()).anyMatch(n -> n.contains("已记入个人记忆"));
+        assertThat(memoryService.list(1)).hasSize(1);
+        assertThat(memoryService.list(1).get(0).type()).isEqualTo(MemoryType.DECLARED);
+        assertThat(memoryService.list(1).get(0).value()).contains("同一个人");
+
+        orchestrator.confirm(start.sessionId(), confirmation.card().token().value(), "idem-memory");
+        assertThat(memoryService.list(1)).hasSize(1);
+
+        AssistantResponse second = orchestrator.start(new StartRequest("帮我取个快递", Map.of()));
+        assertThat(second.notes()).anyMatch(n -> n.contains("我记得你之前说过"));
+    }
+
     private AssistantResponse answerAllRounds(AssistantResponse start) {
         AssistantResponse current = start;
         for (int round = 0; round < 4 && "clarification".equals(current.card().kind()); round++) {
@@ -205,6 +234,7 @@ class AgentFlowTest {
                 new SchemaValidator(),
                 events,
                 streamEvents,
+                memoryService,
                 AiFixture.CLOCK);
     }
 }

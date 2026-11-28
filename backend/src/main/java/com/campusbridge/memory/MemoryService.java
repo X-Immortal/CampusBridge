@@ -19,8 +19,16 @@ public class MemoryService {
         return store.add(ownerId, type, value, expiresAt);
     }
 
+    public PersonalMemory addIfAbsent(long ownerId, MemoryType type, String value) {
+        return store.addIfAbsent(ownerId, type, value);
+    }
+
     public List<PersonalMemory> list(long ownerId) {
         return store.list(ownerId);
+    }
+
+    public PersonalMemory update(long ownerId, UUID id, String value, Instant expiresAt) {
+        return store.update(ownerId, id, value, expiresAt);
     }
 
     public boolean delete(long ownerId, UUID id) {

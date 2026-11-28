@@ -51,12 +51,38 @@
 - `ai_event.trace_id/session_id` 关联会话、澄清、模型降级和工具阶段。卡片来自助手当前会话草稿。确认发生在建单之前，建单结果再向会话返回任务 ID。
 - `conversations.related_id → tasks.id`（`related_type = 'TASK'`），`messages.conversation_id → conversations.id`。这条沟通链用于 1.0 任务协作，访问以会话参与关系为准。
 
+## 交互全过程事件（16 类）
+
+助手链路的业务事件由 `EventRecorder` 统一写内存环和 `ai_event` 表；每条 payload 由 `VersionInfo` 补
+`modelVersion / ontologyVersion / promptVersion / schemaVersion / toolVersion`。口径是 **16 个业务事件 + `model.*` 网关事件 + 5 种流事件**。
+
+| # | 课件阶段 | 事件名 | 触发点 |
+|---|---|---|---|
+| 1 | 目标表达 | `session.started` | `AgentOrchestrator.start`，带 `requesterId/goalLength/memoryCount` |
+| 2 | 意图假设 | `understanding.applied` | 应用模型理解后，带 `intent/confidence/slotCount/declaredCount` |
+| 3 | 澄清 | `clarify.asked` | `advance`，带待补字段列表 |
+| 4 | 纠正/回答 | `clarify.answered` | `answer`，逐字段记录 |
+| 5 | 无效回答 | `answer.rejected` | 字段不在受控词汇表时 |
+| 6 | 确认卡生成 | `confirmation.issued` | `select`，带 `option/taskVersion/paramDigest` |
+| 7 | 卡片操作 | `confirm.requested` | `confirm` 入口，带 `taskVersion` |
+| 8 | 重复确认 | `confirm.replay` | 已建单会话再次确认 |
+| 9 | 规则/Schema 拒绝 | `policy.rejected` | `ToolGateway`，带违规 `rules` |
+| 10 | 工具请求 | `tool.request` | `ToolGateway.execute` |
+| 11 | 工具拒绝 | `tool.denied` | 令牌/策略拒绝 |
+| 12 | 工具失败 | `tool.failure` | 业务端口异常 |
+| 13 | 工具成功 | `tool.success` | 建单成功，带 `taskId` |
+| 14 | 幂等补偿 | `tool.idempotent.replay` | 同一 `idempotencyKey` 重放 |
+| 15 | 任务创建 | `task.created` | 确认成功，带 `taskId/replay/memoryWritten` |
+| 16 | 放弃/撤销 | `session.cancelled` | 用户取消会话 |
+
+**边界说明**：任务完成由 1.0 的完成接口维护，助手不重复记 `task.completed`；人工接管本版本未实现，答辩时按“不做”说明。Schema 生成走流事件 `schema.card`，渲染在客户端白名单校验之后，拒绝走 `policy.rejected` / `answer.rejected`。`model.*` 网关事件见 `docs/M3-slo-loadtest.md` 第四节。
+
 ## 个人记忆
 
-| 类型 | 创建条件 | 读取与撤回 |
+| 类型 | 创建条件 | 读取、修改与撤回 |
 |---|---|---|
-| `DECLARED` | 用户明确声明，服务存储原值 | 按所有者读取、删除 |
-| `INFERRED` | 类型固定派生 `inferred=true`，随对象序列化 | 按所有者读取、删除，集成界面应显示“推测偏好” |
+| `DECLARED` | 用户明确声明，服务存储原值 | 按所有者读取、改值、删除 |
+| `INFERRED` | 类型固定派生 `inferred=true`，随对象序列化 | 按所有者读取、改值、删除，集成界面应显示“推测偏好” |
 | `TEMPORARY` | 必须提供未来的 `expiresAt` | 到期时不可读或撤回，访问时及每分钟清理 |
 
 集成时通过启动参数 `--memory.http.enabled=true` 启用 HTTP，默认关闭。现有 Spring Security 默认认证规则适用于这些端点。所有者由 JWT 认证主体决定，请求携带的 `userId` 必须与其一致。
@@ -65,6 +91,11 @@
 |---|---|
 | `GET /api/memory?userId=` | `userId` 可省略，成功返回当前用户的记忆列表 |
 | `POST /api/memory` | JSON 包含 `type`、`value`，可携带 `userId`。临时记忆须有未来的 ISO 8601 `expiresAt`，创建成功返回 201 及记忆对象 |
+| `PUT /api/memory/{id}` | 所有者修改 `value`；临时记忆可同时续 `expiresAt`，声明/推测记忆不接受过期时间 |
 | `DELETE /api/memory/{id}` | 所有者撤回时返回 204。ID 不存在或归属他人时返回 404 |
 
-记忆存储 4 项与 HTTP 集成 3 项均通过。HTTP 集成覆盖匿名请求拒绝、所有者读写、跨账号拒绝与临时到期必填。后端定向验收命令为 `cd backend; mvn -o -q "-Dtest=MemoryStoreTest,MemoryControllerIntegrationTest" test`。
+个人记忆只按所有者读写，不进入任务列表/详情等公开投影，也不在未认证接口暴露；`userId` 参数必须与 JWT 主体一致。
+
+助手链路已经接入个人记忆：会话开始时读取当前用户的记忆并在响应 `notes` 里召回（例如“我记得你之前说过：希望以后联系同一个人”）；目标或回答里出现“以后联系同一个人”时，比较卡会多出“只找上次那位”选项，确认建单后写入一条 `DECLARED` 记忆，重复确认不会重复写。这样 M4 现场挑战里的“希望以后还能联系同一个人”不再被丢掉。
+
+记忆存储 6 项、HTTP 集成 4 项与 Agent 记忆流程 1 项均通过。HTTP 集成覆盖匿名请求拒绝、所有者读写、跨账号拒绝、临时到期必填与 PUT 修改；Agent 流程覆盖“写入—重复确认不重复写—新会话召回”。后端定向验收命令为 `cd backend; mvn -o -q "-Dtest=AgentFlowTest,MemoryStoreTest,MemoryControllerIntegrationTest" test`。

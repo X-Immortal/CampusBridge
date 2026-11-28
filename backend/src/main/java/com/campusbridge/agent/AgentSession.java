@@ -34,6 +34,7 @@ public final class AgentSession {
     private List<String> assumptions = new ArrayList<>();
     private String modelMode = "rule";
     private boolean degraded;
+    private boolean preferSamePerson;
     private List<ClarificationQuestion> questions = List.of();
     private String selectedOptionId;
     private String tokenValue;
@@ -121,6 +122,14 @@ public final class AgentSession {
 
     public void setDegraded(boolean degraded) {
         this.degraded = degraded;
+    }
+
+    public boolean preferSamePerson() {
+        return preferSamePerson;
+    }
+
+    public void setPreferSamePerson(boolean preferSamePerson) {
+        this.preferSamePerson = preferSamePerson;
     }
 
     public List<ClarificationQuestion> questions() {

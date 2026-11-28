@@ -3,6 +3,7 @@ package com.campusbridge.memory;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -91,5 +92,39 @@ class MemoryControllerIntegrationTest {
                                 {"type":"TEMPORARY","value":"临时地点"}
                                 """))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void ownerCanUpdateDeclaredMemory() throws Exception {
+        String owner = "Bearer " + jwt.generateToken(1L, "USER");
+        String response = mvc.perform(post("/api/memory")
+                        .header(HttpHeaders.AUTHORIZATION, owner)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"type":"DECLARED","value":"偏好站内联系"}
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String id = json.readTree(response).get("id").asText();
+
+        mvc.perform(put("/api/memory/{id}", id)
+                        .header(HttpHeaders.AUTHORIZATION, owner)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"value":"只接受站内联系"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.value").value("只接受站内联系"));
+
+        mvc.perform(put("/api/memory/{id}", id)
+                        .header(HttpHeaders.AUTHORIZATION, owner)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"value":""}
+                                """))
+                .andExpect(status().isBadRequest());
+
+        mvc.perform(delete("/api/memory/{id}", id).header(HttpHeaders.AUTHORIZATION, owner))
+                .andExpect(status().isNoContent());
     }
 }

@@ -11,6 +11,9 @@ import com.campusbridge.events.StreamEventLog;
 import com.campusbridge.gateway.model.ModelGateway;
 import com.campusbridge.gateway.model.ModelResult;
 import com.campusbridge.gateway.model.ModelUnderstanding;
+import com.campusbridge.memory.MemoryService;
+import com.campusbridge.memory.MemoryType;
+import com.campusbridge.memory.PersonalMemory;
 import com.campusbridge.policy.PolicyContext;
 import com.campusbridge.policy.PolicyEngine;
 import com.campusbridge.policy.PolicyResult;
@@ -54,6 +57,7 @@ public class AgentOrchestrator {
     private final SchemaValidator schemaValidator;
     private final EventRecorder events;
     private final StreamEventLog streamEvents;
+    private final MemoryService memoryService;
     private final Clock clock;
 
     public AgentOrchestrator(
@@ -67,6 +71,7 @@ public class AgentOrchestrator {
             SchemaValidator schemaValidator,
             EventRecorder events,
             StreamEventLog streamEvents,
+            MemoryService memoryService,
             Clock clock) {
         this.modelGateway = modelGateway;
         this.clarificationPolicy = clarificationPolicy;
@@ -78,6 +83,7 @@ public class AgentOrchestrator {
         this.schemaValidator = schemaValidator;
         this.events = events;
         this.streamEvents = streamEvents;
+        this.memoryService = memoryService;
         this.clock = clock;
     }
 
@@ -96,10 +102,13 @@ public class AgentOrchestrator {
         AgentSession session = new AgentSession(
                 "s-" + shortId(), traceId, requesterId, clock.instant());
         session.draft().put(DraftField.GOAL, request.goal().trim(), TaskDraft.Source.USER);
+        session.setPreferSamePerson(prefersSamePerson(request.goal()));
         sessions.save(session);
+        List<PersonalMemory> memories = memoryService.list(requesterId);
         events.record("session.started", traceId, session.id(), Map.of(
                 "requesterId", String.valueOf(requesterId),
-                "goalLength", request.goal().length()));
+                "goalLength", request.goal().length(),
+                "memoryCount", memories.size()));
 
         ModelResult modelResult = modelGateway.understand(request.goal(), context, traceId, session.id());
         applyUnderstanding(session, modelResult);
@@ -107,9 +116,25 @@ public class AgentOrchestrator {
                 "mode", modelResult.mode(),
                 "degraded", modelResult.degraded(),
                 "slotCount", session.draft().filledKeys().size(),
-                "declaredCount", modelResult.understanding().declaredFields().size()));
+                "declaredCount", modelResult.understanding().declaredFields().size(),
+                "memoryCount", memories.size()));
 
-        return emit(session, advance(session, modelResult.mode(), modelResult.notes()));
+        List<String> notes = new ArrayList<>(modelResult.notes());
+        if (!memories.isEmpty()) {
+            List<String> recalled = new ArrayList<>();
+            for (PersonalMemory memory : memories) {
+                if (recalled.size() == 2) {
+                    break;
+                }
+                recalled.add(memory.value());
+            }
+            notes.add("我记得你之前说过：" + String.join("；", recalled)
+                    + (memories.size() > 2 ? " 等 " + memories.size() + " 条" : ""));
+        }
+        if (session.preferSamePerson()) {
+            notes.add("你在目标里说希望以后联系同一个人；确认建单后会记入个人记忆（可撤回）");
+        }
+        return emit(session, advance(session, modelResult.mode(), notes));
     }
 
     private void applyUnderstanding(AgentSession session, ModelResult modelResult) {
@@ -154,6 +179,9 @@ public class AgentOrchestrator {
                     continue;
                 }
                 session.draft().answer(field, input.value());
+                if (input.value() != null && prefersSamePerson(String.valueOf(input.value()))) {
+                    session.setPreferSamePerson(true);
+                }
                 events.record("clarify.answered", session.traceId(), session.id(),
                         Map.of("field", field.key()));
             }
@@ -231,10 +259,22 @@ public class AgentOrchestrator {
                 session.setState(AgentSession.CREATED);
                 UiCard card = progressCard(session, "已发布", "done",
                         result.replay() ? "幂等命中：这是同一张卡重复提交，订单只有一张。" : "任务已写入业务库。");
-                events.record("task.created", session.traceId(), session.id(), Map.of(
-                        "taskId", String.valueOf(result.taskId()),
-                        "replay", result.replay()));
-                return emit(session, respond(session, card, List.of(), List.of(result.message())));
+                List<String> notes = new ArrayList<>();
+                notes.add(result.message());
+                boolean memoryWritten = false;
+                if (session.preferSamePerson() && !result.replay()) {
+                    PersonalMemory memory = memoryService.addIfAbsent(
+                            session.requesterId(), MemoryType.DECLARED,
+                            "希望以后联系同一个人（来自任务目标）");
+                    notes.add("已记入个人记忆：" + memory.value() + "（可在个人记忆里撤回）");
+                    memoryWritten = true;
+                }
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("taskId", String.valueOf(result.taskId()));
+                payload.put("replay", result.replay());
+                payload.put("memoryWritten", memoryWritten);
+                events.record("task.created", session.traceId(), session.id(), payload);
+                return emit(session, respond(session, card, List.of(), notes));
             }
 
             session.setState(AgentSession.AWAITING_CONFIRMATION);
@@ -298,7 +338,7 @@ public class AgentOrchestrator {
             session.setState(AgentSession.PROPOSING);
             card = cardFactory.comparison(
                     session.nextCardId(), session.id(), draft.version(), draft,
-                    optionsFor(draft), warnings, generatedBy);
+                    optionsFor(session), warnings, generatedBy);
         }
         List<String> merged = new ArrayList<>(notes);
         if (session.degraded()) {
@@ -360,7 +400,9 @@ public class AgentOrchestrator {
         return "正在处理。";
     }
 
-    private List<ChoiceOption> optionsFor(TaskDraft draft) {        List<ChoiceOption> options = new ArrayList<>();
+    private List<ChoiceOption> optionsFor(AgentSession session) {
+        TaskDraft draft = session.draft();
+        List<ChoiceOption> options = new ArrayList<>();
         if ("FRIEND_FIRST".equalsIgnoreCase(draft.text(DraftField.CONTACT_PREFERENCE))) {
             options.add(new ChoiceOption("friend", "熟人优先", "先问你以前合作过的人，回得慢一点但更放心"));
             options.add(new ChoiceOption("now", "立即匹配", "对全网开放，最快被接单，但可能是陌生同学"));
@@ -373,6 +415,10 @@ public class AgentOrchestrator {
             options.add(new ChoiceOption("split", "拆成多单", "每单一件更容易被顺路的人接走"));
         } else {
             options.add(new ChoiceOption("scheduled", "约到时间再匹配", "到点前 30 分钟再发，减少等待"));
+        }
+        if (session.preferSamePerson()) {
+            options.add(new ChoiceOption("same-person", "只找上次那位",
+                    "按你说的，优先联系同一个人；回得慢但更省心"));
         }
         return options;
     }
@@ -447,6 +493,22 @@ public class AgentOrchestrator {
             }
         }
         return 1L;
+    }
+
+    /**
+     * 目标里有没有「以后还找同一个人 / 下次还联系」这类长期偏好。
+     *
+     * <p>只在用户原话明确提到「同一个人」时才记，避免把「同一个快递点」误判成服务者偏好。</p>
+     */
+    static boolean prefersSamePerson(String goal) {
+        if (goal == null || goal.isBlank()) {
+            return false;
+        }
+        String text = goal.replaceAll("\\s+", "");
+        if (text.contains("同一个人") || text.contains("同一位") || text.contains("同一个同学")) {
+            return true;
+        }
+        return text.matches(".*(以后|下次|之后|往后).{0,12}(还|再).{0,6}(找|联系|约|用).*");
     }
 
     private String shortId() {

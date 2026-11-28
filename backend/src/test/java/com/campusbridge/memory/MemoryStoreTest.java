@@ -55,6 +55,27 @@ class MemoryStoreTest {
     }
 
     @Test
+    void declaredMemoryCanBeUpdatedAndStaysWithOwner() {
+        PersonalMemory memory = service.add(1, MemoryType.DECLARED, "偏好站内联系", null);
+        PersonalMemory updated = service.update(1, memory.id(), "只接受站内联系", null);
+        assertThat(updated).isNotNull();
+        assertThat(updated.value()).isEqualTo("只接受站内联系");
+        assertThat(service.list(1)).containsExactly(updated);
+        assertThat(service.update(2, memory.id(), "别人改的", null)).isNull();
+        assertThatIllegalArgumentException()
+                .isThrownBy(() -> service.update(1, memory.id(), "声明不能带过期时间", NOW.plusSeconds(60)));
+    }
+
+    @Test
+    void temporaryMemoryCanBeRenewed() {
+        PersonalMemory memory = service.add(1, MemoryType.TEMPORARY, "本次地点", NOW.plusSeconds(60));
+        PersonalMemory renewed = service.update(1, memory.id(), "本次地点（续期）", NOW.plusSeconds(120));
+        assertThat(renewed).isNotNull();
+        assertThat(renewed.expiresAt()).isEqualTo(NOW.plusSeconds(120));
+        assertThat(service.list(1)).containsExactly(renewed);
+    }
+
+    @Test
     void rejectsMissingExpiredOrInapplicableExpiry() {
         assertThatIllegalArgumentException()
                 .isThrownBy(() -> service.add(1, MemoryType.TEMPORARY, "上下文", null));

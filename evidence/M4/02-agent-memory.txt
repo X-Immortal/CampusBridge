@@ -1,0 +1,9 @@
+﻿START 200 state=CLARIFYING card=clarification
+NOTES ["我记得你之前说过：希望以后联系同一个人（来自任务目标）","你在目标里说希望以后联系同一个人；确认建单后会记入个人记忆（可撤回）"]
+OPTIONS []
+ -> 200 state=PROPOSING card=comparison notes=[]
+OPTIONS AFTER CLARIFY ["friend:熟人优先","now:立即匹配","split:拆成多单","same-person:只找上次那位"]
+SELECT same-person
+ -> 200 state=AWAITING_CONFIRMATION card=confirmation
+CONFIRM 200 outcome=OK taskId=2 notes=["已创建任务 #2","已记入个人记忆：希望以后联系同一个人（来自任务目标）（可在个人记忆里撤回）"]
+RECALL 200 notes=["我记得你之前说过：希望以后联系同一个人（来自任务目标）"]

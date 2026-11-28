@@ -1,0 +1,26 @@
+M4 回归测试记录（2026-11-28）
+
+1) 后端全量
+   cd backend
+   mvn -o test
+   结果：Tests run: 304, Failures: 0, Errors: 0, Skipped: 40
+         BUILD SUCCESS
+
+2) 契约 / transport / domain
+   cd contract
+   npm run check
+   结果：23/23 pass，0 fail
+
+3) M4 定向
+   cd backend
+   mvn -o -q "-Dtest=AgentFlowTest,MemoryStoreTest,MemoryControllerIntegrationTest" test
+   结果：AgentFlowTest 6、MemoryStoreTest 6、MemoryControllerIntegrationTest 4，全部 0 失败
+
+4) 40 条评测
+   cd evals
+   node run.mjs --live http://127.0.0.1:8081
+   结果：40/40 通过（报告 evals/reports/run-2026-11-23T06-28-35-671Z.json）
+
+5) 三个故障
+   node evals/faults/run-faults.mjs --base http://127.0.0.1:8081
+   结果：3/3 PASS（模型降级 / 重复工具调用 / 流中断重连）
