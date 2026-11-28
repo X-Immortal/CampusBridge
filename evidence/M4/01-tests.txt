@@ -16,11 +16,11 @@ M4 回归测试记录（2026-11-28）
    mvn -o -q "-Dtest=AgentFlowTest,MemoryStoreTest,MemoryControllerIntegrationTest" test
    结果：AgentFlowTest 6、MemoryStoreTest 6、MemoryControllerIntegrationTest 4，全部 0 失败
 
-4) 40 条评测
+4) 40 条评测（2026-11-28 复跑）
    cd evals
    node run.mjs --live http://127.0.0.1:8081
-   结果：40/40 通过（报告 evals/reports/run-2026-11-23T06-28-35-671Z.json）
+   结果：40/40 通过（报告 evals/reports/run-2026-11-28T07-11-44-488Z.json）
 
-5) 三个故障
+5) 三个故障（2026-11-28 复跑）
    node evals/faults/run-faults.mjs --base http://127.0.0.1:8081
    结果：3/3 PASS（模型降级 / 重复工具调用 / 流中断重连）
