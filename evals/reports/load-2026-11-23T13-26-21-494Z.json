@@ -1,0 +1,28 @@
+{
+  "base": "http://127.0.0.1:8081",
+  "at": "2026-11-23T13:26:20.767Z",
+  "scenarios": {
+    "stream": {
+      "scenario": "stream",
+      "concurrency": 60,
+      "endpoint": "GET /api/stream（SSE 长连接）",
+      "units": 60,
+      "success": 60,
+      "failures": 0,
+      "errorRate": 0,
+      "throughputPerSec": 845.1,
+      "latencyMs": {
+        "min": 8,
+        "p50": 35,
+        "p95": 55,
+        "p99": 56,
+        "max": 56,
+        "avg": 36.3
+      },
+      "wallMs": 71,
+      "totalEvents": 840,
+      "avgEvents": 14,
+      "endedCount": 60
+    }
+  }
+}

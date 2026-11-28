@@ -1,0 +1,73 @@
+{
+  "base": "http://127.0.0.1:8081",
+  "at": "2026-11-23T13:05:48.129Z",
+  "scenarios": {
+    "assistant": {
+      "scenario": "assistant",
+      "concurrency": 50,
+      "endpoint": "POST /api/assistant（完整链路）",
+      "units": 50,
+      "success": 50,
+      "failures": 0,
+      "errorRate": 0,
+      "throughputPerSec": 71.4,
+      "latencyMs": {
+        "min": 419,
+        "p50": 610,
+        "p95": 657,
+        "p99": 660,
+        "max": 660,
+        "avg": 588
+      },
+      "wallMs": 700
+    },
+    "stream": {
+      "scenario": "stream",
+      "concurrency": 20,
+      "endpoint": "GET /api/stream（SSE 长连接）",
+      "units": 20,
+      "success": 20,
+      "failures": 0,
+      "errorRate": 0,
+      "throughputPerSec": 714.3,
+      "latencyMs": {
+        "min": 9,
+        "p50": 19,
+        "p95": 22,
+        "p99": 22,
+        "max": 22,
+        "avg": 17.3
+      },
+      "wallMs": 28,
+      "totalEvents": 280,
+      "avgEvents": 14,
+      "endedCount": 20
+    },
+    "idempotency": {
+      "scenario": "idempotency",
+      "concurrency": 10,
+      "endpoint": "POST .../confirm（同幂等键重复）",
+      "units": 10,
+      "success": 10,
+      "failures": 0,
+      "errorRate": 0,
+      "throughputPerSec": 526.3,
+      "latencyMs": {
+        "min": 11,
+        "p50": 14,
+        "p95": 18,
+        "p99": 18,
+        "max": 18,
+        "avg": 14.8
+      },
+      "wallMs": 19,
+      "repeats": 10,
+      "taskIdCount": 1,
+      "taskIds": [
+        122
+      ],
+      "passed": true,
+      "assertion": "✅ 同一幂等键只产生一个 taskId"
+    }
+  }
+}
